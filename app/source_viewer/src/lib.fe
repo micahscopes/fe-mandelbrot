@@ -65,10 +65,18 @@ use source_inspector::{
     CONTENT_CAPACITY,
     CONTROL_CAPACITY,
 }
+use ingot::highlight::{
+    Document,
+    Token,
+    TokenKind,
+    document,
+    next,
+}
 
 const VIEW_CAPACITY: usize = 384
 const PATCH_CAPACITY: u32 = 2097152
 const GUTTER_CAPACITY: u32 = 65536
+const MAX_HIGHLIGHTED_RUNS: u32 = 8191
 
 struct SourceToken {}
 struct Ty {}
@@ -286,6 +294,26 @@ fn filename(_ url: Utf8View) -> BrowserString {
     url.slice(start: start, end: url.len()).view.browser_string()
 }
 
+fn write_run(
+    writer: ComponentWriter,
+    ui: SourceParts,
+    key: u32,
+    text: own BrowserString,
+    kind: TokenKind,
+) -> ComponentWriter {
+    writer
+        .repeat_item(key: key)
+        .set_text(target: ui.token, value: text)
+        .set_class(target: ui.token, token: ui.ty, enabled: kind.is_type_name())
+        .set_class(target: ui.token, token: ui.function, enabled: kind.is_function())
+        .set_class(target: ui.token, token: ui.property, enabled: kind.is_property())
+        .set_class(target: ui.token, token: ui.variable, enabled: kind.is_variable())
+        .set_class(target: ui.token, token: ui.keyword, enabled: kind.is_keyword())
+        .set_class(target: ui.token, token: ui.comment, enabled: kind.is_comment())
+        .set_class(target: ui.token, token: ui.string, enabled: kind.is_string())
+        .set_class(target: ui.token, token: ui.number, enabled: kind.is_number())
+}
+
 actor FeSourceViewer {
     state: SourceState,
 
@@ -500,25 +528,22 @@ actor FeSourceViewer {
         }
         writer = writer.repeat_begin(region: ui.code)
         if ready {
-            let doc = ingot::highlight::document(content)
+            let doc: Document = document(content)
             let mut at: u32 = 0
             let mut tokens: u32 = 0
             while at < doc.text.len() {
-                let token = if tokens >= 8191 {
-                    ingot::highlight::Token { end: doc.text.len(), kind: 0 }
+                let token = if tokens >= MAX_HIGHLIGHTED_RUNS {
+                    Token::plain_tail(doc.text.len())
                 } else {
-                    ingot::highlight::next(doc, at)
+                    next(doc, at)
                 }
-                writer = writer.repeat_item(key: at + 1)
-                    .set_text(target: ui.token, value: doc.text.slice(start: at, end: token.end).view.browser_string())
-                    .set_class(target: ui.token, token: ui.ty, enabled: token.kind == 1)
-                    .set_class(target: ui.token, token: ui.function, enabled: token.kind == 2)
-                    .set_class(target: ui.token, token: ui.property, enabled: token.kind == 3)
-                    .set_class(target: ui.token, token: ui.variable, enabled: token.kind == 4)
-                    .set_class(target: ui.token, token: ui.keyword, enabled: token.kind == 5)
-                    .set_class(target: ui.token, token: ui.comment, enabled: token.kind == 6)
-                    .set_class(target: ui.token, token: ui.string, enabled: token.kind == 7)
-                    .set_class(target: ui.token, token: ui.number, enabled: token.kind == 8)
+                writer = write_run(
+                    writer: writer,
+                    ui: ui,
+                    key: at + 1,
+                    text: doc.text.slice(start: at, end: token.end).view.browser_string(),
+                    kind: token.kind,
+                )
                 at = token.end
                 tokens = tokens + 1
             }
