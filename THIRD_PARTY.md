@@ -8,5 +8,6 @@ exposes its existing load helpers and capacities for the standalone Fe viewer.
 
 The renderer and viewer were extracted from the Fe local demo-recovery branch
 at `8a82c224f`, then extended here. Generated GPU/Wasm/browser adapters under
-`artifacts` are emitted by the pinned Fe compiler with the supplied generic CSS
-parts patch. They are not hand-edited.
+`artifacts` are emitted by the pinned Fe compiler with the supplied generic runtime
+patches. The build script mirrors the Wasm channel-order correction when using
+an older compiler; no application logic is added to the host adapter.

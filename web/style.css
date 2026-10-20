@@ -22,4 +22,4 @@ a:hover,button:hover{background:#293042da}
 a:focus-visible,button:focus-visible{outline:2px solid oklch(82% .1 290);outline-offset:3px}
 #status{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);padding:12px 18px;background:#10151deb;border-radius:12px;max-width:min(440px,80vw)}
 #status[hidden]{display:none}
-@media(max-width:480px){nav{left:10px;right:10px;top:10px;gap:5px}.brand{font-size:12px;padding:8px}a,button{font-size:12px;padding:8px}fe-surface::part(side){bottom:calc((100% - 100dvh)/2 + 12px)}}
+@media(max-width:480px){.brand{display:none}nav{justify-content:flex-end;left:10px;right:10px;top:10px;gap:5px}.brand{font-size:12px;padding:8px}a,button{font-size:12px;padding:8px}fe-surface::part(side){bottom:calc((100% - 100dvh)/2 + 12px)}}

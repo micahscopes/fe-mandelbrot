@@ -16,10 +16,10 @@ def prepare():
     cargo=tomllib.loads((source/'Cargo.toml').read_text())
     for name in ['sonatina-ir','sonatina-triple','sonatina-codegen','sonatina-verifier']:
         assert cargo['workspace']['dependencies'][name]['rev']==lock['sonatina']['revision'],f'{name} revision mismatch'
-    patch=ROOT/'toolchain/patches/control-parts.patch'
-    reverse=subprocess.run(['git','-C',str(source),'apply','--reverse','--check',str(patch)],capture_output=True)
-    if reverse.returncode:
-        run('git','-C',str(source),'apply','--check',str(patch));run('git','-C',str(source),'apply',str(patch))
+    for patch in sorted((ROOT/'toolchain/patches').glob('*.patch')):
+        reverse=subprocess.run(['git','-C',str(source),'apply','--reverse','--check',str(patch)],capture_output=True)
+        if reverse.returncode:
+            run('git','-C',str(source),'apply','--check',str(patch));run('git','-C',str(source),'apply',str(patch))
     changed=output('git','-C',str(source),'diff','--name-only').splitlines()
     assert changed==['crates/codegen/assets/render-runtime/fe-render-runtime.js'],'Unexpected toolchain edits'
     return source,lock

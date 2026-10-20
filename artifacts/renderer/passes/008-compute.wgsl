@@ -280,19 +280,19 @@ fn anchor(a0_8: u32) -> FeLocal_fe_shader_private_layout_0_ {
 
     switch a0_8 {
         case 0u: {
-            local_19 = FeLocal_fe_shader_private_layout_0_(0.79f, 0.085f, 275f);
+            local_19 = FeLocal_fe_shader_private_layout_0_(0.58f, 0.215f, 275f);
         }
         case 1u: {
-            local_19 = FeLocal_fe_shader_private_layout_0_(0.86f, 0.075f, 335f);
+            local_19 = FeLocal_fe_shader_private_layout_0_(0.65f, 0.24f, 335f);
         }
         case 2u: {
-            local_19 = FeLocal_fe_shader_private_layout_0_(0.88f, 0.075f, 65f);
+            local_19 = FeLocal_fe_shader_private_layout_0_(0.78f, 0.155f, 65f);
         }
         case 3u: {
-            local_19 = FeLocal_fe_shader_private_layout_0_(0.86f, 0.075f, 165f);
+            local_19 = FeLocal_fe_shader_private_layout_0_(0.73f, 0.142f, 165f);
         }
         default: {
-            local_19 = FeLocal_fe_shader_private_layout_0_(0.81f, 0.075f, 235f);
+            local_19 = FeLocal_fe_shader_private_layout_0_(0.65f, 0.127f, 235f);
         }
     }
     let _e29 = local_19;
@@ -321,7 +321,14 @@ fn cos_(a0_12: f32) -> f32 {
     return _e3;
 }
 
-fn escape_palette(a0_13: u32, a1_2: f32, fe_trapped_2: ptr<function, bool>) -> u32 {
+fn oklch(a0_13: f32, a1_2: f32, a2_1: f32) -> FeLocal_fe_shader_private_layout_0_ {
+    let _e4 = (a2_1 * 0.017453292f);
+    let _e5 = cos_(_e4);
+    let _e7 = sin_(_e4);
+    return FeLocal_fe_shader_private_layout_0_(a0_13, (a1_2 * _e5), (a1_2 * _e7));
+}
+
+fn escape_palette(a0_14: u32, a1_3: f32, fe_trapped_2: ptr<function, bool>) -> u32 {
     var local_20: u32;
     var local_21: bool = false;
     var local_22: u32 = u32();
@@ -329,8 +336,8 @@ fn escape_palette(a0_13: u32, a1_2: f32, fe_trapped_2: ptr<function, bool>) -> u
     var local_24: bool = false;
     var local_25: f32 = f32();
 
-    let _e5 = from_i32_(a0_13);
-    let _e11 = fract_(((_e5 + (4f / a1_2)) / 256f));
+    let _e5 = from_i32_(a0_14);
+    let _e11 = fract_(((_e5 + (4f / a1_3)) / 256f));
     let _e13 = (_e11 * 5f);
     let _e14 = to_i32_(_e13);
     let _e15 = from_i32_(_e14);
@@ -359,12 +366,9 @@ fn escape_palette(a0_13: u32, a1_2: f32, fe_trapped_2: ptr<function, bool>) -> u
         }
     }
     let _e57 = local_25;
-    let _e62 = ((_e23.f2_ + (_e57 * _e22)) * 0.017453292f);
-    let _e68 = (_e23.f1_ + ((_e41.f1_ - _e23.f1_) * _e22));
-    let _e75 = cos_(_e62);
-    let _e77 = sin_(_e62);
-    let _e80 = packed(FeLocal_fe_shader_private_layout_0_((_e23.f0_ + ((_e41.f0_ - _e23.f0_) * _e22)), (_e68 * _e75), (_e68 * _e77)));
-    return _e80;
+    let _e73 = oklch((_e23.f0_ + ((_e41.f0_ - _e23.f0_) * _e22)), (_e23.f1_ + ((_e41.f1_ - _e23.f1_) * _e22)), (_e23.f2_ + (_e57 * _e22)));
+    let _e74 = packed(_e73);
+    return _e74;
 }
 
 fn interior() -> u32 {
@@ -372,17 +376,17 @@ fn interior() -> u32 {
     return _e4;
 }
 
-fn progress_color(a0_14: FeLocal_fe_shader_private_layout_1_, fe_trapped_3: ptr<function, bool>) -> u32 {
+fn progress_color(a0_15: FeLocal_fe_shader_private_layout_1_, fe_trapped_3: ptr<function, bool>) -> u32 {
     var local_26: u32;
     var local_27: bool = false;
     var local_28: u32 = u32();
 
-    if (((a0_14.f4_ & 1073741824u) == 0u) == false) {
+    if (((a0_15.f4_ & 1073741824u) == 0u) == false) {
         let _e11 = glitch();
         local_28 = _e11;
     } else {
-        if (((a0_14.f4_ & 2147483648u) == 0u) == false) {
-            let _e21 = escape_palette(a0_14.f5_, a0_14.f7_, fe_trapped_3);
+        if (((a0_15.f4_ & 2147483648u) == 0u) == false) {
+            let _e21 = escape_palette(a0_15.f5_, a0_15.f7_, fe_trapped_3);
             local_28 = _e21;
         } else {
             let _e22 = interior();
@@ -393,13 +397,13 @@ fn progress_color(a0_14: FeLocal_fe_shader_private_layout_1_, fe_trapped_3: ptr<
     return _e27;
 }
 
-fn phase_order_rect(a0_15: u32, a1_3: u32, a2_1: u32, a3_: u32, a4_: u32, fe_trapped_4: ptr<function, bool>) -> u32 {
+fn phase_order_rect(a0_16: u32, a1_4: u32, a2_2: u32, a3_: u32, a4_: u32, fe_trapped_4: ptr<function, bool>) -> u32 {
     var local_29: u32;
     var local_30: bool = false;
     var local_31: u32 = u32();
 
-    let _e7 = from_i32_(a1_3);
-    let _e10 = from_i32_(a2_1);
+    let _e7 = from_i32_(a1_4);
+    let _e10 = from_i32_(a2_2);
     let _e13 = ((_e7 * 0.06711056f) + (_e10 * 0.00583715f));
     let _e14 = to_i32_(_e13);
     let _e15 = from_i32_(_e14);
@@ -422,9 +426,9 @@ fn phase_order_rect(a0_15: u32, a1_3: u32, a2_1: u32, a3_: u32, a4_: u32, fe_tra
             }
         }
         let _e47 = local_31;
-        let _e51 = (a0_15 * _e47);
-        let _e52 = (a0_15 != 0u);
-        if (_e52 && (_e47 > (4294967295u / select(1u, a0_15, _e52)))) {
+        let _e51 = (a0_16 * _e47);
+        let _e52 = (a0_16 != 0u);
+        if (_e52 && (_e47 > (4294967295u / select(1u, a0_16, _e52)))) {
         } else {
             if (_e51 > (4294967295u - _e34)) {
             } else {

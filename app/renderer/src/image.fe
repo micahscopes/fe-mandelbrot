@@ -1,7 +1,7 @@
 //! Color buffers, interpolation and a dense separable Gaussian filter.
 use std::webgpu::StorageBuffer as OrbitBuffer
 use ingot::cache::SampleOracle
-use fmath::{abs, floor, mix, sqrt, from_i32, to_i32}
+use fmath::{abs, floor, from_i32, to_i32}
 
 extern {
     const fn __bitcast<From, To>(_: From) -> To
@@ -16,8 +16,7 @@ fn clamp(_ value:f32,_ low:f32,_ high:f32) -> f32 {
     if value<low { low } else { if value>high { high } else { value } }
 }
 
-/// Cartesian OKLab: lightness L and signed chromatic axes a/b.
-pub struct Color { pub l: f32, pub a: f32, pub b: f32 }
+pub use perceptual_color::{Color,color,packed,rgba,blend}
 /// Keep a preview's numerical result with its color in the same GPU binding.
 pub struct PreviewSample {
     pub l:f32,pub a:f32,pub b:f32,
@@ -32,45 +31,6 @@ pub trait PixelColor { fn lab(self) -> Color }
 impl PixelColor for Color { fn lab(self) -> Color { self } }
 impl PixelColor for PreviewSample { fn lab(self) -> Color { Color { l:self.l,a:self.a,b:self.b } } }
 
-/// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.
-/// Signed chroma spans [-0.25,0.2495], with an exactly representable neutral.
-pub fn color(_ bits:u32) -> Color {
-    Color {l:from_i32(__bitcast<u32,i32>(bits&4095))/4095.0,
-        a:(from_i32(__bitcast<u32,i32>((bits>>12)&1023))-512.0)/2048.0,
-        b:(from_i32(__bitcast<u32,i32>((bits>>22)&1023))-512.0)/2048.0}
-}
-pub fn packed(_ c:Color) -> i32 {
-    let l:u32=__bitcast<i32,u32>(to_i32(clamp(c.l,0.0,1.0)*4095.0+0.5))
-    let a:u32=__bitcast<i32,u32>(to_i32(clamp(c.a*2048.0+512.0,0.0,1023.0)+0.5))
-    let b:u32=__bitcast<i32,u32>(to_i32(clamp(c.b*2048.0+512.0,0.0,1023.0)+0.5))
-    __bitcast<u32,i32>((l&4095)|((a&1023)<<12)|((b&1023)<<22))
-}
-// Ian Taylor's square-root sRGB approximation, with the exact linear toe.
-// Keeps transfer work at presentation, outside orbit and Gaussian loops.
-fn srgb(_ linear:f32) -> f32 {
-    let x:f32=clamp(linear,0.0,1.0)
-    if x<=0.0031308 {return 12.92*x}
-    let s1:f32=sqrt(x)
-    let s2:f32=sqrt(s1)
-    let s3:f32=sqrt(s2)
-    clamp(0.662002687*s1+0.684122060*s2-0.323583601*s3-0.022541147*x,0.0,1.0)
-}
-/// Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer.
-pub fn rgba(_ c:Color) -> i32 {
-    let lp:f32=c.l+0.3963377774*c.a+0.2158037573*c.b
-    let mp:f32=c.l-0.1055613458*c.a-0.0638541728*c.b
-    let sp:f32=c.l-0.0894841775*c.a-1.2914855480*c.b
-    let l:f32=lp*lp*lp
-    let m:f32=mp*mp*mp
-    let s:f32=sp*sp*sp
-    let r:u32=__bitcast<i32,u32>(to_i32(srgb(4.0767416621*l-3.3077115913*m+0.2309699292*s)*255.0+0.5))
-    let g:u32=__bitcast<i32,u32>(to_i32(srgb(-1.2684380046*l+2.6097574011*m-0.3413193965*s)*255.0+0.5))
-    let b:u32=__bitcast<i32,u32>(to_i32(srgb(-0.0041960863*l-0.7034186147*m+1.7076147010*s)*255.0+0.5))
-    __bitcast<u32,i32>((r&255)|((g&255)<<8)|((b&255)<<16)|4278190080)
-}
-pub fn blend(_ a: Color, _ b: Color, _ t: f32) -> Color {
-    Color { l: mix(a.l, b.l, t), a: mix(a.a, b.a, t), b: mix(a.b, b.b, t) }
-}
 pub fn contrast(_ a: Color, _ b: Color) -> f32 {
     max(2.0*abs(a.l-b.l),max(4.0*abs(a.a-b.a),4.0*abs(a.b-b.b)))
 }

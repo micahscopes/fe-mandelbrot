@@ -275,7 +275,7 @@ fn fmath_lib_mix_4d2b(a0_7: f32, a1_3: f32, a2_1: f32) -> f32 {
     return (a0_7 + ((a1_3 - a0_7) * a2_1));
 }
 
-fn perturbational_mandelbrot_smooth_lib_image_blend_0460_(a0_8: FeLocal_fe_shader_private_layout_5_, a1_4: FeLocal_fe_shader_private_layout_5_, a2_2: f32) -> FeLocal_fe_shader_private_layout_5_ {
+fn perceptual_color_lib_blend_5210_(a0_8: FeLocal_fe_shader_private_layout_5_, a1_4: FeLocal_fe_shader_private_layout_5_, a2_2: f32) -> FeLocal_fe_shader_private_layout_5_ {
     let _e5 = fmath_lib_mix_4d2b(a0_8.f0_, a1_4.f0_, a2_2);
     let _e8 = fmath_lib_mix_4d2b(a0_8.f1_, a1_4.f1_, a2_2);
     let _e11 = fmath_lib_mix_4d2b(a0_8.f2_, a1_4.f2_, a2_2);
@@ -299,13 +299,13 @@ fn sample_snapshot(a1_5: f32, a2_3: f32, a3_: f32) -> FeLocal_fe_shader_private_
     let _e42 = color(_e41);
     let _e48 = snapshot_pixels[i32(((_e15 << 11u) | _e21))];
     let _e49 = color(_e48);
-    let _e50 = perturbational_mandelbrot_smooth_lib_image_blend_0460_(_e42, _e49, _e31);
+    let _e50 = perceptual_color_lib_blend_5210_(_e42, _e49, _e31);
     let _e56 = snapshot_pixels[i32(((_e27 << 11u) | _e14))];
     let _e57 = color(_e56);
     let _e63 = snapshot_pixels[i32(((_e27 << 11u) | _e21))];
     let _e64 = color(_e63);
-    let _e65 = perturbational_mandelbrot_smooth_lib_image_blend_0460_(_e57, _e64, _e31);
-    let _e66 = perturbational_mandelbrot_smooth_lib_image_blend_0460_(_e50, _e65, _e35);
+    let _e65 = perceptual_color_lib_blend_5210_(_e57, _e64, _e31);
+    let _e66 = perceptual_color_lib_blend_5210_(_e50, _e65, _e35);
     return _e66;
 }
 
@@ -338,7 +338,7 @@ fn sample(a1_6: f32, a2_4: f32) -> FeLocal_fe_shader_private_layout_5_ {
     let _e56 = initial_pixels[i32(((_e12 << 8u) | _e17))].magnitude;
     let _e58 = initial_pixels[i32(((_e12 << 8u) | _e17))].flags;
     let _e60 = lab(FeLocal_fe_shader_private_layout_7_(_e48, _e50, _e52, _e54, _e56, _e58));
-    let _e62 = perturbational_mandelbrot_smooth_lib_image_blend_0460_(_e41, _e60, (_e5 - _e9));
+    let _e62 = perceptual_color_lib_blend_5210_(_e41, _e60, (_e5 - _e9));
     let _e69 = initial_pixels[i32(((_e22 << 8u) | _e11))].l;
     let _e71 = initial_pixels[i32(((_e22 << 8u) | _e11))].a;
     let _e73 = initial_pixels[i32(((_e22 << 8u) | _e11))].b;
@@ -353,8 +353,8 @@ fn sample(a1_6: f32, a2_4: f32) -> FeLocal_fe_shader_private_layout_5_ {
     let _e96 = initial_pixels[i32(((_e22 << 8u) | _e17))].magnitude;
     let _e98 = initial_pixels[i32(((_e22 << 8u) | _e17))].flags;
     let _e100 = lab(FeLocal_fe_shader_private_layout_7_(_e88, _e90, _e92, _e94, _e96, _e98));
-    let _e102 = perturbational_mandelbrot_smooth_lib_image_blend_0460_(_e81, _e100, (_e5 - _e9));
-    let _e104 = perturbational_mandelbrot_smooth_lib_image_blend_0460_(_e62, _e102, (_e8 - _e10));
+    let _e102 = perceptual_color_lib_blend_5210_(_e81, _e100, (_e5 - _e9));
+    let _e104 = perceptual_color_lib_blend_5210_(_e62, _e102, (_e8 - _e10));
     return _e104;
 }
 
@@ -940,19 +940,19 @@ fn anchor(a0_38: u32) -> FeLocal_fe_shader_private_layout_5_ {
 
     switch a0_38 {
         case 0u: {
-            local_71 = FeLocal_fe_shader_private_layout_5_(0.79f, 0.085f, 275f);
+            local_71 = FeLocal_fe_shader_private_layout_5_(0.58f, 0.215f, 275f);
         }
         case 1u: {
-            local_71 = FeLocal_fe_shader_private_layout_5_(0.86f, 0.075f, 335f);
+            local_71 = FeLocal_fe_shader_private_layout_5_(0.65f, 0.24f, 335f);
         }
         case 2u: {
-            local_71 = FeLocal_fe_shader_private_layout_5_(0.88f, 0.075f, 65f);
+            local_71 = FeLocal_fe_shader_private_layout_5_(0.78f, 0.155f, 65f);
         }
         case 3u: {
-            local_71 = FeLocal_fe_shader_private_layout_5_(0.86f, 0.075f, 165f);
+            local_71 = FeLocal_fe_shader_private_layout_5_(0.73f, 0.142f, 165f);
         }
         default: {
-            local_71 = FeLocal_fe_shader_private_layout_5_(0.81f, 0.075f, 235f);
+            local_71 = FeLocal_fe_shader_private_layout_5_(0.65f, 0.127f, 235f);
         }
     }
     let _e29 = local_71;
@@ -977,7 +977,14 @@ fn cos_(a0_41: f32) -> f32 {
     return _e3;
 }
 
-fn escape_palette(a0_42: u32, a1_23: f32, fe_trapped_4: ptr<function, bool>) -> u32 {
+fn oklch(a0_42: f32, a1_23: f32, a2_14: f32) -> FeLocal_fe_shader_private_layout_5_ {
+    let _e4 = (a2_14 * 0.017453292f);
+    let _e5 = cos_(_e4);
+    let _e7 = sin_(_e4);
+    return FeLocal_fe_shader_private_layout_5_(a0_42, (a1_23 * _e5), (a1_23 * _e7));
+}
+
+fn escape_palette(a0_43: u32, a1_24: f32, fe_trapped_4: ptr<function, bool>) -> u32 {
     var local_72: u32;
     var local_73: bool = false;
     var local_74: u32 = u32();
@@ -985,8 +992,8 @@ fn escape_palette(a0_42: u32, a1_23: f32, fe_trapped_4: ptr<function, bool>) -> 
     var local_76: bool = false;
     var local_77: f32 = f32();
 
-    let _e5 = from_i32_(a0_42);
-    let _e11 = fract_(((_e5 + (4f / a1_23)) / 256f));
+    let _e5 = from_i32_(a0_43);
+    let _e11 = fract_(((_e5 + (4f / a1_24)) / 256f));
     let _e13 = (_e11 * 5f);
     let _e14 = fmath_lib_to_i32_28bf(_e13);
     let _e15 = from_i32_(_e14);
@@ -1015,12 +1022,9 @@ fn escape_palette(a0_42: u32, a1_23: f32, fe_trapped_4: ptr<function, bool>) -> 
         }
     }
     let _e57 = local_77;
-    let _e62 = ((_e23.f2_ + (_e57 * _e22)) * 0.017453292f);
-    let _e68 = (_e23.f1_ + ((_e41.f1_ - _e23.f1_) * _e22));
-    let _e75 = cos_(_e62);
-    let _e77 = sin_(_e62);
-    let _e80 = packed(FeLocal_fe_shader_private_layout_5_((_e23.f0_ + ((_e41.f0_ - _e23.f0_) * _e22)), (_e68 * _e75), (_e68 * _e77)));
-    return _e80;
+    let _e73 = oklch((_e23.f0_ + ((_e41.f0_ - _e23.f0_) * _e22)), (_e23.f1_ + ((_e41.f1_ - _e23.f1_) * _e22)), (_e23.f2_ + (_e57 * _e22)));
+    let _e74 = packed(_e73);
+    return _e74;
 }
 
 fn interior() -> u32 {
@@ -1028,17 +1032,17 @@ fn interior() -> u32 {
     return _e4;
 }
 
-fn progress_color(a0_43: FeLocal_fe_shader_private_layout_4_, fe_trapped_5: ptr<function, bool>) -> u32 {
+fn progress_color(a0_44: FeLocal_fe_shader_private_layout_4_, fe_trapped_5: ptr<function, bool>) -> u32 {
     var local_78: u32;
     var local_79: bool = false;
     var local_80: u32 = u32();
 
-    if (((a0_43.f4_ & 1073741824u) == 0u) == false) {
+    if (((a0_44.f4_ & 1073741824u) == 0u) == false) {
         let _e11 = glitch();
         local_80 = _e11;
     } else {
-        if (((a0_43.f4_ & 2147483648u) == 0u) == false) {
-            let _e21 = escape_palette(a0_43.f5_, a0_43.f7_, fe_trapped_5);
+        if (((a0_44.f4_ & 2147483648u) == 0u) == false) {
+            let _e21 = escape_palette(a0_44.f5_, a0_44.f7_, fe_trapped_5);
             local_80 = _e21;
         } else {
             let _e22 = interior();
@@ -1219,7 +1223,7 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
                 let _e340 = color(_e339);
                 if _e249 {
                     let _e343 = progress(_e290, 60f, 300f);
-                    let _e344 = perturbational_mandelbrot_smooth_lib_image_blend_0460_(_e269, _e340, _e343);
+                    let _e344 = perceptual_color_lib_blend_5210_(_e269, _e340, _e343);
                     local_22 = _e344;
                 } else {
                     local_22 = _e340;

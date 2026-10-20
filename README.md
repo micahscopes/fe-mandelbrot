@@ -1,10 +1,11 @@
 # Fe Mandelbrot
 
-A full-window Mandelbrot explorer written in Fe, with a pastel OKLCH palette,
+A full-window Mandelbrot explorer written in Fe, with a rich OKLCH palette,
 OKLab interpolation and blur, progressive WebGPU refinement, stable view caches,
 and an interactive logarithmic zoom control with live magnification.
 
 **[Explore](https://micahscopes.github.io/fe-mandelbrot/)** ·
+**[Color lab](https://micahscopes.github.io/fe-mandelbrot/colors/)** ·
 **[Browse the Fe source](https://micahscopes.github.io/fe-mandelbrot/viewer/index.html)**
 
 Drag to pan. Scroll or pinch to zoom around the pointer. The bottom slider spans
@@ -37,8 +38,8 @@ The exact dependency revisions live in `toolchain.lock.json`:
 
 Use Rust `nightly-2026-08-17` (the tested compiler reports 1.100.0-nightly) and
 Python 3.11+. Bootstrap fetches the exact Fe commit and checks the Sonatina pins
-in its Cargo manifest. It applies one small generic runtime patch exposing CSS
-parts for individual Fe-declared controls; it contains no Mandelbrot logic.
+in its Cargo manifest. It applies small generic runtime patches exposing CSS parts for Fe-declared controls
+and matching Wasm RGBA channel order to WebGPU; neither contains application logic.
 
 ```sh
 python3 tools/bootstrap.py
@@ -50,7 +51,7 @@ Every compile uses a new output directory; unsuccessful builds can be inspected.
 Set `CARGO_TARGET_DIR` and `--out` to your preferred local build/cache locations.
 The Fe workspace maps the pinned standard library at `.cache/fe`; the app has no
 absolute machine paths. A manual GitHub Actions workflow also rebuilds this
-pinned compiler and both Fe applications, publishing the site as an artifact.
+pinned compiler and all three Fe applications, publishing the site as an artifact.
 
 ## Layout
 
@@ -58,19 +59,21 @@ pinned compiler and both Fe applications, publishing the site as an artifact.
   cohorts, numerical caches, color conversion, blur and antialiasing.
 - `app/source_viewer`: source selection, fetching, cancellation and rendering,
   also written in Fe.
+- `app/color_demo`: interactive OKLCH hue, OKLab blending and lightness/chroma demo.
+- `lib/perceptual_color`: shared color construction, interpolation, packing and display.
 - `lib`: the matching Fe math/precision and source-inspection dependencies.
 - `web`: layout, styling, and surface lifecycle calls only.
 - `artifacts`: compiler-generated distribution files, checked in so Pages and
   local viewing are quick. Regenerate after changing Fe source.
-- `toolchain`: the small generic control-styling patch; revisions are locked.
+- `toolchain`: generic control styling and Wasm color-order patches; revisions are locked.
 - `tools`: bootstrap, compilation, source/artifact validation and site assembly.
 
 The scalar fields stored with pixels remain independent of the palette. Colors
 use a packed 12/10/10-bit OKLab representation between passes. OKLCH defines the
-pastel anchors; spatial interpolation, fades, Gaussian filtering and AA operate
+saturated anchors; spatial interpolation, fades, Gaussian filtering and AA operate
 in OKLab. The final fragment converts to sRGB once, using a tested square-root
-transfer approximation. The selected low-chroma palette stays within a modest
-sRGB gamut; this is not a general CSS Color 4 gamut-mapping implementation.
+transfer approximation. Display conversion clips out-of-gamut channels; this is not a general
+CSS Color 4 gamut-mapping implementation.
 
 The current reference uses 91 fractional bits. Persistent numerical and image
 buffers are reused; the finite history is not an unlimited map of visited areas.
@@ -107,3 +110,12 @@ The test creates and closes its own page, checks the zoom slider and Fe readout,
 verifies the unchanged numerical refinement digest, and opens the Fe source
 viewer at desktop and phone sizes. `PLAYWRIGHT_MODULE` and `CDP_URL` can override
 the module path and browser endpoint.
+
+Run just the color demo check with `node tests/colors.mjs`. Its ingot lives in
+`app/color_demo` and depends on `lib/perceptual_color`, the same library used by
+Mandelbrot. `oklch(L, C, hue_degrees)` constructs a color; `blend(a, b, t)`
+interpolates in OKLab; `rgba(color)` converts for display.
+
+When using an older already-built compiler, the build script also applies the
+generic Wasm channel-order patch to its emitted adapter. A freshly bootstrapped
+compiler emits that fix directly.

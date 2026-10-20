@@ -3706,9 +3706,9 @@ export class FeSurfaceElement extends HTMLElement {
       for (let px = 0; px < width; px++) {
         const rgba = this._callKernel(px, py, uniforms);
         const i = (py * width + px) * 4;
-        data[i] = (rgba >>> 16) & 255;
+        data[i] = rgba & 255;
         data[i + 1] = (rgba >>> 8) & 255;
-        data[i + 2] = rgba & 255;
+        data[i + 2] = (rgba >>> 16) & 255;
         data[i + 3] = (rgba >>> 24) & 255;
       }
     }

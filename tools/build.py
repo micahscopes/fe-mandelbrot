@@ -10,6 +10,14 @@ def source_hash():
     for p in files:digest.update(p.relative_to(ROOT).as_posix().encode()+b'\0'+p.read_bytes()+b'\0')
     return digest.hexdigest()
 def artifact_hashes(directory):return{p.relative_to(directory).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(directory.rglob('*')) if p.is_file() and p.name!='build-info.json'}
+def patch_runtime(directory):
+    # Mirror the generic source patch when using a compiler built before it.
+    # Fresh bootstrap compilers already emit the corrected adapter unchanged.
+    patch=ROOT/'toolchain/patches/wasm-rgba.patch'
+    command=['patch','--batch','-p5','-d',str(directory),'-i',str(patch)]
+    reverse=subprocess.run([*command,'--force','--reverse','--dry-run'],capture_output=True)
+    if reverse.returncode:
+        subprocess.run([*command,'--forward'],check=True)
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--fe',default=os.environ.get('FE_BINARY'));parser.add_argument('--out',required=True);parser.add_argument('--record',action='store_true');args=parser.parse_args()
     if not args.fe:raise SystemExit('Run tools/bootstrap.py, then pass --fe /path/to/fe')
@@ -17,7 +25,9 @@ if __name__=='__main__':
     subprocess.run([args.fe,'web','build',str(ROOT/'app/renderer'),'--out',str(out/'renderer')],cwd=ROOT,check=True)
     runtime=(out/'renderer/fe-render-runtime.js').read_text()
     assert 'control-${param.name}' in runtime,'Compiler lacks control-parts patch; rebuild the pinned toolchain'
+    subprocess.run([args.fe,'web','build',str(ROOT/'app/color_demo'),'--out',str(out/'colors')],cwd=ROOT,check=True)
     subprocess.run([args.fe,'web','precompile',str(ROOT/'web/source.html'),'--out',str(out/'viewer')],cwd=ROOT,check=True)
+    for name in ['renderer','colors']:patch_runtime(out/name)
     manifest={'sourceHash':source_hash(),'toolchain':json.loads((ROOT/'toolchain.lock.json').read_text()),'files':artifact_hashes(out)}
     (out/'build-info.json').write_text(json.dumps(manifest,indent=2)+'\n')
     if args.record:

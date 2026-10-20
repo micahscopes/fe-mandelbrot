@@ -1,0 +1,8 @@
+[ingot]
+name = "color_demo"
+version = "0.1.0"
+
+[dependencies]
+core = true
+fmath = "../../lib/fmath"
+perceptual_color = "../../lib/perceptual_color"

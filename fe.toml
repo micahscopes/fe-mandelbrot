@@ -2,6 +2,8 @@
 name = "FeMandelbrot"
 version = "0.1.0"
 members = [
+  { path = "lib/perceptual_color", name = "perceptual_color" },
+  { path = "app/color_demo", name = "color_demo" },
   { path = ".cache/fe/ingots/core", name = "core" },
   { path = ".cache/fe/ingots/core_derives", name = "core_derives" },
   { path = ".cache/fe/ingots/std", name = "std" },

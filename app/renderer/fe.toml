@@ -6,3 +6,4 @@ version = "0.1.0"
 core = true
 fmath = "../../lib/fmath"
 precision = "../../lib/precision"
+perceptual_color = "../../lib/perceptual_color"

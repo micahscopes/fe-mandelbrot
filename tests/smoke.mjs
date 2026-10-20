@@ -54,6 +54,16 @@ try{
  assert.ok((await page.locator('.source-code').textContent()).toLowerCase().includes('oklch'));
  await page.setViewportSize({width:390,height:844});
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ await page.goto(new URL('colors/index.html',base).href);
+ await page.waitForFunction(()=>document.querySelector('fe-surface')?.state==='live',null,{timeout:60000});
+ const hue=page.locator('fe-surface').locator('[part~="input-hue"]');
+ await hue.waitFor({state:'visible'});
+ await hue.evaluate(input=>{input.value='180';input.dispatchEvent(new Event('input',{bubbles:true}));});
+ await page.waitForFunction(()=>document.querySelector('fe-surface')._paramsSnapshot().hue===180);
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Color lab overflows mobile viewport');
+ const library=await page.request.get(new URL('colors/source/lib.fe',base).href);
+ assert.equal(library.status(),200);assert.ok((await library.text()).includes('pub fn oklch'));
+ if(process.env.COLOR_SCREENSHOT)await page.screenshot({path:process.env.COLOR_SCREENSHOT});
  assert.deepEqual(errors,[]);
- console.log(JSON.stringify({live:true,zoom:changed.zoom,magnification:changed.magnification,oracle,colorCheck,sourceFiles:8,errors}));
+ console.log(JSON.stringify({live:true,zoom:changed.zoom,magnification:changed.magnification,oracle,colorCheck,sourceFiles:8,colorLab:true,errors}));
 }finally{await page.close();await browser.close();}
