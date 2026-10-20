@@ -1,0 +1,193 @@
+//! Color buffers, interpolation and a dense separable Gaussian filter.
+use std::webgpu::StorageBuffer as OrbitBuffer
+use ingot::cache::SampleOracle
+use fmath::{abs, floor, mix, sqrt, from_i32, to_i32}
+
+extern {
+    const fn __bitcast<From, To>(_: From) -> To
+}
+
+// Color/coordinate operands here are finite by construction. Keep their
+// ordinary comparisons in Fe instead of the general IEEE total-order helpers.
+// clamp still propagates NaNs to the existing saturating conversion boundary.
+pub fn min(_ a:f32,_ b:f32) -> f32 { if a<b { a } else { b } }
+pub fn max(_ a:f32,_ b:f32) -> f32 { if a>b { a } else { b } }
+fn clamp(_ value:f32,_ low:f32,_ high:f32) -> f32 {
+    if value<low { low } else { if value>high { high } else { value } }
+}
+
+/// Cartesian OKLab: lightness L and signed chromatic axes a/b.
+pub struct Color { pub l: f32, pub a: f32, pub b: f32 }
+/// Keep a preview's numerical result with its color in the same GPU binding.
+pub struct PreviewSample {
+    pub l:f32,pub a:f32,pub b:f32,
+    pub iteration:u32,pub magnitude:f32,pub flags:u32,
+}
+pub fn preview_sample(_ c:Color,_ result:SampleOracle) -> PreviewSample {
+    PreviewSample { l:c.l,a:c.a,b:c.b,iteration:result.iteration,magnitude:result.magnitude,flags:result.flags }
+}
+
+/// Sampling and filtering specialize over plain colors or numerical previews.
+pub trait PixelColor { fn lab(self) -> Color }
+impl PixelColor for Color { fn lab(self) -> Color { self } }
+impl PixelColor for PreviewSample { fn lab(self) -> Color { Color { l:self.l,a:self.a,b:self.b } } }
+
+/// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.
+/// Signed chroma spans [-0.25,0.2495], with an exactly representable neutral.
+pub fn color(_ bits:u32) -> Color {
+    Color {l:from_i32(__bitcast<u32,i32>(bits&4095))/4095.0,
+        a:(from_i32(__bitcast<u32,i32>((bits>>12)&1023))-512.0)/2048.0,
+        b:(from_i32(__bitcast<u32,i32>((bits>>22)&1023))-512.0)/2048.0}
+}
+pub fn packed(_ c:Color) -> i32 {
+    let l:u32=__bitcast<i32,u32>(to_i32(clamp(c.l,0.0,1.0)*4095.0+0.5))
+    let a:u32=__bitcast<i32,u32>(to_i32(clamp(c.a*2048.0+512.0,0.0,1023.0)+0.5))
+    let b:u32=__bitcast<i32,u32>(to_i32(clamp(c.b*2048.0+512.0,0.0,1023.0)+0.5))
+    __bitcast<u32,i32>((l&4095)|((a&1023)<<12)|((b&1023)<<22))
+}
+// Ian Taylor's square-root sRGB approximation, with the exact linear toe.
+// Keeps transfer work at presentation, outside orbit and Gaussian loops.
+fn srgb(_ linear:f32) -> f32 {
+    let x:f32=clamp(linear,0.0,1.0)
+    if x<=0.0031308 {return 12.92*x}
+    let s1:f32=sqrt(x)
+    let s2:f32=sqrt(s1)
+    let s3:f32=sqrt(s2)
+    clamp(0.662002687*s1+0.684122060*s2-0.323583601*s3-0.022541147*x,0.0,1.0)
+}
+/// Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer.
+pub fn rgba(_ c:Color) -> i32 {
+    let lp:f32=c.l+0.3963377774*c.a+0.2158037573*c.b
+    let mp:f32=c.l-0.1055613458*c.a-0.0638541728*c.b
+    let sp:f32=c.l-0.0894841775*c.a-1.2914855480*c.b
+    let l:f32=lp*lp*lp
+    let m:f32=mp*mp*mp
+    let s:f32=sp*sp*sp
+    let r:u32=__bitcast<i32,u32>(to_i32(srgb(4.0767416621*l-3.3077115913*m+0.2309699292*s)*255.0+0.5))
+    let g:u32=__bitcast<i32,u32>(to_i32(srgb(-1.2684380046*l+2.6097574011*m-0.3413193965*s)*255.0+0.5))
+    let b:u32=__bitcast<i32,u32>(to_i32(srgb(-0.0041960863*l-0.7034186147*m+1.7076147010*s)*255.0+0.5))
+    __bitcast<u32,i32>((r&255)|((g&255)<<8)|((b&255)<<16)|4278190080)
+}
+pub fn blend(_ a: Color, _ b: Color, _ t: f32) -> Color {
+    Color { l: mix(a.l, b.l, t), a: mix(a.a, b.a, t), b: mix(a.b, b.b, t) }
+}
+pub fn contrast(_ a: Color, _ b: Color) -> f32 {
+    max(2.0*abs(a.l-b.l),max(4.0*abs(a.a-b.a),4.0*abs(a.b-b.b)))
+}
+// Adjacent taps avoid the comb pattern made by spreading a small kernel.
+// q approximates exp(-1/(2*sigma^2)); the Gaussian weights then advance
+// with two multiplies per tap. Each axis is normalized independently.
+pub fn gaussian<T:PixelColor>(
+    _ image: OrbitBuffer<T, 65536>,
+    _ x: u32,
+    _ y: u32,
+    _ sigma: f32,
+    _ vertical: bool,
+) -> Color {
+    let center: Color = image.load(index: (y << 8) | x).lab()
+    if sigma < 0.05 {
+        return center
+    }
+    let width: f32 = min(sigma, 10.0)
+    let radius: i32 = to_i32(width * 3.0 + 0.999)
+    let mut q: f32 = 1.0 / (1.0 + 0.5 / (width * width * 256.0))
+    let mut power: u32 = 0
+    while power < 8 {
+        q = q * q
+        power = power + 1
+    }
+    let ratio: f32 = q * q
+    let mut factor: f32 = q
+    let mut weight: f32 = 1.0
+    let mut total: f32 = 1.0
+    let mut lightness: f32 = center.l
+    let mut axis_a: f32 = center.a
+    let mut b: f32 = center.b
+    let xf: f32 = from_i32(__bitcast<u32, i32>(x))
+    let yf: f32 = from_i32(__bitcast<u32, i32>(y))
+    let mut tap: i32 = 1
+    while tap <= radius {
+        weight = weight * factor
+        factor = factor * ratio
+        let distance: f32 = from_i32(tap)
+        let ax: u32 = if vertical {
+            x
+        } else {
+            __bitcast<i32, u32>(to_i32(max(0.0, xf - distance)))
+        }
+        let bx: u32 = if vertical {
+            x
+        } else {
+            __bitcast<i32, u32>(to_i32(min(255.0, xf + distance)))
+        }
+        let ay: u32 = if vertical {
+            __bitcast<i32, u32>(to_i32(max(0.0, yf - distance)))
+        } else {
+            y
+        }
+        let by: u32 = if vertical {
+            __bitcast<i32, u32>(to_i32(min(255.0, yf + distance)))
+        } else {
+            y
+        }
+        let a: Color = image.load(index: (ay << 8) | ax).lab()
+        let c: Color = image.load(index: (by << 8) | bx).lab()
+        lightness = lightness + (a.l + c.l) * weight
+        axis_a = axis_a + (a.a + c.a) * weight
+        b = b + (a.b + c.b) * weight
+        total = total + 2.0 * weight
+        tap = tap + 1
+    }
+    Color { l: lightness / total, a: axis_a / total, b: b / total }
+}
+pub fn sample<T:PixelColor>(_ image: OrbitBuffer<T, 65536>, _ x: f32, _ y: f32) -> Color {
+    let u: f32 = clamp(x, 0.0, 255.0)
+    let v: f32 = clamp(y, 0.0, 255.0)
+    let fx: f32 = floor(u)
+    let fy: f32 = floor(v)
+    let x0: u32 = __bitcast<i32, u32>(to_i32(fx))
+    let y0: u32 = __bitcast<i32, u32>(to_i32(fy))
+    let x1: u32 = __bitcast<i32, u32>(to_i32(min(fx + 1.0, 255.0)))
+    let y1: u32 = __bitcast<i32, u32>(to_i32(min(fy + 1.0, 255.0)))
+    blend(
+        blend(
+            image.load(index: (y0 << 8) | x0).lab(),
+            image.load(index: (y0 << 8) | x1).lab(),
+            u - fx,
+        ),
+        blend(
+            image.load(index: (y1 << 8) | x0).lab(),
+            image.load(index: (y1 << 8) | x1).lab(),
+            u - fx,
+        ),
+        v - fy,
+    )
+}
+pub fn sample_snapshot(
+    _ image: OrbitBuffer<u32, 4194304>,
+    _ x: f32,
+    _ y: f32,
+    _ side: f32,
+) -> Color {
+    let fx: f32 = floor(clamp(x, 0.0, side - 1.0))
+    let fy: f32 = floor(clamp(y, 0.0, side - 1.0))
+    let x0: u32 = __bitcast<i32, u32>(to_i32(fx))
+    let y0: u32 = __bitcast<i32, u32>(to_i32(fy))
+    let x1: u32 = __bitcast<i32, u32>(to_i32(min(fx + 1.0, side - 1.0)))
+    let y1: u32 = __bitcast<i32, u32>(to_i32(min(fy + 1.0, side - 1.0)))
+    let tx: f32 = clamp(x - fx, 0.0, 1.0)
+    let ty: f32 = clamp(y - fy, 0.0, 1.0)
+    blend(
+        blend(
+            color(image.load(index: (y0 << 11) | x0)),
+            color(image.load(index: (y0 << 11) | x1)),
+            tx,
+        ),
+        blend(
+            color(image.load(index: (y1 << 11) | x0)),
+            color(image.load(index: (y1 << 11) | x1)),
+            tx,
+        ),
+        ty,
+    )
+}

@@ -1,0 +1,370 @@
+//! Perturbation arithmetic and resumable pixel checkpoints.
+//! Escape and cancellation rules are shared by preview, refinement and AA.
+use std::webgpu::StorageBuffer as OrbitBuffer
+use fmath::{abs, max, PixelSample}
+use ingot::palette::{escape_palette,interior,glitch}
+use precision::{from_quad, sub, to_quad, two_sum}
+
+extern {
+    const fn __bitcast<From, To>(_: From) -> To
+}
+
+pub const ORBIT_SAMPLES: usize = 8195
+// Eight suffix records hold the immutable packed blue-noise ordering.
+pub const ORBIT_CAPACITY: usize = 16398
+pub const ORBIT_CENTER_INDEX: u32 = 8193
+pub const ORBIT_META_INDEX: u32 = 8194
+pub const INVALID_REFERENCE: u32 = 2143289344
+
+pub struct ComplexQF32Bits {
+    pub re_w0_bits: u32,
+    pub re_w1_bits: u32,
+    pub re_w2_bits: u32,
+    pub re_w3_bits: u32,
+    pub im_w0_bits: u32,
+    pub im_w1_bits: u32,
+    pub im_w2_bits: u32,
+    pub im_w3_bits: u32,
+}
+
+fn invalid_reference(_ sample: ComplexQF32Bits) -> bool {
+    sample.re_w0_bits == INVALID_REFERENCE || sample.im_w0_bits == INVALID_REFERENCE
+}
+
+fn non_finite(_ value: f32) -> bool {
+    value - value != 0.0
+}
+
+/// Collapse an exact four-word reference plus the pixel delta without losing
+/// the reference tail when `w0` and `delta` nearly cancel. The ordinary
+/// `w0 + w1 + w2 + w3 + delta` ordering discards every low word before the
+/// cancellation happens, which poisons both bailout and center reanchoring.
+fn reference_plus_delta(_ w0: f32, _ w1: f32, _ w2: f32, _ w3: f32, _ delta: f32) -> f32 {
+    let (s0, e0) = two_sum(w0, delta)
+    let (s1, e1) = two_sum(s0, w1)
+    let (s2, e2) = two_sum(s1, w2)
+    let (s3, e3) = two_sum(s2, w3)
+    s3 + (((e3 + e2) + e1) + e0)
+}
+
+/// A uniform iteration budget computed once by the reference pass. The pixel
+/// pass reads the result from orbit metadata and does no depth probing.
+pub fn sample_pixel(
+    _ orbit: OrbitBuffer<ComplexQF32Bits, ORBIT_CAPACITY>,
+    _ base: u32,
+    _ center_x_w0: f32,
+    _ center_x_w1: f32,
+    _ center_x_w2: f32,
+    _ center_x_w3: f32,
+    _ center_y_w0: f32,
+    _ center_y_w1: f32,
+    _ center_y_w2: f32,
+    _ center_y_w3: f32,
+    _ zoom: f32,
+    _ res: f32,
+    _ px: i32,
+    _ py: i32,
+    _ budget: u32,
+    _ ox: f32,
+    _ oy: f32,
+) -> i32 {
+    progress_color(sample_progress(orbit,base,center_x_w0,center_x_w1,center_x_w2,center_x_w3,center_y_w0,center_y_w1,center_y_w2,center_y_w3,zoom,res,px,py,budget,ox,oy))
+}
+
+pub fn sample_progress(
+    _ orbit: OrbitBuffer<ComplexQF32Bits, ORBIT_CAPACITY>,
+    _ base: u32,
+    _ center_x_w0: f32,
+    _ center_x_w1: f32,
+    _ center_x_w2: f32,
+    _ center_x_w3: f32,
+    _ center_y_w0: f32,
+    _ center_y_w1: f32,
+    _ center_y_w2: f32,
+    _ center_y_w3: f32,
+    _ zoom: f32,
+    _ res: f32,
+    _ px: i32,
+    _ py: i32,
+    _ budget: u32,
+    _ ox: f32,
+    _ oy: f32,
+) -> OrbitProgress {
+    // The same one-orbit ordered refinement as the exact renderer. This is
+    // deliberately not naive 4x supersampling: escaped samples terminate
+    // early, and unfinished native samples resume from GPU checkpoints.
+    let base_point = PixelSample::ordered_2x2(px, py)
+    let point = PixelSample { x: base_point.x + ox, y: base_point.y + oy }.plane(res)
+    let u: f32 = point.u
+    let v: f32 = point.v
+    let center_reference: ComplexQF32Bits = orbit.load(index: base + ORBIT_CENTER_INDEX)
+    let center_ref_re_w0: f32 = __bitcast(center_reference.re_w0_bits)
+    let center_ref_re_w1: f32 = __bitcast(center_reference.re_w1_bits)
+    let center_ref_re_w2: f32 = __bitcast(center_reference.re_w2_bits)
+    let center_ref_re_w3: f32 = __bitcast(center_reference.re_w3_bits)
+    let center_ref_im_w0: f32 = __bitcast(center_reference.im_w0_bits)
+    let center_ref_im_w1: f32 = __bitcast(center_reference.im_w1_bits)
+    let center_ref_im_w2: f32 = __bitcast(center_reference.im_w2_bits)
+    let center_ref_im_w3: f32 = __bitcast(center_reference.im_w3_bits)
+    let center_remainder_re = sub<4>(
+        from_quad(center_x_w0, center_x_w1, center_x_w2, center_x_w3),
+        from_quad(
+            center_ref_re_w0,
+            center_ref_re_w1,
+            center_ref_re_w2,
+            center_ref_re_w3,
+        ),
+    )
+    let center_remainder_im = sub<4>(
+        from_quad(center_y_w0, center_y_w1, center_y_w2, center_y_w3),
+        from_quad(
+            center_ref_im_w0,
+            center_ref_im_w1,
+            center_ref_im_w2,
+            center_ref_im_w3,
+        ),
+    )
+    let (dc_re_w0, dc_re_w1, dc_re_w2, dc_re_w3) = to_quad(center_remainder_re)
+    let (dc_im_w0, dc_im_w1, dc_im_w2, dc_im_w3) = to_quad(center_remainder_im)
+    let dc_re: f32 = reference_plus_delta(dc_re_w0, dc_re_w1, dc_re_w2, dc_re_w3, u * zoom)
+    let dc_im: f32 = reference_plus_delta(dc_im_w0, dc_im_w1, dc_im_w2, dc_im_w3, v * zoom)
+    let metadata: ComplexQF32Bits = orbit.load(index: base + ORBIT_META_INDEX)
+    let max_iter: u32 = if budget < metadata.re_w1_bits {
+        budget
+    } else {
+        metadata.re_w1_bits
+    }
+    advance_progress(orbit,base,dc_re,dc_im,max_iter,max_iter,empty_progress(0))
+}
+
+pub struct OrbitProgress {
+    pub dz_re: f32,
+    pub dz_im: f32,
+    pub z_re: f32,
+    pub z_im: f32,
+    pub reference_i: u32,
+    pub iteration: u32,
+    pub epoch: u32,
+    pub magnitude: f32,
+}
+pub fn empty_progress(_ epoch: u32) -> OrbitProgress {
+    OrbitProgress {
+        dz_re: 0.0,
+        dz_im: 0.0,
+        z_re: 0.0,
+        z_im: 0.0,
+        reference_i: 0,
+        iteration: 0,
+        epoch: epoch,
+        magnitude: 4.0,
+    }
+}
+fn advance_progress(
+    _ orbit: OrbitBuffer<ComplexQF32Bits, ORBIT_CAPACITY>,
+    _ base: u32,
+    _ dc_re: f32,
+    _ dc_im: f32,
+    _ max_iter: u32,
+    _ batch: u32,
+    _ saved: OrbitProgress,
+) -> OrbitProgress {
+    let valid_samples: u32 = orbit.load(index: base + ORBIT_META_INDEX).re_w0_bits
+    let mut dz_re = saved.dz_re
+    let mut dz_im = saved.dz_im
+    let mut z_re = saved.z_re
+    let mut z_im = saved.z_im
+    let mut reference_i = saved.reference_i & 1073741823
+    let mut escaped: u32 = if (saved.reference_i & 2147483648) != 0 {
+        1
+    } else {
+        0
+    }
+    let mut glitched: u32 = if (saved.reference_i & 1073741824) != 0 {
+        1
+    } else {
+        0
+    }
+    let mut escape_magnitude = saved.magnitude
+    let mut i = saved.iteration
+    let mut steps: u32 = 0
+    while i < max_iter && steps < batch && escaped == 0 && glitched == 0 {
+        if escaped == 0 && glitched == 0 {
+            if reference_i + 1 >= valid_samples {
+                reference_i = 0
+                dz_re = z_re
+                dz_im = z_im
+            }
+            let reference: ComplexQF32Bits = orbit.load(index: base + reference_i)
+            let next_reference: ComplexQF32Bits = orbit.load(index: base + reference_i + 1)
+            if invalid_reference(reference) || invalid_reference(next_reference) {
+                glitched = 1
+            } else {
+                let ref_re_w0: f32 = __bitcast(reference.re_w0_bits)
+                let ref_re_w1: f32 = __bitcast(reference.re_w1_bits)
+                let ref_re_w2: f32 = __bitcast(reference.re_w2_bits)
+                let ref_re_w3: f32 = __bitcast(reference.re_w3_bits)
+                let ref_im_w0: f32 = __bitcast(reference.im_w0_bits)
+                let ref_im_w1: f32 = __bitcast(reference.im_w1_bits)
+                let ref_im_w2: f32 = __bitcast(reference.im_w2_bits)
+                let ref_im_w3: f32 = __bitcast(reference.im_w3_bits)
+                let next_ref_re_w0: f32 = __bitcast(next_reference.re_w0_bits)
+                let next_ref_re_w1: f32 = __bitcast(next_reference.re_w1_bits)
+                let next_ref_re_w2: f32 = __bitcast(next_reference.re_w2_bits)
+                let next_ref_re_w3: f32 = __bitcast(next_reference.re_w3_bits)
+                let next_ref_im_w0: f32 = __bitcast(next_reference.im_w0_bits)
+                let next_ref_im_w1: f32 = __bitcast(next_reference.im_w1_bits)
+                let next_ref_im_w2: f32 = __bitcast(next_reference.im_w2_bits)
+                let next_ref_im_w3: f32 = __bitcast(next_reference.im_w3_bits)
+                let linear_re_w0: f32 = ref_re_w0 * dz_re - ref_im_w0 * dz_im
+                let linear_re_tail: f32 = ref_re_w1 * dz_re - ref_im_w1 * dz_im
+                    + ref_re_w2 * dz_re - ref_im_w2 * dz_im
+                    + ref_re_w3 * dz_re - ref_im_w3 * dz_im
+                let linear_im_w0: f32 = ref_re_w0 * dz_im + ref_im_w0 * dz_re
+                let linear_im_tail: f32 = ref_re_w1 * dz_im
+                    + ref_im_w1 * dz_re
+                    + ref_re_w2 * dz_im
+                    + ref_im_w2 * dz_re
+                    + ref_re_w3 * dz_im
+                    + ref_im_w3 * dz_re
+                let next_dz_re: f32 = 2.0 * linear_re_w0
+                    + 2.0 * linear_re_tail
+                    + (dz_re * dz_re - dz_im * dz_im)
+                    + dc_re
+                let next_dz_im: f32 = 2.0 * linear_im_w0
+                    + 2.0 * linear_im_tail
+                    + 2.0 * dz_re * dz_im
+                    + dc_im
+                let target_re: f32 = reference_plus_delta(
+                    next_ref_re_w0,
+                    next_ref_re_w1,
+                    next_ref_re_w2,
+                    next_ref_re_w3,
+                    next_dz_re,
+                )
+                let target_im: f32 = reference_plus_delta(
+                    next_ref_im_w0,
+                    next_ref_im_w1,
+                    next_ref_im_w2,
+                    next_ref_im_w3,
+                    next_dz_im,
+                )
+                let magnitude: f32 = target_re * target_re + target_im * target_im
+                let delta_magnitude: f32 = next_dz_re * next_dz_re + next_dz_im * next_dz_im
+                // Rebase whenever the absolute orbit is smaller than its
+                // current perturbation. This keeps the next delta small
+                // and is the useful cancellation condition, rather than
+                // waiting for a five-order-of-magnitude collapse.
+                let cancellation: bool = magnitude < delta_magnitude
+                let ambiguous_escape: bool = magnitude > 4.0
+                    && abs(magnitude - 4.0) <= 0.000004 * max(1.0, magnitude)
+
+                if non_finite(next_dz_re)
+                    || non_finite(next_dz_im)
+                    || non_finite(magnitude)
+                    || ambiguous_escape {
+                    glitched = 1
+                } else {
+                    dz_re = next_dz_re
+                    dz_im = next_dz_im
+                    z_re = target_re
+                    z_im = target_im
+                    if magnitude > 4.0 {
+                        escaped = 1
+                        escape_magnitude = magnitude
+                    } else {
+                        if cancellation {
+                            reference_i = 0
+                            dz_re = z_re
+                            dz_im = z_im
+                        } else {
+                            reference_i = reference_i + 1
+                        }
+                    }
+                }
+            }
+        }
+        i = i + 1
+        steps = steps + 1
+    }
+
+    OrbitProgress {
+        dz_re: dz_re,
+        dz_im: dz_im,
+        z_re: z_re,
+        z_im: z_im,
+        reference_i: reference_i | (escaped << 31) | (glitched << 30),
+        iteration: i,
+        epoch: saved.epoch,
+        magnitude: escape_magnitude,
+    }
+}
+pub fn progress_color(_ saved: OrbitProgress) -> i32 {
+    if (saved.reference_i & 1073741824) != 0 {
+        glitch()
+    } else {
+        if (saved.reference_i & 2147483648) != 0 {
+            escape_palette(saved.iteration.downcast_truncate(), saved.magnitude)
+        } else {
+            interior()
+        }
+    }
+}
+
+pub fn continue_pixel(
+    _ orbit: OrbitBuffer<ComplexQF32Bits, ORBIT_CAPACITY>,
+    _ base: u32,
+    _ center_x_w0: f32,
+    _ center_x_w1: f32,
+    _ center_x_w2: f32,
+    _ center_x_w3: f32,
+    _ center_y_w0: f32,
+    _ center_y_w1: f32,
+    _ center_y_w2: f32,
+    _ center_y_w3: f32,
+    _ zoom: f32,
+    _ res: f32,
+    _ px: i32,
+    _ py: i32,
+    _ budget: u32,
+    _ steps: u32,
+    _ saved: OrbitProgress,
+) -> OrbitProgress {
+    let ox: f32 = 0.0
+    let oy: f32 = 0.0
+    let base_point = PixelSample::ordered_2x2(px, py)
+    let point = PixelSample { x: base_point.x + ox, y: base_point.y + oy }.plane(res)
+    let u: f32 = point.u
+    let v: f32 = point.v
+    let center_reference: ComplexQF32Bits = orbit.load(index: base + ORBIT_CENTER_INDEX)
+    let center_ref_re_w0: f32 = __bitcast(center_reference.re_w0_bits)
+    let center_ref_re_w1: f32 = __bitcast(center_reference.re_w1_bits)
+    let center_ref_re_w2: f32 = __bitcast(center_reference.re_w2_bits)
+    let center_ref_re_w3: f32 = __bitcast(center_reference.re_w3_bits)
+    let center_ref_im_w0: f32 = __bitcast(center_reference.im_w0_bits)
+    let center_ref_im_w1: f32 = __bitcast(center_reference.im_w1_bits)
+    let center_ref_im_w2: f32 = __bitcast(center_reference.im_w2_bits)
+    let center_ref_im_w3: f32 = __bitcast(center_reference.im_w3_bits)
+    let center_remainder_re = sub<4>(
+        from_quad(center_x_w0, center_x_w1, center_x_w2, center_x_w3),
+        from_quad(
+            center_ref_re_w0,
+            center_ref_re_w1,
+            center_ref_re_w2,
+            center_ref_re_w3,
+        ),
+    )
+    let center_remainder_im = sub<4>(
+        from_quad(center_y_w0, center_y_w1, center_y_w2, center_y_w3),
+        from_quad(
+            center_ref_im_w0,
+            center_ref_im_w1,
+            center_ref_im_w2,
+            center_ref_im_w3,
+        ),
+    )
+    let (dc_re_w0, dc_re_w1, dc_re_w2, dc_re_w3) = to_quad(center_remainder_re)
+    let (dc_im_w0, dc_im_w1, dc_im_w2, dc_im_w3) = to_quad(center_remainder_im)
+    let dc_re: f32 = reference_plus_delta(dc_re_w0, dc_re_w1, dc_re_w2, dc_re_w3, u * zoom)
+    let dc_im: f32 = reference_plus_delta(dc_im_w0, dc_im_w1, dc_im_w2, dc_im_w3, v * zoom)
+    advance_progress(orbit, base, dc_re, dc_im, budget, steps, saved)
+}

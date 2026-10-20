@@ -1,0 +1,579 @@
+//! Reflection-derived canonical word sequences.
+//!
+//! A nominal Fe record is its own schema. The derive provider computes its
+//! exact word count and emits ordered encode/decode folds from reflected fields.
+//! Sources and sinks are interpreters, keeping browser memory, EVM calldata,
+//! native buffers, and GPU storage outside the value vocabulary.
+
+use core::derive::{Derive, Evidence, ImplBuilder, Reflect}
+use core::{BrowserBytes, BrowserPtr, alloc_browser_bytes}
+
+extern {
+    const fn __bitcast<From, To>(_: From) -> To
+}
+
+pub struct WordRead<R> { pub source: R, pub value: u32 }
+impl<R: core::marker::Copy> core::marker::Copy for WordRead<R> {}
+
+pub trait WordSink: core::marker::Copy {
+    fn write(self, _ value: u32) -> Self
+    fn reject(self) -> Self
+}
+
+/// Invalid leaf encodings poison the source through `reject`; the concrete
+/// source decides how to retain bounds, cursor, and failure state.
+pub trait WordSource: core::marker::Copy {
+    fn read(self) -> WordRead<Self>
+    fn reject(self) -> Self
+}
+
+pub trait CanonicalWords {
+    const WORDS: u32
+    fn encode<W: WordSink>(ref self, _ writer: W) -> W
+    fn decode<R: WordSource>(mut self, _ reader: R) -> R
+}
+
+/// Canonical word sequences whose exact size is carried by the value. Fixed
+/// codecs lift into this interface automatically. Sparse proof carriers can
+/// instead encode only their counted prefixes while retaining fixed-capacity
+/// in-memory storage for Wasm, native, EVM, and WebGPU backends.
+pub trait CanonicalWordStream {
+    fn word_count(ref self) -> u32
+    fn encode_stream<W: WordSink>(ref self, _ writer: W) -> W
+    fn decode_stream<R: WordSource>(mut self, _ reader: R) -> R
+}
+
+/// Encode without copying the source value into the call frame. This is the
+/// ordinary entry point for large canonical records; nested derived fields use
+/// the same borrowed receiver recursively.
+pub fn encode_canonical_words<T: CanonicalWords, W: WordSink>(
+    _ value: ref T,
+    _ writer: W,
+) -> W {
+    value.encode(writer)
+}
+
+/// Decode one fixed-width canonical value through a generic boundary. This is
+/// the decoder dual of `encode_canonical_words` and keeps callers from relying
+/// on concrete imported-trait method lowering.
+pub fn decode_canonical_words<T: CanonicalWords, R: WordSource>(
+    _ value: mut T,
+    _ reader: R,
+) -> R {
+    value.decode(reader)
+}
+
+/// Fixed-capacity, target-neutral result of interpreting a nominal canonical
+/// schema into caller-owned words. A width mismatch fails closed and returns
+/// an all-zero payload, so callers never need a parallel field-count table.
+pub struct CanonicalWordArray<const N: usize> {
+    pub valid: bool,
+    pub words: [u32; N],
+}
+impl<const N: usize> core::marker::Copy for CanonicalWordArray<N> {}
+
+struct ArrayWordWriter<const N: usize> {
+    words: [u32; N],
+    cursor: u32,
+    valid: bool,
+}
+impl<const N: usize> core::marker::Copy for ArrayWordWriter<N> {}
+
+impl<const N: usize> ArrayWordWriter<N> {
+    fn new() -> Self { Self { words: [0; N], cursor: 0, valid: true } }
+
+    fn finish(self) -> CanonicalWordArray<N> {
+        if !self.valid || self.cursor != N.downcast_truncate() {
+            return CanonicalWordArray { valid: false, words: [0; N] }
+        }
+        CanonicalWordArray { valid: true, words: self.words }
+    }
+}
+
+impl<const N: usize> WordSink for ArrayWordWriter<N> {
+    fn write(self, _ value: u32) -> Self {
+        if !self.valid || self.cursor >= N.downcast_truncate() {
+            return Self {
+                words: self.words,
+                cursor: self.cursor,
+                valid: false,
+            }
+        }
+        let mut words = self.words
+        words[self.cursor as usize] = value
+        Self { words: words, cursor: self.cursor + 1, valid: true }
+    }
+
+    fn reject(self) -> Self {
+        Self { words: self.words, cursor: self.cursor, valid: false }
+    }
+}
+
+/// Execute a reflection-derived fixed codec into an exact ordinary array.
+/// `N` is checked by the sink itself, including zero-width schemas, rather
+/// than being trusted as an authored protocol constant.
+pub fn encode_canonical_word_array<
+    T: CanonicalWords,
+    const N: usize,
+>(
+    _ value: ref T,
+) -> CanonicalWordArray<N> {
+    encode_canonical_words(ref value, ArrayWordWriter<N>::new()).finish()
+}
+
+pub fn canonical_word_stream_count<T: CanonicalWordStream>(_ value: ref T) -> u32 {
+    value.word_count()
+}
+
+pub fn encode_canonical_word_stream<T: CanonicalWordStream, W: WordSink>(
+    _ value: ref T,
+    _ writer: W,
+) -> W {
+    value.encode_stream(writer)
+}
+
+/// Count one checked prefix without assuming that each element has a fixed
+/// width. An out-of-capacity count is invalid and therefore has no encoding.
+pub fn canonical_prefix_word_count<
+    T: CanonicalWordStream + core::marker::Copy,
+    const N: usize,
+>(
+    _ values: ref [T; N],
+    _ count: u32,
+) -> u32 {
+    if count > N.downcast_truncate() { return 0 }
+    let mut words: u32 = 0
+    let mut index: usize = 0
+    while index < count as usize {
+        words = words + values[index].word_count()
+        index = index + 1
+    }
+    words
+}
+
+pub fn encode_canonical_prefix<
+    T: CanonicalWordStream + core::marker::Copy,
+    W: WordSink,
+    const N: usize,
+>(
+    _ values: ref [T; N],
+    _ count: u32,
+    _ writer: W,
+) -> W {
+    if count > N.downcast_truncate() { return writer.reject() }
+    let mut writer = writer
+    let mut index: usize = 0
+    while index < count as usize {
+        writer = values[index].encode_stream(writer)
+        index = index + 1
+    }
+    writer
+}
+
+/// Decode into a caller-supplied canonical-empty carrier. Slots beyond
+/// `count` are intentionally untouched, so the enclosing verifier can retain
+/// its ordinary zero-unused-capacity invariant.
+pub fn decode_canonical_prefix<
+    T: CanonicalWordStream + core::marker::Copy,
+    R: WordSource,
+    const N: usize,
+>(
+    _ values: mut [T; N],
+    _ count: u32,
+    _ reader: R,
+) -> R {
+    if count > N.downcast_truncate() { return reader.reject() }
+    let mut reader = reader
+    let mut index: usize = 0
+    while index < count as usize {
+        reader = values[index].decode_stream(reader)
+        index = index + 1
+    }
+    reader
+}
+
+/// Browser-linear-memory interpreter for canonical word emission. The writer
+/// owns a checked word budget and fails closed on overflow. Exact codecs use
+/// `finish`; bounded streams use `finish_prefix` to expose only emitted words.
+pub struct BrowserWordWriter {
+    buffer: BrowserBytes,
+    cursor: u32,
+    words: u32,
+    valid: bool,
+}
+impl core::marker::Copy for BrowserWordWriter {}
+
+impl BrowserWordWriter {
+    /// Start an exact-prefix stream without walking its schema or value to
+    /// precompute a size. Growth and copying remain ordinary Fe code; the
+    /// browser allocator only supplies opaque linear-memory regions.
+    pub fn growing() -> Self { Self::allocate(64) }
+
+    pub fn allocate(_ words: u32) -> Self {
+        if words > 1073741823 {
+            return Self {
+                buffer: BrowserBytes { ptr: 0, len: 0 },
+                cursor: 0,
+                words: 0,
+                valid: false,
+            }
+        }
+        let allocation = alloc_browser_bytes(words * 4)
+        Self {
+            buffer: BrowserBytes { ptr: allocation.address(), len: words * 4 },
+            cursor: 0,
+            words: words,
+            valid: true,
+        }
+    }
+
+    pub fn finish(self) -> BrowserBytes {
+        if !self.valid || self.cursor != self.words {
+            return BrowserBytes { ptr: self.buffer.ptr, len: 0 }
+        }
+        self.buffer
+    }
+
+    /// Finish a bounded stream. Unused capacity remains private to the arena;
+    /// only the canonical prefix crosses the browser boundary.
+    pub fn finish_prefix(self) -> BrowserBytes {
+        if !self.valid {
+            return BrowserBytes { ptr: self.buffer.ptr, len: 0 }
+        }
+        BrowserBytes { ptr: self.buffer.ptr, len: self.cursor * 4 }
+    }
+
+    fn grow(self) -> Self {
+        if !self.valid || self.words >= 1073741823 {
+            return Self {
+                buffer: self.buffer,
+                cursor: self.cursor,
+                words: self.words,
+                valid: false,
+            }
+        }
+        let next_words = if self.words == 0 {
+            64
+        } else if self.words > 536870911 {
+            1073741823
+        } else {
+            self.words * 2
+        }
+        if next_words <= self.words {
+            return Self {
+                buffer: self.buffer,
+                cursor: self.cursor,
+                words: self.words,
+                valid: false,
+            }
+        }
+        let next = Self::allocate(next_words)
+        if !next.valid {
+            return Self {
+                buffer: self.buffer,
+                cursor: self.cursor,
+                words: self.words,
+                valid: false,
+            }
+        }
+        let mut index: u32 = 0
+        while index < self.cursor {
+            let source: BrowserPtr<u32> =
+                BrowserPtr::from_u32(self.buffer.ptr + index * 4)
+            let destination: BrowserPtr<u32> =
+                BrowserPtr::from_u32(next.buffer.ptr + index * 4)
+            destination.write(source.read())
+            index = index + 1
+        }
+        Self {
+            buffer: next.buffer,
+            cursor: self.cursor,
+            words: next.words,
+            valid: true,
+        }
+    }
+}
+
+impl WordSink for BrowserWordWriter {
+    fn write(self, _ value: u32) -> Self {
+        let writer = if self.cursor >= self.words { self.grow() } else { self }
+        if !writer.valid || writer.cursor >= writer.words {
+            return Self {
+                buffer: writer.buffer,
+                cursor: writer.cursor,
+                words: writer.words,
+                valid: false,
+            }
+        }
+        let destination: BrowserPtr<u32> =
+            BrowserPtr::from_u32(writer.buffer.ptr + writer.cursor * 4)
+        destination.write(value)
+        Self {
+            buffer: writer.buffer,
+            cursor: writer.cursor + 1,
+            words: writer.words,
+            valid: true,
+        }
+    }
+
+    fn reject(self) -> Self {
+        Self {
+            buffer: self.buffer,
+            cursor: self.cursor,
+            words: self.words,
+            valid: false,
+        }
+    }
+}
+
+/// Bounded browser-memory interpreter for canonical decoding. `complete`
+/// rejects truncation, trailing words, non-word byte lengths, and any leaf
+/// codec that called `reject`.
+pub struct BrowserWordReader {
+    buffer: BrowserBytes,
+    cursor: u32,
+    words: u32,
+    valid: bool,
+}
+impl core::marker::Copy for BrowserWordReader {}
+
+impl BrowserWordReader {
+    pub fn new(_ buffer: BrowserBytes) -> Self {
+        let aligned = (buffer.len & 3) == 0
+        Self {
+            buffer: buffer,
+            cursor: 0,
+            words: buffer.len / 4,
+            valid: aligned,
+        }
+    }
+
+    pub fn complete(self) -> bool {
+        self.valid && self.cursor == self.words
+    }
+}
+
+impl WordSource for BrowserWordReader {
+    fn read(self) -> WordRead<Self> {
+        if !self.valid || self.cursor >= self.words {
+            return WordRead {
+                source: Self {
+                    buffer: self.buffer,
+                    cursor: self.cursor,
+                    words: self.words,
+                    valid: false,
+                },
+                value: 0,
+            }
+        }
+        let source: BrowserPtr<u32> =
+            BrowserPtr::from_u32(self.buffer.ptr + self.cursor * 4)
+        WordRead {
+            source: Self {
+                buffer: self.buffer,
+                cursor: self.cursor + 1,
+                words: self.words,
+                valid: true,
+            },
+            value: source.read(),
+        }
+    }
+
+    fn reject(self) -> Self {
+        Self {
+            buffer: self.buffer,
+            cursor: self.cursor,
+            words: self.words,
+            valid: false,
+        }
+    }
+}
+
+pub struct CanonicalWordsProvider {}
+
+impl Derive<CanonicalWords> for CanonicalWordsProvider {
+    const fn derive<T>(ev: own Evidence<CanonicalWords<T>>) -> Evidence<CanonicalWords<T>>
+        uses (
+            reflect: Reflect<T>,
+            builder: mut ImplBuilder<CanonicalWords<T>>,
+        )
+    {
+        let mut words = builder.int(0)
+        let mut encode = builder.arg_ref("writer")
+        let mut decode = builder.arg_ref("reader")
+        for field in reflect.fields() {
+            builder.require<CanonicalWords>(field.ty())
+            words = builder.add(words, builder.trait_const(field.ty(), "WORDS"))
+            encode = builder.trait_call(
+                field.ty(),
+                "encode",
+                builder.borrow(builder.field_get(builder.self_ref(), field)),
+                encode,
+            )
+            decode = builder.trait_call(
+                field.ty(),
+                "decode",
+                builder.borrow_mut(builder.field_get(builder.self_ref(), field)),
+                decode,
+            )
+        }
+        builder.emit_const("WORDS", builder.ty<u32>(), words)
+        builder.emit_method("encode", encode)
+        builder.emit_method("decode", decode)
+        builder.finish()
+        ev
+    }
+}
+
+/// Reflection derives the variable-size interpretation with the same field
+/// order as the nominal Fe record. Every field chooses its own fixed or sparse
+/// interpreter through ordinary trait selection.
+pub struct CanonicalWordStreamProvider {}
+
+impl Derive<CanonicalWordStream> for CanonicalWordStreamProvider {
+    const fn derive<T>(ev: own Evidence<CanonicalWordStream<T>>)
+        -> Evidence<CanonicalWordStream<T>>
+        uses (
+            reflect: Reflect<T>,
+            builder: mut ImplBuilder<CanonicalWordStream<T>>,
+        )
+    {
+        let mut words = builder.int(0)
+        let mut encode = builder.arg_ref("writer")
+        let mut decode = builder.arg_ref("reader")
+        for field in reflect.fields() {
+            builder.require<CanonicalWordStream>(field.ty())
+            let field_value = builder.field_get(builder.self_ref(), field)
+            words = builder.add(
+                words,
+                builder.trait_call(
+                    field.ty(),
+                    "word_count",
+                    builder.borrow(field_value),
+                ),
+            )
+            encode = builder.trait_call(
+                field.ty(),
+                "encode_stream",
+                builder.borrow(builder.field_get(builder.self_ref(), field)),
+                encode,
+            )
+            decode = builder.trait_call(
+                field.ty(),
+                "decode_stream",
+                builder.borrow_mut(builder.field_get(builder.self_ref(), field)),
+                decode,
+            )
+        }
+        builder.emit_method("word_count", words)
+        builder.emit_method("encode_stream", encode)
+        builder.emit_method("decode_stream", decode)
+        builder.finish()
+        ev
+    }
+}
+
+impl<T: CanonicalWords> CanonicalWordStream for T {
+    fn word_count(ref self) -> u32 { T::WORDS }
+
+    fn encode_stream<W: WordSink>(ref self, _ writer: W) -> W {
+        self.encode(writer)
+    }
+
+    fn decode_stream<R: WordSource>(mut self, _ reader: R) -> R {
+        self.decode(reader)
+    }
+}
+
+impl CanonicalWords for u32 {
+    const WORDS: u32 = 1
+
+    fn encode<W: WordSink>(ref self, _ writer: W) -> W { writer.write(self) }
+
+    fn decode<R: WordSource>(mut self, _ reader: R) -> R {
+        let next = reader.read()
+        self = next.value
+        next.source
+    }
+}
+
+/// Canonical little-endian word encoding for backend-neutral counters and
+/// fixed-point policy values. This is a word schema, not a byte serialization:
+/// the surrounding interpreter owns any eventual byte order.
+impl CanonicalWords for u64 {
+    const WORDS: u32 = 2
+
+    fn encode<W: WordSink>(ref self, _ writer: W) -> W {
+        let writer = writer.write(self.downcast_truncate())
+        writer.write((self >> (32 as u64)).downcast_truncate())
+    }
+
+    fn decode<R: WordSource>(mut self, _ reader: R) -> R {
+        let low = reader.read()
+        let high = low.source.read()
+        self = (low.value as u64) | ((high.value as u64) << (32 as u64))
+        high.source
+    }
+}
+
+impl CanonicalWords for i32 {
+    const WORDS: u32 = 1
+
+    fn encode<W: WordSink>(ref self, _ writer: W) -> W {
+        let word: u32 = __bitcast(self)
+        writer.write(word)
+    }
+
+    fn decode<R: WordSource>(mut self, _ reader: R) -> R {
+        let next = reader.read()
+        self = __bitcast(next.value)
+        next.source
+    }
+}
+
+impl CanonicalWords for bool {
+    const WORDS: u32 = 1
+
+    fn encode<W: WordSink>(ref self, _ writer: W) -> W {
+        writer.write(if self { 1 } else { 0 })
+    }
+
+    fn decode<R: WordSource>(mut self, _ reader: R) -> R {
+        let next = reader.read()
+        if next.value > 1 {
+            self = false
+            return next.source.reject()
+        }
+        self = next.value == 1
+        next.source
+    }
+}
+
+impl<T: CanonicalWords + core::marker::Copy, const N: usize> CanonicalWords for [T; N] {
+    const WORDS: u32 = {
+        let count: u32 = N.downcast_truncate()
+        count * T::WORDS
+    }
+
+    fn encode<W: WordSink>(ref self, _ writer: W) -> W {
+        if N == 0 { return writer }
+        let mut writer = writer
+        let mut index: usize = 0
+        while index < N {
+            writer = self[index].encode(writer)
+            index = index + 1
+        }
+        writer
+    }
+
+    fn decode<R: WordSource>(mut self, _ reader: R) -> R {
+        if N == 0 { return reader }
+        let mut reader = reader
+        let mut index: usize = 0
+        while index < N {
+            reader = self[index].decode(reader)
+            index = index + 1
+        }
+        reader
+    }
+}

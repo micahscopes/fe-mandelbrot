@@ -1,0 +1,7 @@
+[ingot]
+name = "precision"
+version = "0.1.0"
+
+[dependencies]
+core = true
+canonical_words = "../canonical_words"

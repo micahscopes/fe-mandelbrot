@@ -1,0 +1,15 @@
+[workspace]
+name = "FeMandelbrot"
+version = "0.1.0"
+members = [
+  { path = ".cache/fe/ingots/core", name = "core" },
+  { path = ".cache/fe/ingots/core_derives", name = "core_derives" },
+  { path = ".cache/fe/ingots/std", name = "std" },
+  { path = "app/renderer", name = "perturbational_mandelbrot_smooth" },
+  { path = "app/source_viewer", name = "mb2_source_viewer" },
+  { path = "lib/fmath", name = "fmath" },
+  { path = "lib/precision", name = "precision" },
+  { path = "lib/canonical_words", name = "canonical_words" },
+  { path = "lib/source_inspector", name = "source_inspector" },
+  { path = "lib/browser_fetch", name = "browser_fetch" },
+]

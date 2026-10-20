@@ -1,0 +1,884 @@
+//! `Field<p>`: the general, CTFE-derived Montgomery modular-multiplication
+//! engine. Rollcall precision axis, P2 (PRECISION_TYPES_RESEARCH.md P2;
+//! ROLLCALL_GOAL.md "Precision axis": "`Field<p>` proven == both BN254
+//! fixtures limb-for-limb, retiring gen_field_mul.py and unifying the
+//! 4-backend prover"). `Field<p>`'s multiply is the linchpin: it is both the
+//! prover's element type and the gate for the Conal Merkle slice.
+//!
+//! THE PRINCIPLE (ROLLCALL_GOAL.md): this file is authored ONCE, generic over
+//! the limb count `const L: usize` and a `Modulus<L>` instance (the trait
+//! carries the prime's limbs, exactly PRECISION_TYPES_RESEARCH.md P2's
+//! prescription: "`Montgomery` parameter block as trait consts"). BN254 Fr
+//! (`bn254_fr.fe`) is the first, and only required, instantiation; any other
+//! prime specializes the SAME code by picking `L` and a `Modulus<L>` impl.
+//! `mu` (the CIOS Montgomery constant) is not hand-supplied: it is DERIVED
+//! from the modulus's low limb by a real CTFE computation (`mont_mu`, a
+//! 2-adic Newton iteration), and `bn254_fr.fe` proves the derivation correct
+//! with a `static_assert` against the known constant, mirroring how
+//! `gen_field_mul.py` computed `mu` OUTSIDE Fe -- here the compiler computes
+//! it.
+//!
+//! REPRESENTATION AND THE BALANCED-TREE MANDATE (read before touching the
+//! shape; mirrors the `Expansion<N>` module doc in `lib.fe`, same reasoned
+//! exception, different root cause). `Limbs<L>` below is a LINEAR chain
+//! (`LimbLast | LimbMore<Limbs<{L-1}>>`), not a balanced binary tree, and
+//! this is deliberate:
+//!
+//!   1. CIOS Montgomery reduction has a genuine sequential CARRY-PROPAGATION
+//!      dependency: each limb position's result depends on the carry
+//!      produced by the position below it (`Mac`'s `carry_in`/`carry_out`
+//!      threading), exactly the species of position-sensitive fold
+//!      `Expansion<N>`'s renormalization chain is (there each level threads
+//!      a `corr` value; here each level threads a carry). A ripple-carry
+//!      dependency is NOT associative: you cannot compute limb k's carry
+//!      without first resolving limbs 0..k-1, so a balanced split cannot
+//!      reassociate this fold without a fundamentally different technique
+//!      (carry-save / redundant representations, deferred, see below).
+//!   2. What the P0 mandate's balanced-tree rule DOES bear on here, and is
+//!      honored: the SCHOOLBOOK CONVOLUTION underlying a schoolbook multiply
+//!      (`sum over i+j=k of a[i]*b[j]`, before any carry normalization) IS
+//!      associative/commutative as pure integer arithmetic, so CIOS's whole
+//!      *raison d'etre* is precisely to AVOID materializing that O(L^2)-term
+//!      sum by interleaving reduction row-by-row; this file follows that
+//!      same choice (CIOS, not a naive convolution-then-reduce), so there is
+//!      no separate associative fold sitting inside `mul` to balance. The
+//!      mandate's actual target (large-N shapes consumed by a trait fold
+//!      where the fold genuinely IS associative, e.g. Poseidon's MDS
+//!      contraction or a Merkle tree's combine) is untouched by this file.
+//!   3. The measured wall is N=255 for a linear chain under a trait fold (P0
+//!      Probe 1). This is now moot for `mul`'s kernel: since the loop-form
+//!      re-author (below) the CIOS arithmetic runs over `[u32; L]` arrays and
+//!      `while` loops, NOT a depth-`L` trait fold, so no recursive `Limbs`
+//!      chain is folded inside `mul`. The linear chain survives only as the
+//!      Stage-1 boundary ABI (`Head`/`ShiftAppend`/`Zero` adapters) and as
+//!      Fixed's still-chain-form kernel, both well below the wall.
+//!
+//! LOOP FORM (the codegen-volume fix; see `mul`'s own doc): CIOS needs 2
+//! headroom limbs beyond the logical `L` during each row (the multiply- and
+//! reduce-accumulate carries can spill past position `L-1`), exactly as the
+//! existing kernels' `t` arrays are `L+2` long (`field_mul_bn254_fr_loop.fe`).
+//! The unrolled chain form (retired below) carried that headroom in a padded
+//! TYPE `<Limbs<L> as Pad2>::Out` (`Limbs<{L+2}>`), which forced `{L+2}`
+//! const-arithmetic, a `DropLast` kind-check wart, and a padded return; worse,
+//! its two full-width `Mac`/`ShiftAppend` folds monomorphized to O(L^2)
+//! emitted code, the wall that blocked `L=20`. `mul` is now authored in LOOP
+//! FORM: the two headroom limbs are TWO SCALAR u32 locals (`t_l`/`t_l1`, the
+//! fixed positions the kernels touch as `t[20]`/`t[21]`), the accumulator is a
+//! function-local `[u32; L]` array, and the rows/macs are `while` loops with
+//! runtime indices. No padded type exists, so `Pad2`/`{L+2}`/`DropLast` all
+//! dissolve and the return type is plain `Limbs<L>`; the emitted kernel is
+//! O(1) in `L`. REDC has a UNIQUE correct output for given operands (unlike
+//! float expansions there is no op-order-dependent rounding), so the loop form
+//! is bit-identical to the unrolled and hand-loop twins by construction,
+//! verified independently by the bit-identical oracle
+//! (`crates/codegen/tests/precision_field_bn254fr_oracle.rs`).
+//!
+//! The chain combinators below (`Mac`/`ShiftAppend`/`Head`/`Zero`/`SubBorrow`/
+//! `Select`/`Pad2`/`Rows`/`row`/`canonicalize`) all remain: `Fixed<L>`
+//! (`fixed.fe`) still imports the shared folds, and `mul`'s Stage-1 boundary
+//! adapters use `Head`/`ShiftAppend`/`Zero`. The `Pad2`/`Rows`/`row`/
+//! `canonicalize` combinators are no longer referenced by `mul` and are
+//! scheduled for deletion in the Stage-3 subsumption slice (they are not
+//! monomorphized by any live call site, so they add zero emitted code today).
+
+use core::marker::Copy
+use core::num::mul_mod_u256
+use core::ops::{Add, Mul, Neg, Sub}
+use canonical_words::{CanonicalWords, WordSink, WordSource, encode_canonical_words}
+
+// -----------------------------------------------------------------------------
+// Limb storage: a linear, LEAST-SIGNIFICANT-LIMB-FIRST HList (`lead` = limb 0).
+// -----------------------------------------------------------------------------
+
+pub struct LimbLast { pub value: u32 }
+pub struct LimbMore<T> { pub lead: u32, pub tail: T }
+impl Copy for LimbLast {}
+impl<T: Copy> Copy for LimbMore<T> {}
+
+/// `Limbs<L>`: `L` limbs, LSB-first. `Limbs<0>` and `Limbs<1>` both normalize
+/// to `LimbLast` (a single limb is its own base case; mirrors `Expansion<N>`).
+pub recursive type fn Limbs<const L: usize>() -> (*) {
+    match L {
+        0 => LimbLast
+        1 => LimbLast
+        _ => LimbMore<Limbs<{L - 1}>>
+    }
+}
+
+/// The one portable limb width (PRECISION_TYPES_RESEARCH.md section 4's limb
+/// width doctrine: portable 13 by default on every backend, digest-identical;
+/// a per-backend-Word fast tier is a later, measurement-gated opt-in, not
+/// built here). 13-bit limbs in u32 words is the only sound representation
+/// under browser WebGPU (no mul-hi, no u64; the ZPrize WebGPU-MSM house
+/// choice), exactly `field_mul_bn254_fr.fe`'s own convention.
+pub const LIMB_BITS: u32 = 13
+pub const LIMB_BASE: u32 = 8192
+
+// -----------------------------------------------------------------------------
+// The shared branch-free combinators (each a structural trait fold over
+// `Limbs<L>`, the same species of generic recursion `Expansion<N>`'s `Exp`
+// trait uses, specialized to integer carry/borrow arithmetic).
+// -----------------------------------------------------------------------------
+
+/// The least-significant limb (needed to compute the CIOS quotient digit `m`).
+pub trait Head { fn head(self) -> u32 }
+impl Head for LimbLast { fn head(self) -> u32 { self.value } }
+impl<T: Copy> Head for LimbMore<T> { fn head(self) -> u32 { self.lead } }
+
+/// All-zero limbs (the CIOS accumulator's initial state).
+pub trait Zero { fn zero() -> Self }
+impl Zero for LimbLast { fn zero() -> LimbLast { LimbLast { value: 0 } } }
+impl<T: Zero> Zero for LimbMore<T> {
+    fn zero() -> LimbMore<T> { LimbMore { lead: 0, tail: T::zero() } }
+}
+
+/// Branch-free carry-propagating multiply-accumulate: `t := t + x*scalar +
+/// carry_in`, per limb, returning the updated limbs and the final carry out
+/// of the most significant limb. THE reasoned-linear fold (module doc point
+/// 1): each level's `carry_in` is the PRIOR level's `carry_out`, a genuine
+/// ripple dependency.
+pub trait Mac {
+    fn mac(t: Self, x: Self, scalar: u32, carry_in: u32) -> (Self, u32)
+}
+impl Mac for LimbLast {
+    fn mac(t: LimbLast, x: LimbLast, scalar: u32, carry_in: u32) -> (LimbLast, u32) {
+        let s: u32 = t.value + x.value * scalar + carry_in
+        let c: u32 = s >> LIMB_BITS
+        (LimbLast { value: s - c * LIMB_BASE }, c)
+    }
+}
+impl<T: Mac + Copy> Mac for LimbMore<T> {
+    fn mac(t: LimbMore<T>, x: LimbMore<T>, scalar: u32, carry_in: u32) -> (LimbMore<T>, u32) {
+        let s: u32 = t.lead + x.lead * scalar + carry_in
+        let c: u32 = s >> LIMB_BITS
+        let lo: u32 = s - c * LIMB_BASE
+        let (tail2, c2) = <T as Mac>::mac(t: t.tail, x: x.tail, scalar: scalar, carry_in: c)
+        (LimbMore { lead: lo, tail: tail2 }, c2)
+    }
+}
+
+/// Exact division by `LIMB_BASE`: drop the (guaranteed-zero, by CIOS's
+/// construction of `m`) least-significant limb, shift every other limb down
+/// one position, and append `v` (always `0` at the call site in `row`) as the
+/// new most-significant limb.
+pub trait ShiftAppend {
+    fn shift_append(t: Self, v: u32) -> Self
+}
+impl ShiftAppend for LimbLast {
+    fn shift_append(t: LimbLast, v: u32) -> LimbLast { LimbLast { value: v } }
+}
+impl<T: ShiftAppend + Head + Copy> ShiftAppend for LimbMore<T> {
+    fn shift_append(t: LimbMore<T>, v: u32) -> LimbMore<T> {
+        LimbMore { lead: t.tail.head(), tail: <T as ShiftAppend>::shift_append(t: t.tail, v: v) }
+    }
+}
+
+/// Zero-extend `Limbs<L>` by exactly 2 limbs (the CIOS working-width
+/// headroom): `Limbs<L> -> Limbs<{L+2}>`. Structural recursion bounding the
+/// TYPE PARAMETER `T` (not the constructed type `LimbMore<T>`) so the
+/// associated-type projection stays over a bare type variable throughout --
+/// the shape that is proven to kind-check (see the module doc's account of
+/// why the mirror-image truncation was NOT built this way).
+pub trait Pad2 {
+    type Out
+    fn pad2(self) -> Self::Out
+}
+impl Pad2 for LimbLast {
+    type Out = LimbMore<LimbMore<LimbLast>>
+    fn pad2(self) -> LimbMore<LimbMore<LimbLast>> {
+        LimbMore { lead: self.value, tail: LimbMore { lead: 0, tail: LimbLast { value: 0 } } }
+    }
+}
+impl<T: Pad2 + Copy> Pad2 for LimbMore<T> {
+    type Out = LimbMore<T::Out>
+    fn pad2(self) -> LimbMore<T::Out> {
+        LimbMore { lead: self.lead, tail: self.tail.pad2() }
+    }
+}
+
+/// Constant-time `t - p - borrow_in`, per limb, base-complement technique
+/// (`t[j] + BASE - p[j] - borrow`, borrow bit read off the high side of the
+/// limb rather than a compare): verbatim the same idiom
+/// `field_mul_bn254_fr_loop.fe`'s own conditional-subtract uses.
+pub trait SubBorrow {
+    fn sub_borrow(t: Self, p: Self, borrow_in: u32) -> (Self, u32)
+}
+impl SubBorrow for LimbLast {
+    fn sub_borrow(t: LimbLast, p: LimbLast, borrow_in: u32) -> (LimbLast, u32) {
+        let dd: u32 = t.value + LIMB_BASE - p.value - borrow_in
+        let db: u32 = dd >> LIMB_BITS
+        let borrow: u32 = 1 - db
+        (LimbLast { value: dd - db * LIMB_BASE }, borrow)
+    }
+}
+impl<T: SubBorrow + Copy> SubBorrow for LimbMore<T> {
+    fn sub_borrow(t: LimbMore<T>, p: LimbMore<T>, borrow_in: u32) -> (LimbMore<T>, u32) {
+        let dd: u32 = t.lead + LIMB_BASE - p.lead - borrow_in
+        let db: u32 = dd >> LIMB_BITS
+        let borrow: u32 = 1 - db
+        let (tail2, borrow2) = <T as SubBorrow>::sub_borrow(t: t.tail, p: p.tail, borrow_in: borrow)
+        (LimbMore { lead: dd - db * LIMB_BASE, tail: tail2 }, borrow2)
+    }
+}
+
+/// Constant-time per-limb select (mask arithmetic, no branch): `keep_t*t +
+/// keep_diff*d`, `keep_t`/`keep_diff` each 0 or 1 and mutually exclusive.
+pub trait Select {
+    fn select(keep_t: u32, keep_diff: u32, t: Self, d: Self) -> Self
+}
+impl Select for LimbLast {
+    fn select(keep_t: u32, keep_diff: u32, t: LimbLast, d: LimbLast) -> LimbLast {
+        LimbLast { value: keep_t * t.value + keep_diff * d.value }
+    }
+}
+impl<T: Select + Copy> Select for LimbMore<T> {
+    fn select(keep_t: u32, keep_diff: u32, t: LimbMore<T>, d: LimbMore<T>) -> LimbMore<T> {
+        LimbMore {
+            lead: keep_t * t.lead + keep_diff * d.lead,
+            tail: <T as Select>::select(keep_t: keep_t, keep_diff: keep_diff, t: t.tail, d: d.tail),
+        }
+    }
+}
+
+/// Constant-time canonicalization: `t` if `t < p`, else `t - p` (at most one
+/// subtraction, per Montgomery's own bound on CIOS's output range).
+pub fn canonicalize<S: SubBorrow + Select + Copy>(_ t: S, _ p: S) -> S {
+    let (d, borrow) = <S as SubBorrow>::sub_borrow(t: t, p: p, borrow_in: 0)
+    let keep_t: u32 = borrow
+    let keep_diff: u32 = 1 - borrow
+    <S as Select>::select(keep_t: keep_t, keep_diff: keep_diff, t: t, d: d)
+}
+
+// -----------------------------------------------------------------------------
+// The CIOS row schedule.
+// -----------------------------------------------------------------------------
+
+/// One CIOS row over the WORKING width `W` (`= Pad2::Out`, logical limb
+/// count + 2 headroom limbs): `t := (t + a*b_i + m*p) / LIMB_BASE`, where `m
+/// = (t.head() * mu) mod LIMB_BASE` is chosen so the low limb of `t + m*p`
+/// is exactly zero (Montgomery's construction), making the division by
+/// `LIMB_BASE` exact.
+pub fn row<W: Mac + ShiftAppend + Head + Copy>(_ t: W, _ a: W, _ b_i: u32, _ p: W, _ mu: u32) -> W {
+    let (t1, _c1) = <W as Mac>::mac(t: t, x: a, scalar: b_i, carry_in: 0)
+    let m0: u32 = t1.head() * mu
+    let m: u32 = m0 - (m0 >> LIMB_BITS) * LIMB_BASE
+    let (t2, _c2) = <W as Mac>::mac(t: t1, x: p, scalar: m, carry_in: 0)
+    <W as ShiftAppend>::shift_append(t: t2, v: 0)
+}
+
+/// The OUTER row driver: run exactly `L` CIOS rows, one per limb of `b`
+/// (`Self`), each row folding into the fixed working-width accumulator `W`.
+/// `Self` (b's remaining rows) shrinks each level; `W` (the CIOS state,
+/// `a`, `p`) does NOT, hence the trait's own generic `W` parameter, resolved
+/// independently of `Self`'s structural depth at every level (proven not to
+/// hit a coherence/overlap wall in the task's incremental probes).
+pub trait Rows<W> {
+    fn rows(b: Self, t: W, a: W, p: W, mu: u32) -> W
+}
+impl<W: Mac + ShiftAppend + Head + Copy> Rows<W> for LimbLast {
+    fn rows(b: LimbLast, t: W, a: W, p: W, mu: u32) -> W {
+        row<W>(t, a, b.value, p, mu)
+    }
+}
+impl<T: Rows<W> + Copy, W: Mac + ShiftAppend + Head + Copy> Rows<W> for LimbMore<T> {
+    fn rows(b: LimbMore<T>, t: W, a: W, p: W, mu: u32) -> W {
+        let t1: W = row<W>(t, a, b.lead, p, mu)
+        <T as Rows<W>>::rows(b: b.tail, t: t1, a: a, p: p, mu: mu)
+    }
+}
+
+// -----------------------------------------------------------------------------
+// The Montgomery parameter block, as trait consts (PRECISION_TYPES_RESEARCH.md
+// P2's own prescription), and the CTFE derivation of `mu` from `p`'s low limb.
+// -----------------------------------------------------------------------------
+
+/// 2-adic Newton iteration for `p0^-1 mod 2^bits`: `x_{k+1} = x_k*(2 -
+/// p0*x_k) mod 2^bits`, doubling correct bits each step from `x0=1` (correct
+/// mod 2, since `p0` is odd for any prime modulus > 2). `mu = -x mod
+/// 2^bits`. Six iterations converges (and stays fixed) well past `bits=13`;
+/// every subtraction is restructured to add `base` first so CTFE's CHECKED
+/// arithmetic never sees an intermediate underflow.
+pub const fn mont_mu(_ p0: u32, _ bits: u32) -> u32 {
+    let base: u32 = 1 << bits
+    let mask: u32 = base - 1
+    let mut x: u32 = 1
+    let mut i: u32 = 0
+    while i < 6 {
+        let px: u32 = (p0 * x) & mask
+        let t: u32 = (base + 2 - px) & mask
+        x = (x * t) & mask
+        i = i + 1
+    }
+    (base - x) & mask
+}
+
+/// The Montgomery parameter block for a prime `p`, `L` limbs of `LIMB_BITS`
+/// each. `mu()` is expected to equal `mont_mu(p_limbs().head(), LIMB_BITS)`;
+/// instances prove this with a top-level `static_assert` (see `bn254_fr.fe`)
+/// rather than the trait deriving it inline, since a generic function body
+/// cannot fold a runtime call to a `const fn` into a compile-time constant
+/// without a literal in the generated kernel -- the `static_assert` gives
+/// the same CTFE-derivation guarantee (the compiler verifies the literal
+/// against the real computation) with zero runtime cost in the specialized
+/// kernel.
+pub trait Modulus<const L: usize> {
+    fn p_limbs() -> Limbs<L>
+    fn mu() -> u32
+}
+
+/// Backend-neutral least-significant-limb-first field storage. This is the
+/// native representation for repeated runtime arithmetic such as Poseidon and FRI;
+/// the older `Limbs<L>` HList remains as a structural/FCO boundary adapter.
+pub type FieldWords<const L: usize> = [u32; L]
+
+/// A modulus that also supplies `R^2 mod p`, enabling canonical conversion
+/// from ordinary radix words into Montgomery form. This separate extension
+/// leaves arithmetic-only modulus implementations lightweight.
+pub trait MontgomeryModulus<const L: usize>: Modulus<L> {
+    fn r2_words() -> FieldWords<L>
+}
+
+/// A modulus audited to be prime. This brand is what makes Fermat inversion
+/// a valid field operation rather than an unchecked ring operation.
+pub trait PrimeModulus<const L: usize>: MontgomeryModulus<L> {}
+
+/// A Montgomery modulus strictly larger than every u32. Implementers carry
+/// this audited promise so `from_u32` can embed without a runtime reduction.
+pub trait U32EmbeddingModulus<const L: usize>: MontgomeryModulus<L> {}
+
+/// Prime modulus with a canonical generator for its largest power-of-two
+/// multiplicative subgroup. The root is supplied in Montgomery form and must
+/// have exact order `2^two_adicity()`.
+pub trait TwoAdicModulus<const L: usize>: PrimeModulus<L> {
+    const TWO_ADICITY: u32
+    fn two_adic_root_words() -> FieldWords<L>
+}
+
+pub const fn pow_mod_u256(_ base: u256, _ exponent: u256, _ modulus: u256) -> u256 {
+    let mut base = base % modulus
+    let mut exponent = exponent
+    let mut result: u256 = 1
+    while exponent != 0 {
+        if (exponent & 1) == 1 {
+            result = mul_mod_u256(result, base, modulus)
+        }
+        base = mul_mod_u256(base, base, modulus)
+        exponent = exponent >> 1
+    }
+    result
+}
+
+pub const fn montgomery_radix_u256(_ modulus: u256, _ bits: u32) -> u256 {
+    let mut value: u256 = 1
+    let mut i: u32 = 0
+    while i < bits {
+        value = value + value
+        if value >= modulus { value = value - modulus }
+        i = i + 1
+    }
+    value
+}
+
+pub const fn montgomery_words_from_u256<const L: usize>(
+    _ plain: u256,
+    _ modulus: u256,
+) -> FieldWords<L> {
+    let limb_count: u32 = L.downcast_truncate()
+    let radix = montgomery_radix_u256(modulus, LIMB_BITS * limb_count)
+    let mut value = mul_mod_u256(plain, radix, modulus)
+    let mut words: FieldWords<L> = [0; L]
+    let mut i: u32 = 0
+    while i < limb_count {
+        words[i as usize] = (value & 8191).downcast_truncate()
+        value = value >> (LIMB_BITS as u256)
+        i = i + 1
+    }
+    words
+}
+
+fn modulus_words<const L: usize, M: Modulus<L>>() -> FieldWords<L>
+    where Limbs<L>: Head + ShiftAppend + Copy,
+{
+    let ln: u32 = L.downcast_truncate()
+    let mut words: FieldWords<L> = [0; L]
+    let mut source: Limbs<L> = M::p_limbs()
+    let mut i: u32 = 0
+    while i < ln {
+        words[i as usize] = source.head()
+        source = <Limbs<L> as ShiftAppend>::shift_append(t: source, v: 0)
+        i = i + 1
+    }
+    words
+}
+
+/// Validate a plain radix-word encoding before importing it into a field.
+/// Every limb must be in radix and the represented integer must be strictly
+/// smaller than the branded modulus. This is the canonical decoding boundary
+/// for proof receipts and other adversarial byte transports.
+pub fn plain_words_are_canonical<const L: usize, M: Modulus<L>>(
+    _ words: FieldWords<L>,
+) -> bool
+    where Limbs<L>: Head + ShiftAppend + Copy,
+{
+    let count: u32 = L.downcast_truncate()
+    let modulus = modulus_words<L, M>()
+    let mut i: u32 = 0
+    while i < count {
+        if words[i as usize] >= LIMB_BASE { return false }
+        i = i + 1
+    }
+    i = count
+    while i > 0 {
+        i = i - 1
+        let word = words[i as usize]
+        let modulus_word = modulus[i as usize]
+        if word < modulus_word { return true }
+        if word > modulus_word { return false }
+    }
+    false
+}
+
+fn modulus_minus_two_words<const L: usize, M: Modulus<L>>() -> FieldWords<L>
+    where Limbs<L>: Head + ShiftAppend + Copy,
+{
+    let mut words = modulus_words<L, M>()
+    let count: u32 = L.downcast_truncate()
+    let mut borrow: u32 = 2
+    let mut i: u32 = 0
+    while borrow != 0 && i < count {
+        let word = words[i as usize]
+        if word >= borrow {
+            words[i as usize] = word - borrow
+            borrow = 0
+        } else {
+            words[i as usize] = LIMB_BASE + word - borrow
+            borrow = 1
+        }
+        i = i + 1
+    }
+    words
+}
+
+/// Array-native CIOS multiplication. Inputs and output are canonical field
+/// words in Montgomery form, so repeated calls compose without conversions.
+/// The modulus is still derived from the `Modulus<L>` instance rather than
+/// accepted as an untyped runtime array.
+pub fn mul_words<const L: usize, M: Modulus<L>>(
+    _ a: FieldWords<L>,
+    _ b: FieldWords<L>,
+) -> FieldWords<L>
+    where Limbs<L>: Head + ShiftAppend + Copy,
+{
+    let ln: u32 = L.downcast_truncate()
+    let mu: u32 = M::mu()
+
+    let pp = modulus_words<L, M>()
+
+    // CIOS core. The two limbs above position L-1 are scalar locals, keeping
+    // emitted code independent of L while preserving the required headroom.
+    let mut t: FieldWords<L> = [0; L]
+    let mut t_l: u32 = 0
+    let mut t_l1: u32 = 0
+    let mut r: u32 = 0
+    while r < ln {
+        let b_r: u32 = b[r as usize]
+        let mut c: u32 = 0
+        let mut j: u32 = 0
+        while j < ln {
+            let s: u32 = t[j as usize] + a[j as usize] * b_r + c
+            c = s >> LIMB_BITS
+            t[j as usize] = s - c * LIMB_BASE
+            j = j + 1
+        }
+        let s_l: u32 = t_l + c
+        let c_hi: u32 = s_l >> LIMB_BITS
+        t_l = s_l - c_hi * LIMB_BASE
+        t_l1 = c_hi
+
+        let m0: u32 = t[0] * mu
+        let m: u32 = m0 - (m0 >> LIMB_BITS) * LIMB_BASE
+        let mut cr: u32 = (t[0] + m * pp[0]) >> LIMB_BITS
+        let mut jr: u32 = 1
+        while jr < ln {
+            let sr: u32 = t[jr as usize] + m * pp[jr as usize] + cr
+            cr = sr >> LIMB_BITS
+            t[(jr - 1) as usize] = sr - cr * LIMB_BASE
+            jr = jr + 1
+        }
+        let s_top: u32 = t_l + cr
+        cr = s_top >> LIMB_BITS
+        t[(ln - 1) as usize] = s_top - cr * LIMB_BASE
+        t_l = t_l1 + cr
+        r = r + 1
+    }
+
+    let mut d: FieldWords<L> = [0; L]
+    let mut borrow: u32 = 0
+    let mut jc: u32 = 0
+    while jc < ln {
+        let dd: u32 = t[jc as usize] + LIMB_BASE - pp[jc as usize] - borrow
+        let db: u32 = dd >> LIMB_BITS
+        borrow = 1 - db
+        d[jc as usize] = dd - db * LIMB_BASE
+        jc = jc + 1
+    }
+    let keep_t: u32 = borrow
+    let keep_d: u32 = 1 - borrow
+    let mut out: FieldWords<L> = [0; L]
+    let mut js: u32 = 0
+    while js < ln {
+        out[js as usize] = keep_t * t[js as usize] + keep_d * d[js as usize]
+        js = js + 1
+    }
+    out
+}
+
+/// Canonical modular addition over the same array-native representation.
+/// The `2p < B^L` modulus precondition guarantees the top carry is zero.
+pub fn add_words<const L: usize, M: Modulus<L>>(
+    _ a: FieldWords<L>,
+    _ b: FieldWords<L>,
+) -> FieldWords<L>
+    where Limbs<L>: Head + ShiftAppend + Copy,
+{
+    let ln: u32 = L.downcast_truncate()
+    let pp = modulus_words<L, M>()
+    let mut sum: FieldWords<L> = [0; L]
+    let mut carry: u32 = 0
+    let mut i: u32 = 0
+    while i < ln {
+        let total = a[i as usize] + b[i as usize] + carry
+        carry = total >> LIMB_BITS
+        sum[i as usize] = total - carry * LIMB_BASE
+        i = i + 1
+    }
+
+    let mut difference: FieldWords<L> = [0; L]
+    let mut borrow: u32 = 0
+    let mut j: u32 = 0
+    while j < ln {
+        let value = sum[j as usize] + LIMB_BASE - pp[j as usize] - borrow
+        let no_borrow = value >> LIMB_BITS
+        borrow = 1 - no_borrow
+        difference[j as usize] = value - no_borrow * LIMB_BASE
+        j = j + 1
+    }
+    let keep_sum = borrow
+    let keep_difference = 1 - borrow
+    let mut out: FieldWords<L> = [0; L]
+    let mut k: u32 = 0
+    while k < ln {
+        out[k as usize] = keep_sum * sum[k as usize]
+            + keep_difference * difference[k as usize]
+        k = k + 1
+    }
+    out
+}
+
+/// Canonical modular negation. The zero mask keeps `-0` canonical instead of
+/// returning the modulus itself.
+pub fn neg_words<const L: usize, M: Modulus<L>>(
+    _ value: FieldWords<L>,
+) -> FieldWords<L>
+    where Limbs<L>: Head + ShiftAppend + Copy,
+{
+    let ln: u32 = L.downcast_truncate()
+    let pp = modulus_words<L, M>()
+    let mut difference: FieldWords<L> = [0; L]
+    let mut borrow: u32 = 0
+    let mut nonzero: u32 = 0
+    let mut i: u32 = 0
+    while i < ln {
+        let digit = value[i as usize]
+        if digit != 0 { nonzero = 1 }
+        let total = pp[i as usize] + LIMB_BASE - digit - borrow
+        let no_borrow = total >> LIMB_BITS
+        borrow = 1 - no_borrow
+        difference[i as usize] = total - no_borrow * LIMB_BASE
+        i = i + 1
+    }
+    let mut out: FieldWords<L> = [0; L]
+    let mut j: u32 = 0
+    while j < ln {
+        out[j as usize] = difference[j as usize] * nonzero
+        j = j + 1
+    }
+    out
+}
+
+/// Canonical modular subtraction, composed from the shared addition and
+/// negation kernels so there is one normalization policy.
+pub fn sub_words<const L: usize, M: Modulus<L>>(
+    _ a: FieldWords<L>,
+    _ b: FieldWords<L>,
+) -> FieldWords<L>
+    where Limbs<L>: Head + ShiftAppend + Copy,
+{
+    add_words<L, M>(a, neg_words<L, M>(b))
+}
+
+/// A modulus-branded field element. The brand prevents accidental arithmetic
+/// between equally wide elements belonging to different fields, while the
+/// runtime representation remains exactly `[u32; L]`.
+pub struct FieldElement<const L: usize, M> { words: FieldWords<L> }
+
+impl<const L: usize, M> Copy for FieldElement<L, M> {}
+
+impl<const L: usize, M> FieldElement<L, M>
+    where M: Modulus<L>, Limbs<L>: Head + ShiftAppend + Copy,
+{
+    /// Import already-canonical Montgomery words. This is intended for
+    /// audited parameters such as CTFE-derived Poseidon constants.
+    pub fn from_montgomery_words(_ words: own FieldWords<L>) -> Self {
+        Self { words: words }
+    }
+
+    pub fn to_montgomery_words(self) -> FieldWords<L> {
+        self.words
+    }
+
+    pub fn to_plain_words(self) -> FieldWords<L> {
+        let mut one: FieldWords<L> = [0; L]
+        one[0] = 1
+        mul_words<L, M>(self.words, one)
+    }
+
+    pub const fn zero() -> Self {
+        Self { words: [0; L] }
+    }
+
+    pub fn is_zero(self) -> bool {
+        let mut i: usize = 0
+        while i < L {
+            if self.words[i] != 0 { return false }
+            i = i + 1
+        }
+        true
+    }
+
+    pub fn square(self) -> Self {
+        self * self
+    }
+
+    pub fn pow5(self) -> Self {
+        let squared = self.square()
+        squared.square() * self
+    }
+}
+
+impl<const L: usize, M> CanonicalWords for FieldElement<L, M>
+    where M: MontgomeryModulus<L>, Limbs<L>: Head + ShiftAppend + Copy,
+{
+    const WORDS: u32 = L.downcast_truncate()
+
+    fn encode<W: WordSink>(ref self, _ writer: W) -> W {
+        let words = self.to_plain_words()
+        encode_canonical_words(ref words, writer)
+    }
+
+    fn decode<R: WordSource>(mut self, _ reader: R) -> R {
+        let mut words: FieldWords<L> = [0; L]
+        let reader = words.decode(reader)
+        if !plain_words_are_canonical<L, M>(words) {
+            self = Self::zero()
+            return reader.reject()
+        }
+        self = Self::from_plain_words(words)
+        reader
+    }
+}
+
+impl<const L: usize, M> FieldElement<L, M>
+    where M: MontgomeryModulus<L>, Limbs<L>: Head + ShiftAppend + Copy,
+{
+    pub fn from_plain_words(_ words: FieldWords<L>) -> Self {
+        Self { words: mul_words<L, M>(words, M::r2_words()) }
+    }
+
+    pub fn pow_words(self, _ exponent: FieldWords<L>) -> Self {
+        let mut one: FieldWords<L> = [0; L]
+        one[0] = 1
+        let mut result = Self::from_plain_words(one)
+        let mut base = self
+        let mut word: usize = 0
+        while word < L {
+            let mut bits = exponent[word]
+            let mut bit: u32 = 0
+            while bit < LIMB_BITS {
+                if (bits & 1) == 1 { result = result * base }
+                base = base.square()
+                bits = bits >> 1
+                bit = bit + 1
+            }
+            word = word + 1
+        }
+        result
+    }
+
+    pub fn pow_u32(self, _ exponent: u32) -> Self {
+        let mut result = Self::from_plain_words({
+            let mut one: FieldWords<L> = [0; L]
+            one[0] = 1
+            one
+        })
+        let mut base = self
+        let mut exponent = exponent
+        while exponent != 0 {
+            if (exponent & 1) == 1 { result = result * base }
+            base = base.square()
+            exponent = exponent >> 1
+        }
+        result
+    }
+
+}
+
+impl<const L: usize, M> FieldElement<L, M>
+    where M: PrimeModulus<L>, Limbs<L>: Head + ShiftAppend + Copy,
+{
+    /// Fermat inverse for the prime modulus. Zero maps to zero, allowing a
+    /// caller to fail closed with `is_zero()` without a second exponentiation.
+    pub fn inverse_or_zero(self) -> Self {
+        self.pow_words(modulus_minus_two_words<L, M>())
+    }
+}
+
+impl<const L: usize, M> FieldElement<L, M>
+    where M: TwoAdicModulus<L>, Limbs<L>: Head + ShiftAppend + Copy,
+{
+    /// Primitive root for a requested power-of-two subgroup. Unsupported
+    /// orders fail closed as zero.
+    pub fn two_adic_root(_ log_order: u32) -> Self {
+        let adicity = M::TWO_ADICITY
+        if log_order > adicity { return Self::zero() }
+        let mut root = Self::from_montgomery_words(M::two_adic_root_words())
+        let mut remaining = adicity - log_order
+        while remaining > 0 {
+            root = root.square()
+            remaining = remaining - 1
+        }
+        root
+    }
+}
+
+impl<const L: usize, M> FieldElement<L, M>
+    where M: U32EmbeddingModulus<L>, Limbs<L>: Head + ShiftAppend + Copy,
+{
+    /// Convert every u32 without truncation. Three 13-bit limbs are enough for
+    /// all 32 input bits; the const predicate rejects narrower field layouts.
+    pub fn from_u32(_ value: u32) -> Self where L >= 3 {
+        let ln: u32 = L.downcast_truncate()
+        let mut words: FieldWords<L> = [0; L]
+        let mut rest = value
+        let mut i: u32 = 0
+        while i < ln {
+            let next = rest >> LIMB_BITS
+            words[i as usize] = rest - next * LIMB_BASE
+            rest = next
+            i = i + 1
+        }
+        Self::from_plain_words(words)
+    }
+
+    pub fn from_i32(_ value: i32) -> Self where L >= 3 {
+        let magnitude = Self::from_u32(value.unsigned_abs())
+        if value < 0 { -magnitude } else { magnitude }
+    }
+
+    pub fn one() -> Self where L >= 3 {
+        Self::from_u32(1)
+    }
+}
+
+impl<const L: usize, M> Add for FieldElement<L, M>
+    where M: Modulus<L>, Limbs<L>: Head + ShiftAppend + Copy,
+{
+    fn add(own self, _ other: own Self) -> Self {
+        Self { words: add_words<L, M>(self.words, other.words) }
+    }
+}
+
+impl<const L: usize, M> Mul for FieldElement<L, M>
+    where M: Modulus<L>, Limbs<L>: Head + ShiftAppend + Copy,
+{
+    fn mul(own self, _ other: own Self) -> Self {
+        Self { words: mul_words<L, M>(self.words, other.words) }
+    }
+}
+
+impl<const L: usize, M> Sub for FieldElement<L, M>
+    where M: Modulus<L>, Limbs<L>: Head + ShiftAppend + Copy,
+{
+    fn sub(own self, _ other: own Self) -> Self {
+        Self { words: sub_words<L, M>(self.words, other.words) }
+    }
+}
+
+impl<const L: usize, M> Neg for FieldElement<L, M>
+    where M: Modulus<L>, Limbs<L>: Head + ShiftAppend + Copy,
+{
+    fn neg(own self) -> Self {
+        Self { words: neg_words<L, M>(self.words) }
+    }
+}
+
+/// `Field<p>::mul`: the structural boundary entry point. `L` and `M` are
+/// explicit at every call site (mirrors `Expansion<N>`'s own doctrine: consts
+/// are not inferred from a concrete argument by this compiler).
+///
+/// The CIOS kernel runs over FUNCTION-LOCAL `[u32; L]` limb arrays with
+/// `while` loops (runtime indices), so the EMITTED CODE is O(1) in `L`: the
+/// quadratic monomorphization wall the fully-unrolled chain fold hit at L=20
+/// is gone. `L` reaches the body as a runtime value via `L.downcast_truncate()`
+/// (a bare const param used as a value; proven to lower through wasm codegen).
+/// The two CIOS headroom limbs above position `L-1` live in TWO SCALAR u32
+/// locals (`t_l`, `t_l1`), exactly the fixed positions the existing kernels
+/// touch as `t[20]`/`t[21]`: no padded TYPE exists, so `Pad2`/`{L+2}`/the
+/// DropLast wart all dissolve and the return type is plain `Limbs<L>`.
+///
+/// BOUNDARY: operands arrive as `Limbs<L>` cons
+/// chains (the committed call/oracle ABI). O(L)-code spill/rebuild `while`
+/// loops move them to/from the `[u32; L]` arrays over the committed `Head` /
+/// `ShiftAppend` / `Zero` folds (spill: read `head()`, rotate down; rebuild:
+/// feed limb 0..L-1 into `shift_append` from `zero()`). Runtime-heavy callers
+/// use `mul_words` directly and pay neither operand spill nor result rebuild.
+///
+/// SOUNDNESS PRECONDITION (now explicit): `2p < B^L` (one headroom bit in the
+/// top limb). Then with `a,b < p` every intermediate fits the window plus the
+/// two headroom scalars and one conditional subtract canonicalizes. BN254 Fr
+/// (`p < 2^254`, `B^L = 2^260`) satisfies it with 5 bits to spare. This is
+/// exactly what the existing kernels silently assume by ignoring the top
+/// headroom limb in their conditional subtract; the bit-identical oracle
+/// verifies the whole schedule rather than trusting it.
+pub fn mul<const L: usize, M: Modulus<L>>(_ a: Limbs<L>, _ b: Limbs<L>) -> Limbs<L>
+    where Limbs<L>: Head + ShiftAppend + Zero + Copy,
+{
+    let ln: u32 = L.downcast_truncate()
+
+    // ---- structural boundary spill ----
+    // read limb 0 (`head`), rotate the chain down (`shift_append(_, 0)`), so
+    // step i observes original limb i.
+    let mut aa: FieldWords<L> = [0; L]
+    let mut bb: FieldWords<L> = [0; L]
+    let mut sa: Limbs<L> = a
+    let mut sb: Limbs<L> = b
+    let mut i: u32 = 0
+    while i < ln {
+        aa[i as usize] = sa.head()
+        bb[i as usize] = sb.head()
+        sa = <Limbs<L> as ShiftAppend>::shift_append(t: sa, v: 0)
+        sb = <Limbs<L> as ShiftAppend>::shift_append(t: sb, v: 0)
+        i = i + 1
+    }
+
+    let words = mul_words<L, M>(aa, bb)
+
+    // ---- structural boundary rebuild ----
+    let mut out: Limbs<L> = <Limbs<L> as Zero>::zero()
+    let mut js: u32 = 0
+    while js < ln {
+        out = <Limbs<L> as ShiftAppend>::shift_append(t: out, v: words[js as usize])
+        js = js + 1
+    }
+    out
+}

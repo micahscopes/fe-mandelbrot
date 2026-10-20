@@ -1,0 +1,34 @@
+diff --git a/crates/codegen/assets/render-runtime/fe-render-runtime.js b/crates/codegen/assets/render-runtime/fe-render-runtime.js
+index 0649e5316..fcd0f740e 100644
+--- a/crates/codegen/assets/render-runtime/fe-render-runtime.js
++++ b/crates/codegen/assets/render-runtime/fe-render-runtime.js
+@@ -4564,11 +4564,12 @@ export class FeSurfaceElement extends HTMLElement {
+       const member = this._members[index];
+       const row = document.createElement("div");
+       row.className = "control";
+-      row.setAttribute("part", "control");
++      row.setAttribute("part", `control control-${param.name}`);
+       const doc = member.doc || param.doc;
+       if (doc) row.title = doc;
+       const label = document.createElement("label");
+       const value = document.createElement(presentation.widget === "output" ? "output" : "b");
++      value.setAttribute("part", `value value-${param.name}`);
+       const isInt = presentation.readout === "integer";
+       const isToggle = presentation.readout === "toggle";
+       const optionLabels = presentation.options ?? [];
+@@ -4595,6 +4596,7 @@ export class FeSurfaceElement extends HTMLElement {
+         return Number(number.toPrecision(8)).toString();
+       };
+       value.textContent = format(this._uniforms[index]);
++      label.setAttribute("part", `label label-${param.name}`);
+       const name = document.createElement("span");
+       name.textContent = param.name;
+       label.append(name, value);
+@@ -4608,6 +4610,7 @@ export class FeSurfaceElement extends HTMLElement {
+       const input = document.createElement(
+         presentation.widget === "select" ? "select" : "input",
+       );
++      input.setAttribute("part", `input input-${param.name}`);
+       if (presentation.widget === "select") {
+         for (let optionValue = Math.ceil(min); optionValue <= Math.floor(max); optionValue += 1) {
+           const option = document.createElement("option");

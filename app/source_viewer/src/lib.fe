@@ -1,0 +1,321 @@
+//! Readable source browsing as a resident Fe component.
+//!
+//! The existing inspector task owns fetch/cancellation and stale responses.
+//! This actor owns file selection, bounded UTF-8 retention, line numbers and
+//! the projected DOM. No application JavaScript handles those operations.
+use std::web::component::{
+    BrowserBytes,
+    BrowserPtr,
+    BrowserString,
+    ComponentEvent,
+    ComponentEventKind,
+    ComponentPatch,
+    ComponentWriter,
+    InitialState,
+    ProjectState,
+    ResidentTransition,
+    VisibleParts,
+    allocate_component_buffer,
+}
+use std::web::identity::{ComponentSchema, ComponentSchemaProvider, Part, Text, Link, Visibility}
+use std::web::page::{
+    ComponentComposition,
+    ComponentView,
+    PageAttribute,
+    PageBuilder,
+    PageElement,
+    PageText,
+}
+use std::text::{Utf8Buffer, Utf8View}
+use core::actor::{ActorSink, ScopedTask}
+use core::pending::{PendingCancellation, Select, Suspend}
+use std::actor::{ActorNotification, BrowserActorNotifications, BrowserActorSink}
+use std::reactive::AsyncEventSource
+use std::host::Resumable
+use std::wasm::WasmBackend
+use source_inspector::{
+    InspectorAction,
+    InspectorTask,
+    load_inspector_resources,
+    publish_load_command,
+    URL_CAPACITY,
+    PATCH_CAPACITY,
+    CONTENT_CAPACITY,
+    CONTROL_CAPACITY,
+}
+
+const VIEW_CAPACITY: usize = 256
+const GUTTER_CAPACITY: u32 = 65536
+
+struct SourceParts {
+    loading: Part<Visibility>,
+    ready: Part<Visibility>,
+    error: Part<Visibility>,
+    empty: Part<Visibility>,
+    code: Part<Text>,
+    gutter: Part<Text>,
+    title: Part<Text>,
+    error_text: Part<Text>,
+    raw: Part<Link>,
+}
+derive ComponentSchema for SourceParts using ComponentSchemaProvider
+
+enum SourceStatus {
+    Empty,
+    Loading,
+    Ready,
+    Error,
+}
+impl Copy for SourceStatus {}
+
+pub struct SourceState {
+    patch_ptr: u32,
+    control_ptr: u32,
+    url_ptr: u32,
+    content_ptr: u32,
+    gutter_ptr: u32,
+    url_len: u32,
+    content_len: u32,
+    request: u32,
+    status: SourceStatus,
+    connected: bool,
+    prevent_default: bool,
+}
+
+const fn label(_ text: String<31>) -> PageText {
+    PageText::one(value: text)
+}
+
+const fn file_link(
+    _ page: PageBuilder<VIEW_CAPACITY>,
+    _ file: String<31>,
+    _ description: String<31>,
+) -> PageBuilder<VIEW_CAPACITY> {
+    page.open(element: PageElement::Anchor)
+        .attribute(value: PageAttribute::class(value: "file"))
+        .attribute(
+            value: PageAttribute::href(value: PageText::two(first: "source/", second: file)),
+        )
+        .attribute(
+            value: PageAttribute::action(value: InspectorAction::Source),
+        )
+        .open(element: PageElement::Code)
+        .text(value: label(file))
+        .close()
+        .open(element: PageElement::Span)
+        .text(value: label(description))
+        .close()
+        .close()
+}
+
+/// Gutter text is separate, so selecting/copying source retains exact bytes.
+/// Stop at the allocated capacity; source text itself remains unmodified.
+fn line_numbers(_ destination: u32, _ content: Utf8View) -> BrowserString {
+    let mut offset: u32 = 0
+    let mut line: u32 = 1
+    let mut index: u32 = 0
+    let mut at_start: bool = true
+    while index < content.len() && offset + 12 < GUTTER_CAPACITY {
+        if at_start {
+            let mut digits: [u8; 10] = [0; 10]
+            let mut number: u32 = line
+            let mut count: usize = 0
+            while number > 0 {
+                digits[count] = (48 + number % 10).downcast_truncate()
+                number = number / 10
+                count = count + 1
+            }
+            while count > 0 {
+                count = count - 1
+                BrowserPtr<u8>::from_u32(destination + offset).write(digits[count])
+                offset = offset + 1
+            }
+            BrowserPtr<u8>::from_u32(destination + offset).write(10)
+            offset = offset + 1
+            at_start = false
+        }
+        if content.byte(index: index) == 10 {
+            line = line + 1
+            at_start = true
+        }
+        index = index + 1
+    }
+    BrowserString { ptr: destination, len: offset }
+}
+
+fn filename(_ url: Utf8View) -> BrowserString {
+    let mut index: u32 = 0
+    let mut start: u32 = 0
+    while index < url.len() {
+        if url.byte(index: index) == 47 {
+            start = index + 1
+        }
+        index = index + 1
+    }
+    url.slice(start: start, end: url.len()).view.browser_string()
+}
+
+actor FeSourceViewer {
+    patch_ptr:u32,
+    control_ptr:u32,
+    url_ptr:u32,
+    content_ptr:u32,
+    gutter_ptr:u32,
+    url_len:u32,
+    content_len:u32,
+    request:u32,
+    status:SourceStatus,
+    connected:bool,
+    prevent_default:bool,
+
+    const fn view() -> ComponentView<VIEW_CAPACITY> uses (ComponentComposition) {
+        let ui=<SourceParts as ComponentSchema>::component_parts()
+        let page=PageBuilder::new()
+            .open(element:PageElement::Header)
+            .open(element:PageElement::Anchor)
+            .attribute(value:PageAttribute::href(value:label("../index.html")))
+            .text(value:label("← Mandelbrot")).close()
+            .open(element:PageElement::Heading1).text(value:label("Fe source")).close()
+            .open(element:PageElement::Paragraph).text(value:label("Perturbation renderer · MB2")).close()
+            .close()
+            .open(element:PageElement::Div).attribute(value:PageAttribute::class(value:"workspace"))
+            .open(element:PageElement::Section).attribute(value:PageAttribute::class(value:"files"))
+        let page=file_link(page,"lib.fe","Actor and pass graph")
+        let page=file_link(page,"policy.fe","Camera and quality policy")
+        let page=file_link(page,"orbit.fe","Resumable perturbation")
+        let page=file_link(page,"image.fe","Color, sampling and Gaussian")
+        let page=file_link(page,"cache.fe","GPU cache metadata")
+        let page=file_link(page,"palette.fe","Pastel OKLCH palette")
+        let page=file_link(page,"partition.fe","Blue-noise ordering")
+        let page=file_link(page,"viewer.fe","This Fe source viewer")
+        page.close()
+            .open(element:PageElement::Main)
+            .open(element:PageElement::Div).attribute(value:PageAttribute::class(value:"file-heading"))
+            .open(element:PageElement::Strong).attribute(value:PageAttribute::node(value:ui.title))
+            .text(value:label("Choose a file")).close()
+            .open(element:PageElement::Anchor).attribute(value:PageAttribute::node(value:ui.raw))
+            .attribute(value:PageAttribute::target(value:"_blank"))
+            .attribute(value:PageAttribute::rel(value:"noopener"))
+            .text(value:label("Raw source ↗")).close().close()
+            .open(element:PageElement::Paragraph).attribute(value:PageAttribute::view(value:ui.empty))
+            .attribute(value:PageAttribute::class(value:"message"))
+            .text(value:label("Choose a module to explore.")).close()
+            .open(element:PageElement::Paragraph).attribute(value:PageAttribute::view(value:ui.loading))
+            .attribute(value:PageAttribute::class(value:"message"))
+            .text(value:label("Loading source…")).close()
+            .open(element:PageElement::Pre).attribute(value:PageAttribute::view(value:ui.error))
+            .attribute(value:PageAttribute::node(value:ui.error_text))
+            .attribute(value:PageAttribute::class(value:"message error")).close()
+            .open(element:PageElement::Div).attribute(value:PageAttribute::class(value:"source-lines"))
+            .attribute(value:PageAttribute::view(value:ui.ready))
+            .open(element:PageElement::Pre).attribute(value:PageAttribute::class(value:"line-numbers"))
+            .attribute(value:PageAttribute::node(value:ui.gutter)).close()
+            .open(element:PageElement::Pre).attribute(value:PageAttribute::class(value:"source-code"))
+            .attribute(value:PageAttribute::node(value:ui.code)).close()
+            .close().close().close().finish_component()
+    }
+
+    fn initial() -> SourceState uses (InitialState) {
+        let patch=allocate_component_buffer(capacity:PATCH_CAPACITY)
+        let control=allocate_component_buffer(capacity:CONTROL_CAPACITY)
+        let url=allocate_component_buffer(capacity:URL_CAPACITY)
+        let content=allocate_component_buffer(capacity:CONTENT_CAPACITY)
+        let gutter=allocate_component_buffer(capacity:GUTTER_CAPACITY)
+        publish_load_command(control:control.ptr,revision:0,request:0,url_len:0,binary:false,active:false)
+        SourceState { patch_ptr:patch.ptr,control_ptr:control.ptr,url_ptr:url.ptr,content_ptr:content.ptr,
+            gutter_ptr:gutter.ptr,url_len:0,content_len:0,request:0,status:SourceStatus::Empty,
+            connected:false,prevent_default:false }
+    }
+
+    fn load_resources(self) -> u32 uses (ScopedTask) {
+        with (
+            AsyncEventSource<WasmBackend,ActorNotification> = BrowserActorNotifications::new(),
+            Select<WasmBackend,u32> = Resumable {},
+            PendingCancellation<WasmBackend> = Resumable {},
+            ActorSink<WasmBackend,ComponentEvent<InspectorAction,InspectorTask>> = BrowserActorSink {},
+            Suspend<WasmBackend,u32> = Resumable {},
+        ) {
+            load_inspector_resources(control:self.control_ptr,url:self.url_ptr,content:self.content_ptr)
+        }
+    }
+
+    fn receive(self,event:own ComponentEvent<InspectorAction,InspectorTask>) -> SourceState uses (ResidentTransition) {
+        let mut connected=self.connected
+        let mut url_len=self.url_len
+        let mut content_len=self.content_len
+        let mut request=self.request
+        let mut status=self.status
+        let mut prevent_default=false
+        match event.kind {
+            ComponentEventKind::Connected => { connected=true }
+            ComponentEventKind::Disconnected => {
+                connected=false
+                publish_load_command(control:self.control_ptr,revision:request+1,request:request,
+                    url_len:url_len,binary:false,active:false)
+                BrowserActorNotifications::new().notify()
+            }
+            ComponentEventKind::Activate => {
+                if connected {
+                    match event.target {
+                        InspectorAction::Source => {
+                            let copied=Utf8Buffer::empty(ptr:self.url_ptr,capacity:URL_CAPACITY).replace_browser(event.text)
+                            if copied.valid && !copied.truncated {
+                                url_len=copied.buffer.len()
+                                request=request+1
+                                content_len=0
+                                status=SourceStatus::Loading
+                                prevent_default=true
+                                publish_load_command(control:self.control_ptr,revision:request,request:request,
+                                    url_len:url_len,binary:false,active:true)
+                                BrowserActorNotifications::new().notify()
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            ComponentEventKind::TaskMessage => {
+                if connected && event.task.request==request {
+                    match event.target {
+                        InspectorAction::ResourceComplete => {
+                            content_len=event.task.content_len
+                            status=if event.task.status>=200 && event.task.status<300 { SourceStatus::Ready } else { SourceStatus::Error }
+                        }
+                        InspectorAction::ResourceFailed => { content_len=event.task.content_len
+                            status=SourceStatus::Error }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+        SourceState { patch_ptr:self.patch_ptr,control_ptr:self.control_ptr,url_ptr:self.url_ptr,
+            content_ptr:self.content_ptr,gutter_ptr:self.gutter_ptr,url_len:url_len,content_len:content_len,
+            request:request,status:status,connected:connected,prevent_default:prevent_default }
+    }
+
+    fn project(self) -> ComponentPatch uses (ProjectState) {
+        let ui=<SourceParts as ComponentSchema>::component_parts()
+        let ready=match self.status { SourceStatus::Ready=>true,_=>false }
+        let visible=VisibleParts::none()
+            .show_if(target:ui.ready,visible:ready)
+            .show_if(target:ui.empty,visible:match self.status { SourceStatus::Empty=>true,_=>false })
+            .show_if(target:ui.loading,visible:match self.status { SourceStatus::Loading=>true,_=>false })
+            .show_if(target:ui.error,visible:match self.status { SourceStatus::Error=>true,_=>false })
+        let url=Utf8Buffer::with_len(ptr:self.url_ptr,len:self.url_len,capacity:URL_CAPACITY).view()
+        let content=Utf8Buffer::with_len(ptr:self.content_ptr,len:self.content_len,capacity:CONTENT_CAPACITY).view()
+        let mut writer=ComponentWriter::new(buffer:BrowserBytes { ptr:self.patch_ptr,len:PATCH_CAPACITY })
+        if self.url_len>0 {
+            writer=writer.set_href(target:ui.raw,value:url.browser_string())
+                .set_text(target:ui.title,value:filename(url))
+        }
+        if ready {
+            writer=writer.set_text(target:ui.code,value:content.browser_string())
+                .set_text(target:ui.gutter,value:line_numbers(self.gutter_ptr,content))
+        } else {
+            writer=writer.set_text(target:ui.error_text,value:content.browser_string())
+        }
+        ComponentPatch::new(visible:visible,focus_target:InspectorAction::Unknown,
+            prevent_default:self.prevent_default,commands:writer.finish())
+    }
+}

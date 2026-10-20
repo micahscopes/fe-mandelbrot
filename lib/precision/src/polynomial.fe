@@ -1,0 +1,641 @@
+//! Generic radix-2 polynomial transforms over a modulus-branded Fe field.
+//!
+//! This module deliberately derives every twiddle from the field's audited
+//! maximal two-adic root. It contains no generated root table and no
+//! size-specialized butterfly schedule. Const predicates reject zero,
+//! non-power-of-two, or field-unsupported domains before lowering.
+
+use super::field::{
+    FieldElement, Limbs, ShiftAppend, Head, TwoAdicModulus,
+    U32EmbeddingModulus,
+}
+use super::word_field::{WordField, WordTwoAdicPrime}
+use super::binomial_extension::{BinomialExtension4, WordBinomialExtension4}
+use core::marker::Copy
+use std::conal::BalancedBinarySchedule
+
+const fn radix2_log_unchecked<const N: usize>() -> u32 {
+    let mut remaining: usize = N
+    let mut log: u32 = 0
+    while remaining > 1 {
+        remaining = remaining >> 1
+        log = log + 1
+    }
+    log
+}
+
+pub const fn radix2_log<const N: usize>() -> u32
+    where N > 0, { (N & (N - 1)) == 0 },
+{
+    radix2_log_unchecked<N>()
+}
+
+/// The arithmetic interpretation required by one radix-2 dependency plan.
+/// Multi-limb proof fields and u32-native word fields implement this boundary;
+/// the transform and LDE algorithms do not name either representation.
+pub trait Radix2Field: Copy {
+    const TWO_ADICITY: u32
+    fn radix2_zero() -> Self
+    fn radix2_is_zero(self) -> bool
+    fn radix2_add(self, _ other: Self) -> Self
+    fn radix2_sub(self, _ other: Self) -> Self
+    fn radix2_mul(self, _ other: Self) -> Self
+    fn radix2_pow(self, _ exponent: u32) -> Self
+    fn radix2_inverse_or_zero(self) -> Self
+    fn radix2_root(_ log_order: u32) -> Self
+}
+
+/// One independent column transform in a balanced radix-2 placement plan.
+/// Offsets are relative to the caller's base trace and LDE regions, keeping
+/// storage ownership outside the arithmetic library.
+pub struct Radix2ColumnTask {
+    pub index: u32,
+    pub input_offset: u32,
+    pub output_offset: u32,
+}
+
+impl Copy for Radix2ColumnTask {}
+
+/// A placement-neutral batch of equal-shaped radix-2 column transforms.
+/// `Dependencies` is the schedule tree and therefore owns the task count.
+pub trait Radix2ColumnPlan {
+    type Dependencies: BalancedBinarySchedule
+    const TASKS: usize
+    fn task(_ index: u32) -> Radix2ColumnTask
+}
+
+/// Interpret every leaf of `S` as one contiguous input column and one
+/// contiguous output column. Scalar, packed, and WebGPU placements consume the
+/// same offsets; only their assignment of tasks to execution lanes differs.
+pub struct ContiguousRadix2Columns<
+    S: BalancedBinarySchedule,
+    const INPUT_ROWS: usize,
+    const OUTPUT_ROWS: usize,
+> {}
+
+impl<
+    S: BalancedBinarySchedule,
+    const INPUT_ROWS: usize,
+    const OUTPUT_ROWS: usize,
+> Radix2ColumnPlan for ContiguousRadix2Columns<S, INPUT_ROWS, OUTPUT_ROWS> {
+    type Dependencies = S
+    const TASKS: usize = S::LEAVES
+
+    fn task(_ index: u32) -> Radix2ColumnTask {
+        Radix2ColumnTask {
+            index: index,
+            input_offset: index * INPUT_ROWS.downcast_truncate(),
+            output_offset: index * OUTPUT_ROWS.downcast_truncate(),
+        }
+    }
+}
+
+/// Numerators grouped by the four zerofiers shared by transition AIRs.
+/// Constraint systems produce this field-neutral record; scalar, packed, and
+/// GPU interpreters all apply the same quotient formula below.
+pub struct AirConstraintNumerators<F: Radix2Field> {
+    pub all_rows: F,
+    pub pair_rows: F,
+    pub first_row: F,
+    pub last_row: F,
+}
+impl<F: Radix2Field> Copy for AirConstraintNumerators<F> {}
+
+pub struct AirCompositionValue<F: Radix2Field> {
+    pub valid: bool,
+    pub value: F,
+}
+impl<F: Radix2Field> Copy for AirCompositionValue<F> {}
+
+/// Divide four constraint families by the trace, transition, initial, and
+/// terminal zerofiers. The trace size remains a type-level fact, so backends
+/// may change placement without receiving a second composition formula.
+pub fn air_composition_value<F: Radix2Field, const N: usize>(
+    _ point: F,
+    _ numerators: AirConstraintNumerators<F>,
+) -> AirCompositionValue<F>
+where
+    N > 0,
+    N > 1,
+    { (N & (N - 1)) == 0 },
+{
+    let one = F::radix2_root(0)
+    let last_trace_point = F::radix2_root(radix2_log<N>())
+        .radix2_inverse_or_zero()
+    let trace_zerofier = point.radix2_pow(N.downcast_truncate())
+        .radix2_sub(one)
+    let first_zerofier = point.radix2_sub(one)
+    let last_zerofier = point.radix2_sub(last_trace_point)
+    if trace_zerofier.radix2_is_zero()
+        || first_zerofier.radix2_is_zero()
+        || last_zerofier.radix2_is_zero() {
+        return AirCompositionValue {
+            valid: false,
+            value: F::radix2_zero(),
+        }
+    }
+    let trace_inverse = trace_zerofier.radix2_inverse_or_zero()
+    AirCompositionValue {
+        valid: true,
+        value: numerators.all_rows.radix2_mul(trace_inverse).radix2_add(
+            numerators.pair_rows
+                .radix2_mul(last_zerofier)
+                .radix2_mul(trace_inverse),
+        ).radix2_add(
+            numerators.first_row
+                .radix2_mul(first_zerofier.radix2_inverse_or_zero()),
+        ).radix2_add(
+            numerators.last_row
+                .radix2_mul(last_zerofier.radix2_inverse_or_zero()),
+        ),
+    }
+}
+
+/// One shared compile-time admissibility predicate for every interpretation
+/// of a radix-2 field plan. Outer schedulers can carry this exact proof without
+/// copying a field's two-adicity or the transform's shape rules.
+pub const fn radix2_field_domain_supported<
+    const N: usize,
+    F: Radix2Field,
+>() -> bool {
+    N > 0
+        && (N & (N - 1)) == 0
+        && radix2_log_unchecked<N>() <= F::TWO_ADICITY
+}
+
+/// Invert every nonzero entry with one field inversion. Zero entries remain
+/// zero, which lets sparse interaction provers batch active and inactive ports
+/// without a sentinel representation.
+pub fn write_batch_inverse_or_zero<F: Radix2Field, const N: usize>(
+    _ values: ref [F; N],
+    _ inverses: mut [F; N],
+) {
+    let mut prefixes = [F::radix2_zero(); N]
+    let mut product = F::radix2_root(0)
+    let mut index: usize = 0
+    while index < N {
+        prefixes[index] = product
+        if !values[index].radix2_is_zero() {
+            product = product.radix2_mul(values[index])
+        }
+        index = index + 1
+    }
+
+    let mut inverse_product = product.radix2_inverse_or_zero()
+    inverses = [F::radix2_zero(); N]
+    let mut remaining: usize = N
+    while remaining > 0 {
+        let current = remaining - 1
+        if !values[current].radix2_is_zero() {
+            inverses[current] = inverse_product.radix2_mul(prefixes[current])
+            inverse_product = inverse_product.radix2_mul(values[current])
+        }
+        remaining = current
+    }
+}
+
+/// Value-returning convenience interpretation of the same batch-inversion
+/// plan. Placement-sensitive targets can use `write_batch_inverse_or_zero` to
+/// reuse caller-owned storage without changing the arithmetic.
+pub fn batch_inverse_or_zero<F: Radix2Field, const N: usize>(
+    _ values: [F; N],
+) -> [F; N] {
+    let mut inverses = [F::radix2_zero(); N]
+    write_batch_inverse_or_zero<F, N>(ref values, mut inverses)
+    inverses
+}
+
+impl<const L: usize, M> Radix2Field for FieldElement<L, M>
+    where
+        M: TwoAdicModulus<L>,
+        Limbs<L>: Head + ShiftAppend + Copy,
+{
+    const TWO_ADICITY: u32 = M::TWO_ADICITY
+    fn radix2_zero() -> Self { Self::zero() }
+    fn radix2_is_zero(self) -> bool { self.is_zero() }
+    fn radix2_add(self, _ other: Self) -> Self { self + other }
+    fn radix2_sub(self, _ other: Self) -> Self { self - other }
+    fn radix2_mul(self, _ other: Self) -> Self { self * other }
+    fn radix2_pow(self, _ exponent: u32) -> Self { self.pow_u32(exponent) }
+    fn radix2_inverse_or_zero(self) -> Self { self.inverse_or_zero() }
+    fn radix2_root(_ log_order: u32) -> Self { Self::two_adic_root(log_order) }
+}
+
+impl<M: WordTwoAdicPrime> Radix2Field for WordField<M> {
+    const TWO_ADICITY: u32 = M::TWO_ADICITY
+    fn radix2_zero() -> Self { Self::zero() }
+    fn radix2_is_zero(self) -> bool { self.is_zero() }
+    fn radix2_add(self, _ other: Self) -> Self { self + other }
+    fn radix2_sub(self, _ other: Self) -> Self { self - other }
+    fn radix2_mul(self, _ other: Self) -> Self { self * other }
+    fn radix2_pow(self, _ exponent: u32) -> Self { self.pow_u32(exponent) }
+    fn radix2_inverse_or_zero(self) -> Self { self.inverse_or_zero() }
+    fn radix2_root(_ log_order: u32) -> Self { Self::two_adic_root(log_order) }
+}
+
+impl<M: WordTwoAdicPrime + WordBinomialExtension4> Radix2Field for BinomialExtension4<M> {
+    const TWO_ADICITY: u32 = M::TWO_ADICITY
+    fn radix2_zero() -> Self { Self::zero() }
+    fn radix2_is_zero(self) -> bool { self.is_zero() }
+    fn radix2_add(self, _ other: Self) -> Self { self + other }
+    fn radix2_sub(self, _ other: Self) -> Self { self - other }
+    fn radix2_mul(self, _ other: Self) -> Self { self * other }
+    fn radix2_pow(self, _ exponent: u32) -> Self { self.pow_u32(exponent) }
+    fn radix2_inverse_or_zero(self) -> Self { self.inverse_or_zero() }
+    fn radix2_root(_ log_order: u32) -> Self {
+        Self::from_base(WordField<M>::two_adic_root(log_order))
+    }
+}
+
+fn radix2_natural<F: Radix2Field>(_ value: u32) -> F {
+    let mut result = F::radix2_zero()
+    let mut place = F::radix2_root(0)
+    let mut value = value
+    while value != 0 {
+        if (value & 1) == 1 { result = result.radix2_add(place) }
+        place = place.radix2_add(place)
+        value = value >> 1
+    }
+    result
+}
+
+fn reverse_low_bits(_ value: usize, _ width: u32) -> usize {
+    let mut source = value
+    let mut reversed: usize = 0
+    let mut bit: u32 = 0
+    while bit < width {
+        reversed = (reversed << 1) | (source & 1)
+        source = source >> 1
+        bit = bit + 1
+    }
+    reversed
+}
+
+/// Cooley-Tukey radix-2 transform. The inverse uses the inverse root and
+/// multiplies by `N^-1`; it is therefore genuine interpolation, not a second
+/// forward transform with reordered output.
+fn transform_field_in_place<const N: usize, F: Radix2Field>(
+    _ values: mut [F; N],
+    _ inverse: bool,
+)
+    where
+        N > 0,
+        { (N & (N - 1)) == 0 },
+{
+    let log_n = radix2_log<N>()
+    let mut index: usize = 0
+    while index < N {
+        let reversed = reverse_low_bits(index, log_n)
+        if reversed > index {
+            let value = values[index]
+            values[index] = values[reversed]
+            values[reversed] = value
+        }
+        index = index + 1
+    }
+
+    let mut root = F::radix2_root(log_n)
+    if inverse { root = root.radix2_inverse_or_zero() }
+    let one = F::radix2_root(0)
+    let mut width: usize = 2
+    while width <= N {
+        let twiddle_step: u32 = (N / width).downcast_truncate()
+        let stage_root = root.radix2_pow(twiddle_step)
+        let half = width >> 1
+        let mut block: usize = 0
+        while block < N {
+            let mut twiddle = one
+            let mut offset: usize = 0
+            while offset < half {
+                let even = values[block + offset]
+                let odd = values[block + offset + half].radix2_mul(twiddle)
+                values[block + offset] = even.radix2_add(odd)
+                values[block + offset + half] = even.radix2_sub(odd)
+                twiddle = twiddle.radix2_mul(stage_root)
+                offset = offset + 1
+            }
+            block = block + width
+        }
+        width = width << 1
+    }
+
+    if inverse {
+        let scale = radix2_natural<F>(N.downcast_truncate())
+            .radix2_inverse_or_zero()
+        let mut i: usize = 0
+        while i < N {
+            values[i] = values[i].radix2_mul(scale)
+            i = i + 1
+        }
+    }
+}
+
+fn transform_field<const N: usize, F: Radix2Field>(
+    _ values: own [F; N],
+    _ inverse: bool,
+) -> [F; N]
+    where
+        N > 0,
+        { (N & (N - 1)) == 0 },
+{
+    let mut values = values
+    transform_field_in_place<N, F>(mut values, inverse)
+    values
+}
+
+/// Interpret the shared radix-2 dependency plan in caller-owned storage.
+/// This is the placement-friendly form used by large scalar, packed, and GPU
+/// schedules; the value-returning APIs below remain convenience wrappers.
+pub fn radix2_ntt_in_place<const N: usize, F: Radix2Field>(
+    _ values: mut [F; N],
+)
+    where
+        N > 0,
+        { (N & (N - 1)) == 0 },
+        { radix2_field_domain_supported<N, F>() },
+{
+    transform_field_in_place<N, F>(mut values, false)
+}
+
+pub fn radix2_intt_in_place<const N: usize, F: Radix2Field>(
+    _ values: mut [F; N],
+)
+    where
+        N > 0,
+        { (N & (N - 1)) == 0 },
+        { radix2_field_domain_supported<N, F>() },
+{
+    transform_field_in_place<N, F>(mut values, true)
+}
+
+pub fn radix2_ntt<const N: usize, const L: usize, M>(
+    _ coefficients: own [FieldElement<L, M>; N],
+) -> [FieldElement<L, M>; N]
+    where
+        N > 0,
+        { (N & (N - 1)) == 0 },
+        { radix2_log_unchecked<N>() <= M::TWO_ADICITY },
+        L >= 3,
+        M: TwoAdicModulus<L> + U32EmbeddingModulus<L>,
+        Limbs<L>: Head + ShiftAppend + Copy,
+{
+    transform_field<N, FieldElement<L, M>>(coefficients, false)
+}
+
+pub fn radix2_intt<const N: usize, const L: usize, M>(
+    _ evaluations: own [FieldElement<L, M>; N],
+) -> [FieldElement<L, M>; N]
+    where
+        N > 0,
+        { (N & (N - 1)) == 0 },
+        { radix2_log_unchecked<N>() <= M::TWO_ADICITY },
+        L >= 3,
+        M: TwoAdicModulus<L> + U32EmbeddingModulus<L>,
+        Limbs<L>: Head + ShiftAppend + Copy,
+{
+    transform_field<N, FieldElement<L, M>>(evaluations, true)
+}
+
+/// The same radix-2 transform interpreted through one u32-native word field.
+pub fn radix2_word_ntt<const N: usize, M: WordTwoAdicPrime>(
+    _ coefficients: own [WordField<M>; N],
+) -> [WordField<M>; N]
+    where
+        N > 0,
+        { (N & (N - 1)) == 0 },
+        { radix2_log_unchecked<N>() <= M::TWO_ADICITY },
+{
+    transform_field<N, WordField<M>>(coefficients, false)
+}
+
+pub fn radix2_word_intt<const N: usize, M: WordTwoAdicPrime>(
+    _ evaluations: own [WordField<M>; N],
+) -> [WordField<M>; N]
+    where
+        N > 0,
+        { (N & (N - 1)) == 0 },
+        { radix2_log_unchecked<N>() <= M::TWO_ADICITY },
+{
+    transform_field<N, WordField<M>>(evaluations, true)
+}
+
+/// The same dependency plan interpreted over a quartic challenge field. Its
+/// roots of unity are canonical base-field roots embedded as constants.
+pub fn radix2_ext4_ntt<
+    const N: usize,
+    M: WordTwoAdicPrime + WordBinomialExtension4,
+>(
+    _ coefficients: own [BinomialExtension4<M>; N],
+) -> [BinomialExtension4<M>; N]
+    where
+        N > 0,
+        { (N & (N - 1)) == 0 },
+        { radix2_log_unchecked<N>() <= M::TWO_ADICITY },
+{
+    transform_field<N, BinomialExtension4<M>>(coefficients, false)
+}
+
+pub fn radix2_ext4_intt<
+    const N: usize,
+    M: WordTwoAdicPrime + WordBinomialExtension4,
+>(
+    _ evaluations: own [BinomialExtension4<M>; N],
+) -> [BinomialExtension4<M>; N]
+    where
+        N > 0,
+        { (N & (N - 1)) == 0 },
+        { radix2_log_unchecked<N>() <= M::TWO_ADICITY },
+{
+    transform_field<N, BinomialExtension4<M>>(evaluations, true)
+}
+
+struct FieldCosetLde<const N: usize, F> {
+    valid: bool,
+    evaluations: [F; N],
+}
+
+impl<const N: usize, F: Copy> Copy for FieldCosetLde<N, F> {}
+
+pub fn write_radix2_coset_lde<
+    const N: usize,
+    const OUT: usize,
+    F: Radix2Field,
+>(
+    _ base_evaluations: ref [F; N],
+    _ shift: F,
+    _ evaluations: mut [F; OUT],
+) -> bool
+    where
+        N > 0,
+        { (N & (N - 1)) == 0 },
+        { radix2_field_domain_supported<N, F>() },
+        OUT > 0,
+        OUT > N,
+        { (OUT & (OUT - 1)) == 0 },
+        { radix2_field_domain_supported<OUT, F>() },
+        { (OUT % N) == 0 },
+{
+    let zero = F::radix2_zero()
+    let one = F::radix2_root(0)
+    evaluations = [zero; OUT]
+    if shift.radix2_is_zero()
+        || shift.radix2_pow(OUT.downcast_truncate()).radix2_sub(one).radix2_is_zero()
+    {
+        return false
+    }
+
+    let mut coefficients = [zero; N]
+    let mut index: usize = 0
+    while index < N {
+        coefficients[index] = base_evaluations[index]
+        index = index + 1
+    }
+    radix2_intt_in_place<N, F>(mut coefficients)
+    let mut shift_power = one
+    index = 0
+    while index < N {
+        evaluations[index] = coefficients[index].radix2_mul(shift_power)
+        shift_power = shift_power.radix2_mul(shift)
+        index = index + 1
+    }
+    radix2_ntt_in_place<OUT, F>(mut evaluations)
+    true
+}
+
+fn radix2_field_coset_lde<const N: usize, const OUT: usize, F: Radix2Field>(
+    _ base_evaluations: own [F; N],
+    _ shift: F,
+) -> FieldCosetLde<OUT, F>
+    where
+        N > 0,
+        { (N & (N - 1)) == 0 },
+        { radix2_field_domain_supported<N, F>() },
+        OUT > 0,
+        OUT > N,
+        { (OUT & (OUT - 1)) == 0 },
+        { radix2_field_domain_supported<OUT, F>() },
+        { (OUT % N) == 0 },
+{
+    let mut evaluations = [F::radix2_zero(); OUT]
+    let valid = write_radix2_coset_lde<N, OUT, F>(
+        ref base_evaluations,
+        shift,
+        mut evaluations,
+    )
+    FieldCosetLde {
+        valid: valid,
+        evaluations: evaluations,
+    }
+}
+
+/// A low-degree extension plus the proof that its evaluation coset is
+/// disjoint from the base trace subgroup. Invalid shifts fail closed with an
+/// all-zero evaluation vector and `valid = false`.
+pub struct Radix2CosetLde<const N: usize, const L: usize, M> {
+    pub valid: bool,
+    pub evaluations: [FieldElement<L, M>; N],
+}
+
+impl<const N: usize, const L: usize, M> Copy for Radix2CosetLde<N, L, M> {}
+
+pub fn radix2_coset_lde<
+    const N: usize,
+    const OUT: usize,
+    const L: usize,
+    M,
+>(
+    _ base_evaluations: own [FieldElement<L, M>; N],
+    _ shift: FieldElement<L, M>,
+) -> Radix2CosetLde<OUT, L, M>
+    where
+        N > 0,
+        { (N & (N - 1)) == 0 },
+        { radix2_log_unchecked<N>() <= M::TWO_ADICITY },
+        { radix2_field_domain_supported<N, FieldElement<L, M>>() },
+        OUT > 0,
+        OUT > N,
+        { (OUT & (OUT - 1)) == 0 },
+        { radix2_log_unchecked<OUT>() <= M::TWO_ADICITY },
+        { radix2_field_domain_supported<OUT, FieldElement<L, M>>() },
+        { (OUT % N) == 0 },
+        L >= 3,
+        M: TwoAdicModulus<L> + U32EmbeddingModulus<L>,
+        Limbs<L>: Head + ShiftAppend + Copy,
+{
+    let lde = radix2_field_coset_lde<N, OUT, FieldElement<L, M>>(
+        base_evaluations,
+        shift,
+    )
+    Radix2CosetLde {
+        valid: lde.valid,
+        evaluations: lde.evaluations,
+    }
+}
+
+pub struct WordRadix2CosetLde<const N: usize, M> {
+    pub valid: bool,
+    pub evaluations: [WordField<M>; N],
+}
+
+impl<const N: usize, M> Copy for WordRadix2CosetLde<N, M> {}
+
+pub struct Ext4Radix2CosetLde<const N: usize, M> {
+    pub valid: bool,
+    pub evaluations: [BinomialExtension4<M>; N],
+}
+
+impl<const N: usize, M> Copy for Ext4Radix2CosetLde<N, M> {}
+
+pub fn radix2_word_coset_lde<
+    const N: usize,
+    const OUT: usize,
+    M: WordTwoAdicPrime,
+>(
+    _ base_evaluations: own [WordField<M>; N],
+    _ shift: WordField<M>,
+) -> WordRadix2CosetLde<OUT, M>
+    where
+        N > 0,
+        { (N & (N - 1)) == 0 },
+        { radix2_log_unchecked<N>() <= M::TWO_ADICITY },
+        { radix2_field_domain_supported<N, WordField<M>>() },
+        OUT > 0,
+        OUT > N,
+        { (OUT & (OUT - 1)) == 0 },
+        { radix2_log_unchecked<OUT>() <= M::TWO_ADICITY },
+        { radix2_field_domain_supported<OUT, WordField<M>>() },
+        { (OUT % N) == 0 },
+{
+    let lde = radix2_field_coset_lde<N, OUT, WordField<M>>(
+        base_evaluations,
+        shift,
+    )
+    WordRadix2CosetLde { valid: lde.valid, evaluations: lde.evaluations }
+}
+
+pub fn radix2_ext4_coset_lde<
+    const N: usize,
+    const OUT: usize,
+    M: WordTwoAdicPrime + WordBinomialExtension4,
+>(
+    _ base_evaluations: own [BinomialExtension4<M>; N],
+    _ shift: BinomialExtension4<M>,
+) -> Ext4Radix2CosetLde<OUT, M>
+    where
+        N > 0,
+        { (N & (N - 1)) == 0 },
+        { radix2_log_unchecked<N>() <= M::TWO_ADICITY },
+        { radix2_field_domain_supported<N, BinomialExtension4<M>>() },
+        OUT > 0,
+        OUT > N,
+        { (OUT & (OUT - 1)) == 0 },
+        { radix2_log_unchecked<OUT>() <= M::TWO_ADICITY },
+        { radix2_field_domain_supported<OUT, BinomialExtension4<M>>() },
+        { (OUT % N) == 0 },
+{
+    let lde = radix2_field_coset_lde<N, OUT, BinomialExtension4<M>>(
+        base_evaluations,
+        shift,
+    )
+    Ext4Radix2CosetLde { valid: lde.valid, evaluations: lde.evaluations }
+}

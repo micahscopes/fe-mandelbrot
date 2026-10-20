@@ -1,0 +1,27 @@
+name: Rebuild with pinned MB2
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/.cache/target
+      CARGO_BUILD_JOBS: 2
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Install matching Rust nightly
+        run: rustup toolchain install nightly-2026-08-17 --profile minimal && rustup default nightly-2026-08-17
+      - name: Fetch pinned Fe and verify Sonatina
+        run: python3 tools/bootstrap.py --prepare-only
+      - name: Build compiler
+        run: python3 tools/bootstrap.py
+      - name: Compile renderer and Fe source viewer
+        run: python3 tools/build.py --fe .cache/target/release/fe --out .cache/rebuilt
+      - name: Assemble rebuilt site
+        run: python3 tools/site.py --artifacts .cache/rebuilt --out dist
+      - uses: actions/upload-pages-artifact@v5.0.0
+        with:
+          path: dist

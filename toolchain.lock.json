@@ -1,0 +1,17 @@
+{
+  "fe": {
+    "repository": "https://github.com/micahscopes/fe.git",
+    "branch": "mb2",
+    "revision": "51133fb1572c9e3f385855001d1f1b041ed63433"
+  },
+  "sonatina": {
+    "repository": "https://github.com/micahscopes/sonatina.git",
+    "revision": "f0ae3f5501cd8a51a6ba53f05ab5c43cd0091e47",
+    "branch": "mb2-task-borrows"
+  },
+  "naga": {
+    "repository": "https://github.com/micahscopes/wgpu",
+    "revision": "854ed576fa186d19b9f7d5a5bb5a1f2fa533dde1"
+  },
+  "rust": "nightly-2026-08-17"
+}

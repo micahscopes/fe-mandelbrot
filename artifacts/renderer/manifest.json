@@ -1,0 +1,5590 @@
+{
+  "protocol": "fe-web-bundle",
+  "protocol_version": 13,
+  "source_entry": "display_preview",
+  "artifacts": {
+    "wasm": "module.wasm",
+    "wasm_bytes": 14526,
+    "wgsl": "passes/015-fragment.wgsl",
+    "wgsl_bytes": 13844,
+    "canonical_adapters": []
+  },
+  "layout": {
+    "entry_point": "fs_main",
+    "mode": "render",
+    "workgroup_size": [
+      0,
+      0,
+      0
+    ],
+    "word": "u32",
+    "word_bytes": 4,
+    "bindings": [
+      {
+        "group": 0,
+        "binding": 0,
+        "name": "blurred",
+        "access": "read",
+        "role": "resource",
+        "shader_stages": [
+          "fragment"
+        ],
+        "stride": 12,
+        "span": 12,
+        "members": []
+      },
+      {
+        "group": 0,
+        "binding": 1,
+        "name": "cache",
+        "access": "read",
+        "role": "resource",
+        "shader_stages": [
+          "fragment"
+        ],
+        "stride": 72,
+        "span": 72,
+        "members": []
+      },
+      {
+        "group": 0,
+        "binding": 2,
+        "name": "reference",
+        "access": "read",
+        "role": "resource",
+        "shader_stages": [
+          "fragment"
+        ],
+        "stride": 28,
+        "span": 28,
+        "members": []
+      },
+      {
+        "group": 0,
+        "binding": 3,
+        "name": "native_pixels",
+        "access": "read",
+        "role": "resource",
+        "shader_stages": [
+          "fragment"
+        ],
+        "stride": 4,
+        "span": 4,
+        "members": []
+      },
+      {
+        "group": 0,
+        "binding": 4,
+        "name": "antialiased_pixels",
+        "access": "read",
+        "role": "resource",
+        "shader_stages": [
+          "fragment"
+        ],
+        "stride": 4,
+        "span": 4,
+        "members": []
+      },
+      {
+        "group": 0,
+        "binding": 5,
+        "name": "progress_pixels",
+        "access": "read",
+        "role": "resource",
+        "shader_stages": [
+          "fragment"
+        ],
+        "stride": 32,
+        "span": 32,
+        "members": []
+      },
+      {
+        "group": 0,
+        "binding": 6,
+        "name": "input",
+        "access": "read",
+        "role": "input",
+        "shader_stages": [
+          "fragment"
+        ],
+        "stride": 60,
+        "span": 60,
+        "members": [
+          {
+            "name": "center_x_w0",
+            "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+            "arg_index": 16,
+            "offset": 0,
+            "width": 4,
+            "scalar": "f32"
+          },
+          {
+            "name": "center_x_w1",
+            "doc": null,
+            "arg_index": 17,
+            "offset": 4,
+            "width": 4,
+            "scalar": "f32"
+          },
+          {
+            "name": "center_x_w2",
+            "doc": null,
+            "arg_index": 18,
+            "offset": 8,
+            "width": 4,
+            "scalar": "f32"
+          },
+          {
+            "name": "center_x_w3",
+            "doc": null,
+            "arg_index": 19,
+            "offset": 12,
+            "width": 4,
+            "scalar": "f32"
+          },
+          {
+            "name": "center_y_w0",
+            "doc": "Most-significant word of the four-word vertical center expansion.",
+            "arg_index": 20,
+            "offset": 16,
+            "width": 4,
+            "scalar": "f32"
+          },
+          {
+            "name": "center_y_w1",
+            "doc": null,
+            "arg_index": 21,
+            "offset": 20,
+            "width": 4,
+            "scalar": "f32"
+          },
+          {
+            "name": "center_y_w2",
+            "doc": null,
+            "arg_index": 22,
+            "offset": 24,
+            "width": 4,
+            "scalar": "f32"
+          },
+          {
+            "name": "center_y_w3",
+            "doc": null,
+            "arg_index": 23,
+            "offset": 28,
+            "width": 4,
+            "scalar": "f32"
+          },
+          {
+            "name": "zoom",
+            "doc": null,
+            "arg_index": 24,
+            "offset": 32,
+            "width": 4,
+            "scalar": "f32"
+          },
+          {
+            "name": "res",
+            "doc": null,
+            "arg_index": 25,
+            "offset": 36,
+            "width": 4,
+            "scalar": "f32"
+          },
+          {
+            "name": "clock",
+            "doc": null,
+            "arg_index": 26,
+            "offset": 40,
+            "width": 4,
+            "scalar": "f32"
+          },
+          {
+            "name": "last_input",
+            "doc": null,
+            "arg_index": 27,
+            "offset": 44,
+            "width": 4,
+            "scalar": "f32"
+          },
+          {
+            "name": "antialias",
+            "doc": null,
+            "arg_index": 28,
+            "offset": 48,
+            "width": 4,
+            "scalar": "f32"
+          },
+          {
+            "name": "drag_active",
+            "doc": null,
+            "arg_index": 29,
+            "offset": 52,
+            "width": 4,
+            "scalar": "f32"
+          },
+          {
+            "name": "magnification",
+            "doc": "Magnification relative to the full initial view (3 / view half-span).",
+            "arg_index": 30,
+            "offset": 56,
+            "width": 4,
+            "scalar": "f32"
+          }
+        ]
+      }
+    ],
+    "builtin_inputs": [
+      {
+        "arg_index": 0,
+        "source": "fragment_position_x",
+        "scalar": "i32"
+      },
+      {
+        "arg_index": 1,
+        "source": "fragment_position_y",
+        "scalar": "i32"
+      }
+    ],
+    "result": null,
+    "vertex_entry": "vs_fullscreen",
+    "fragment_entry": "fs_main",
+    "color_target_format": "rgba8unorm"
+  },
+  "resources": [
+    {
+      "group": 0,
+      "binding": 0,
+      "name": "orbit",
+      "length": 16398,
+      "stride": 32,
+      "span": 32,
+      "element": {
+        "Record": {
+          "fields": [
+            {
+              "name": "re_w0_bits",
+              "offset": 0
+            },
+            {
+              "name": "re_w1_bits",
+              "offset": 4
+            },
+            {
+              "name": "re_w2_bits",
+              "offset": 8
+            },
+            {
+              "name": "re_w3_bits",
+              "offset": 12
+            },
+            {
+              "name": "im_w0_bits",
+              "offset": 16
+            },
+            {
+              "name": "im_w1_bits",
+              "offset": 20
+            },
+            {
+              "name": "im_w2_bits",
+              "offset": 24
+            },
+            {
+              "name": "im_w3_bits",
+              "offset": 28
+            }
+          ],
+          "span": 32
+        }
+      },
+      "buffer_usage": [
+        "storage"
+      ],
+      "policy": {
+        "access": "read_write",
+        "initialization": {
+          "kind": "zeroed"
+        },
+        "kind": "storage",
+        "recovery": "replay_recipe",
+        "residency": "actor_resident",
+        "visibility": "all"
+      }
+    },
+    {
+      "group": 0,
+      "binding": 1,
+      "name": "pixels",
+      "length": 65536,
+      "stride": 24,
+      "span": 24,
+      "element": {
+        "Record": {
+          "fields": [
+            {
+              "name": "l",
+              "offset": 0,
+              "scalar": "f32"
+            },
+            {
+              "name": "a",
+              "offset": 4,
+              "scalar": "f32"
+            },
+            {
+              "name": "b",
+              "offset": 8,
+              "scalar": "f32"
+            },
+            {
+              "name": "iteration",
+              "offset": 12
+            },
+            {
+              "name": "magnitude",
+              "offset": 16,
+              "scalar": "f32"
+            },
+            {
+              "name": "flags",
+              "offset": 20
+            }
+          ],
+          "span": 24
+        }
+      },
+      "buffer_usage": [
+        "storage"
+      ],
+      "policy": {
+        "access": "read_write",
+        "initialization": {
+          "kind": "zeroed"
+        },
+        "kind": "storage",
+        "recovery": "replay_recipe",
+        "residency": "actor_resident",
+        "visibility": "all"
+      }
+    },
+    {
+      "group": 0,
+      "binding": 2,
+      "name": "initial_pixels",
+      "length": 65536,
+      "stride": 24,
+      "span": 24,
+      "element": {
+        "Record": {
+          "fields": [
+            {
+              "name": "l",
+              "offset": 0,
+              "scalar": "f32"
+            },
+            {
+              "name": "a",
+              "offset": 4,
+              "scalar": "f32"
+            },
+            {
+              "name": "b",
+              "offset": 8,
+              "scalar": "f32"
+            },
+            {
+              "name": "iteration",
+              "offset": 12
+            },
+            {
+              "name": "magnitude",
+              "offset": 16,
+              "scalar": "f32"
+            },
+            {
+              "name": "flags",
+              "offset": 20
+            }
+          ],
+          "span": 24
+        }
+      },
+      "buffer_usage": [
+        "storage"
+      ],
+      "policy": {
+        "access": "read_write",
+        "initialization": {
+          "kind": "zeroed"
+        },
+        "kind": "storage",
+        "recovery": "replay_recipe",
+        "residency": "actor_resident",
+        "visibility": "all"
+      }
+    },
+    {
+      "group": 0,
+      "binding": 3,
+      "name": "snapshot_oracle",
+      "length": 4194304,
+      "stride": 12,
+      "span": 12,
+      "element": {
+        "Record": {
+          "fields": [
+            {
+              "name": "iteration",
+              "offset": 0
+            },
+            {
+              "name": "magnitude",
+              "offset": 4,
+              "scalar": "f32"
+            },
+            {
+              "name": "flags",
+              "offset": 8
+            }
+          ],
+          "span": 12
+        }
+      },
+      "buffer_usage": [
+        "storage"
+      ],
+      "policy": {
+        "access": "read_write",
+        "initialization": {
+          "kind": "zeroed"
+        },
+        "kind": "storage",
+        "recovery": "replay_recipe",
+        "residency": "actor_resident",
+        "visibility": "all"
+      }
+    },
+    {
+      "group": 0,
+      "binding": 4,
+      "name": "horizontal",
+      "length": 65536,
+      "stride": 12,
+      "span": 12,
+      "element": {
+        "Record": {
+          "fields": [
+            {
+              "name": "l",
+              "offset": 0,
+              "scalar": "f32"
+            },
+            {
+              "name": "a",
+              "offset": 4,
+              "scalar": "f32"
+            },
+            {
+              "name": "b",
+              "offset": 8,
+              "scalar": "f32"
+            }
+          ],
+          "span": 12
+        }
+      },
+      "buffer_usage": [
+        "storage"
+      ],
+      "policy": {
+        "access": "read_write",
+        "initialization": {
+          "kind": "zeroed"
+        },
+        "kind": "storage",
+        "recovery": "replay_recipe",
+        "residency": "actor_resident",
+        "visibility": "all"
+      }
+    },
+    {
+      "group": 0,
+      "binding": 5,
+      "name": "blurred",
+      "length": 65536,
+      "stride": 12,
+      "span": 12,
+      "element": {
+        "Record": {
+          "fields": [
+            {
+              "name": "l",
+              "offset": 0,
+              "scalar": "f32"
+            },
+            {
+              "name": "a",
+              "offset": 4,
+              "scalar": "f32"
+            },
+            {
+              "name": "b",
+              "offset": 8,
+              "scalar": "f32"
+            }
+          ],
+          "span": 12
+        }
+      },
+      "buffer_usage": [
+        "storage"
+      ],
+      "policy": {
+        "access": "read_write",
+        "initialization": {
+          "kind": "zeroed"
+        },
+        "kind": "storage",
+        "recovery": "replay_recipe",
+        "residency": "actor_resident",
+        "visibility": "all"
+      }
+    },
+    {
+      "group": 0,
+      "binding": 6,
+      "name": "cache",
+      "length": 3,
+      "stride": 72,
+      "span": 72,
+      "element": {
+        "Record": {
+          "fields": [
+            {
+              "name": "x0",
+              "offset": 0,
+              "scalar": "f32"
+            },
+            {
+              "name": "x1",
+              "offset": 4,
+              "scalar": "f32"
+            },
+            {
+              "name": "x2",
+              "offset": 8,
+              "scalar": "f32"
+            },
+            {
+              "name": "x3",
+              "offset": 12,
+              "scalar": "f32"
+            },
+            {
+              "name": "y0",
+              "offset": 16,
+              "scalar": "f32"
+            },
+            {
+              "name": "y1",
+              "offset": 20,
+              "scalar": "f32"
+            },
+            {
+              "name": "y2",
+              "offset": 24,
+              "scalar": "f32"
+            },
+            {
+              "name": "y3",
+              "offset": 28,
+              "scalar": "f32"
+            },
+            {
+              "name": "zoom",
+              "offset": 32,
+              "scalar": "f32"
+            },
+            {
+              "name": "res",
+              "offset": 36,
+              "scalar": "f32"
+            },
+            {
+              "name": "cursor",
+              "offset": 40
+            },
+            {
+              "name": "aa",
+              "offset": 44,
+              "scalar": "f32"
+            },
+            {
+              "name": "budget",
+              "offset": 48
+            },
+            {
+              "name": "radius",
+              "offset": 52,
+              "scalar": "f32"
+            },
+            {
+              "name": "preview_dirty",
+              "offset": 56
+            },
+            {
+              "name": "blur_dirty",
+              "offset": 60
+            },
+            {
+              "name": "epoch",
+              "offset": 64
+            },
+            {
+              "name": "completed",
+              "offset": 68
+            }
+          ],
+          "span": 72
+        }
+      },
+      "buffer_usage": [
+        "storage"
+      ],
+      "policy": {
+        "access": "read_write",
+        "initialization": {
+          "kind": "zeroed"
+        },
+        "kind": "storage",
+        "recovery": "replay_recipe",
+        "residency": "actor_resident",
+        "visibility": "all"
+      }
+    },
+    {
+      "group": 0,
+      "binding": 7,
+      "name": "anchor",
+      "length": 2,
+      "stride": 40,
+      "span": 40,
+      "element": {
+        "Record": {
+          "fields": [
+            {
+              "name": "x0",
+              "offset": 0,
+              "scalar": "f32"
+            },
+            {
+              "name": "x1",
+              "offset": 4,
+              "scalar": "f32"
+            },
+            {
+              "name": "x2",
+              "offset": 8,
+              "scalar": "f32"
+            },
+            {
+              "name": "x3",
+              "offset": 12,
+              "scalar": "f32"
+            },
+            {
+              "name": "y0",
+              "offset": 16,
+              "scalar": "f32"
+            },
+            {
+              "name": "y1",
+              "offset": 20,
+              "scalar": "f32"
+            },
+            {
+              "name": "y2",
+              "offset": 24,
+              "scalar": "f32"
+            },
+            {
+              "name": "y3",
+              "offset": 28,
+              "scalar": "f32"
+            },
+            {
+              "name": "limit",
+              "offset": 32
+            },
+            {
+              "name": "generation",
+              "offset": 36
+            }
+          ],
+          "span": 40
+        }
+      },
+      "buffer_usage": [
+        "storage"
+      ],
+      "policy": {
+        "access": "read_write",
+        "initialization": {
+          "kind": "zeroed"
+        },
+        "kind": "storage",
+        "recovery": "replay_recipe",
+        "residency": "actor_resident",
+        "visibility": "all"
+      }
+    },
+    {
+      "group": 0,
+      "binding": 8,
+      "name": "reference",
+      "length": 1,
+      "stride": 28,
+      "span": 28,
+      "element": {
+        "Record": {
+          "fields": [
+            {
+              "name": "active",
+              "offset": 0
+            },
+            {
+              "name": "active_valid",
+              "offset": 4
+            },
+            {
+              "name": "pending",
+              "offset": 8
+            },
+            {
+              "name": "index",
+              "offset": 12
+            },
+            {
+              "name": "zx_s",
+              "offset": 16
+            },
+            {
+              "name": "zy_s",
+              "offset": 20
+            },
+            {
+              "name": "ready_at",
+              "offset": 24,
+              "scalar": "f32"
+            }
+          ],
+          "span": 28
+        }
+      },
+      "buffer_usage": [
+        "storage"
+      ],
+      "policy": {
+        "access": "read_write",
+        "initialization": {
+          "kind": "zeroed"
+        },
+        "kind": "storage",
+        "recovery": "replay_recipe",
+        "residency": "actor_resident",
+        "visibility": "all"
+      }
+    },
+    {
+      "group": 0,
+      "binding": 9,
+      "name": "reference_words",
+      "length": 16,
+      "stride": 4,
+      "span": 4,
+      "element": "U32",
+      "buffer_usage": [
+        "storage"
+      ],
+      "policy": {
+        "access": "read_write",
+        "initialization": {
+          "kind": "zeroed"
+        },
+        "kind": "storage",
+        "recovery": "replay_recipe",
+        "residency": "actor_resident",
+        "visibility": "all"
+      }
+    },
+    {
+      "group": 0,
+      "binding": 10,
+      "name": "native_pixels",
+      "length": 4194304,
+      "stride": 4,
+      "span": 4,
+      "element": "U32",
+      "buffer_usage": [
+        "storage"
+      ],
+      "policy": {
+        "access": "read_write",
+        "initialization": {
+          "kind": "zeroed"
+        },
+        "kind": "storage",
+        "recovery": "replay_recipe",
+        "residency": "actor_resident",
+        "visibility": "all"
+      }
+    },
+    {
+      "group": 0,
+      "binding": 11,
+      "name": "antialiased_pixels",
+      "length": 4194304,
+      "stride": 4,
+      "span": 4,
+      "element": "U32",
+      "buffer_usage": [
+        "storage"
+      ],
+      "policy": {
+        "access": "read_write",
+        "initialization": {
+          "kind": "zeroed"
+        },
+        "kind": "storage",
+        "recovery": "replay_recipe",
+        "residency": "actor_resident",
+        "visibility": "all"
+      }
+    },
+    {
+      "group": 0,
+      "binding": 12,
+      "name": "progress_pixels",
+      "length": 4194304,
+      "stride": 32,
+      "span": 32,
+      "element": {
+        "Record": {
+          "fields": [
+            {
+              "name": "dz_re",
+              "offset": 0,
+              "scalar": "f32"
+            },
+            {
+              "name": "dz_im",
+              "offset": 4,
+              "scalar": "f32"
+            },
+            {
+              "name": "z_re",
+              "offset": 8,
+              "scalar": "f32"
+            },
+            {
+              "name": "z_im",
+              "offset": 12,
+              "scalar": "f32"
+            },
+            {
+              "name": "reference_i",
+              "offset": 16
+            },
+            {
+              "name": "iteration",
+              "offset": 20
+            },
+            {
+              "name": "epoch",
+              "offset": 24
+            },
+            {
+              "name": "magnitude",
+              "offset": 28,
+              "scalar": "f32"
+            }
+          ],
+          "span": 32
+        }
+      },
+      "buffer_usage": [
+        "storage"
+      ],
+      "policy": {
+        "access": "read_write",
+        "initialization": {
+          "kind": "zeroed"
+        },
+        "kind": "storage",
+        "recovery": "replay_recipe",
+        "residency": "actor_resident",
+        "visibility": "all"
+      }
+    },
+    {
+      "group": 0,
+      "binding": 13,
+      "name": "snapshot_pixels",
+      "length": 4194304,
+      "stride": 4,
+      "span": 4,
+      "element": "U32",
+      "buffer_usage": [
+        "storage"
+      ],
+      "policy": {
+        "access": "read_write",
+        "initialization": {
+          "kind": "zeroed"
+        },
+        "kind": "storage",
+        "recovery": "replay_recipe",
+        "residency": "actor_resident",
+        "visibility": "all"
+      }
+    }
+  ],
+  "passes": [
+    {
+      "source_entry": "initialize_order",
+      "shader": "passes/000-compute.wgsl",
+      "shader_bytes": 10419,
+      "shader_stages": [
+        "compute"
+      ],
+      "dispatch": [
+        1,
+        1,
+        1
+      ],
+      "layout": {
+        "entry_point": "main",
+        "mode": "compute",
+        "workgroup_size": [
+          8,
+          1,
+          1
+        ],
+        "word": "u32",
+        "word_bytes": 4,
+        "bindings": [
+          {
+            "group": 0,
+            "binding": 0,
+            "name": "orbit",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 32,
+            "span": 32,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 1,
+            "name": "reference",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 28,
+            "span": 28,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 2,
+            "name": "params",
+            "access": "read",
+            "role": "input",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 60,
+            "span": 60,
+            "members": [
+              {
+                "name": "center_x_w0",
+                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "arg_index": 27,
+                "offset": 0,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w1",
+                "doc": null,
+                "arg_index": 28,
+                "offset": 4,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w2",
+                "doc": null,
+                "arg_index": 29,
+                "offset": 8,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w3",
+                "doc": null,
+                "arg_index": 30,
+                "offset": 12,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w0",
+                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "arg_index": 31,
+                "offset": 16,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w1",
+                "doc": null,
+                "arg_index": 32,
+                "offset": 20,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w2",
+                "doc": null,
+                "arg_index": 33,
+                "offset": 24,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w3",
+                "doc": null,
+                "arg_index": 34,
+                "offset": 28,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "zoom",
+                "doc": null,
+                "arg_index": 35,
+                "offset": 32,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "res",
+                "doc": null,
+                "arg_index": 36,
+                "offset": 36,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "clock",
+                "doc": null,
+                "arg_index": 37,
+                "offset": 40,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "last_input",
+                "doc": null,
+                "arg_index": 38,
+                "offset": 44,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "antialias",
+                "doc": null,
+                "arg_index": 39,
+                "offset": 48,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "drag_active",
+                "doc": null,
+                "arg_index": 40,
+                "offset": 52,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "magnification",
+                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "arg_index": 41,
+                "offset": 56,
+                "width": 4,
+                "scalar": "f32"
+              }
+            ]
+          },
+          {
+            "group": 0,
+            "binding": 3,
+            "name": "trap",
+            "access": "read_write",
+            "role": "output",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 32,
+            "members": []
+          }
+        ],
+        "builtin_inputs": [
+          {
+            "arg_index": 0,
+            "source": "global_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 1,
+            "source": "global_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 2,
+            "source": "global_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 3,
+            "source": "local_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 4,
+            "source": "local_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 5,
+            "source": "local_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 6,
+            "source": "workgroup_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 7,
+            "source": "workgroup_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 8,
+            "source": "workgroup_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 9,
+            "source": "num_workgroups_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 10,
+            "source": "num_workgroups_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 11,
+            "source": "num_workgroups_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 12,
+            "source": "local_invocation_index",
+            "scalar": "i32"
+          }
+        ],
+        "result": null,
+        "trap": {
+          "group": 0,
+          "binding": 3,
+          "offset": 0,
+          "width": 32
+        },
+        "vertex_entry": null,
+        "fragment_entry": null,
+        "color_target_format": null
+      }
+    },
+    {
+      "source_entry": "discard_stale_reference",
+      "shader": "passes/001-compute.wgsl",
+      "shader_bytes": 6485,
+      "shader_stages": [
+        "compute"
+      ],
+      "dispatch": [
+        1,
+        1,
+        1
+      ],
+      "layout": {
+        "entry_point": "main",
+        "mode": "compute",
+        "workgroup_size": [
+          1,
+          1,
+          1
+        ],
+        "word": "u32",
+        "word_bytes": 4,
+        "bindings": [
+          {
+            "group": 0,
+            "binding": 0,
+            "name": "anchor",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 40,
+            "span": 40,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 1,
+            "name": "reference",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 28,
+            "span": 28,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 2,
+            "name": "params",
+            "access": "read",
+            "role": "input",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 60,
+            "span": 60,
+            "members": [
+              {
+                "name": "center_x_w0",
+                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "arg_index": 14,
+                "offset": 0,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w1",
+                "doc": null,
+                "arg_index": 15,
+                "offset": 4,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w2",
+                "doc": null,
+                "arg_index": 16,
+                "offset": 8,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w3",
+                "doc": null,
+                "arg_index": 17,
+                "offset": 12,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w0",
+                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "arg_index": 18,
+                "offset": 16,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w1",
+                "doc": null,
+                "arg_index": 19,
+                "offset": 20,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w2",
+                "doc": null,
+                "arg_index": 20,
+                "offset": 24,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w3",
+                "doc": null,
+                "arg_index": 21,
+                "offset": 28,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "zoom",
+                "doc": null,
+                "arg_index": 22,
+                "offset": 32,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "res",
+                "doc": null,
+                "arg_index": 23,
+                "offset": 36,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "clock",
+                "doc": null,
+                "arg_index": 24,
+                "offset": 40,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "last_input",
+                "doc": null,
+                "arg_index": 25,
+                "offset": 44,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "antialias",
+                "doc": null,
+                "arg_index": 26,
+                "offset": 48,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "drag_active",
+                "doc": null,
+                "arg_index": 27,
+                "offset": 52,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "magnification",
+                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "arg_index": 28,
+                "offset": 56,
+                "width": 4,
+                "scalar": "f32"
+              }
+            ]
+          },
+          {
+            "group": 0,
+            "binding": 3,
+            "name": "trap",
+            "access": "read_write",
+            "role": "output",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 4,
+            "members": []
+          }
+        ],
+        "builtin_inputs": [],
+        "result": null,
+        "trap": {
+          "group": 0,
+          "binding": 3,
+          "offset": 0,
+          "width": 4
+        },
+        "vertex_entry": null,
+        "fragment_entry": null,
+        "color_target_format": null
+      }
+    },
+    {
+      "source_entry": "build_reference",
+      "shader": "passes/002-compute.wgsl",
+      "shader_bytes": 135091,
+      "shader_stages": [
+        "compute"
+      ],
+      "dispatch": [
+        1,
+        1,
+        1
+      ],
+      "layout": {
+        "entry_point": "main",
+        "mode": "compute",
+        "workgroup_size": [
+          1,
+          1,
+          1
+        ],
+        "word": "u32",
+        "word_bytes": 4,
+        "bindings": [
+          {
+            "group": 0,
+            "binding": 0,
+            "name": "orbit",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 32,
+            "span": 32,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 1,
+            "name": "cache",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 72,
+            "span": 72,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 2,
+            "name": "anchor",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 40,
+            "span": 40,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 3,
+            "name": "reference",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 28,
+            "span": 28,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 4,
+            "name": "reference_words",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 4,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 5,
+            "name": "params",
+            "access": "read",
+            "role": "input",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 60,
+            "span": 60,
+            "members": [
+              {
+                "name": "center_x_w0",
+                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "arg_index": 14,
+                "offset": 0,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w1",
+                "doc": null,
+                "arg_index": 15,
+                "offset": 4,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w2",
+                "doc": null,
+                "arg_index": 16,
+                "offset": 8,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w3",
+                "doc": null,
+                "arg_index": 17,
+                "offset": 12,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w0",
+                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "arg_index": 18,
+                "offset": 16,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w1",
+                "doc": null,
+                "arg_index": 19,
+                "offset": 20,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w2",
+                "doc": null,
+                "arg_index": 20,
+                "offset": 24,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w3",
+                "doc": null,
+                "arg_index": 21,
+                "offset": 28,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "zoom",
+                "doc": null,
+                "arg_index": 22,
+                "offset": 32,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "res",
+                "doc": null,
+                "arg_index": 23,
+                "offset": 36,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "clock",
+                "doc": null,
+                "arg_index": 24,
+                "offset": 40,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "last_input",
+                "doc": null,
+                "arg_index": 25,
+                "offset": 44,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "antialias",
+                "doc": null,
+                "arg_index": 26,
+                "offset": 48,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "drag_active",
+                "doc": null,
+                "arg_index": 27,
+                "offset": 52,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "magnification",
+                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "arg_index": 28,
+                "offset": 56,
+                "width": 4,
+                "scalar": "f32"
+              }
+            ]
+          },
+          {
+            "group": 0,
+            "binding": 6,
+            "name": "trap",
+            "access": "read_write",
+            "role": "output",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 4,
+            "members": []
+          }
+        ],
+        "builtin_inputs": [],
+        "result": null,
+        "trap": {
+          "group": 0,
+          "binding": 6,
+          "offset": 0,
+          "width": 4
+        },
+        "vertex_entry": null,
+        "fragment_entry": null,
+        "color_target_format": null
+      }
+    },
+    {
+      "source_entry": "render_preview",
+      "shader": "passes/003-compute.wgsl",
+      "shader_bytes": 52368,
+      "shader_stages": [
+        "compute"
+      ],
+      "dispatch": [
+        32,
+        32,
+        1
+      ],
+      "layout": {
+        "entry_point": "main",
+        "mode": "compute",
+        "workgroup_size": [
+          8,
+          8,
+          1
+        ],
+        "word": "u32",
+        "word_bytes": 4,
+        "bindings": [
+          {
+            "group": 0,
+            "binding": 0,
+            "name": "orbit",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 32,
+            "span": 32,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 1,
+            "name": "pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 24,
+            "span": 24,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 2,
+            "name": "initial_pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 24,
+            "span": 24,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 3,
+            "name": "cache",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 72,
+            "span": 72,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 4,
+            "name": "reference",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 28,
+            "span": 28,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 5,
+            "name": "snapshot_pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 4,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 6,
+            "name": "params",
+            "access": "read",
+            "role": "input",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 60,
+            "span": 60,
+            "members": [
+              {
+                "name": "center_x_w0",
+                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "arg_index": 27,
+                "offset": 0,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w1",
+                "doc": null,
+                "arg_index": 28,
+                "offset": 4,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w2",
+                "doc": null,
+                "arg_index": 29,
+                "offset": 8,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w3",
+                "doc": null,
+                "arg_index": 30,
+                "offset": 12,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w0",
+                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "arg_index": 31,
+                "offset": 16,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w1",
+                "doc": null,
+                "arg_index": 32,
+                "offset": 20,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w2",
+                "doc": null,
+                "arg_index": 33,
+                "offset": 24,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w3",
+                "doc": null,
+                "arg_index": 34,
+                "offset": 28,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "zoom",
+                "doc": null,
+                "arg_index": 35,
+                "offset": 32,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "res",
+                "doc": null,
+                "arg_index": 36,
+                "offset": 36,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "clock",
+                "doc": null,
+                "arg_index": 37,
+                "offset": 40,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "last_input",
+                "doc": null,
+                "arg_index": 38,
+                "offset": 44,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "antialias",
+                "doc": null,
+                "arg_index": 39,
+                "offset": 48,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "drag_active",
+                "doc": null,
+                "arg_index": 40,
+                "offset": 52,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "magnification",
+                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "arg_index": 41,
+                "offset": 56,
+                "width": 4,
+                "scalar": "f32"
+              }
+            ]
+          },
+          {
+            "group": 0,
+            "binding": 7,
+            "name": "trap",
+            "access": "read_write",
+            "role": "output",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 262144,
+            "members": []
+          }
+        ],
+        "builtin_inputs": [
+          {
+            "arg_index": 0,
+            "source": "global_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 1,
+            "source": "global_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 2,
+            "source": "global_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 3,
+            "source": "local_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 4,
+            "source": "local_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 5,
+            "source": "local_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 6,
+            "source": "workgroup_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 7,
+            "source": "workgroup_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 8,
+            "source": "workgroup_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 9,
+            "source": "num_workgroups_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 10,
+            "source": "num_workgroups_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 11,
+            "source": "num_workgroups_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 12,
+            "source": "local_invocation_index",
+            "scalar": "i32"
+          }
+        ],
+        "result": null,
+        "trap": {
+          "group": 0,
+          "binding": 7,
+          "offset": 0,
+          "width": 262144
+        },
+        "vertex_entry": null,
+        "fragment_entry": null,
+        "color_target_format": null
+      }
+    },
+    {
+      "source_entry": "cache_initial",
+      "shader": "passes/004-compute.wgsl",
+      "shader_bytes": 4614,
+      "shader_stages": [
+        "compute"
+      ],
+      "dispatch": [
+        32,
+        32,
+        1
+      ],
+      "layout": {
+        "entry_point": "main",
+        "mode": "compute",
+        "workgroup_size": [
+          8,
+          8,
+          1
+        ],
+        "word": "u32",
+        "word_bytes": 4,
+        "bindings": [
+          {
+            "group": 0,
+            "binding": 0,
+            "name": "pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 24,
+            "span": 24,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 1,
+            "name": "initial_pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 24,
+            "span": 24,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 2,
+            "name": "cache",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 72,
+            "span": 72,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 3,
+            "name": "reference",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 28,
+            "span": 28,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 4,
+            "name": "params",
+            "access": "read",
+            "role": "input",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 60,
+            "span": 60,
+            "members": [
+              {
+                "name": "center_x_w0",
+                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "arg_index": 27,
+                "offset": 0,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w1",
+                "doc": null,
+                "arg_index": 28,
+                "offset": 4,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w2",
+                "doc": null,
+                "arg_index": 29,
+                "offset": 8,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w3",
+                "doc": null,
+                "arg_index": 30,
+                "offset": 12,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w0",
+                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "arg_index": 31,
+                "offset": 16,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w1",
+                "doc": null,
+                "arg_index": 32,
+                "offset": 20,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w2",
+                "doc": null,
+                "arg_index": 33,
+                "offset": 24,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w3",
+                "doc": null,
+                "arg_index": 34,
+                "offset": 28,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "zoom",
+                "doc": null,
+                "arg_index": 35,
+                "offset": 32,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "res",
+                "doc": null,
+                "arg_index": 36,
+                "offset": 36,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "clock",
+                "doc": null,
+                "arg_index": 37,
+                "offset": 40,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "last_input",
+                "doc": null,
+                "arg_index": 38,
+                "offset": 44,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "antialias",
+                "doc": null,
+                "arg_index": 39,
+                "offset": 48,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "drag_active",
+                "doc": null,
+                "arg_index": 40,
+                "offset": 52,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "magnification",
+                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "arg_index": 41,
+                "offset": 56,
+                "width": 4,
+                "scalar": "f32"
+              }
+            ]
+          }
+        ],
+        "builtin_inputs": [
+          {
+            "arg_index": 0,
+            "source": "global_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 1,
+            "source": "global_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 2,
+            "source": "global_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 3,
+            "source": "local_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 4,
+            "source": "local_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 5,
+            "source": "local_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 6,
+            "source": "workgroup_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 7,
+            "source": "workgroup_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 8,
+            "source": "workgroup_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 9,
+            "source": "num_workgroups_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 10,
+            "source": "num_workgroups_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 11,
+            "source": "num_workgroups_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 12,
+            "source": "local_invocation_index",
+            "scalar": "i32"
+          }
+        ],
+        "result": null,
+        "vertex_entry": null,
+        "fragment_entry": null,
+        "color_target_format": null
+      }
+    },
+    {
+      "source_entry": "publish_initial",
+      "shader": "passes/005-compute.wgsl",
+      "shader_bytes": 4299,
+      "shader_stages": [
+        "compute"
+      ],
+      "dispatch": [
+        1,
+        1,
+        1
+      ],
+      "layout": {
+        "entry_point": "main",
+        "mode": "compute",
+        "workgroup_size": [
+          1,
+          1,
+          1
+        ],
+        "word": "u32",
+        "word_bytes": 4,
+        "bindings": [
+          {
+            "group": 0,
+            "binding": 0,
+            "name": "cache",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 72,
+            "span": 72,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 1,
+            "name": "reference",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 28,
+            "span": 28,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 2,
+            "name": "params",
+            "access": "read",
+            "role": "input",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 60,
+            "span": 60,
+            "members": [
+              {
+                "name": "center_x_w0",
+                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "arg_index": 14,
+                "offset": 0,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w1",
+                "doc": null,
+                "arg_index": 15,
+                "offset": 4,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w2",
+                "doc": null,
+                "arg_index": 16,
+                "offset": 8,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w3",
+                "doc": null,
+                "arg_index": 17,
+                "offset": 12,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w0",
+                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "arg_index": 18,
+                "offset": 16,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w1",
+                "doc": null,
+                "arg_index": 19,
+                "offset": 20,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w2",
+                "doc": null,
+                "arg_index": 20,
+                "offset": 24,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w3",
+                "doc": null,
+                "arg_index": 21,
+                "offset": 28,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "zoom",
+                "doc": null,
+                "arg_index": 22,
+                "offset": 32,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "res",
+                "doc": null,
+                "arg_index": 23,
+                "offset": 36,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "clock",
+                "doc": null,
+                "arg_index": 24,
+                "offset": 40,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "last_input",
+                "doc": null,
+                "arg_index": 25,
+                "offset": 44,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "antialias",
+                "doc": null,
+                "arg_index": 26,
+                "offset": 48,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "drag_active",
+                "doc": null,
+                "arg_index": 27,
+                "offset": 52,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "magnification",
+                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "arg_index": 28,
+                "offset": 56,
+                "width": 4,
+                "scalar": "f32"
+              }
+            ]
+          }
+        ],
+        "builtin_inputs": [],
+        "result": null,
+        "vertex_entry": null,
+        "fragment_entry": null,
+        "color_target_format": null
+      }
+    },
+    {
+      "source_entry": "blur_horizontal",
+      "shader": "passes/006-compute.wgsl",
+      "shader_bytes": 11950,
+      "shader_stages": [
+        "compute"
+      ],
+      "dispatch": [
+        32,
+        32,
+        1
+      ],
+      "layout": {
+        "entry_point": "main",
+        "mode": "compute",
+        "workgroup_size": [
+          8,
+          8,
+          1
+        ],
+        "word": "u32",
+        "word_bytes": 4,
+        "bindings": [
+          {
+            "group": 0,
+            "binding": 0,
+            "name": "pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 24,
+            "span": 24,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 1,
+            "name": "horizontal",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 12,
+            "span": 12,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 2,
+            "name": "cache",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 72,
+            "span": 72,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 3,
+            "name": "reference",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 28,
+            "span": 28,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 4,
+            "name": "params",
+            "access": "read",
+            "role": "input",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 60,
+            "span": 60,
+            "members": [
+              {
+                "name": "center_x_w0",
+                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "arg_index": 27,
+                "offset": 0,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w1",
+                "doc": null,
+                "arg_index": 28,
+                "offset": 4,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w2",
+                "doc": null,
+                "arg_index": 29,
+                "offset": 8,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w3",
+                "doc": null,
+                "arg_index": 30,
+                "offset": 12,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w0",
+                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "arg_index": 31,
+                "offset": 16,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w1",
+                "doc": null,
+                "arg_index": 32,
+                "offset": 20,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w2",
+                "doc": null,
+                "arg_index": 33,
+                "offset": 24,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w3",
+                "doc": null,
+                "arg_index": 34,
+                "offset": 28,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "zoom",
+                "doc": null,
+                "arg_index": 35,
+                "offset": 32,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "res",
+                "doc": null,
+                "arg_index": 36,
+                "offset": 36,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "clock",
+                "doc": null,
+                "arg_index": 37,
+                "offset": 40,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "last_input",
+                "doc": null,
+                "arg_index": 38,
+                "offset": 44,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "antialias",
+                "doc": null,
+                "arg_index": 39,
+                "offset": 48,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "drag_active",
+                "doc": null,
+                "arg_index": 40,
+                "offset": 52,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "magnification",
+                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "arg_index": 41,
+                "offset": 56,
+                "width": 4,
+                "scalar": "f32"
+              }
+            ]
+          },
+          {
+            "group": 0,
+            "binding": 5,
+            "name": "trap",
+            "access": "read_write",
+            "role": "output",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 262144,
+            "members": []
+          }
+        ],
+        "builtin_inputs": [
+          {
+            "arg_index": 0,
+            "source": "global_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 1,
+            "source": "global_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 2,
+            "source": "global_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 3,
+            "source": "local_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 4,
+            "source": "local_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 5,
+            "source": "local_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 6,
+            "source": "workgroup_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 7,
+            "source": "workgroup_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 8,
+            "source": "workgroup_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 9,
+            "source": "num_workgroups_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 10,
+            "source": "num_workgroups_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 11,
+            "source": "num_workgroups_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 12,
+            "source": "local_invocation_index",
+            "scalar": "i32"
+          }
+        ],
+        "result": null,
+        "trap": {
+          "group": 0,
+          "binding": 5,
+          "offset": 0,
+          "width": 262144
+        },
+        "vertex_entry": null,
+        "fragment_entry": null,
+        "color_target_format": null
+      }
+    },
+    {
+      "source_entry": "blur_vertical",
+      "shader": "passes/007-compute.wgsl",
+      "shader_bytes": 10672,
+      "shader_stages": [
+        "compute"
+      ],
+      "dispatch": [
+        32,
+        32,
+        1
+      ],
+      "layout": {
+        "entry_point": "main",
+        "mode": "compute",
+        "workgroup_size": [
+          8,
+          8,
+          1
+        ],
+        "word": "u32",
+        "word_bytes": 4,
+        "bindings": [
+          {
+            "group": 0,
+            "binding": 0,
+            "name": "horizontal",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 12,
+            "span": 12,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 1,
+            "name": "blurred",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 12,
+            "span": 12,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 2,
+            "name": "cache",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 72,
+            "span": 72,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 3,
+            "name": "reference",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 28,
+            "span": 28,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 4,
+            "name": "params",
+            "access": "read",
+            "role": "input",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 60,
+            "span": 60,
+            "members": [
+              {
+                "name": "center_x_w0",
+                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "arg_index": 27,
+                "offset": 0,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w1",
+                "doc": null,
+                "arg_index": 28,
+                "offset": 4,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w2",
+                "doc": null,
+                "arg_index": 29,
+                "offset": 8,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w3",
+                "doc": null,
+                "arg_index": 30,
+                "offset": 12,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w0",
+                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "arg_index": 31,
+                "offset": 16,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w1",
+                "doc": null,
+                "arg_index": 32,
+                "offset": 20,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w2",
+                "doc": null,
+                "arg_index": 33,
+                "offset": 24,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w3",
+                "doc": null,
+                "arg_index": 34,
+                "offset": 28,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "zoom",
+                "doc": null,
+                "arg_index": 35,
+                "offset": 32,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "res",
+                "doc": null,
+                "arg_index": 36,
+                "offset": 36,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "clock",
+                "doc": null,
+                "arg_index": 37,
+                "offset": 40,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "last_input",
+                "doc": null,
+                "arg_index": 38,
+                "offset": 44,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "antialias",
+                "doc": null,
+                "arg_index": 39,
+                "offset": 48,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "drag_active",
+                "doc": null,
+                "arg_index": 40,
+                "offset": 52,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "magnification",
+                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "arg_index": 41,
+                "offset": 56,
+                "width": 4,
+                "scalar": "f32"
+              }
+            ]
+          },
+          {
+            "group": 0,
+            "binding": 5,
+            "name": "trap",
+            "access": "read_write",
+            "role": "output",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 262144,
+            "members": []
+          }
+        ],
+        "builtin_inputs": [
+          {
+            "arg_index": 0,
+            "source": "global_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 1,
+            "source": "global_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 2,
+            "source": "global_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 3,
+            "source": "local_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 4,
+            "source": "local_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 5,
+            "source": "local_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 6,
+            "source": "workgroup_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 7,
+            "source": "workgroup_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 8,
+            "source": "workgroup_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 9,
+            "source": "num_workgroups_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 10,
+            "source": "num_workgroups_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 11,
+            "source": "num_workgroups_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 12,
+            "source": "local_invocation_index",
+            "scalar": "i32"
+          }
+        ],
+        "result": null,
+        "trap": {
+          "group": 0,
+          "binding": 5,
+          "offset": 0,
+          "width": 262144
+        },
+        "vertex_entry": null,
+        "fragment_entry": null,
+        "color_target_format": null
+      }
+    },
+    {
+      "source_entry": "restore_oracle",
+      "shader": "passes/008-compute.wgsl",
+      "shader_bytes": 25612,
+      "shader_stages": [
+        "compute"
+      ],
+      "dispatch": [
+        16,
+        32,
+        1
+      ],
+      "layout": {
+        "entry_point": "main",
+        "mode": "compute",
+        "workgroup_size": [
+          8,
+          8,
+          1
+        ],
+        "word": "u32",
+        "word_bytes": 4,
+        "bindings": [
+          {
+            "group": 0,
+            "binding": 0,
+            "name": "snapshot_oracle",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 12,
+            "span": 12,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 1,
+            "name": "cache",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 72,
+            "span": 72,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 2,
+            "name": "native_pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 4,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 3,
+            "name": "antialiased_pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 4,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 4,
+            "name": "progress_pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 32,
+            "span": 32,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 5,
+            "name": "snapshot_pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 4,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 6,
+            "name": "params",
+            "access": "read",
+            "role": "input",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 60,
+            "span": 60,
+            "members": [
+              {
+                "name": "center_x_w0",
+                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "arg_index": 27,
+                "offset": 0,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w1",
+                "doc": null,
+                "arg_index": 28,
+                "offset": 4,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w2",
+                "doc": null,
+                "arg_index": 29,
+                "offset": 8,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w3",
+                "doc": null,
+                "arg_index": 30,
+                "offset": 12,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w0",
+                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "arg_index": 31,
+                "offset": 16,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w1",
+                "doc": null,
+                "arg_index": 32,
+                "offset": 20,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w2",
+                "doc": null,
+                "arg_index": 33,
+                "offset": 24,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w3",
+                "doc": null,
+                "arg_index": 34,
+                "offset": 28,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "zoom",
+                "doc": null,
+                "arg_index": 35,
+                "offset": 32,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "res",
+                "doc": null,
+                "arg_index": 36,
+                "offset": 36,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "clock",
+                "doc": null,
+                "arg_index": 37,
+                "offset": 40,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "last_input",
+                "doc": null,
+                "arg_index": 38,
+                "offset": 44,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "antialias",
+                "doc": null,
+                "arg_index": 39,
+                "offset": 48,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "drag_active",
+                "doc": null,
+                "arg_index": 40,
+                "offset": 52,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "magnification",
+                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "arg_index": 41,
+                "offset": 56,
+                "width": 4,
+                "scalar": "f32"
+              }
+            ]
+          },
+          {
+            "group": 0,
+            "binding": 7,
+            "name": "trap",
+            "access": "read_write",
+            "role": "output",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 131072,
+            "members": []
+          }
+        ],
+        "builtin_inputs": [
+          {
+            "arg_index": 0,
+            "source": "global_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 1,
+            "source": "global_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 2,
+            "source": "global_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 3,
+            "source": "local_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 4,
+            "source": "local_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 5,
+            "source": "local_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 6,
+            "source": "workgroup_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 7,
+            "source": "workgroup_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 8,
+            "source": "workgroup_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 9,
+            "source": "num_workgroups_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 10,
+            "source": "num_workgroups_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 11,
+            "source": "num_workgroups_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 12,
+            "source": "local_invocation_index",
+            "scalar": "i32"
+          }
+        ],
+        "result": null,
+        "trap": {
+          "group": 0,
+          "binding": 7,
+          "offset": 0,
+          "width": 131072
+        },
+        "vertex_entry": null,
+        "fragment_entry": null,
+        "color_target_format": null
+      }
+    },
+    {
+      "source_entry": "seed_refinement",
+      "shader": "passes/009-compute.wgsl",
+      "shader_bytes": 60584,
+      "shader_stages": [
+        "compute"
+      ],
+      "dispatch": [
+        16,
+        16,
+        1
+      ],
+      "layout": {
+        "entry_point": "main",
+        "mode": "compute",
+        "workgroup_size": [
+          8,
+          8,
+          1
+        ],
+        "word": "u32",
+        "word_bytes": 4,
+        "bindings": [
+          {
+            "group": 0,
+            "binding": 0,
+            "name": "orbit",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 32,
+            "span": 32,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 1,
+            "name": "cache",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 72,
+            "span": 72,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 2,
+            "name": "reference",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 28,
+            "span": 28,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 3,
+            "name": "native_pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 4,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 4,
+            "name": "antialiased_pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 4,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 5,
+            "name": "progress_pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 32,
+            "span": 32,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 6,
+            "name": "params",
+            "access": "read",
+            "role": "input",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 60,
+            "span": 60,
+            "members": [
+              {
+                "name": "center_x_w0",
+                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "arg_index": 27,
+                "offset": 0,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w1",
+                "doc": null,
+                "arg_index": 28,
+                "offset": 4,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w2",
+                "doc": null,
+                "arg_index": 29,
+                "offset": 8,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w3",
+                "doc": null,
+                "arg_index": 30,
+                "offset": 12,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w0",
+                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "arg_index": 31,
+                "offset": 16,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w1",
+                "doc": null,
+                "arg_index": 32,
+                "offset": 20,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w2",
+                "doc": null,
+                "arg_index": 33,
+                "offset": 24,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w3",
+                "doc": null,
+                "arg_index": 34,
+                "offset": 28,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "zoom",
+                "doc": null,
+                "arg_index": 35,
+                "offset": 32,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "res",
+                "doc": null,
+                "arg_index": 36,
+                "offset": 36,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "clock",
+                "doc": null,
+                "arg_index": 37,
+                "offset": 40,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "last_input",
+                "doc": null,
+                "arg_index": 38,
+                "offset": 44,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "antialias",
+                "doc": null,
+                "arg_index": 39,
+                "offset": 48,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "drag_active",
+                "doc": null,
+                "arg_index": 40,
+                "offset": 52,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "magnification",
+                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "arg_index": 41,
+                "offset": 56,
+                "width": 4,
+                "scalar": "f32"
+              }
+            ]
+          },
+          {
+            "group": 0,
+            "binding": 7,
+            "name": "trap",
+            "access": "read_write",
+            "role": "output",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 65536,
+            "members": []
+          }
+        ],
+        "builtin_inputs": [
+          {
+            "arg_index": 0,
+            "source": "global_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 1,
+            "source": "global_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 2,
+            "source": "global_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 3,
+            "source": "local_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 4,
+            "source": "local_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 5,
+            "source": "local_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 6,
+            "source": "workgroup_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 7,
+            "source": "workgroup_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 8,
+            "source": "workgroup_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 9,
+            "source": "num_workgroups_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 10,
+            "source": "num_workgroups_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 11,
+            "source": "num_workgroups_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 12,
+            "source": "local_invocation_index",
+            "scalar": "i32"
+          }
+        ],
+        "result": null,
+        "trap": {
+          "group": 0,
+          "binding": 7,
+          "offset": 0,
+          "width": 65536
+        },
+        "vertex_entry": null,
+        "fragment_entry": null,
+        "color_target_format": null
+      }
+    },
+    {
+      "source_entry": "refine_pixels",
+      "shader": "passes/010-compute.wgsl",
+      "shader_bytes": 51119,
+      "shader_stages": [
+        "compute"
+      ],
+      "dispatch": [
+        16,
+        32,
+        1
+      ],
+      "layout": {
+        "entry_point": "main",
+        "mode": "compute",
+        "workgroup_size": [
+          8,
+          8,
+          1
+        ],
+        "word": "u32",
+        "word_bytes": 4,
+        "bindings": [
+          {
+            "group": 0,
+            "binding": 0,
+            "name": "orbit",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 32,
+            "span": 32,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 1,
+            "name": "cache",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 72,
+            "span": 72,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 2,
+            "name": "reference",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 28,
+            "span": 28,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 3,
+            "name": "native_pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 4,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 4,
+            "name": "antialiased_pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 4,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 5,
+            "name": "progress_pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 32,
+            "span": 32,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 6,
+            "name": "params",
+            "access": "read",
+            "role": "input",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 60,
+            "span": 60,
+            "members": [
+              {
+                "name": "center_x_w0",
+                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "arg_index": 27,
+                "offset": 0,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w1",
+                "doc": null,
+                "arg_index": 28,
+                "offset": 4,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w2",
+                "doc": null,
+                "arg_index": 29,
+                "offset": 8,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w3",
+                "doc": null,
+                "arg_index": 30,
+                "offset": 12,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w0",
+                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "arg_index": 31,
+                "offset": 16,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w1",
+                "doc": null,
+                "arg_index": 32,
+                "offset": 20,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w2",
+                "doc": null,
+                "arg_index": 33,
+                "offset": 24,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w3",
+                "doc": null,
+                "arg_index": 34,
+                "offset": 28,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "zoom",
+                "doc": null,
+                "arg_index": 35,
+                "offset": 32,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "res",
+                "doc": null,
+                "arg_index": 36,
+                "offset": 36,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "clock",
+                "doc": null,
+                "arg_index": 37,
+                "offset": 40,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "last_input",
+                "doc": null,
+                "arg_index": 38,
+                "offset": 44,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "antialias",
+                "doc": null,
+                "arg_index": 39,
+                "offset": 48,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "drag_active",
+                "doc": null,
+                "arg_index": 40,
+                "offset": 52,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "magnification",
+                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "arg_index": 41,
+                "offset": 56,
+                "width": 4,
+                "scalar": "f32"
+              }
+            ]
+          },
+          {
+            "group": 0,
+            "binding": 7,
+            "name": "trap",
+            "access": "read_write",
+            "role": "output",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 131072,
+            "members": []
+          }
+        ],
+        "builtin_inputs": [
+          {
+            "arg_index": 0,
+            "source": "global_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 1,
+            "source": "global_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 2,
+            "source": "global_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 3,
+            "source": "local_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 4,
+            "source": "local_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 5,
+            "source": "local_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 6,
+            "source": "workgroup_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 7,
+            "source": "workgroup_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 8,
+            "source": "workgroup_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 9,
+            "source": "num_workgroups_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 10,
+            "source": "num_workgroups_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 11,
+            "source": "num_workgroups_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 12,
+            "source": "local_invocation_index",
+            "scalar": "i32"
+          }
+        ],
+        "result": null,
+        "trap": {
+          "group": 0,
+          "binding": 7,
+          "offset": 0,
+          "width": 131072
+        },
+        "vertex_entry": null,
+        "fragment_entry": null,
+        "color_target_format": null
+      }
+    },
+    {
+      "source_entry": "antialias_pixels",
+      "shader": "passes/011-compute.wgsl",
+      "shader_bytes": 55744,
+      "shader_stages": [
+        "compute"
+      ],
+      "dispatch": [
+        32,
+        32,
+        1
+      ],
+      "layout": {
+        "entry_point": "main",
+        "mode": "compute",
+        "workgroup_size": [
+          8,
+          8,
+          1
+        ],
+        "word": "u32",
+        "word_bytes": 4,
+        "bindings": [
+          {
+            "group": 0,
+            "binding": 0,
+            "name": "orbit",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 32,
+            "span": 32,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 1,
+            "name": "cache",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 72,
+            "span": 72,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 2,
+            "name": "reference",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 28,
+            "span": 28,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 3,
+            "name": "native_pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 4,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 4,
+            "name": "antialiased_pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 4,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 5,
+            "name": "params",
+            "access": "read",
+            "role": "input",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 60,
+            "span": 60,
+            "members": [
+              {
+                "name": "center_x_w0",
+                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "arg_index": 27,
+                "offset": 0,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w1",
+                "doc": null,
+                "arg_index": 28,
+                "offset": 4,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w2",
+                "doc": null,
+                "arg_index": 29,
+                "offset": 8,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w3",
+                "doc": null,
+                "arg_index": 30,
+                "offset": 12,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w0",
+                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "arg_index": 31,
+                "offset": 16,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w1",
+                "doc": null,
+                "arg_index": 32,
+                "offset": 20,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w2",
+                "doc": null,
+                "arg_index": 33,
+                "offset": 24,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w3",
+                "doc": null,
+                "arg_index": 34,
+                "offset": 28,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "zoom",
+                "doc": null,
+                "arg_index": 35,
+                "offset": 32,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "res",
+                "doc": null,
+                "arg_index": 36,
+                "offset": 36,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "clock",
+                "doc": null,
+                "arg_index": 37,
+                "offset": 40,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "last_input",
+                "doc": null,
+                "arg_index": 38,
+                "offset": 44,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "antialias",
+                "doc": null,
+                "arg_index": 39,
+                "offset": 48,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "drag_active",
+                "doc": null,
+                "arg_index": 40,
+                "offset": 52,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "magnification",
+                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "arg_index": 41,
+                "offset": 56,
+                "width": 4,
+                "scalar": "f32"
+              }
+            ]
+          },
+          {
+            "group": 0,
+            "binding": 6,
+            "name": "trap",
+            "access": "read_write",
+            "role": "output",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 262144,
+            "members": []
+          }
+        ],
+        "builtin_inputs": [
+          {
+            "arg_index": 0,
+            "source": "global_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 1,
+            "source": "global_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 2,
+            "source": "global_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 3,
+            "source": "local_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 4,
+            "source": "local_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 5,
+            "source": "local_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 6,
+            "source": "workgroup_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 7,
+            "source": "workgroup_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 8,
+            "source": "workgroup_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 9,
+            "source": "num_workgroups_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 10,
+            "source": "num_workgroups_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 11,
+            "source": "num_workgroups_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 12,
+            "source": "local_invocation_index",
+            "scalar": "i32"
+          }
+        ],
+        "result": null,
+        "trap": {
+          "group": 0,
+          "binding": 6,
+          "offset": 0,
+          "width": 262144
+        },
+        "vertex_entry": null,
+        "fragment_entry": null,
+        "color_target_format": null
+      }
+    },
+    {
+      "source_entry": "finish_refinement",
+      "shader": "passes/012-compute.wgsl",
+      "shader_bytes": 9290,
+      "shader_stages": [
+        "compute"
+      ],
+      "dispatch": [
+        1,
+        1,
+        1
+      ],
+      "layout": {
+        "entry_point": "main",
+        "mode": "compute",
+        "workgroup_size": [
+          1,
+          1,
+          1
+        ],
+        "word": "u32",
+        "word_bytes": 4,
+        "bindings": [
+          {
+            "group": 0,
+            "binding": 0,
+            "name": "cache",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 72,
+            "span": 72,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 1,
+            "name": "reference",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 28,
+            "span": 28,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 2,
+            "name": "params",
+            "access": "read",
+            "role": "input",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 60,
+            "span": 60,
+            "members": [
+              {
+                "name": "center_x_w0",
+                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "arg_index": 14,
+                "offset": 0,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w1",
+                "doc": null,
+                "arg_index": 15,
+                "offset": 4,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w2",
+                "doc": null,
+                "arg_index": 16,
+                "offset": 8,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w3",
+                "doc": null,
+                "arg_index": 17,
+                "offset": 12,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w0",
+                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "arg_index": 18,
+                "offset": 16,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w1",
+                "doc": null,
+                "arg_index": 19,
+                "offset": 20,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w2",
+                "doc": null,
+                "arg_index": 20,
+                "offset": 24,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w3",
+                "doc": null,
+                "arg_index": 21,
+                "offset": 28,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "zoom",
+                "doc": null,
+                "arg_index": 22,
+                "offset": 32,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "res",
+                "doc": null,
+                "arg_index": 23,
+                "offset": 36,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "clock",
+                "doc": null,
+                "arg_index": 24,
+                "offset": 40,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "last_input",
+                "doc": null,
+                "arg_index": 25,
+                "offset": 44,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "antialias",
+                "doc": null,
+                "arg_index": 26,
+                "offset": 48,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "drag_active",
+                "doc": null,
+                "arg_index": 27,
+                "offset": 52,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "magnification",
+                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "arg_index": 28,
+                "offset": 56,
+                "width": 4,
+                "scalar": "f32"
+              }
+            ]
+          },
+          {
+            "group": 0,
+            "binding": 3,
+            "name": "trap",
+            "access": "read_write",
+            "role": "output",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 4,
+            "members": []
+          }
+        ],
+        "builtin_inputs": [],
+        "result": null,
+        "trap": {
+          "group": 0,
+          "binding": 3,
+          "offset": 0,
+          "width": 4
+        },
+        "vertex_entry": null,
+        "fragment_entry": null,
+        "color_target_format": null
+      }
+    },
+    {
+      "source_entry": "cache_snapshot",
+      "shader": "passes/013-compute.wgsl",
+      "shader_bytes": 4789,
+      "shader_stages": [
+        "compute"
+      ],
+      "dispatch": [
+        32,
+        32,
+        1
+      ],
+      "layout": {
+        "entry_point": "main",
+        "mode": "compute",
+        "workgroup_size": [
+          8,
+          8,
+          1
+        ],
+        "word": "u32",
+        "word_bytes": 4,
+        "bindings": [
+          {
+            "group": 0,
+            "binding": 0,
+            "name": "snapshot_oracle",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 12,
+            "span": 12,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 1,
+            "name": "cache",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 72,
+            "span": 72,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 2,
+            "name": "antialiased_pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 4,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 3,
+            "name": "progress_pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 32,
+            "span": 32,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 4,
+            "name": "snapshot_pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 4,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 5,
+            "name": "params",
+            "access": "read",
+            "role": "input",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 60,
+            "span": 60,
+            "members": [
+              {
+                "name": "center_x_w0",
+                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "arg_index": 27,
+                "offset": 0,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w1",
+                "doc": null,
+                "arg_index": 28,
+                "offset": 4,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w2",
+                "doc": null,
+                "arg_index": 29,
+                "offset": 8,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w3",
+                "doc": null,
+                "arg_index": 30,
+                "offset": 12,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w0",
+                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "arg_index": 31,
+                "offset": 16,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w1",
+                "doc": null,
+                "arg_index": 32,
+                "offset": 20,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w2",
+                "doc": null,
+                "arg_index": 33,
+                "offset": 24,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w3",
+                "doc": null,
+                "arg_index": 34,
+                "offset": 28,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "zoom",
+                "doc": null,
+                "arg_index": 35,
+                "offset": 32,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "res",
+                "doc": null,
+                "arg_index": 36,
+                "offset": 36,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "clock",
+                "doc": null,
+                "arg_index": 37,
+                "offset": 40,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "last_input",
+                "doc": null,
+                "arg_index": 38,
+                "offset": 44,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "antialias",
+                "doc": null,
+                "arg_index": 39,
+                "offset": 48,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "drag_active",
+                "doc": null,
+                "arg_index": 40,
+                "offset": 52,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "magnification",
+                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "arg_index": 41,
+                "offset": 56,
+                "width": 4,
+                "scalar": "f32"
+              }
+            ]
+          },
+          {
+            "group": 0,
+            "binding": 6,
+            "name": "trap",
+            "access": "read_write",
+            "role": "output",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 262144,
+            "members": []
+          }
+        ],
+        "builtin_inputs": [
+          {
+            "arg_index": 0,
+            "source": "global_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 1,
+            "source": "global_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 2,
+            "source": "global_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 3,
+            "source": "local_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 4,
+            "source": "local_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 5,
+            "source": "local_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 6,
+            "source": "workgroup_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 7,
+            "source": "workgroup_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 8,
+            "source": "workgroup_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 9,
+            "source": "num_workgroups_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 10,
+            "source": "num_workgroups_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 11,
+            "source": "num_workgroups_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 12,
+            "source": "local_invocation_index",
+            "scalar": "i32"
+          }
+        ],
+        "result": null,
+        "trap": {
+          "group": 0,
+          "binding": 6,
+          "offset": 0,
+          "width": 262144
+        },
+        "vertex_entry": null,
+        "fragment_entry": null,
+        "color_target_format": null
+      }
+    },
+    {
+      "source_entry": "publish_snapshot",
+      "shader": "passes/014-compute.wgsl",
+      "shader_bytes": 2444,
+      "shader_stages": [
+        "compute"
+      ],
+      "dispatch": [
+        1,
+        1,
+        1
+      ],
+      "layout": {
+        "entry_point": "main",
+        "mode": "compute",
+        "workgroup_size": [
+          1,
+          1,
+          1
+        ],
+        "word": "u32",
+        "word_bytes": 4,
+        "bindings": [
+          {
+            "group": 0,
+            "binding": 0,
+            "name": "cache",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 72,
+            "span": 72,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 1,
+            "name": "params",
+            "access": "read",
+            "role": "input",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 60,
+            "span": 60,
+            "members": [
+              {
+                "name": "center_x_w0",
+                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "arg_index": 14,
+                "offset": 0,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w1",
+                "doc": null,
+                "arg_index": 15,
+                "offset": 4,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w2",
+                "doc": null,
+                "arg_index": 16,
+                "offset": 8,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w3",
+                "doc": null,
+                "arg_index": 17,
+                "offset": 12,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w0",
+                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "arg_index": 18,
+                "offset": 16,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w1",
+                "doc": null,
+                "arg_index": 19,
+                "offset": 20,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w2",
+                "doc": null,
+                "arg_index": 20,
+                "offset": 24,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w3",
+                "doc": null,
+                "arg_index": 21,
+                "offset": 28,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "zoom",
+                "doc": null,
+                "arg_index": 22,
+                "offset": 32,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "res",
+                "doc": null,
+                "arg_index": 23,
+                "offset": 36,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "clock",
+                "doc": null,
+                "arg_index": 24,
+                "offset": 40,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "last_input",
+                "doc": null,
+                "arg_index": 25,
+                "offset": 44,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "antialias",
+                "doc": null,
+                "arg_index": 26,
+                "offset": 48,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "drag_active",
+                "doc": null,
+                "arg_index": 27,
+                "offset": 52,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "magnification",
+                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "arg_index": 28,
+                "offset": 56,
+                "width": 4,
+                "scalar": "f32"
+              }
+            ]
+          }
+        ],
+        "builtin_inputs": [],
+        "result": null,
+        "vertex_entry": null,
+        "fragment_entry": null,
+        "color_target_format": null
+      }
+    },
+    {
+      "source_entry": "display_preview",
+      "shader": "passes/015-fragment.wgsl",
+      "shader_bytes": 13844,
+      "shader_stages": [
+        "fragment"
+      ],
+      "layout": {
+        "entry_point": "fs_main",
+        "mode": "render",
+        "workgroup_size": [
+          0,
+          0,
+          0
+        ],
+        "word": "u32",
+        "word_bytes": 4,
+        "bindings": [
+          {
+            "group": 0,
+            "binding": 0,
+            "name": "blurred",
+            "access": "read",
+            "role": "resource",
+            "shader_stages": [
+              "fragment"
+            ],
+            "stride": 12,
+            "span": 12,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 1,
+            "name": "cache",
+            "access": "read",
+            "role": "resource",
+            "shader_stages": [
+              "fragment"
+            ],
+            "stride": 72,
+            "span": 72,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 2,
+            "name": "reference",
+            "access": "read",
+            "role": "resource",
+            "shader_stages": [
+              "fragment"
+            ],
+            "stride": 28,
+            "span": 28,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 3,
+            "name": "native_pixels",
+            "access": "read",
+            "role": "resource",
+            "shader_stages": [
+              "fragment"
+            ],
+            "stride": 4,
+            "span": 4,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 4,
+            "name": "antialiased_pixels",
+            "access": "read",
+            "role": "resource",
+            "shader_stages": [
+              "fragment"
+            ],
+            "stride": 4,
+            "span": 4,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 5,
+            "name": "progress_pixels",
+            "access": "read",
+            "role": "resource",
+            "shader_stages": [
+              "fragment"
+            ],
+            "stride": 32,
+            "span": 32,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 6,
+            "name": "input",
+            "access": "read",
+            "role": "input",
+            "shader_stages": [
+              "fragment"
+            ],
+            "stride": 60,
+            "span": 60,
+            "members": [
+              {
+                "name": "center_x_w0",
+                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "arg_index": 16,
+                "offset": 0,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w1",
+                "doc": null,
+                "arg_index": 17,
+                "offset": 4,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w2",
+                "doc": null,
+                "arg_index": 18,
+                "offset": 8,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w3",
+                "doc": null,
+                "arg_index": 19,
+                "offset": 12,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w0",
+                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "arg_index": 20,
+                "offset": 16,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w1",
+                "doc": null,
+                "arg_index": 21,
+                "offset": 20,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w2",
+                "doc": null,
+                "arg_index": 22,
+                "offset": 24,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w3",
+                "doc": null,
+                "arg_index": 23,
+                "offset": 28,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "zoom",
+                "doc": null,
+                "arg_index": 24,
+                "offset": 32,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "res",
+                "doc": null,
+                "arg_index": 25,
+                "offset": 36,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "clock",
+                "doc": null,
+                "arg_index": 26,
+                "offset": 40,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "last_input",
+                "doc": null,
+                "arg_index": 27,
+                "offset": 44,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "antialias",
+                "doc": null,
+                "arg_index": 28,
+                "offset": 48,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "drag_active",
+                "doc": null,
+                "arg_index": 29,
+                "offset": 52,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "magnification",
+                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "arg_index": 30,
+                "offset": 56,
+                "width": 4,
+                "scalar": "f32"
+              }
+            ]
+          }
+        ],
+        "builtin_inputs": [
+          {
+            "arg_index": 0,
+            "source": "fragment_position_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 1,
+            "source": "fragment_position_y",
+            "scalar": "i32"
+          }
+        ],
+        "result": null,
+        "vertex_entry": "vs_fullscreen",
+        "fragment_entry": "fs_main",
+        "color_target_format": "rgba8unorm"
+      }
+    }
+  ],
+  "surface": {
+    "extent": {
+      "width": 2048,
+      "height": 2048,
+      "dpr": "auto",
+      "filter": "smooth"
+    },
+    "pipeline": {
+      "kind": "authored_raster"
+    },
+    "params": [
+      {
+        "name": "center_x_w0",
+        "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+        "kind": "range",
+        "min": -2.5,
+        "max": 1.0,
+        "init": -1.1723286,
+        "source": "initial",
+        "presentation": {
+          "widget": "range",
+          "scale": "linear",
+          "readout": "scalar"
+        }
+      },
+      {
+        "name": "center_x_w1",
+        "kind": "fixed",
+        "init": -8.653259e-9,
+        "source": "initial",
+        "presentation": {
+          "widget": "hidden",
+          "scale": "linear",
+          "readout": "scalar"
+        },
+        "visible": false
+      },
+      {
+        "name": "center_x_w2",
+        "kind": "fixed",
+        "init": 1.6498234e-16,
+        "source": "initial",
+        "presentation": {
+          "widget": "hidden",
+          "scale": "linear",
+          "readout": "scalar"
+        },
+        "visible": false
+      },
+      {
+        "name": "center_x_w3",
+        "kind": "fixed",
+        "init": 1.0576053e-24,
+        "source": "initial",
+        "presentation": {
+          "widget": "hidden",
+          "scale": "linear",
+          "readout": "scalar"
+        },
+        "visible": false
+      },
+      {
+        "name": "center_y_w0",
+        "doc": "Most-significant word of the four-word vertical center expansion.",
+        "kind": "range",
+        "min": -1.5,
+        "max": 1.5,
+        "init": 0.29582354,
+        "source": "initial",
+        "presentation": {
+          "widget": "range",
+          "scale": "linear",
+          "readout": "scalar"
+        }
+      },
+      {
+        "name": "center_y_w1",
+        "kind": "fixed",
+        "init": -4.2638395e-9,
+        "source": "initial",
+        "presentation": {
+          "widget": "hidden",
+          "scale": "linear",
+          "readout": "scalar"
+        },
+        "visible": false
+      },
+      {
+        "name": "center_y_w2",
+        "kind": "fixed",
+        "init": -2.1798655e-16,
+        "source": "initial",
+        "presentation": {
+          "widget": "hidden",
+          "scale": "linear",
+          "readout": "scalar"
+        },
+        "visible": false
+      },
+      {
+        "name": "center_y_w3",
+        "kind": "fixed",
+        "init": -3.7684836e-24,
+        "source": "initial",
+        "presentation": {
+          "widget": "hidden",
+          "scale": "linear",
+          "readout": "scalar"
+        },
+        "visible": false
+      },
+      {
+        "name": "zoom",
+        "kind": "log",
+        "min": 1e-27,
+        "max": 3.0,
+        "init": 3.89e-8,
+        "source": "initial",
+        "presentation": {
+          "widget": "range",
+          "scale": "logarithmic",
+          "readout": "scalar"
+        }
+      },
+      {
+        "name": "res",
+        "kind": "extent_x",
+        "source": "surface_width",
+        "presentation": {
+          "widget": "hidden",
+          "scale": "linear",
+          "readout": "scalar"
+        },
+        "visible": false
+      },
+      {
+        "name": "clock",
+        "kind": "fixed",
+        "init": 0.0,
+        "source": "initial",
+        "presentation": {
+          "widget": "hidden",
+          "scale": "linear",
+          "readout": "scalar"
+        },
+        "visible": false
+      },
+      {
+        "name": "last_input",
+        "kind": "fixed",
+        "init": 0.0,
+        "source": "initial",
+        "presentation": {
+          "widget": "hidden",
+          "scale": "linear",
+          "readout": "scalar"
+        },
+        "visible": false
+      },
+      {
+        "name": "antialias",
+        "kind": "range",
+        "min": 0.0,
+        "max": 1.0,
+        "init": 1.0,
+        "source": "initial",
+        "presentation": {
+          "widget": "range",
+          "scale": "linear",
+          "readout": "scalar"
+        }
+      },
+      {
+        "name": "drag_active",
+        "kind": "fixed",
+        "init": 0.0,
+        "source": "initial",
+        "presentation": {
+          "widget": "hidden",
+          "scale": "linear",
+          "readout": "scalar"
+        },
+        "visible": false
+      },
+      {
+        "name": "magnification",
+        "doc": "Magnification relative to the full initial view (3 / view half-span).",
+        "kind": "fixed",
+        "source": "state",
+        "presentation": {
+          "widget": "output",
+          "scale": "linear",
+          "readout": "scalar"
+        }
+      }
+    ],
+    "state": {
+      "kind": "params"
+    },
+    "pointer_motion": "captured_drag",
+    "activate": "pointer"
+  },
+  "provenance": {
+    "compiler": "fe",
+    "compiler_version": "26.2.0",
+    "source_id": null,
+    "authored_sources": [],
+    "non_fe_authored_sources": [],
+    "generated_artifacts": [
+      "manifest",
+      "wasm",
+      "wgsl"
+    ],
+    "fe_responsibilities": [
+      "gpu_program",
+      "gpu_pass_graph",
+      "surface_declaration",
+      "control_transition",
+      "scheduling_policy",
+      "resident_actor_state",
+      "backing_quality_policy",
+      "device_recovery_policy"
+    ],
+    "fixed_host": {
+      "name": "fe-render-runtime",
+      "contract": "fixed_versioned_demo_blind_browser_host",
+      "responsibilities": [
+        "dom_surface",
+        "input_transport",
+        "presentation_clock",
+        "device_capability_facts",
+        "web_gpu_executor",
+        "lifecycle",
+        "wasm_loader"
+      ]
+    }
+  },
+  "canonical_interface": null,
+  "canonical_status": {
+    "policy": "disabled",
+    "embedded": false,
+    "omission_reason": "GPU resource pass graph has no CPU fallback or canonical Wasm message lane"
+  },
+  "browser_runtime": null
+}

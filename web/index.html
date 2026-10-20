@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0c1018">
+<meta name="description" content="A pastel Mandelbrot explorer written in Fe, running on WebGPU.">
+<title>Fe Mandelbrot</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<fe-surface boot="manual" manifest="renderer/manifest.json"></fe-surface>
+<nav aria-label="Explorer"><span class="brand">Fe Mandelbrot</span><a href="viewer/index.html" target="_blank" rel="noopener">Source</a><a href="https://github.com/micahscopes/fe-mandelbrot" target="_blank" rel="noopener">GitHub</a><button id="controls" aria-label="Show all controls">Settings</button></nav>
+<p id="status" role="status">Preparing the explorer…</p>
+<script type="module">
+import './renderer/fe-render-runtime.js';
+const surface=document.querySelector('fe-surface'),status=document.querySelector('#status');
+document.querySelector('#controls').onclick=()=>surface.toggleAttribute('show-controls');
+surface.addEventListener('fe-error',event=>{status.hidden=false;status.textContent=event.detail?.message||'Rendering stopped';});
+try {await surface.load();await surface.live();status.hidden=true;}catch(error){status.textContent=error.message;}
+</script>
+</body></html>

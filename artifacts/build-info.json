@@ -1,0 +1,50 @@
+{
+  "sourceHash": "565fc31290a1705841dd98a704ab07c999765f07cd6a2fe7fdd2d476585b2088",
+  "toolchain": {
+    "fe": {
+      "repository": "https://github.com/micahscopes/fe.git",
+      "branch": "mb2",
+      "revision": "51133fb1572c9e3f385855001d1f1b041ed63433"
+    },
+    "sonatina": {
+      "repository": "https://github.com/micahscopes/sonatina.git",
+      "revision": "f0ae3f5501cd8a51a6ba53f05ab5c43cd0091e47",
+      "branch": "mb2-task-borrows"
+    },
+    "naga": {
+      "repository": "https://github.com/micahscopes/wgpu",
+      "revision": "854ed576fa186d19b9f7d5a5bb5a1f2fa533dde1"
+    },
+    "rust": "nightly-2026-08-17"
+  },
+  "files": {
+    "renderer/fe-render-runtime.js": "295009787067bb8dd1c4a502f31a15612e515ef6a324446e5e2450993bbb9399",
+    "renderer/index.html": "f99c53c7bdfd6f649ade7ced7c74055428eb63271042c215e833b127b4aae84c",
+    "renderer/manifest.json": "7cf6fe0966463efe65e6288db79f01f34fe8d59c56010ac5928b8f75d0c6c548",
+    "renderer/module.wasm": "fe571c510908aca9bc6970e4a26ca0bb044bedff9041c1071059563a80541942",
+    "renderer/passes/000-compute.wgsl": "8846931b1cb70a3a0c4111091cc29b9b04c48907be004f8d368c098078e7afc8",
+    "renderer/passes/001-compute.wgsl": "82a4125cfbe49fa418393e22a57531867291c6393cc78e2c48394a8d73074110",
+    "renderer/passes/002-compute.wgsl": "261f542c19dea72b3cd7a24ea0341dfbda2ee785a53b6287751060810215dd9f",
+    "renderer/passes/003-compute.wgsl": "8278089f60cf5c9039149bd80497497b12ac0c1bb54e58b90f5d8ce317963fde",
+    "renderer/passes/004-compute.wgsl": "a787cb72cd0dae1f1be441f803fc5479760c15622eb39a6c988e39f8c3459275",
+    "renderer/passes/005-compute.wgsl": "97062e2f1bb48ab0b51fb422f108f65c04dc4aba56204d2f4fc1fd9c53c9cb40",
+    "renderer/passes/006-compute.wgsl": "516785a215f55b62dd81d48b7f06f8c4304254b77690f2104aabab688c78ca4b",
+    "renderer/passes/007-compute.wgsl": "efc6e8106c50e70fde70c40819ebc828f4359f838fe8ec2c999514fc3f012631",
+    "renderer/passes/008-compute.wgsl": "a799735df639d13b464aa91fe5e5960594656b79bda7f0ef9b13c0ebac48eb42",
+    "renderer/passes/009-compute.wgsl": "a890d8398cf43179a1e8bf9c6dfcc669a51b4d984a816d8d502260ec5b2ce50c",
+    "renderer/passes/010-compute.wgsl": "ad331fc6a6cd5ef692c0a74f4f182b89ad75337bc8324b73ade94d16c67e36cc",
+    "renderer/passes/011-compute.wgsl": "f8981ac7b3b38d364548ba8f5fdfb5d2a98e85f23ef06c149d9a27d1ffa5f3d9",
+    "renderer/passes/012-compute.wgsl": "ddc75d10cd04bfdb4b04e60f9e875ec5765987423bba37877651052abd788ef1",
+    "renderer/passes/013-compute.wgsl": "eb45c731e24d6dec40c9882259e1cd76e9f53035ad5aca8ecf3faf788f3b24d3",
+    "renderer/passes/014-compute.wgsl": "5f123e042dc10a25aeeba40723ebef960bcd102d1773f48ab1f4f3df20a7efe1",
+    "renderer/passes/015-fragment.wgsl": "15ec41628724d3ebd2e1f4952bdfdf6af03f840898db961c676929992a0dfbf6",
+    "viewer/assets/fe-0937d33d6c63d642.wasm": "0937d33d6c63d642843957369761ce2bd4234ae23accae8cb091d139f51b485b",
+    "viewer/assets/fe-a3771b2bf24cc9a8.json": "a3771b2bf24cc9a86854b7d488f5ed439ca7c72d57b1d587d6a15d8c1247a42b",
+    "viewer/assets/fe-adapter-e43950be3ebce664.js": "e43950be3ebce664579e695c68b4a77a717843c469e7312ba520fecf263f49fd",
+    "viewer/assets/fe-bootstrap-4cb87a78ce901629.js": "4cb87a78ce90162979a6502595fabb1adbf4cbdf4b954d72d029e34f29a1035f",
+    "viewer/assets/fe-task-8f72f09cceaa47a2/host-completion.js": "54bc6871a2bf0b4bdf4dad48e8d1aa371ae920dcb418e5406d1d2253a322b8e8",
+    "viewer/assets/fe-task-8f72f09cceaa47a2/materialized-task.js": "c6840564dd53aba5d599ba2861e83f38232eefac1e1534cadf9692edcacdff96",
+    "viewer/assets/fe-task-8f72f09cceaa47a2/tasks.js": "18756fee659339b957b375a8564b860e2ce4b70063a26d8badbf9606d2ba2e67",
+    "viewer/index.html": "f0c96686ff5f2fbe4f52a53f3834e6518326687c8975eff3456daa75caba190d"
+  }
+}

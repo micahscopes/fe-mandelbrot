@@ -1,0 +1,207 @@
+//! Fe camera state, backing extent, iteration and presentation policies.
+use std::webgpu::{SurfaceQualityFacts, SurfaceBackingExtent}
+use std::web::view::{Param,ParamReadout, SurfaceEvent, ApplyParamBindings, ParamBindingsProvider, SurfaceState}
+use fmath::{clamp, min, max, mix, from_i32, to_i32}
+
+extern {
+    const fn __bitcast<From, To>(_: From) -> To
+}
+
+pub const MAX_ITER_BASE: u32 = 256
+pub const MAX_ITER_CAP: u32 = 8192
+pub const DEPTH_PROBE_STEPS: u32 = 96
+pub const ITER_PER_DOUBLING: u32 = 64
+pub const CENTER_X_MIN: f32 = -2.5
+pub const CENTER_X_MAX: f32 = 1.0
+pub const CENTER_Y_MIN: f32 = -1.5
+pub const CENTER_Y_MAX: f32 = 1.5
+pub const ZOOM_MIN: f32 = 0.000000000000000000000000001
+pub const ZOOM_MAX: f32 = 3.0
+
+/// Smooth reciprocal zoom: reversing an equal wheel delta reverses its scale.
+/// Normalize raw DOM pixel, line and page units here, in Fe.
+pub fn zoom_step(_ zoom:f32,_ delta:f32,_ mode:u32,_ extent:f32) -> f32 {
+    let units:f32=if mode==1 { 16.0 } else { if mode==2 { extent } else { 1.0 } }
+    let t:f32=clamp(delta*units*0.0006666667,-0.45,0.45)
+    zoom*((1.0+t)/(1.0-t))
+}
+
+pub fn clamp_f(_ value: f32, _ lower: f32, _ upper: f32) -> f32 {
+    if value < lower {
+        lower
+    } else {
+        if value > upper { upper } else { value }
+    }
+}
+
+pub fn clamp_quad(_ w0: f32, _ w1: f32, _ w2: f32, _ w3: f32, _ lower: f32, _ upper: f32) -> (
+    f32,
+    f32,
+    f32,
+    f32,
+) {
+    if w0 < lower {
+        (lower, 0.0, 0.0, 0.0)
+    } else {
+        if w0 > upper {
+            (upper, 0.0, 0.0, 0.0)
+        } else {
+            (w0, w1, w2, w3)
+        }
+    }
+}
+
+pub fn iteration_limit(_ zoom: f32) -> u32 {
+    let mut z: f32 = zoom
+    let mut depth: u32 = 0
+    let mut i: u32 = 0
+    while i < DEPTH_PROBE_STEPS {
+        if z < 1.0 {
+            z = z * 2.0
+            depth = depth + 1
+        }
+        i = i + 1
+    }
+    let scaled: u32 = MAX_ITER_BASE + depth * ITER_PER_DOUBLING
+    if scaled > MAX_ITER_CAP {
+        MAX_ITER_CAP
+    } else {
+        scaled
+    }
+}
+
+pub struct MandelbrotParams {
+    pub center_x_w0: Param,
+    pub center_x_w1: Param,
+    pub center_x_w2: Param,
+    pub center_x_w3: Param,
+    pub center_y_w0: Param,
+    pub center_y_w1: Param,
+    pub center_y_w2: Param,
+    pub center_y_w3: Param,
+    pub zoom: Param,
+    pub res: Param,
+    pub clock: Param,
+    pub last_input: Param,
+    pub antialias: Param,
+    pub drag_active:Param,
+    pub magnification:Param,
+}
+
+pub struct MandelbrotViewState {
+    pub center_x_w0: f32,
+    pub center_x_w1: f32,
+    pub center_x_w2: f32,
+    pub center_x_w3: f32,
+    pub center_y_w0: f32,
+    pub center_y_w1: f32,
+    pub center_y_w2: f32,
+    pub center_y_w3: f32,
+    pub zoom: f32,
+    pub res: f32,
+    pub clock: f32,
+    pub last_input: f32,
+    pub antialias: f32,
+    pub drag_active:f32,
+    pub magnification:f32,
+}
+
+impl SurfaceState for MandelbrotViewState {
+    type Params = MandelbrotParams
+}
+
+derive ApplyParamBindings for MandelbrotViewState using ParamBindingsProvider<MandelbrotParams>
+
+pub const fn mandelbrot_params() -> MandelbrotParams {
+    MandelbrotParams {
+        center_x_w0: Param::range(
+            min: CENTER_X_MIN,
+            max: CENTER_X_MAX,
+            init: -1.1723285913467407,
+        ),
+        center_x_w1: Param::fixed(-0.000000008653259442326089),
+        center_x_w2: Param::fixed(0.00000000000000016498233784400384),
+        center_x_w3: Param::fixed(0.0000000000000000000000010576053052462748),
+        center_y_w0: Param::range(
+            min: CENTER_Y_MIN,
+            max: CENTER_Y_MAX,
+            init: 0.29582354426383972,
+        ),
+        center_y_w1: Param::fixed(-0.000000004263839503693134),
+        center_y_w2: Param::fixed(-0.00000000000000021798654948407476),
+        center_y_w3: Param::fixed(-0.0000000000000000000000037684836019798525),
+        zoom: Param::log(min: ZOOM_MIN, max: ZOOM_MAX, init: 0.0000000389),
+        res: Param::extent_x(),
+        clock: Param::fixed(0.0),
+        last_input: Param::fixed(0.0),
+        antialias: Param::range(min: 0.0, max: 1.0, init: 1.0),
+        drag_active:Param::fixed(0.0),
+        magnification:Param::readout(ParamReadout::Scalar),
+    }
+}
+
+pub struct SharpBacking {}
+impl SharpBacking {
+    pub fn choose(_ facts: own SurfaceQualityFacts) -> SurfaceBackingExtent {
+        let ratio: f32 = max(1.0, facts.device_pixel_ratio)
+        let css: f32 = max(facts.css_width, facts.css_height)
+        let declared: f32 = min(facts.declared_width, facts.declared_height)
+        let device: f32 = if facts.max_texture_dimension_2d > 0.0 {
+            facts.max_texture_dimension_2d
+        } else {
+            declared
+        }
+        let limit: f32 = min(declared, min(2048.0, device))
+        let side: f32 = clamp((css * ratio).round(), 1.0, limit)
+        SurfaceBackingExtent { width: side, height: side }
+    }
+}
+
+pub fn progress(_ age: f32, _ start: f32, _ duration: f32) -> f32 {
+    let t: f32 = clamp_f((age - start) / duration, 0.0, 1.0)
+    t * t * (3.0 - 2.0 * t)
+}
+/// Lower spatial resolution during interaction, not the required orbit depth.
+/// Short iteration caps can turn a perfectly valid deep view solid black.
+pub fn preview_budget(_ zoom:f32,_ age:f32) -> u32 { iteration_limit(zoom) }
+
+// Hold the soft view briefly, then ease preview blur and native reveal together.
+pub fn sharpness(_ age:f32) -> f32 { progress(age,200.0,1600.0) }
+
+pub fn blur_radius(_ age: f32) -> f32 {
+    24.0 * (1.0 - sharpness(age))
+}
+
+
+impl MandelbrotViewState {
+    pub fn refresh_readout(self) -> Self {
+        Self {
+            center_x_w0:self.center_x_w0,
+            center_x_w1:self.center_x_w1,
+            center_x_w2:self.center_x_w2,
+            center_x_w3:self.center_x_w3,
+            center_y_w0:self.center_y_w0,
+            center_y_w1:self.center_y_w1,
+            center_y_w2:self.center_y_w2,
+            center_y_w3:self.center_y_w3,
+            zoom:self.zoom,
+            res:self.res,
+            clock:self.clock,
+            last_input:self.last_input,
+            antialias:self.antialias,
+            drag_active:self.drag_active,
+            magnification:3.0/self.zoom,
+        }
+    }
+}
+
+pub fn initial_view() -> MandelbrotViewState {
+    MandelbrotViewState {
+        center_x_w0:-1.1723285913467407,center_x_w1:-0.000000008653259442326089,
+        center_x_w2:0.00000000000000016498233784400384,center_x_w3:0.0000000000000000000000010576053052462748,
+        center_y_w0:0.29582354426383972,center_y_w1:-0.000000004263839503693134,
+        center_y_w2:-0.00000000000000021798654948407476,center_y_w3:-0.0000000000000000000000037684836019798525,
+        zoom:0.0000000389,res:512.0,clock:0.0,last_input:0.0,antialias:1.0,drag_active:0.0,
+        magnification:3.0/0.0000000389,
+    }
+}

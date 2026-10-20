@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fe source · Mandelbrot</title>
+<style>
+:root {
+  color-scheme:dark;
+  background:#0c1018;
+  color:#dce4f3;
+  font:15px/1.6 system-ui,sans-serif;
+}
+* {
+  box-sizing:border-box;
+}
+body {
+  margin:0;
+}
+fe-component {
+  display:block;
+}
+header {
+  padding:24px 32px;
+  border-bottom:1px solid #263044;
+}
+header>a {
+  float:right;
+}
+h1 {
+  margin:0;
+  font-size:24px;
+}
+header p {
+  margin:4px 0 0;
+  color:#91a0b9;
+}
+a {
+  color:#a6c8ff;
+  text-decoration:none;
+}
+a:hover {
+  text-decoration:underline;
+}
+a:focus-visible {
+  outline:2px solid #a6c8ff;
+  outline-offset:4px;
+}
+.workspace {
+  display:grid;
+  grid-template-columns:250px minmax(0,1fr);
+  height:calc(100dvh - 124px);
+}
+.files {
+  padding:20px 12px;
+  overflow:auto;
+  border-right:1px solid #263044;
+}
+.file {
+  display:block;
+  padding:12px 16px;
+  border-radius:8px;
+}
+.file:hover,.file:focus {
+  background:#172032;
+  text-decoration:none;
+}
+.file code {
+  display:block;
+  color:#e1eafa;
+  font:14px ui-monospace,monospace;
+}
+.file span {
+  display:block;
+  color:#8d9fbc;
+  font-size:12px;
+  margin-top:3px;
+}
+main {
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+}
+.file-heading {
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  padding:14px 24px;
+  border-bottom:1px solid #263044;
+  background:#111827;
+}
+.file-heading strong {
+  font:14px/1.6 ui-monospace,monospace;
+}
+.file-heading a {
+  font-size:12px;
+}
+.source-lines {
+  display:flex;
+  overflow:auto;
+  flex:1;
+  min-height:0;
+  background:#0c1018;
+}
+pre {
+  margin:0;
+  padding:24px 24px 72px;
+  font:13px/1.8 ui-monospace,SFMono-Regular,Consolas,monospace;
+  tab-size:4;
+}
+.line-numbers {
+  position:sticky;
+  left:0;
+  flex:none;
+  background:#0c1018;
+  color:#536581;
+  text-align:right;
+  user-select:none;
+  border-right:1px solid #1b2536;
+  padding-right:18px;
+}
+.source-code {
+  color:#d5e0f4;
+}
+.message {
+  padding:32px;
+  color:#91a0b9;
+}
+.error {
+  color:#ffaaaa;
+  white-space:pre-wrap;
+}
+[hidden] {
+  display:none!important;
+}
+@media(max-width:650px) {
+  header {
+    padding:16px;
+  }
+  h1 {
+    font-size:20px;
+  }
+  .workspace {
+    grid-template-columns:1fr;
+    height:calc(100dvh - 110px);
+  }
+  .files {
+    display:flex;
+    gap:4px;
+    padding:8px;
+    overflow:auto;
+    border-right:0;
+    border-bottom:1px solid #263044;
+  }
+  .file {
+    flex:none;
+    padding:8px 12px;
+  }
+  .file span {
+    display:none;
+  }
+  main {
+    min-height:0;
+  }
+  .workspace {
+    grid-template-rows:auto minmax(0,1fr);
+  }
+  pre {
+    font-size:12px;
+    padding-top:16px;
+  }
+  .file-heading {
+    padding:10px 16px;
+  }
+}
+</style></head>
+<body>
+<script type="application/fe" data-fe-src="../app/source_viewer/src/lib.fe" data-fe-component data-fe-mount="#fe-source"></script>
+<fe-component id="fe-source"></fe-component>
+</body>
+</html>

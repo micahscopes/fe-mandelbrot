@@ -1,0 +1,29 @@
+//! Pastel OKLCH anchors, interpolated on the shortest hue arc in Fe.
+//! Display conversion and all spatial filtering use OKLab coordinates.
+use fmath::{from_i32,cos,sin,fract}
+use ingot::image::{Color,packed}
+
+pub fn escape_palette(_ iterations:i32,_ magnitude_squared:f32) -> i32 {
+    let t:f32=fract((from_i32(iterations)+4.0/magnitude_squared)/256.0)*5.0
+    let segment:i32=from_segment(t)
+    let u:f32=t-from_i32(segment)
+    let ease:f32=u*u*(3.0-2.0*u)
+    let start:Color=anchor(segment)
+    let end:Color=anchor(if segment==4 { 0 } else { segment+1 })
+    // Anchors carry L,C,h here; only this function treats a/b as polar values.
+    let delta:f32=end.b-start.b
+    let arc:f32=if delta>180.0 { delta-360.0 } else { if delta < -180.0 { delta+360.0 } else { delta } }
+    let h:f32=(start.b+arc*ease)*0.017453292519943295
+    let chroma:f32=start.a+(end.a-start.a)*ease
+    packed(Color {l:start.l+(end.l-start.l)*ease,a:chroma*cos(h),b:chroma*sin(h)})
+}
+fn from_segment(_ t:f32) -> i32 { fmath::to_i32(t) }
+fn anchor(_ i:i32) -> Color {
+    if i==0 {Color {l:0.79,a:0.085,b:275.0}}
+    else {if i==1 {Color {l:0.86,a:0.075,b:335.0}}
+    else {if i==2 {Color {l:0.88,a:0.075,b:65.0}}
+    else {if i==3 {Color {l:0.86,a:0.075,b:165.0}}
+    else {Color {l:0.81,a:0.075,b:235.0}}}}}
+}
+pub fn interior() -> i32 {packed(Color {l:0.14,a:0.008,b:-0.018})}
+pub fn glitch() -> i32 {packed(Color {l:0.72,a:0.18,b:-0.09})}

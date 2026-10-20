@@ -1,0 +1,1516 @@
+//! The gallery's resident Fe shell: typed routes, source inspection, and
+//! surface activation.
+//!
+//! Anchors provide untouched same-origin URLs. Fe owns which artifact kinds
+//! are inspectable, modal state, stale response rejection, loading/error
+//! policy, binary-vs-text presentation, route recovery, focus, cancellation,
+//! and sequential surface scheduling. Generated standards bindings realize
+//! fetch; the fixed browser host only holds ABI lifetimes and realizes
+//! History, DOM, and surface mechanics.
+
+use std::web::component::{
+    BrowserBytes, BrowserPtr, BrowserString, ComponentEvent, ComponentEventKind,
+    ComponentPatch, ComponentWriter, InitialState, KeyboardKey, ProjectState, ResidentTransition,
+    VisibleParts, allocate_component_buffer,
+}
+use std::text::{Utf8Buffer, Utf8Write}
+use core::actor::{ActorSink, ScopedTask}
+use core::pending::{
+    Pending, PendingCancellation, Race, RaceOutcome, Select, SelectOutcome, Suspend,
+    TaskOutcome, Timer,
+}
+use std::actor::{
+    ActorMessage, ActorNotification, BrowserActorNotifications, BrowserActorSink,
+}
+use std::reactive::{AsyncEventSource, Event, EventSource, Stream, Subscription}
+use std::host::{HostTimer, Resumable}
+use std::wasm::WasmBackend
+use std::web::{
+    AnimationFrame, BrowserAnimationFrames, BrowserSurfaceEvents, BrowserSurfaceLoader,
+    BrowserVisibilityEvents, DocumentVisibility, RouteSegment, RouteSegmentParse,
+    RouteSegmentProvider, SurfaceLoader, SurfaceToken, parse_location,
+}
+use std::web::page::{
+    ComponentComposition, ComponentView, PageAttribute, PageBuilder, PageElement, PageText,
+}
+use std::web::identity::{
+    ComponentAction, ComponentActionProvider, ComponentSchema, ComponentSchemaProvider,
+    Link, Part, Text, Visibility,
+}
+use browser_fetch::{Response, fetch_begin}
+
+pub enum InspectorAction {
+    Unknown,
+    Source,
+    Wgsl,
+    Wasm,
+    Manifest,
+    Close,
+    SurfaceProgress,
+    SurfaceComplete,
+    SurfaceFailed,
+    ResourceComplete,
+    ResourceFailed,
+    Navigate,
+}
+
+impl Copy for InspectorAction {}
+
+derive ComponentAction for InspectorAction using ComponentActionProvider
+
+impl InspectorAction {
+    fn opens_artifact(self) -> bool {
+        match self {
+            Self::Source | Self::Wgsl | Self::Wasm | Self::Manifest => true,
+            _ => false,
+        }
+    }
+
+    fn artifact(self) -> ArtifactKind {
+        match self {
+            Self::Wgsl => ArtifactKind::Wgsl,
+            Self::Wasm => ArtifactKind::Wasm,
+            Self::Manifest => ArtifactKind::Manifest,
+            Self::Source | Self::Unknown | Self::Close |
+            Self::SurfaceProgress | Self::SurfaceComplete | Self::SurfaceFailed |
+            Self::ResourceComplete | Self::ResourceFailed | Self::Navigate => {
+                ArtifactKind::Source
+            }
+        }
+    }
+}
+
+enum ArtifactKind {
+    Source,
+    Wgsl,
+    Wasm,
+    Manifest,
+}
+
+impl Copy for ArtifactKind {}
+
+impl ArtifactKind {
+    fn is_source(self) -> bool { match self { Self::Source => true, _ => false } }
+    fn is_wgsl(self) -> bool { match self { Self::Wgsl => true, _ => false } }
+    fn is_wasm(self) -> bool { match self { Self::Wasm => true, _ => false } }
+    fn is_manifest(self) -> bool { match self { Self::Manifest => true, _ => false } }
+}
+
+/// One reflected schema owns every DOM/view correlation identity. The source
+/// never spells a numeric node/view table; FCO assigns opaque handles once and
+/// their role types constrain both page construction and projection effects.
+pub struct GalleryParts {
+    overlay: Part<Visibility>,
+    text: Part<Visibility>,
+    binary: Part<Visibility>,
+    loading: Part<Visibility>,
+    error_view: Part<Visibility>,
+    title_source: Part<Visibility>,
+    title_wgsl: Part<Visibility>,
+    title_wasm: Part<Visibility>,
+    title_manifest: Part<Visibility>,
+    body: Part<Text>,
+    bytes: Part<Text>,
+    raw: Part<Link>,
+    error_text: Part<Text>,
+    pub gradient: Part<Visibility>,
+    pub classic_quilting: Part<Visibility>,
+    pub quilting_lod: Part<Visibility>,
+    pub todo_mvc: Part<Visibility>,
+    pub event_studio: Part<Visibility>,
+    pub cga3d: Part<Visibility>,
+    pub qcga: Part<Visibility>,
+    pub qcga_pencil: Part<Visibility>,
+    pub desargues: Part<Visibility>,
+    pub plasma: Part<Visibility>,
+    pub raymarch: Part<Visibility>,
+    pub mandelbrot: Part<Visibility>,
+    pub perturbation_mandelbrot: Part<Visibility>,
+    pub mandelbrot_proof: Part<Visibility>,
+    pub dec: Part<Visibility>,
+    pub known_color: Part<Visibility>,
+    pub rollcall: Part<Visibility>,
+}
+
+impl Copy for GalleryParts {}
+derive ComponentSchema for GalleryParts using ComponentSchemaProvider
+
+/// Route identity is the authored Fe enum. The provider derives both URL
+/// directions from these variant names, so no numeric table or registry can
+/// drift away from the page actor.
+pub enum GalleryDestination {
+    Gradient,
+    ClassicQuilting,
+    QuiltingLod,
+    TodoMvc,
+    EventStudio,
+    Cga3d,
+    Qcga,
+    QcgaPencil,
+    Desargues,
+    Plasma,
+    Raymarch,
+    Mandelbrot,
+    PerturbationMandelbrot,
+    MandelbrotProof,
+    Dec,
+    KnownColor,
+    Rollcall,
+}
+
+impl Copy for GalleryDestination {}
+derive Eq for GalleryDestination
+derive RouteSegment for GalleryDestination using RouteSegmentProvider
+
+impl GalleryDestination {
+    /// Relate one semantic route to its typed DOM capability. This is the only
+    /// route-to-view join; const page construction and runtime projection both
+    /// consume it rather than maintaining parallel ID tables.
+    pub const fn tile(self, ui: GalleryParts) -> Part<Visibility> {
+        match self {
+            Self::Gradient => ui.gradient,
+            Self::ClassicQuilting => ui.classic_quilting,
+            Self::QuiltingLod => ui.quilting_lod,
+            Self::TodoMvc => ui.todo_mvc,
+            Self::EventStudio => ui.event_studio,
+            Self::Cga3d => ui.cga3d,
+            Self::Qcga => ui.qcga,
+            Self::QcgaPencil => ui.qcga_pencil,
+            Self::Desargues => ui.desargues,
+            Self::Plasma => ui.plasma,
+            Self::Raymarch => ui.raymarch,
+            Self::Mandelbrot => ui.mandelbrot,
+            Self::PerturbationMandelbrot => ui.perturbation_mandelbrot,
+            Self::MandelbrotProof => ui.mandelbrot_proof,
+            Self::Dec => ui.dec,
+            Self::KnownColor => ui.known_color,
+            Self::Rollcall => ui.rollcall,
+        }
+    }
+}
+
+/// Whether a route denotes the complete gallery or one typed destination.
+/// Keeping this state nominal avoids assigning a fake destination identity to
+/// the whole gallery just to make the transport convenient.
+pub enum GalleryScope {
+    All,
+    Selection,
+}
+
+impl Copy for GalleryScope {}
+derive Eq for GalleryScope
+
+impl GalleryScope {
+    pub fn show_destination(
+        self,
+        destination: GalleryDestination,
+        visible: VisibleParts,
+        ui: GalleryParts,
+    ) -> VisibleParts {
+        match self {
+            Self::All => visible
+                .show(target: ui.gradient)
+                .show(target: ui.classic_quilting)
+                .show(target: ui.quilting_lod)
+                .show(target: ui.todo_mvc)
+                .show(target: ui.event_studio)
+                .show(target: ui.cga3d)
+                .show(target: ui.qcga)
+                .show(target: ui.qcga_pencil)
+                .show(target: ui.desargues)
+                .show(target: ui.plasma)
+                .show(target: ui.raymarch)
+                .show(target: ui.mandelbrot)
+                .show(target: ui.perturbation_mandelbrot)
+                .show(target: ui.mandelbrot_proof)
+                .show(target: ui.dec)
+                .show(target: ui.known_color)
+                .show(target: ui.rollcall),
+            Self::Selection => visible.show(target: destination.tile(ui)),
+        }
+    }
+}
+
+pub enum GalleryAnchor {
+    Top,
+    Selection,
+}
+
+impl Copy for GalleryAnchor {}
+derive Eq for GalleryAnchor
+derive RouteSegment for GalleryAnchor using RouteSegmentProvider
+
+pub struct GalleryRoute {
+    pub scope: GalleryScope,
+    pub destination: GalleryDestination,
+    pub anchor: GalleryAnchor,
+    pub valid: bool,
+}
+
+impl Copy for GalleryRoute {}
+derive Eq for GalleryRoute
+
+impl GalleryRoute {
+    pub fn all() -> Self {
+        Self {
+            scope: GalleryScope::All,
+            destination: GalleryDestination::Gradient,
+            anchor: GalleryAnchor::Top,
+            valid: true,
+        }
+    }
+
+    pub fn parse(_ value: own BrowserString) -> Self {
+        let location = parse_location(value)
+        let selection = location.query.single("demo")
+        let mut destination = RouteSegmentParse::matched(GalleryDestination::Gradient)
+        let mut scope = GalleryScope::All
+        if selection.present {
+            scope = GalleryScope::Selection
+            destination = GalleryDestination::parse_route_segment(selection.value)
+        }
+        let mut anchor = RouteSegmentParse::matched(GalleryAnchor::Top)
+        if !location.hash.view().is_empty() {
+            anchor = GalleryAnchor::parse_route_segment(location.hash.view())
+        }
+        let valid = location.valid && selection.valid && destination.is_valid() && anchor.is_valid()
+        if !valid {
+            return Self {
+                scope: GalleryScope::All,
+                destination: GalleryDestination::Gradient,
+                anchor: GalleryAnchor::Top,
+                valid: false,
+            }
+        }
+        Self { scope: scope, destination: destination.value(), anchor: anchor.value(), valid: true }
+    }
+
+    pub fn write(self, destination: Utf8Buffer) -> Utf8Write {
+        let mut route = Utf8Write {
+            buffer: destination,
+            truncated: false,
+            valid: true,
+        }
+        match self.scope {
+            GalleryScope::All => {}
+            GalleryScope::Selection => {
+                let prefix = destination.replace_literal("?demo=")
+                let segment = self.destination.write_route_segment(prefix.buffer)
+                route = Utf8Write {
+                    buffer: segment.buffer,
+                    truncated: prefix.truncated || segment.truncated,
+                    valid: prefix.valid && segment.valid,
+                }
+            }
+        }
+        let hash = route.buffer.append_literal("#")
+        let anchor = self.anchor.write_route_segment(hash.buffer)
+        Utf8Write {
+            buffer: anchor.buffer,
+            truncated: route.truncated || hash.truncated || anchor.truncated,
+            valid: route.valid && hash.valid && anchor.valid,
+        }
+    }
+}
+
+enum InspectorStatus {
+    Loading,
+    Ready,
+    Error,
+}
+
+impl Copy for InspectorStatus {}
+
+impl InspectorStatus {
+    fn is_loading(self) -> bool { match self { Self::Loading => true, _ => false } }
+    fn is_ready(self) -> bool { match self { Self::Ready => true, _ => false } }
+    fn is_error(self) -> bool { match self { Self::Error => true, _ => false } }
+}
+
+pub const URL_CAPACITY: u32 = 2048
+const ROUTE_CAPACITY: u32 = 128
+pub const PATCH_CAPACITY: u32 = 1048576
+pub const CONTENT_CAPACITY: u32 = 1044480
+pub const CONTROL_CAPACITY: u32 = 20
+const VIEW_CAPACITY: usize = 80
+const SURFACE_ACTIVATION_TIMEOUT_MS: u64 = 30000
+
+const CONTROL_REVISION: u32 = 0
+const CONTROL_REQUEST: u32 = 4
+const CONTROL_URL_LEN: u32 = 8
+const CONTROL_BINARY: u32 = 12
+const CONTROL_ACTIVE: u32 = 16
+
+const fn ui_text(value: String<31>) -> PageText {
+    PageText::one(value: value)
+}
+
+pub struct InspectorState {
+    pub patch_ptr: u32,
+    pub control_ptr: u32,
+    pub url_ptr: u32,
+    pub url_len: u32,
+    pub route_ptr: u32,
+    pub route_len: u32,
+    pub scope: GalleryScope,
+    pub destination: GalleryDestination,
+    pub anchor: GalleryAnchor,
+    pub push_route: bool,
+    pub selected: ArtifactKind,
+    pub pending: u32,
+    pub status: InspectorStatus,
+    pub byte_len: u32,
+    pub content_ptr: u32,
+    pub content_len: u32,
+    pub connected: bool,
+    pub open: bool,
+    pub prevent_default: bool,
+    pub focus_close: bool,
+    pub revision: u32,
+    pub surfaces_settled: u32,
+    pub surface_sequence_complete: bool,
+    pub surface_sequence_failed: bool,
+}
+
+/// Typed payload shared by every compiler-materialized SourceInspector task.
+/// Browser events receive the compiler-derived zero value for these lanes;
+/// fixed JavaScript never interprets them.
+pub struct InspectorTask {
+    pub request: u32,
+    pub status: u32,
+    pub byte_len: u32,
+    pub content_len: u32,
+    pub surface_settled: u32,
+}
+
+impl Copy for InspectorTask {}
+
+impl InspectorTask {
+    fn surface(_ settled: u32) -> Self {
+        Self {
+            request: 0,
+            status: 0,
+            byte_len: 0,
+            content_len: 0,
+            surface_settled: settled,
+        }
+    }
+
+    fn resource(_ request: u32, _ status: u32, _ byte_len: u32, _ content_len: u32) -> Self {
+        Self {
+            request: request,
+            status: status,
+            byte_len: byte_len,
+            content_len: content_len,
+            surface_settled: 0,
+        }
+    }
+}
+
+struct LoadCommand {
+    revision: u32,
+    request: u32,
+    url_len: u32,
+    binary: bool,
+    active: bool,
+}
+
+impl Copy for LoadCommand {}
+
+fn control_word(ptr: u32, offset: u32) -> BrowserPtr<u32> {
+    BrowserPtr::from_u32(ptr + offset)
+}
+
+pub fn publish_load_command(
+    control: u32,
+    revision: u32,
+    request: u32,
+    url_len: u32,
+    binary: bool,
+    active: bool,
+) {
+    control_word(ptr: control, offset: CONTROL_REQUEST).write(request)
+    control_word(ptr: control, offset: CONTROL_URL_LEN).write(url_len)
+    control_word(ptr: control, offset: CONTROL_BINARY).write(if binary { 1 } else { 0 })
+    control_word(ptr: control, offset: CONTROL_ACTIVE).write(if active { 1 } else { 0 })
+    // Publish the revision last. Wasm entrypoints are single-threaded today,
+    // but this ordering also gives a future atomic implementation one commit
+    // word instead of a partially visible application record.
+    control_word(ptr: control, offset: CONTROL_REVISION).write(revision)
+}
+
+fn read_load_command(control: u32) -> LoadCommand {
+    LoadCommand {
+        revision: control_word(ptr: control, offset: CONTROL_REVISION).read(),
+        request: control_word(ptr: control, offset: CONTROL_REQUEST).read(),
+        url_len: control_word(ptr: control, offset: CONTROL_URL_LEN).read(),
+        binary: control_word(ptr: control, offset: CONTROL_BINARY).read() != 0,
+        active: control_word(ptr: control, offset: CONTROL_ACTIVE).read() != 0,
+    }
+}
+
+fn next_revision(value: u32) -> u32 {
+    let next = value + 1
+    if next == 0 { 1 } else { next }
+}
+
+fn copy_url(destination: u32, value: own BrowserString) -> u32 {
+    // Browser-resolved anchor hrefs are ASCII URLs. Bound the retained value
+    // so malformed or adversarial pages cannot grow component state.
+    Utf8Buffer::empty(ptr: destination, capacity: URL_CAPACITY)
+        .replace_browser(value).buffer.len()
+}
+
+fn failure_content<const N: usize>(destination: u32, value: own [u8; N]) -> u32 {
+    Utf8Buffer::empty(ptr: destination, capacity: CONTENT_CAPACITY)
+        .replace_literal(value).buffer.len()
+}
+
+fn is_success(status: u32) -> bool {
+    status >= 200 && status < 300
+}
+
+/// Deliver one task-owned lifecycle value through the actor's typed mailbox.
+/// The browser sees only the compiler-flattened `ComponentEvent` lanes; this
+/// Fe module owns the action meanings and the resident-state policy.
+fn report_surface_state(target: InspectorAction, settled: u32) -> bool
+    uses (
+        sink: mut ActorSink<WasmBackend, ComponentEvent<InspectorAction, InspectorTask>>,
+        suspend: Suspend<WasmBackend, u32>,
+    )
+{
+    let event: ComponentEvent<InspectorAction, InspectorTask> =
+        ComponentEvent<InspectorAction, InspectorTask>::task_payload(
+        target: target,
+        payload: InspectorTask::surface(settled: settled),
+    )
+    let message: ActorMessage<ComponentEvent<InspectorAction, InspectorTask>> =
+        ActorMessage::new(event)
+    let outcome: TaskOutcome<u32, ()> = message.send()
+    match outcome {
+        TaskOutcome::Success(_) => true
+        TaskOutcome::Failure(_) => false
+        TaskOutcome::Cancelled => false
+    }
+}
+
+fn report_resource_state(target: InspectorAction, payload: InspectorTask) -> bool
+    uses (
+        sink: mut ActorSink<WasmBackend, ComponentEvent<InspectorAction, InspectorTask>>,
+        suspend: Suspend<WasmBackend, u32>,
+    )
+{
+    let event: ComponentEvent<InspectorAction, InspectorTask> =
+        ComponentEvent<InspectorAction, InspectorTask>::task_payload(
+            target: target,
+            payload: payload,
+        )
+    let message: ActorMessage<ComponentEvent<InspectorAction, InspectorTask>> =
+        ActorMessage::new(event)
+    let outcome: TaskOutcome<u32, ()> = message.send()
+    match outcome {
+        TaskOutcome::Success(_) => true
+        TaskOutcome::Failure(_) => false
+        TaskOutcome::Cancelled => false
+    }
+}
+
+fn arm_notification(
+    subscription: own Subscription<ActorNotification>,
+) -> (Subscription<ActorNotification>, Pending<WasmBackend, ActorNotification>)
+    uses (notifications: mut AsyncEventSource<WasmBackend, ActorNotification>)
+{
+    notifications.next_begin(subscription)
+}
+
+/// Interpret the latest revisioned request cell entirely in Fe.
+///
+/// A zero-payload actor notification wakes this task after the resident
+/// transition writes a new cell value. The notification is kept live beside
+/// fetch and body operations with heterogeneous `Select`, so a newer revision
+/// cancels stale browser work without JavaScript learning the request shape.
+/// Browser strings/bytes are copied or reduced to owned scalar state before a
+/// second suspension, and every acquired Response is released explicitly.
+pub fn load_inspector_resources(control: u32, url: u32, content: u32) -> u32
+    uses (
+        notifications: mut AsyncEventSource<WasmBackend, ActorNotification>,
+        select: mut Select<WasmBackend, u32>,
+        cancellation: mut PendingCancellation<WasmBackend>,
+        sink: mut ActorSink<WasmBackend, ComponentEvent<InspectorAction, InspectorTask>>,
+        suspend: Suspend<WasmBackend, u32>,
+    )
+{
+    let mut subscription = notifications.subscribe()
+    let first = arm_notification(subscription: subscription)
+    subscription = first.0
+    let mut notification = first.1
+    let mut handled: u32 = 0
+
+    while true {
+        let wake: TaskOutcome<u32, ActorNotification> = suspend.suspend(notification)
+        match wake {
+            TaskOutcome::Success(_) => {
+                let next = arm_notification(subscription: subscription)
+                subscription = next.0
+                notification = next.1
+                let mut command_ready = true
+
+                while command_ready {
+                    command_ready = false
+                    let command = read_load_command(control: control)
+                    if command.active && command.url_len > 0 && command.url_len <= URL_CAPACITY {
+                        let request_url = Utf8Buffer::with_len(
+                            ptr: url,
+                            len: command.url_len,
+                            capacity: URL_CAPACITY,
+                        ).browser_string()
+                        let fetching = fetch_begin(input: request_url)
+                        let selected = select.select(fetching, notification)
+                        let fetched: TaskOutcome<
+                            u32,
+                            SelectOutcome<
+                                WasmBackend,
+                                u32,
+                                Response,
+                                ActorNotification,
+                            >,
+                        > = suspend.suspend(selected)
+                        match fetched {
+                            TaskOutcome::Success(fetch_selection) => {
+                                match fetch_selection {
+                                    SelectOutcome::Left(fetch_winner) => {
+                                        let response = fetch_winner.value
+                                        notification = fetch_winner.right
+                                        let status = response.status()
+                                        if command.binary {
+                                            let body = response.bytes_begin()
+                                            let selected_body = select.select(body, notification)
+                                            let loaded: TaskOutcome<
+                                                u32,
+                                                SelectOutcome<
+                                                    WasmBackend,
+                                                    u32,
+                                                    BrowserBytes,
+                                                    ActorNotification,
+                                                >,
+                                            > = suspend.suspend(selected_body)
+                                            match loaded {
+                                                TaskOutcome::Success(body_selection) => {
+                                                    match body_selection {
+                                                        SelectOutcome::Left(body_winner) => {
+                                                            notification = body_winner.right
+                                                            let byte_len = body_winner.value.len
+                                                            response.release()
+                                                            let mut target = InspectorAction::ResourceComplete
+                                                            let mut content_len: u32 = 0
+                                                            if byte_len > PATCH_CAPACITY {
+                                                                target = InspectorAction::ResourceFailed
+                                                                content_len = failure_content(
+                                                                    destination: content,
+                                                                    value: "Resource exceeds the Fe inspector limit",
+                                                                )
+                                                            }
+                                                            if !report_resource_state(
+                                                                target: target,
+                                                                payload: InspectorTask::resource(
+                                                                    request: command.request,
+                                                                    status: status,
+                                                                    byte_len: byte_len,
+                                                                    content_len: content_len,
+                                                                ),
+                                                            ) {
+                                                                notifications.cancel(subscription)
+                                                                return handled
+                                                            }
+                                                            handled = handled + 1
+                                                        }
+                                                        SelectOutcome::Right(notification_winner) => {
+                                                            cancellation.cancel_pending(
+                                                                notification_winner.left,
+                                                            )
+                                                            response.release()
+                                                            let next = arm_notification(
+                                                                subscription: subscription,
+                                                            )
+                                                            subscription = next.0
+                                                            notification = next.1
+                                                            command_ready = true
+                                                        }
+                                                        SelectOutcome::LeftFailure(_) => {
+                                                            response.release()
+                                                            let content_len = failure_content(
+                                                                destination: content,
+                                                                value: "Resource body request failed",
+                                                            )
+                                                            let next = arm_notification(
+                                                                subscription: subscription,
+                                                            )
+                                                            subscription = next.0
+                                                            notification = next.1
+                                                            if !report_resource_state(
+                                                                target: InspectorAction::ResourceFailed,
+                                                                payload: InspectorTask::resource(
+                                                                    request: command.request,
+                                                                    status: status,
+                                                                    byte_len: 0,
+                                                                    content_len: content_len,
+                                                                ),
+                                                            ) {
+                                                                notifications.cancel(subscription)
+                                                                return handled
+                                                            }
+                                                            handled = handled + 1
+                                                        }
+                                                        SelectOutcome::RightFailure(_) => {
+                                                            response.release()
+                                                            notifications.cancel(subscription)
+                                                            return handled
+                                                        }
+                                                        SelectOutcome::LeftCancelled => {
+                                                            response.release()
+                                                            notifications.cancel(subscription)
+                                                            return handled
+                                                        }
+                                                        SelectOutcome::RightCancelled => {
+                                                            response.release()
+                                                            notifications.cancel(subscription)
+                                                            return handled
+                                                        }
+                                                    }
+                                                }
+                                                TaskOutcome::Failure(_) => {
+                                                    response.release()
+                                                    notifications.cancel(subscription)
+                                                    return handled
+                                                }
+                                                TaskOutcome::Cancelled => {
+                                                    response.release()
+                                                    notifications.cancel(subscription)
+                                                    return handled
+                                                }
+                                            }
+                                        } else {
+                                            let body = response.text_begin()
+                                            let selected_body = select.select(body, notification)
+                                            let loaded: TaskOutcome<
+                                                u32,
+                                                SelectOutcome<
+                                                    WasmBackend,
+                                                    u32,
+                                                    BrowserString,
+                                                    ActorNotification,
+                                                >,
+                                            > = suspend.suspend(selected_body)
+                                            match loaded {
+                                                TaskOutcome::Success(body_selection) => {
+                                                    match body_selection {
+                                                        SelectOutcome::Left(body_winner) => {
+                                                            notification = body_winner.right
+                                                            let write = Utf8Buffer::empty(
+                                                                ptr: content,
+                                                                capacity: CONTENT_CAPACITY,
+                                                            ).replace_browser(body_winner.value)
+                                                            let mut target = InspectorAction::ResourceComplete
+                                                            let mut content_len = write.buffer.len()
+                                                            if write.truncated || write.valid == false {
+                                                                target = InspectorAction::ResourceFailed
+                                                                content_len = failure_content(
+                                                                    destination: content,
+                                                                    value: "Resource text exceeds the Fe inspector limit",
+                                                                )
+                                                            }
+                                                            response.release()
+                                                            if !report_resource_state(
+                                                                target: target,
+                                                                payload: InspectorTask::resource(
+                                                                    request: command.request,
+                                                                    status: status,
+                                                                    byte_len: content_len,
+                                                                    content_len: content_len,
+                                                                ),
+                                                            ) {
+                                                                notifications.cancel(subscription)
+                                                                return handled
+                                                            }
+                                                            handled = handled + 1
+                                                        }
+                                                        SelectOutcome::Right(notification_winner) => {
+                                                            cancellation.cancel_pending(
+                                                                notification_winner.left,
+                                                            )
+                                                            response.release()
+                                                            let next = arm_notification(
+                                                                subscription: subscription,
+                                                            )
+                                                            subscription = next.0
+                                                            notification = next.1
+                                                            command_ready = true
+                                                        }
+                                                        SelectOutcome::LeftFailure(_) => {
+                                                            response.release()
+                                                            let content_len = failure_content(
+                                                                destination: content,
+                                                                value: "Resource text request failed",
+                                                            )
+                                                            let next = arm_notification(
+                                                                subscription: subscription,
+                                                            )
+                                                            subscription = next.0
+                                                            notification = next.1
+                                                            if !report_resource_state(
+                                                                target: InspectorAction::ResourceFailed,
+                                                                payload: InspectorTask::resource(
+                                                                    request: command.request,
+                                                                    status: status,
+                                                                    byte_len: 0,
+                                                                    content_len: content_len,
+                                                                ),
+                                                            ) {
+                                                                notifications.cancel(subscription)
+                                                                return handled
+                                                            }
+                                                            handled = handled + 1
+                                                        }
+                                                        SelectOutcome::RightFailure(_) => {
+                                                            response.release()
+                                                            notifications.cancel(subscription)
+                                                            return handled
+                                                        }
+                                                        SelectOutcome::LeftCancelled => {
+                                                            response.release()
+                                                            notifications.cancel(subscription)
+                                                            return handled
+                                                        }
+                                                        SelectOutcome::RightCancelled => {
+                                                            response.release()
+                                                            notifications.cancel(subscription)
+                                                            return handled
+                                                        }
+                                                    }
+                                                }
+                                                TaskOutcome::Failure(_) => {
+                                                    response.release()
+                                                    notifications.cancel(subscription)
+                                                    return handled
+                                                }
+                                                TaskOutcome::Cancelled => {
+                                                    response.release()
+                                                    notifications.cancel(subscription)
+                                                    return handled
+                                                }
+                                            }
+                                        }
+
+                                        if !command_ready {
+                                            let latest = read_load_command(control: control)
+                                            if latest.revision != command.revision {
+                                                cancellation.cancel_pending(notification)
+                                                let next = arm_notification(
+                                                    subscription: subscription,
+                                                )
+                                                subscription = next.0
+                                                notification = next.1
+                                                command_ready = true
+                                            }
+                                        }
+                                    }
+                                    SelectOutcome::Right(notification_winner) => {
+                                        cancellation.cancel_pending(notification_winner.left)
+                                        let next = arm_notification(subscription: subscription)
+                                        subscription = next.0
+                                        notification = next.1
+                                        command_ready = true
+                                    }
+                                    SelectOutcome::LeftFailure(_) => {
+                                        let content_len = failure_content(
+                                            destination: content,
+                                            value: "Resource request failed",
+                                        )
+                                        let next = arm_notification(subscription: subscription)
+                                        subscription = next.0
+                                        notification = next.1
+                                        if !report_resource_state(
+                                            target: InspectorAction::ResourceFailed,
+                                            payload: InspectorTask::resource(
+                                                request: command.request,
+                                                status: 0,
+                                                byte_len: 0,
+                                                content_len: content_len,
+                                            ),
+                                        ) {
+                                            notifications.cancel(subscription)
+                                            return handled
+                                        }
+                                        handled = handled + 1
+                                        let latest = read_load_command(control: control)
+                                        if latest.revision != command.revision {
+                                            cancellation.cancel_pending(notification)
+                                            let newest = arm_notification(
+                                                subscription: subscription,
+                                            )
+                                            subscription = newest.0
+                                            notification = newest.1
+                                            command_ready = true
+                                        }
+                                    }
+                                    SelectOutcome::RightFailure(_) => {
+                                        notifications.cancel(subscription)
+                                        return handled
+                                    }
+                                    SelectOutcome::LeftCancelled => {
+                                        notifications.cancel(subscription)
+                                        return handled
+                                    }
+                                    SelectOutcome::RightCancelled => {
+                                        notifications.cancel(subscription)
+                                        return handled
+                                    }
+                                }
+                            }
+                            TaskOutcome::Failure(_) => {
+                                notifications.cancel(subscription)
+                                return handled
+                            }
+                            TaskOutcome::Cancelled => {
+                                notifications.cancel(subscription)
+                                return handled
+                            }
+                        }
+                    }
+                }
+            }
+            TaskOutcome::Failure(_) => {
+                notifications.cancel(subscription)
+                return handled
+            }
+            TaskOutcome::Cancelled => {
+                notifications.cancel(subscription)
+                return handled
+            }
+        }
+    }
+    handled
+}
+
+/// Do not begin expensive gallery poster work while the document is hidden.
+/// The fixed adapter supplies only the standards visibility observation; this
+/// loop owns the pause, failure, exhaustion, and cancellation decisions in Fe.
+fn await_document_visible() -> bool
+    uses (visibility: mut EventSource<DocumentVisibility>)
+{
+    let stream: Stream<DocumentVisibility> = Stream::new()
+    let mut subscription = stream.subscribe()
+    let mut ready = false
+    let mut running = true
+    while running {
+        let next = stream.next_ready(subscription)
+        subscription = next.0
+        match next.1 {
+            Event::Occurrence(state) => {
+                match state {
+                    DocumentVisibility::Visible => {
+                        ready = true
+                        running = false
+                    }
+                    DocumentVisibility::Hidden => {}
+                }
+            }
+            Event::Absent => {}
+            // Visibility is an optimization boundary. If observation becomes
+            // unavailable, fail open instead of preventing gallery progress.
+            Event::End => {
+                ready = true
+                running = false
+            }
+            Event::Failure(_) => {
+                ready = true
+                running = false
+            }
+            Event::Cancelled => {
+                stream.cancel(subscription)
+                return false
+            }
+        }
+    }
+    stream.cancel(subscription)
+    ready
+}
+
+/// Load gallery posters one at a time. This is a compatibility policy for
+/// browser WebGPU implementations observed losing a shared device during burst
+/// initialization, not a semantic requirement of Fe or WebGPU.
+///
+/// The fixed host reports compiler-correlated declarations, document
+/// visibility, and animation-frame timestamps, and realizes one
+/// `<fe-surface>.load()`. Fe owns ordering, pacing, timeout, fail-open behavior,
+/// and cancellation. A timed-out or failed surface cannot stall the rest of
+/// the gallery; disconnect cancellation terminates the task immediately.
+fn activate_gallery_surfaces() -> u32
+    uses (
+        events: mut EventSource<SurfaceToken>,
+        frames: mut EventSource<AnimationFrame>,
+        visibility: mut EventSource<DocumentVisibility>,
+        loader: mut SurfaceLoader<WasmBackend>,
+        timer: mut Timer<WasmBackend>,
+        race: mut Race<WasmBackend>,
+        sink: mut ActorSink<WasmBackend, ComponentEvent<InspectorAction, InspectorTask>>,
+        suspend: Suspend<WasmBackend, u32>,
+    )
+{
+    if !await_document_visible() { return 0 }
+    let stream: Stream<SurfaceToken> = Stream::new()
+    let mut subscription = stream.subscribe()
+    let frame_stream: Stream<AnimationFrame> = Stream::new()
+    let mut frame_subscription = frame_stream.subscribe()
+    let mut pace_with_frames = true
+    let mut loaded: u32 = 0
+    let mut running: bool = true
+    while running {
+        let next = stream.next_ready(subscription)
+        subscription = next.0
+        match next.1 {
+            Event::Occurrence(surface) => {
+                let load_pending = loader.load_begin(surface)
+                let timeout_pending = timer.sleep_begin(SURFACE_ACTIVATION_TIMEOUT_MS)
+                let first = race.race(load_pending, timeout_pending)
+                let completion: TaskOutcome<u32, RaceOutcome<u64>> = suspend.suspend(first)
+                match completion {
+                    TaskOutcome::Success(winner) => {
+                        match winner {
+                            RaceOutcome::Left(_) => { loaded = loaded + 1 }
+                            RaceOutcome::Right(_) => { loaded = loaded + 1 }
+                        }
+                    }
+                    TaskOutcome::Failure(_) => { loaded = loaded + 1 }
+                    TaskOutcome::Cancelled => {
+                        stream.cancel(subscription)
+                        frame_stream.cancel(frame_subscription)
+                        return loaded
+                    }
+                }
+                if !report_surface_state(
+                    target: InspectorAction::SurfaceProgress,
+                    settled: loaded,
+                ) {
+                    stream.cancel(subscription)
+                    frame_stream.cancel(frame_subscription)
+                    return loaded
+                }
+                if pace_with_frames {
+                    let frame = frame_stream.next_ready(frame_subscription)
+                    frame_subscription = frame.0
+                    match frame.1 {
+                        Event::Occurrence(_) => {}
+                        Event::Absent => {}
+                        Event::End => { pace_with_frames = false }
+                        Event::Failure(_) => { pace_with_frames = false }
+                        Event::Cancelled => {
+                            stream.cancel(subscription)
+                            frame_stream.cancel(frame_subscription)
+                            return loaded
+                        }
+                    }
+                }
+            }
+            Event::Absent => {}
+            Event::End => {
+                report_surface_state(
+                    target: InspectorAction::SurfaceComplete,
+                    settled: loaded,
+                )
+                running = false
+            }
+            Event::Failure(_) => {
+                report_surface_state(
+                    target: InspectorAction::SurfaceFailed,
+                    settled: loaded,
+                )
+                running = false
+            }
+            Event::Cancelled => {
+                stream.cancel(subscription)
+                frame_stream.cancel(frame_subscription)
+                return loaded
+            }
+        }
+    }
+    stream.cancel(subscription)
+    frame_stream.cancel(frame_subscription)
+    loaded
+}
+
+actor SourceInspector {
+    patch_ptr: u32,
+    control_ptr: u32,
+    url_ptr: u32,
+    url_len: u32,
+    route_ptr: u32,
+    route_len: u32,
+    scope: GalleryScope,
+    destination: GalleryDestination,
+    anchor: GalleryAnchor,
+    push_route: bool,
+    selected: ArtifactKind,
+    pending: u32,
+    status: InspectorStatus,
+    byte_len: u32,
+    content_ptr: u32,
+    content_len: u32,
+    connected: bool,
+    open: bool,
+    prevent_default: bool,
+    focus_close: bool,
+    revision: u32,
+    surfaces_settled: u32,
+    surface_sequence_complete: bool,
+    surface_sequence_failed: bool,
+
+    const fn view() -> ComponentView<VIEW_CAPACITY> uses (ComponentComposition) {
+        let ui = <GalleryParts as ComponentSchema>::component_parts()
+        PageBuilder::new()
+            .open(element: PageElement::Section)
+            .attribute(value: PageAttribute::class(value: "inspector source-inspector"))
+            .attribute(value: PageAttribute::observe_location())
+            .attribute(value: PageAttribute::view(value: ui.overlay))
+            .attribute(value: PageAttribute::hidden())
+            .attribute(value: PageAttribute::role(value: "dialog"))
+            .attribute(value: PageAttribute::aria_modal())
+            .attribute(value: PageAttribute::aria_label(value: "Source inspector"))
+            .open(element: PageElement::Header)
+            .attribute(value: PageAttribute::class(value: "inspector-head"))
+            .open(element: PageElement::Span)
+            .attribute(value: PageAttribute::class(value: "inspector-title"))
+            .attribute(value: PageAttribute::view(value: ui.title_source))
+            .text(value: ui_text(value: "Fe source"))
+            .close()
+            .open(element: PageElement::Span)
+            .attribute(value: PageAttribute::class(value: "inspector-title"))
+            .attribute(value: PageAttribute::view(value: ui.title_wgsl))
+            .text(value: ui_text(value: "Compiler-generated WGSL"))
+            .close()
+            .open(element: PageElement::Span)
+            .attribute(value: PageAttribute::class(value: "inspector-title"))
+            .attribute(value: PageAttribute::view(value: ui.title_wasm))
+            .text(value: ui_text(value: "Compiler-generated Wasm"))
+            .close()
+            .open(element: PageElement::Span)
+            .attribute(value: PageAttribute::class(value: "inspector-title"))
+            .attribute(value: PageAttribute::view(value: ui.title_manifest))
+            .text(value: ui_text(value: "Transitional audit manifest"))
+            .close()
+            .open(element: PageElement::Anchor)
+            .attribute(value: PageAttribute::class(value: "raw"))
+            .attribute(value: PageAttribute::node(value: ui.raw))
+            .attribute(value: PageAttribute::target(value: "_blank"))
+            .attribute(value: PageAttribute::rel(value: "noopener"))
+            .text(value: ui_text(value: "Raw"))
+            .close()
+            .accessible_icon_button(
+                action: InspectorAction::Close,
+                class: "close",
+                label: "Close",
+                icon: "×",
+            )
+            .close()
+            .open(element: PageElement::Div)
+            .attribute(value: PageAttribute::class(value: "body inspector-body"))
+            .open(element: PageElement::Paragraph)
+            .attribute(value: PageAttribute::class(value: "message"))
+            .attribute(value: PageAttribute::view(value: ui.loading))
+            .text(value: ui_text(value: "Loading…"))
+            .close()
+            .open(element: PageElement::Pre)
+            .attribute(value: PageAttribute::view(value: ui.text))
+            .attribute(value: PageAttribute::node(value: ui.body))
+            .close()
+            .open(element: PageElement::Paragraph)
+            .attribute(value: PageAttribute::class(value: "message"))
+            .attribute(value: PageAttribute::view(value: ui.binary))
+            .text(value: ui_text(value: "Compiled binary module · "))
+            .open(element: PageElement::Strong)
+            .attribute(value: PageAttribute::node(value: ui.bytes))
+            .text(value: ui_text(value: "0"))
+            .close()
+            .text(value: ui_text(value: " bytes."))
+            .close()
+            .open(element: PageElement::Pre)
+            .attribute(value: PageAttribute::class(value: "error"))
+            .attribute(value: PageAttribute::view(value: ui.error_view))
+            .attribute(value: PageAttribute::node(value: ui.error_text))
+            .close()
+            .close()
+            .close()
+            .finish_component()
+    }
+
+    fn initial() -> InspectorState uses (InitialState) {
+        let patch = allocate_component_buffer(capacity: PATCH_CAPACITY)
+        let control = allocate_component_buffer(capacity: CONTROL_CAPACITY)
+        let url = allocate_component_buffer(capacity: URL_CAPACITY)
+        let route_buffer = allocate_component_buffer(capacity: ROUTE_CAPACITY)
+        let content = allocate_component_buffer(capacity: CONTENT_CAPACITY)
+        publish_load_command(
+            control: control.ptr,
+            revision: 0,
+            request: 0,
+            url_len: 0,
+            binary: false,
+            active: false,
+        )
+        InspectorState {
+            patch_ptr: patch.ptr,
+            control_ptr: control.ptr,
+            url_ptr: url.ptr,
+            url_len: 0,
+            route_ptr: route_buffer.ptr,
+            route_len: 0,
+            scope: GalleryScope::All,
+            destination: GalleryDestination::Gradient,
+            anchor: GalleryAnchor::Top,
+            push_route: false,
+            selected: ArtifactKind::Source,
+            pending: 0,
+            status: InspectorStatus::Loading,
+            byte_len: 0,
+            content_ptr: content.ptr,
+            content_len: 0,
+            connected: false,
+            open: false,
+            prevent_default: false,
+            focus_close: false,
+            revision: 0,
+            surfaces_settled: 0,
+            surface_sequence_complete: false,
+            surface_sequence_failed: false,
+        }
+    }
+
+    fn activate_surfaces() -> u32 uses (ScopedTask) {
+        with (
+            EventSource<SurfaceToken> = BrowserSurfaceEvents {},
+            EventSource<AnimationFrame> = BrowserAnimationFrames::new(),
+            EventSource<DocumentVisibility> = BrowserVisibilityEvents::new(),
+            SurfaceLoader<WasmBackend> = BrowserSurfaceLoader {},
+            Timer<WasmBackend> = HostTimer {},
+            Race<WasmBackend> = Resumable {},
+            ActorSink<WasmBackend, ComponentEvent<InspectorAction, InspectorTask>> = BrowserActorSink {},
+            Suspend<WasmBackend, u32> = Resumable {},
+        ) {
+            activate_gallery_surfaces()
+        }
+    }
+
+    fn load_resources(self) -> u32 uses (ScopedTask) {
+        with (
+            AsyncEventSource<WasmBackend, ActorNotification> = BrowserActorNotifications::new(),
+            Select<WasmBackend, u32> = Resumable {},
+            PendingCancellation<WasmBackend> = Resumable {},
+            ActorSink<WasmBackend, ComponentEvent<InspectorAction, InspectorTask>> = BrowserActorSink {},
+            Suspend<WasmBackend, u32> = Resumable {},
+        ) {
+            load_inspector_resources(
+                control: self.control_ptr,
+                url: self.url_ptr,
+                content: self.content_ptr,
+            )
+        }
+    }
+
+    fn receive(
+        self,
+        event: own ComponentEvent<InspectorAction, InspectorTask>,
+    ) -> InspectorState uses (ResidentTransition) {
+        let patch_ptr = self.patch_ptr
+        let control_ptr = self.control_ptr
+        let url_ptr = self.url_ptr
+        let mut url_len = self.url_len
+        let route_ptr = self.route_ptr
+        let mut route_len = self.route_len
+        let mut scope = self.scope
+        let mut destination = self.destination
+        let mut anchor = self.anchor
+        let mut push_route = false
+        let mut selected = self.selected
+        let mut pending = self.pending
+        let mut status = self.status
+        let mut byte_len = self.byte_len
+        let content_ptr = self.content_ptr
+        let mut content_len = self.content_len
+        let mut connected = self.connected
+        let mut open = self.open
+        let mut prevent_default = false
+        let mut focus_close = false
+        let mut revision = self.revision
+        let mut surfaces_settled = self.surfaces_settled
+        let mut surface_sequence_complete = self.surface_sequence_complete
+        let mut surface_sequence_failed = self.surface_sequence_failed
+
+        match event.kind {
+            ComponentEventKind::Connected => {
+                connected = true
+                surfaces_settled = 0
+                surface_sequence_complete = false
+                surface_sequence_failed = false
+                revision = revision + 1
+            }
+            ComponentEventKind::Disconnected => {
+                connected = false
+                open = false
+                revision = next_revision(value: revision)
+                publish_load_command(
+                    control: control_ptr,
+                    revision: revision,
+                    request: pending,
+                    url_len: url_len,
+                    binary: selected.is_wasm(),
+                    active: false,
+                )
+                BrowserActorNotifications::new().notify()
+            }
+            ComponentEventKind::Activate => {
+                if connected {
+                    match event.target {
+                        InspectorAction::Navigate => {
+                            if event.text.len > 0 {
+                                let requested = GalleryRoute::parse(event.text)
+                                if requested.valid {
+                                    let written = requested.write(
+                                        destination: Utf8Buffer::empty(
+                                            ptr: route_ptr,
+                                            capacity: ROUTE_CAPACITY,
+                                        ),
+                                    )
+                                    if written.valid && !written.truncated {
+                                        let changed = requested.scope != scope
+                                            || requested.destination != destination
+                                            || requested.anchor != anchor
+                                        scope = requested.scope
+                                        destination = requested.destination
+                                        anchor = requested.anchor
+                                        route_len = written.buffer.len()
+                                        push_route = changed
+                                        prevent_default = true
+                                    }
+                                }
+                            }
+                        }
+                        _ => {
+                            if event.target.opens_artifact() && event.text.len > 0 {
+                                selected = event.target.artifact()
+                                url_len = copy_url(destination: url_ptr, value: event.text)
+                                revision = next_revision(value: revision)
+                                pending = revision
+                                status = InspectorStatus::Loading
+                                byte_len = 0
+                                content_len = 0
+                                open = true
+                                prevent_default = true
+                                focus_close = true
+                                publish_load_command(
+                                    control: control_ptr,
+                                    revision: revision,
+                                    request: pending,
+                                    url_len: url_len,
+                                    binary: selected.is_wasm(),
+                                    active: true,
+                                )
+                                BrowserActorNotifications::new().notify()
+                            } else {
+                                match event.target {
+                                    InspectorAction::Close => {
+                                        if open {
+                                            open = false
+                                            prevent_default = true
+                                            revision = next_revision(value: revision)
+                                            publish_load_command(
+                                                control: control_ptr,
+                                                revision: revision,
+                                                request: pending,
+                                                url_len: url_len,
+                                                binary: selected.is_wasm(),
+                                                active: false,
+                                            )
+                                            BrowserActorNotifications::new().notify()
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            ComponentEventKind::Navigation => {
+                if connected && event.text.len > 0 {
+                    let observed = GalleryRoute::parse(event.text)
+                    scope = observed.scope
+                    destination = observed.destination
+                    anchor = observed.anchor
+                    route_len = 0
+                    push_route = false
+                }
+            }
+            ComponentEventKind::KeyDown => {
+                if connected && open {
+                    match event.keyboard_key() {
+                        KeyboardKey::Escape => {
+                            open = false
+                            prevent_default = true
+                            revision = next_revision(value: revision)
+                            publish_load_command(
+                                control: control_ptr,
+                                revision: revision,
+                                request: pending,
+                                url_len: url_len,
+                                binary: selected.is_wasm(),
+                                active: false,
+                            )
+                            BrowserActorNotifications::new().notify()
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            ComponentEventKind::TaskMessage => {
+                if connected {
+                    match event.target {
+                        InspectorAction::SurfaceProgress => {
+                            if event.task.surface_settled > surfaces_settled {
+                                surfaces_settled = event.task.surface_settled
+                                revision = revision + 1
+                            }
+                        }
+                        InspectorAction::SurfaceComplete => {
+                            surfaces_settled = event.task.surface_settled
+                            surface_sequence_complete = true
+                            surface_sequence_failed = false
+                            revision = revision + 1
+                        }
+                        InspectorAction::SurfaceFailed => {
+                            surfaces_settled = event.task.surface_settled
+                            surface_sequence_complete = true
+                            surface_sequence_failed = true
+                            revision = revision + 1
+                        }
+                        InspectorAction::ResourceComplete => {
+                            if open && event.task.request == pending {
+                                byte_len = event.task.byte_len
+                                content_len = event.task.content_len
+                                status = if is_success(status: event.task.status) {
+                                    InspectorStatus::Ready
+                                } else {
+                                    InspectorStatus::Error
+                                }
+                                revision = revision + 1
+                            }
+                        }
+                        InspectorAction::ResourceFailed => {
+                            if open && event.task.request == pending {
+                                byte_len = event.task.byte_len
+                                content_len = event.task.content_len
+                                status = InspectorStatus::Error
+                                revision = revision + 1
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        InspectorState {
+            patch_ptr: patch_ptr,
+            control_ptr: control_ptr,
+            url_ptr: url_ptr,
+            url_len: url_len,
+            route_ptr: route_ptr,
+            route_len: route_len,
+            scope: scope,
+            destination: destination,
+            anchor: anchor,
+            push_route: push_route,
+            selected: selected,
+            pending: pending,
+            status: status,
+            byte_len: byte_len,
+            content_ptr: content_ptr,
+            content_len: content_len,
+            connected: connected,
+            open: open,
+            prevent_default: prevent_default,
+            focus_close: focus_close,
+            revision: revision,
+            surfaces_settled: surfaces_settled,
+            surface_sequence_complete: surface_sequence_complete,
+            surface_sequence_failed: surface_sequence_failed,
+        }
+    }
+
+    fn project(self) -> ComponentPatch uses (ProjectState) {
+        let ui = <GalleryParts as ComponentSchema>::component_parts()
+        let url = Utf8Buffer::with_len(
+            ptr: self.url_ptr, len: self.url_len, capacity: URL_CAPACITY,
+        ).browser_string()
+        let content = Utf8Buffer::with_len(
+            ptr: self.content_ptr, len: self.content_len, capacity: CONTENT_CAPACITY,
+        ).browser_string()
+        let route_location = Utf8Buffer::with_len(
+            ptr: self.route_ptr, len: self.route_len, capacity: ROUTE_CAPACITY,
+        ).browser_string()
+        let active = self.connected && self.open
+        let content_visible = active && !self.status.is_loading() && !self.status.is_error()
+        let visible = VisibleParts::none()
+            .show_if(target: ui.overlay, visible: active)
+            .show_if(target: ui.title_source, visible: active && self.selected.is_source())
+            .show_if(target: ui.title_wgsl, visible: active && self.selected.is_wgsl())
+            .show_if(target: ui.title_wasm, visible: active && self.selected.is_wasm())
+            .show_if(target: ui.title_manifest, visible: active && self.selected.is_manifest())
+            .show_if(target: ui.loading, visible: active && self.status.is_loading())
+            .show_if(target: ui.error_view, visible: active && self.status.is_error())
+            .show_if(
+                target: ui.binary,
+                visible: content_visible && self.selected.is_wasm(),
+            )
+            .show_if(
+                target: ui.text,
+                visible: content_visible && !self.selected.is_wasm(),
+            )
+        let visible = self.scope.show_destination(
+            destination: self.destination,
+            visible: visible,
+            ui: ui,
+        )
+
+        let mut writer = ComponentWriter::new(
+            buffer: BrowserBytes { ptr: self.patch_ptr, len: PATCH_CAPACITY },
+        )
+        if self.open && self.url_len > 0 {
+            writer = writer.set_href(target: ui.raw, value: url)
+        }
+        if self.push_route && self.route_len > 0 {
+            writer = writer.push_location(value: route_location)
+        }
+        if self.status.is_ready() {
+            if self.selected.is_wasm() {
+                writer = writer.set_u32_text(target: ui.bytes, value: self.byte_len)
+            } else {
+                writer = writer.set_text(target: ui.body, value: content)
+            }
+        } else {
+            if self.status.is_error() {
+                writer = writer.set_text(target: ui.error_text, value: content)
+            }
+        }
+        ComponentPatch::new(
+            visible: visible,
+            focus_target: if self.focus_close {
+                InspectorAction::Close
+            } else {
+                InspectorAction::Unknown
+            },
+            prevent_default: self.prevent_default,
+            commands: writer.finish(),
+        )
+    }
+}

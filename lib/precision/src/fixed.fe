@@ -1,0 +1,900 @@
+//! `Fixed<L>`: a general, CTFE-derived, signed MULTI-LIMB FIXED-POINT number,
+//! the GPU-FAITHFUL half of the precision axis. Built to
+//! `SHARED_LIMB_CORE_DESIGN.md` (Fable, 2026-08-08).
+//!
+//! WHY INTEGER, NOT FLOAT (the whole point). `Expansion<N>` (df64 etc.) is a
+//! FLOAT expansion: correct only under strict IEEE round-to-nearest, which
+//! wasm/native/CPU guarantee. But WGSL explicitly licenses the GPU shader
+//! compiler to REASSOCIATE and FUSE float ops (and flush denormals), which
+//! silently destroys the error-free transforms df64 depends on (`t - (t - a)`
+//! folds to `a`), with no `precise` qualifier to stop it. Integer arithmetic
+//! carries no such license: `+`/`*` on `u32` are exact and associative mod
+//! 2^32, so the shader compiler MAY NOT change the result. Fixed-point is
+//! therefore reassociation-immune and deterministic across Metal/Vulkan/D3D12:
+//! the one fixed-precision route that runs entirely on the GPU and stays
+//! correct across driver updates. (memory: gpu-df64-dead-end-use-perturbation.)
+//!
+//! ONE GENERAL FORM, SHARED WITH `Field<p>` (anti-sham). A fixed-point value is
+//! a signed integer with an implied radix point: the SAME multi-limb integer
+//! machinery as `field.fe`'s `Field<p>`, MINUS the modular reduction. This
+//! module imports `field.fe`'s `Limbs<L>` / `Mac` / `ShiftAppend` / `Head` /
+//! `SubBorrow` / `Select` / `Zero` verbatim, so `Field<p>` (modular, crypto)
+//! and `Fixed<L>` (radix point, graphics) are two CONSUMERS of one general limb
+//! kernel. The only divergence is the multiply SCHEDULE: Field adds `m*p` per
+//! row to force the dropped limb to zero (exact REDC division); Fixed drops a
+//! NONZERO limb (truncation) and threads it out as the guard. One accumulator
+//! discipline, two row bodies.
+//!
+//! RADIX LAYOUT. Limbs are 13 bits in a `u32` (base 8192), field.fe's own
+//! portable house width (`LIMB_BITS`), reused verbatim so Fixed shares Field's
+//! monomorphized `Mac`/`ShiftAppend`/... rather than forking a second width.
+//! A value is `(-1)^sign * mag * 2^-F` with `F = 13*(L-1)`: LSB-first `mag`
+//! (limb 0 = `lead` = least significant), exactly ONE integer limb (the top
+//! limb, index L-1), range |value| < 2^13 = 8192, resolution 2^-F.
+//!   L=4 -> 2^-39 ~ 1e-12,  L=8 -> 2^-91 ~ 1e-27.
+//! `L >= 2` is a precondition (L=1 is a bare integer; the drivers assume a
+//! fractional part).
+//!
+//! SIGN-MAGNITUDE (not two's complement) so every multiply is a plain unsigned
+//! product with an xor'd sign, `abs` is free, and the shared core stays wholly
+//! unsigned. Opposite-sign addition is the one place needing a
+//! compare-and-conditional-subtract, taken BRANCH-FREE from field.fe's
+//! `SubBorrow` + `Select` idiom, so the whole kernel stays branch-free for the
+//! GPU.
+
+use core::marker::Copy
+use canonical_words::{CanonicalWords, WordSink, WordSource, encode_canonical_words}
+use super::field::{Limbs, LimbLast, LimbMore, Mac, ShiftAppend, SubBorrow, Select, Zero, Head, LIMB_BITS, LIMB_BASE}
+
+// Float intrinsics (compiler-recognized by name, same set fmath declares);
+// used only by `from_f32` for building fixed-point coordinates from float
+// sources. `__i32_from_f32` truncates toward zero (== floor for the
+// non-negative magnitudes `from_f32` feeds it); `__bitcast` reinterprets the
+// small non-negative i32 limb value as its identical-bit-pattern u32.
+extern {
+    fn __i32_from_f32(_: f32) -> i32
+    fn __f32_from_i32(_: i32) -> f32
+    const fn __bitcast<From, To>(_: From) -> To
+}
+
+// -----------------------------------------------------------------------------
+// Nominal, array-backed boundary value.
+// -----------------------------------------------------------------------------
+
+/// Canonical public form of the signed fixed-point value used by the numeric
+/// kernel below. The arithmetic implementation keeps its recursive
+/// `Limbs<L>` shape, while proof, browser, and storage boundaries get an
+/// indexable const-generic vector. Both forms carry the same LSB-first 13-bit
+/// digits and are converted in Fe.
+pub struct Fixed<const L: usize> {
+    pub negative: bool,
+    pub limbs: [u32; L],
+}
+
+impl<const L: usize> Copy for Fixed<L> {}
+
+fn fixed_limbs_are_zero<const L: usize>(_ limbs: [u32; L]) -> bool {
+    let mut index: usize = 0
+    while index < L {
+        if limbs[index] != 0 { return false }
+        index = index + 1
+    }
+    true
+}
+
+fn fixed_limbs_are_canonical<const L: usize>(_ limbs: [u32; L]) -> bool {
+    let mut index: usize = 0
+    while index < L {
+        if limbs[index] >= LIMB_BASE { return false }
+        index = index + 1
+    }
+    true
+}
+
+/// Restore a private arithmetic checkpoint from least-significant-first radix
+/// digits. Callers must preserve the canonical limb range; this is not a
+/// validator for untrusted encodings (use Fixed and CanonicalWords for those).
+pub fn fixed_magnitude_from_words<const L: usize>(_ words: [u32; L]) -> Limbs<L>
+    where Limbs<L>: ShiftAppend + Zero + Copy,
+{
+    let mut magnitude: Limbs<L> = <Limbs<L> as Zero>::zero()
+    let mut index: usize = 0
+    while index < L {
+        magnitude = <Limbs<L> as ShiftAppend>::shift_append(
+            t: magnitude,
+            v: words[index],
+        )
+        index = index + 1
+    }
+    magnitude
+}
+
+/// Extract all radix digits without a lossy float projection, for exact
+/// continuation checkpoints between bounded GPU submissions.
+pub fn fixed_magnitude_to_words<const L: usize>(_ magnitude: Limbs<L>) -> [u32; L]
+    where Limbs<L>: Head + ShiftAppend + Copy,
+{
+    let mut words: [u32; L] = [0; L]
+    let mut remaining = magnitude
+    let mut index: usize = 0
+    while index < L {
+        words[index] = remaining.head()
+        remaining = <Limbs<L> as ShiftAppend>::shift_append(t: remaining, v: 0)
+        index = index + 1
+    }
+    words
+}
+
+fn fixed_from_parts<const L: usize>(_ sign: u32, _ magnitude: Limbs<L>) -> Fixed<L>
+    where Limbs<L>: Head + ShiftAppend + Copy,
+{
+    let limbs = fixed_magnitude_to_words<L>(magnitude)
+    Fixed {
+        negative: sign == 1 && !fixed_limbs_are_zero(limbs),
+        limbs: limbs,
+    }
+}
+
+impl<const L: usize> Fixed<L> {
+    pub const fn zero() -> Self {
+        Self { negative: false, limbs: [0; L] }
+    }
+
+    /// A fixed value is canonical only when it has at least one fractional
+    /// limb, every digit is in radix 2^13, and zero has the unique positive
+    /// sign. `L >= 2` is therefore enforced at the value boundary rather than
+    /// repeated as a caller convention.
+    pub fn is_canonical(self) -> bool {
+        if L < 2 || !fixed_limbs_are_canonical(self.limbs) { return false }
+        !self.negative || !fixed_limbs_are_zero(self.limbs)
+    }
+
+    pub fn equals(self, _ other: Self) -> bool {
+        if self.negative != other.negative { return false }
+        let mut index: usize = 0
+        while index < L {
+            if self.limbs[index] != other.limbs[index] { return false }
+            index = index + 1
+        }
+        true
+    }
+
+    pub fn absolute_at_most_whole(self, _ whole: u32) -> bool {
+        if !self.is_canonical() { return false }
+        let top = self.limbs[L - 1]
+        if top < whole { return true }
+        if top > whole { return false }
+        let mut index: usize = 0
+        while index + 1 < L {
+            if self.limbs[index] != 0 { return false }
+            index = index + 1
+        }
+        true
+    }
+
+    pub fn absolute_greater_than_whole(self, _ whole: u32) -> bool {
+        if !self.is_canonical() { return false }
+        let top = self.limbs[L - 1]
+        if top > whole { return true }
+        if top < whole { return false }
+        let mut index: usize = 0
+        while index + 1 < L {
+            if self.limbs[index] != 0 { return true }
+            index = index + 1
+        }
+        false
+    }
+}
+
+/// The wire form is the nominal schema itself: one canonical boolean followed
+/// by exactly `L` plain 13-bit digits. Backend storage or Montgomery words
+/// never leak into this representation.
+impl<const L: usize> CanonicalWords for Fixed<L> {
+    const WORDS: u32 = 1 + L.downcast_truncate()
+
+    fn encode<W: WordSink>(ref self, _ writer: W) -> W {
+        if !self.is_canonical() { return writer.reject() }
+        let writer: W = encode_canonical_words(ref self.negative, writer)
+        encode_canonical_words(ref self.limbs, writer)
+    }
+
+    fn decode<R: WordSource>(mut self, _ reader: R) -> R {
+        let reader = self.negative.decode(reader)
+        let reader = self.limbs.decode(reader)
+        if !self.is_canonical() {
+            self = Self::zero()
+            return reader.reject()
+        }
+        reader
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Width-blind folds NOT already in field.fe (trivial structural recursions, no
+// associated types).
+// -----------------------------------------------------------------------------
+
+/// The most significant limb: the integer limb (index L-1). Recurses to the
+/// deepest `LimbLast`, mirroring `Head` (which reads the least significant).
+pub trait Top { fn top(self) -> u32 }
+impl Top for LimbLast { fn top(self) -> u32 { self.value } }
+impl<T: Top + Copy> Top for LimbMore<T> { fn top(self) -> u32 { self.tail.top() } }
+
+/// OR-fold of every limb BELOW the top (the fractional limbs 0..L-2). Used by
+/// the strict escape test to distinguish `|z|^2 == 4` from `> 4`.
+pub trait OrLower { fn or_lower(self) -> u32 }
+impl OrLower for LimbLast { fn or_lower(self) -> u32 { 0 } }
+impl<T: OrLower + Copy> OrLower for LimbMore<T> {
+    fn or_lower(self) -> u32 { self.lead | self.tail.or_lower() }
+}
+
+/// The highest fractional limb (the limb immediately below the integer limb).
+/// `Fixed<L>` is used with `L >= 2`, so the base case is exactly two limbs.
+/// This view makes a cheap 13-bit color projection possible without invoking
+/// the full correctly-rounded binary32 conversion used for reference storage.
+pub trait UpperFraction { fn upper_fraction(self) -> u32 }
+impl UpperFraction for LimbMore<LimbLast> {
+    fn upper_fraction(self) -> u32 { self.lead }
+}
+impl<T: UpperFraction + Copy> UpperFraction for LimbMore<T> {
+    fn upper_fraction(self) -> u32 { self.tail.upper_fraction() }
+}
+
+/// Ripple-add a scalar carry into the low limb and propagate: `t + carry_in`
+/// per limb, returning the updated limbs and the carry out of the top. This is
+/// `Mac` with a zero `x`; given its own trait so no zero chain is materialized.
+/// Used by the multiply's rounding increment.
+pub trait Carry { fn carry_add(t: Self, carry_in: u32) -> (Self, u32) }
+impl Carry for LimbLast {
+    fn carry_add(t: LimbLast, carry_in: u32) -> (LimbLast, u32) {
+        let s: u32 = t.value + carry_in
+        let c: u32 = s >> LIMB_BITS
+        (LimbLast { value: s - c * LIMB_BASE }, c)
+    }
+}
+impl<T: Carry + Copy> Carry for LimbMore<T> {
+    fn carry_add(t: LimbMore<T>, carry_in: u32) -> (LimbMore<T>, u32) {
+        let s: u32 = t.lead + carry_in
+        let c: u32 = s >> LIMB_BITS
+        let (tail2, c2) = <T as Carry>::carry_add(t: t.tail, carry_in: c)
+        (LimbMore { lead: s - c * LIMB_BASE, tail: tail2 }, c2)
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Sign algebra (sign-magnitude): negate/abs are free.
+// -----------------------------------------------------------------------------
+
+/// Negate: flip the sign flag, magnitude unchanged.
+pub fn negate<const L: usize>(_ sign: u32, _ mag: Limbs<L>) -> (u32, Limbs<L>) {
+    (1 - sign, mag)
+}
+
+/// `abs`: force the sign positive; sign-magnitude storage keeps the magnitude.
+pub fn abs<const L: usize>(_ sign: u32, _ mag: Limbs<L>) -> (u32, Limbs<L>) {
+    (0, mag)
+}
+
+// -----------------------------------------------------------------------------
+// Addition and subtraction, branch-free sign-magnitude.
+// -----------------------------------------------------------------------------
+
+/// Limb add-with-carry, reusing `Mac` at `scalar = 1` (`t + x*1 + carry`).
+/// Returns the sum magnitude; the final carry is dropped (wrap mod B^L: the
+/// mandelbrot orbit stays far below the one integer limb, D6).
+fn mag_add<M: Mac + Copy>(_ a: M, _ b: M) -> M {
+    let (s, _carry) = <M as Mac>::mac(t: a, x: b, scalar: 1, carry_in: 0)
+    s
+}
+
+/// `(sign_a, a) + (sign_b, b)`, branch-free. Same sign: add magnitudes.
+/// Opposite signs: subtract the smaller magnitude from the larger and keep the
+/// larger's sign, deciding "which is larger" from the borrow-out of a trial
+/// subtract (field.fe's `canonicalize` idiom: `SubBorrow` + `Select`).
+pub fn add<M: Mac + SubBorrow + Select + Copy>(
+    _ sign_a: u32, _ a: M, _ sign_b: u32, _ b: M,
+) -> (u32, M) {
+    let same_mag: M = mag_add<M>(a, b)
+
+    let (a_minus_b, borrow) = <M as SubBorrow>::sub_borrow(t: a, p: b, borrow_in: 0)
+    let (b_minus_a, _borrow2) = <M as SubBorrow>::sub_borrow(t: b, p: a, borrow_in: 0)
+    // borrow == 1 means a < b, so keep (b - a) with b's sign.
+    let diff_mag: M = <M as Select>::select(
+        keep_t: 1 - borrow, keep_diff: borrow, t: a_minus_b, d: b_minus_a,
+    )
+    let diff_sign: u32 = (1 - borrow) * sign_a + borrow * sign_b
+
+    let opposite: u32 = sign_a + sign_b - 2 * sign_a * sign_b   // xor of two bits
+    let out_mag: M = <M as Select>::select(
+        keep_t: 1 - opposite, keep_diff: opposite, t: same_mag, d: diff_mag,
+    )
+    let out_sign: u32 = (1 - opposite) * sign_a + opposite * diff_sign
+    (out_sign, out_mag)
+}
+
+/// `a - b` = `a + (-b)`.
+pub fn sub<M: Mac + SubBorrow + Select + Copy>(
+    _ sign_a: u32, _ a: M, _ sign_b: u32, _ b: M,
+) -> (u32, M) {
+    add<M>(sign_a, a, 1 - sign_b, b)
+}
+
+// -----------------------------------------------------------------------------
+// Truncating multiply: the CIOS sliding window MINUS the Montgomery pass.
+//
+// The pivotal identity: for integer y, `floor((floor(x/B) + y)/B) =
+// floor((x + y*B)/B^2)`. So the row recurrence over b's limbs (low first)
+//   T_0     = 0
+//   T_{j+1} = floor((T_j + a*b_j) / B)   for j = 0..L-2   (L-1 SHIFT rows)
+//   T_fin   = T_after + a*b_{L-1}                         (final row, no shift)
+// composes to `T_fin = floor(X / B^(L-1))` EXACTLY, where `X = |a|*|b|` is the
+// true 2L-limb product. No `Limbs<2L>` is ever formed: the sub-window mass
+// leaves through the dropped low limbs and the floors compose exactly. This is
+// field.fe's `row` minus the `m*p` reduce pass, with the dropped limb nonzero.
+//
+// Guard/rounding. The limb dropped at the LAST shift row (j = L-2) is EXACTLY
+// the true product's limb L-2 (contributions from b_{L-1} land at columns
+// >= L-1, so column L-2 is complete when dropped, and the stepwise floors
+// preserve it). Round-to-nearest-ties-up on that guard limb alone is EXACT:
+// with X = Q*B^(L-1) + R and guard g = limb L-2 of X, `g >= B/2  <=>
+// R >= B^(L-1)/2` (the sub-guard tail is < B^(L-2) and cannot tip the
+// threshold). Hence
+//   mul((sa,a),(sb,b)) = (sa xor sb, floor((|a|*|b| + B^(L-1)/2) / B^(L-1)))
+// exact round-to-nearest, |error| <= 1/2 ULP, wrapping mod B^L on out-of-range
+// products (overflow flag discarded; D6 proves the orbit never overflows).
+// -----------------------------------------------------------------------------
+
+/// The row driver, mirroring field.fe's `Rows` verbatim (b's chain shrinks
+/// each level; the width-L accumulator `W` does not). The dropped guard limb
+/// is threaded as a `u32` through the recursion, so only the LAST dropped limb
+/// (the guard) survives to the final row: no mid-chain constructor
+/// discrimination is needed.
+pub trait TruncRows<W> {
+    fn rows(b: Self, t: W, a: W, last_dropped: u32) -> (W, u32)
+}
+/// Final row (j = L-1): no shift; add `a*b_{L-1}`, then apply the guard's
+/// rounding increment. Second slot = overflow flag (0 when the result is
+/// in-format).
+impl<W: Mac + Carry + Copy> TruncRows<W> for LimbLast {
+    fn rows(b: LimbLast, t: W, a: W, last_dropped: u32) -> (W, u32) {
+        let (t1, c) = <W as Mac>::mac(t: t, x: a, scalar: b.value, carry_in: 0)
+        let inc: u32 = last_dropped >> (LIMB_BITS - 1)   // g >= B/2 (branch-free)
+        let (t2, c2) = <W as Carry>::carry_add(t: t1, carry_in: inc)
+        (t2, c + c2)
+    }
+}
+/// Shift row (j < L-1): `t := floor((t + a*b_j)/B)` via `Mac` then
+/// `ShiftAppend` (the mac's carry-out becomes the shifted-in top limb, so the
+/// accumulator never needs headroom limbs). The dropped low limb `g` becomes
+/// the new `last_dropped`; the incoming one is superseded.
+impl<T: TruncRows<W> + Copy, W: Mac + ShiftAppend + Head + Copy> TruncRows<W> for LimbMore<T> {
+    fn rows(b: LimbMore<T>, t: W, a: W, last_dropped: u32) -> (W, u32) {
+        let _ = last_dropped   // superseded by this row's own dropped guard `g`
+        let (t1, c) = <W as Mac>::mac(t: t, x: a, scalar: b.lead, carry_in: 0)
+        let g: u32 = t1.head()
+        let t2: W = <W as ShiftAppend>::shift_append(t: t1, v: c)
+        <T as TruncRows<W>>::rows(b: b.tail, t: t2, a: a, last_dropped: g)
+    }
+}
+
+/// `(sign_a, a) * (sign_b, b)`: sign = xor, magnitude = the truncating sliding
+/// window. General over `const L`.
+pub fn mul<const L: usize>(_ sign_a: u32, _ a: Limbs<L>, _ sign_b: u32, _ b: Limbs<L>) -> (u32, Limbs<L>)
+    where Limbs<L>: TruncRows<Limbs<L>> + Mac + ShiftAppend + Head + Carry + Zero + Copy,
+{
+    let sign: u32 = sign_a + sign_b - 2 * sign_a * sign_b
+    let t0: Limbs<L> = <Limbs<L> as Zero>::zero()
+    let (mag, _overflow) = <Limbs<L> as TruncRows<Limbs<L>>>::rows(b: b, t: t0, a: a, last_dropped: 0)
+    (sign, mag)
+}
+
+/// `a * a`: the square. General over `const L`. Result sign is always positive
+/// (`s xor s = 0`). Currently the `mul(a, a)` composition (correct by
+/// construction and identical, limb-for-limb, to `mul`); a dedicated
+/// `L(L+1)/2`-mult `SqrRows` path is the measured follow-up in the design's
+/// D3.3 (fallback per R3 is exactly this body).
+pub fn sqr<const L: usize>(_ sign: u32, _ a: Limbs<L>) -> (u32, Limbs<L>)
+    where Limbs<L>: TruncRows<Limbs<L>> + Mac + ShiftAppend + Head + Carry + Zero + Copy,
+{
+    mul<L>(sign, a, sign, a)
+}
+
+/// Ergonomic arithmetic on the nominal boundary form. These methods are thin
+/// Fe interpretations of the one shared limb kernel, not a second numeric
+/// implementation. They also normalize signed zero at every result boundary.
+impl<const L: usize> Fixed<L>
+    where Limbs<L>: TruncRows<Limbs<L>> + Mac + ShiftAppend + Head + Carry
+                  + Zero + SubBorrow + Select + Top + OrLower + Copy,
+{
+    pub fn plus(self, _ other: Self) -> Self {
+        let left = fixed_magnitude_from_words<L>(self.limbs)
+        let right = fixed_magnitude_from_words<L>(other.limbs)
+        let (sign, magnitude) = add<Limbs<L>>(
+            if self.negative { 1 } else { 0 },
+            left,
+            if other.negative { 1 } else { 0 },
+            right,
+        )
+        fixed_from_parts<L>(sign, magnitude)
+    }
+
+    pub fn subtract(self, _ other: Self) -> Self {
+        let left = fixed_magnitude_from_words<L>(self.limbs)
+        let right = fixed_magnitude_from_words<L>(other.limbs)
+        let (sign, magnitude) = sub<Limbs<L>>(
+            if self.negative { 1 } else { 0 },
+            left,
+            if other.negative { 1 } else { 0 },
+            right,
+        )
+        fixed_from_parts<L>(sign, magnitude)
+    }
+
+    pub fn multiply(self, _ other: Self) -> Self {
+        let left = fixed_magnitude_from_words<L>(self.limbs)
+        let right = fixed_magnitude_from_words<L>(other.limbs)
+        let (sign, magnitude) = mul<L>(
+            if self.negative { 1 } else { 0 },
+            left,
+            if other.negative { 1 } else { 0 },
+            right,
+        )
+        fixed_from_parts<L>(sign, magnitude)
+    }
+
+    pub fn square(self) -> Self {
+        let value = fixed_magnitude_from_words<L>(self.limbs)
+        let (sign, magnitude) = sqr<L>(
+            if self.negative { 1 } else { 0 },
+            value,
+        )
+        fixed_from_parts<L>(sign, magnitude)
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Building a fixed-point value from a float source. Exact for the source's
+// mantissa bits at ANY magnitude: multiplying by B = 2^13 is exact in f32
+// (an exponent shift), and integer parts below 2^24 are exact, so the extracted
+// limbs carry the float's real bits with zero rounding until they run out (the
+// remaining low limbs are then exactly zero). A deep-zoom coordinate is
+// assembled as a fold of `from_f32(word)` terms stitched by the exact Fixed
+// add: each source contributes its ~24 bits at the correct magnitude, so a
+// K-word float expansion + f32 offset lands ~24*(K+1) real bits across the
+// limbs, past the two-word (df64) floor a shallow center is bounded by.
+// -----------------------------------------------------------------------------
+
+/// Build the magnitude limbs of a non-negative real `r` (`0 <= r < B`),
+/// MOST-significant-limb first (tail before head), threading the fractional
+/// leftover down toward the least significant limb.
+pub trait FromReal { fn from_real(r: f32) -> (Self, f32) }
+impl FromReal for LimbLast {
+    fn from_real(r: f32) -> (LimbLast, f32) {
+        let iv: i32 = __i32_from_f32(r)              // floor for r >= 0
+        let frac: f32 = r - __f32_from_i32(iv)
+        let lv: u32 = __bitcast(iv)
+        (LimbLast { value: lv }, frac * 8192.0)
+    }
+}
+impl<T: FromReal> FromReal for LimbMore<T> {
+    fn from_real(r: f32) -> (LimbMore<T>, f32) {
+        let (tail2, r1) = <T as FromReal>::from_real(r: r)   // more-significant limbs first
+        let iv: i32 = __i32_from_f32(r1)
+        let frac: f32 = r1 - __f32_from_i32(iv)
+        let lv: u32 = __bitcast(iv)
+        (LimbMore { lead: lv, tail: tail2 }, frac * 8192.0)
+    }
+}
+
+/// `from_f32(v)` -> `(sign, mag)`. Precondition: `|v| < B = 8192` (the one
+/// integer limb's range; every mandelbrot coordinate satisfies this).
+pub fn from_f32<const L: usize>(_ v: f32) -> (u32, Limbs<L>)
+    where Limbs<L>: FromReal,
+{
+    let sign: u32 = if v < 0.0 { 1 } else { 0 }
+    let a: f32 = if v < 0.0 { -v } else { v }
+    let (mag, _leftover) = <Limbs<L> as FromReal>::from_real(r: a)
+    (sign, mag)
+}
+
+/// Assemble a deep-zoom `Fixed<L>` coordinate from a FOUR-WORD float-expansion
+/// base `(w0, w1, w2, w3)` (an `Expansion<4>` / qf128-territory center,
+/// most-significant word first) plus a small `off` offset, all f32 sources:
+/// `from_f32(w0) + from_f32(w1) + from_f32(w2) + from_f32(w3) + from_f32(off)`.
+/// Each source drops its ~24 real bits at its own magnitude (bit-exact, since
+/// `from_f32` is exact for a float's mantissa) and the exact Fixed add stitches
+/// them, so a four-word center + f32 pixel offset lands ~120 real bits across
+/// the limbs (past the two-word / df64 floor of ~48 bits that mushes deep zoom
+/// at ~1e-11). The words need NOT be non-overlapping: the Fixed add is exact
+/// for any inputs, so ordinary (possibly overlapping) f32 words stitch
+/// correctly. Lets a renderer keep an f32 gesture-plumbing surface while the
+/// iteration runs in reassociation-immune integer `Fixed<L>`. General over
+/// `const L`; a two-word (df64) center is the `w2 = w3 = 0.0` case.
+pub fn from_qf_offset<const L: usize>(_ w0: f32, _ w1: f32, _ w2: f32, _ w3: f32, _ off: f32) -> (u32, Limbs<L>)
+    where Limbs<L>: FromReal + Mac + SubBorrow + Select + Copy,
+{
+    let (a_s, a) = from_f32<L>(w0)
+    let (b_s, b) = from_f32<L>(w1)
+    let (c_s, c) = from_f32<L>(w2)
+    let (d_s, d) = from_f32<L>(w3)
+    let (o_s, o) = from_f32<L>(off)
+    let (s1, m1) = add<Limbs<L>>(a_s, a, b_s, b)
+    let (s2, m2) = add<Limbs<L>>(s1, m1, c_s, c)
+    let (s3, m3) = add<Limbs<L>>(s2, m2, d_s, d)
+    add<Limbs<L>>(s3, m3, o_s, o)
+}
+
+// -----------------------------------------------------------------------------
+// Deterministic binary32 projection.
+//
+// The exact Fixed value never travels through floating-point arithmetic here.
+// The recursive limb view finds the leading bit and selects the 24 retained
+// significand bits. Guard and sticky information then implement IEEE-754
+// round-to-nearest, ties-to-even with integer operations only. For the widths
+// used by the precision ladder (L in {2, 4, 6, 8}), every nonzero value is a
+// normal binary32 number. Zero is canonical +0, including negative zero.
+// -----------------------------------------------------------------------------
+
+/// Bit-level view of a least-significant-limb-first magnitude. The recursion is
+/// specialized with `Limbs<L>`; projection contains no runtime limb loop.
+pub trait Binary32View {
+    /// Index of the highest set bit, with bit zero at the magnitude LSB. `-1`
+    /// denotes zero.
+    fn highest_bit(self) -> i32
+
+    /// Bit at a signed magnitude index. Out-of-range indices read as zero.
+    fn bit_at(self, _ index: i32) -> u32
+
+    /// Low 32 bits of the magnitude shifted right by `index`. Negative indices
+    /// read as zero. Recursive specialization visits each relevant limb once.
+    fn word_from(self, _ index: i32) -> u32
+
+    /// OR of all magnitude bits whose index is strictly below `count`.
+    fn any_below(self, _ count: i32) -> u32
+
+    /// Number of fractional bits in this Fixed representation.
+    fn fractional_bits(self) -> i32
+}
+
+/// Highest set bit of one 13-bit limb, or -1 when the limb is zero.
+fn limb_highest_bit(_ value: u32) -> i32 {
+    if value >= 4096 { 12 }
+    else { if value >= 2048 { 11 }
+    else { if value >= 1024 { 10 }
+    else { if value >= 512 { 9 }
+    else { if value >= 256 { 8 }
+    else { if value >= 128 { 7 }
+    else { if value >= 64 { 6 }
+    else { if value >= 32 { 5 }
+    else { if value >= 16 { 4 }
+    else { if value >= 8 { 3 }
+    else { if value >= 4 { 2 }
+    else { if value >= 2 { 1 }
+    else { if value == 1 { 0 } else { -1 }
+    } } } } } } } } } } } }
+}
+
+impl Binary32View for LimbLast {
+    fn highest_bit(self) -> i32 { limb_highest_bit(self.value) }
+
+    fn bit_at(self, _ index: i32) -> u32 {
+        if index < 0 {
+            0
+        } else {
+            if index < 13 {
+                let shift: u32 = __bitcast(index)
+                (self.value >> shift) & 1
+            } else {
+                0
+            }
+        }
+    }
+
+    fn word_from(self, _ index: i32) -> u32 {
+        if index < 0 {
+            0
+        } else {
+            if index < 13 {
+                let shift: u32 = __bitcast(index)
+                self.value >> shift
+            } else {
+                0
+            }
+        }
+    }
+
+    fn any_below(self, _ count: i32) -> u32 {
+        if count <= 0 {
+            0
+        } else {
+            if count >= 13 {
+                self.value
+            } else {
+                let shift: u32 = __bitcast(count)
+                self.value & (((1 as u32) << shift) - 1)
+            }
+        }
+    }
+
+    fn fractional_bits(self) -> i32 { 0 }
+}
+
+impl<T: Binary32View + Copy> Binary32View for LimbMore<T> {
+    fn highest_bit(self) -> i32 {
+        let upper: i32 = self.tail.highest_bit()
+        if upper >= 0 { upper + 13 } else { limb_highest_bit(self.lead) }
+    }
+
+    fn bit_at(self, _ index: i32) -> u32 {
+        if index < 0 {
+            0
+        } else {
+            if index < 13 {
+                let shift: u32 = __bitcast(index)
+                (self.lead >> shift) & 1
+            } else {
+                self.tail.bit_at(index - 13)
+            }
+        }
+    }
+
+    fn word_from(self, _ index: i32) -> u32 {
+        if index < 0 {
+            0
+        } else {
+            if index < 13 {
+                let shift: u32 = __bitcast(index)
+                let upper_shift: u32 = __bitcast(13 - index)
+                (self.lead >> shift) | (self.tail.word_from(0) << upper_shift)
+            } else {
+                self.tail.word_from(index - 13)
+            }
+        }
+    }
+
+    fn any_below(self, _ count: i32) -> u32 {
+        if count <= 0 {
+            0
+        } else {
+            if count >= 13 {
+                self.lead | self.tail.any_below(count - 13)
+            } else {
+                let shift: u32 = __bitcast(count)
+                self.lead & (((1 as u32) << shift) - 1)
+            }
+        }
+    }
+
+    fn fractional_bits(self) -> i32 { 13 + self.tail.fractional_bits() }
+}
+
+/// Project an exact sign-magnitude `Fixed<L>` value to its correctly rounded
+/// IEEE-754 binary32 encoding. This one-way projection cannot perturb the exact
+/// source value and is suitable for packing into `StorageBuffer<u32, N>`.
+pub fn to_f32_bits<const L: usize>(_ sign: u32, _ mag: Limbs<L>) -> u32
+    where Limbs<L>: Binary32View + Copy,
+{
+    let high: i32 = <Limbs<L> as Binary32View>::highest_bit(mag)
+    if high < 0 {
+        0
+    } else {
+        let mut exponent: i32 = high - <Limbs<L> as Binary32View>::fractional_bits(mag) + 127
+        // The leading 24 magnitude bits, aligned with the implicit binary32
+        // leading one at bit 23. One recursive window extraction replaces 24
+        // separately expanded recursive bit lookups.
+        let window_shift: i32 = high - 23
+        let retained: u32 = if window_shift < 0 {
+            let left: u32 = __bitcast(-window_shift)
+            <Limbs<L> as Binary32View>::word_from(mag, 0) << left
+        } else {
+            <Limbs<L> as Binary32View>::word_from(mag, window_shift)
+        }
+        let guard_index: i32 = high - 24
+        let guard: u32 = <Limbs<L> as Binary32View>::bit_at(mag, guard_index)
+        let sticky: u32 = <Limbs<L> as Binary32View>::any_below(mag, guard_index)
+        let increment: u32 = if guard == 1 {
+            if sticky != 0 { 1 } else { retained & 1 }
+        } else {
+            0
+        }
+        let mut rounded: u32 = retained + increment
+        if rounded == 16777216 {
+            rounded = 8388608
+            exponent = exponent + 1
+        }
+        let exponent_bits: u32 = __bitcast(exponent)
+        (sign << 31) | (exponent_bits << 23) | (rounded & 8388607)
+    }
+}
+
+/// Decompose an exact `Fixed<L>` value into four non-overlapping binary32
+/// words, most significant first. For `Fixed<8>` values in the Mandelbrot
+/// orbit range, four 24-bit chunks cover the full 91-bit fractional payload.
+/// The reference pass therefore preserves the exact integer orbit while each
+/// pixel consumes only four ordinary binary32 terms.
+pub fn to_f32_quad_bits<const L: usize>(_ sign: u32, _ mag: Limbs<L>) -> (u32, u32, u32, u32)
+    where Limbs<L>: Binary32View + Copy,
+{
+    let high: i32 = <Limbs<L> as Binary32View>::highest_bit(mag)
+    let fractional: i32 = <Limbs<L> as Binary32View>::fractional_bits(mag)
+    let mut w0: u32 = 0
+    let mut w1: u32 = 0
+    let mut w2: u32 = 0
+    let mut w3: u32 = 0
+    let mut slot: u32 = 0
+    let mut offset: i32 = 0
+    while slot < 4 {
+        let chunk_high: i32 = high - offset
+        let bits: u32 = if chunk_high < 0 {
+            0
+        } else {
+            let chunk_low: i32 = chunk_high - 23
+            let retained: u32 = if chunk_low < 0 {
+                let left: u32 = __bitcast(-chunk_low)
+                (<Limbs<L> as Binary32View>::word_from(mag, 0) << left) & 16777215
+            } else {
+                <Limbs<L> as Binary32View>::word_from(mag, chunk_low) & 16777215
+            }
+            if retained == 0 {
+                0
+            } else {
+                let upper: u32 = retained >> 13
+                let word_high: i32 = if upper == 0 {
+                    limb_highest_bit(retained)
+                } else {
+                    13 + limb_highest_bit(upper)
+                }
+                let align: u32 = __bitcast(23 - word_high)
+                let significand: u32 = retained << align
+                let exponent: i32 = chunk_low + word_high - fractional + 127
+                let exponent_bits: u32 = __bitcast(exponent)
+                (sign << 31) | (exponent_bits << 23) | (significand & 8388607)
+            }
+        }
+        if slot == 0 {
+            w0 = bits
+        } else {
+            if slot == 1 {
+                w1 = bits
+            } else {
+                if slot == 2 { w2 = bits } else { w3 = bits }
+            }
+        }
+        slot = slot + 1
+        offset = offset + 24
+    }
+    (w0, w1, w2, w3)
+}
+
+// -----------------------------------------------------------------------------
+// Mandelbrot escape in `Fixed<L>`. Every quantity is a fixed-point integer, so
+// nothing the GPU shader compiler does can perturb the orbit.
+// -----------------------------------------------------------------------------
+
+/// Strict `|z|^2 > 4`. Reads the TOP (integer) limb, not the head/LSB: escape
+/// iff `top > 4`, or `top == 4` with any nonzero fractional limb. Strict `>`
+/// matters: `z = -2` (the antenna tip) sits at `|z|^2 == 4` forever and must
+/// NOT escape.
+pub fn escaped<const L: usize>(_ v: Limbs<L>) -> u32
+    where Limbs<L>: Top + OrLower + Copy,
+{
+    let top: u32 = <Limbs<L> as Top>::top(v)
+    let frac: u32 = <Limbs<L> as OrLower>::or_lower(v)
+    if top > 4 {
+        1
+    } else {
+        if top == 4 {
+            if frac != 0 { 1 } else { 0 }
+        } else {
+            0
+        }
+    }
+}
+
+/// A Mandelbrot escape result with enough radius information for continuous
+/// coloring. The exact orbit/classification remains wholly fixed-point;
+/// `magnitude_squared` is only a one-way presentation projection made after
+/// escape. Its top fractional limb gives absolute error below 2^-13, far more
+/// than an RGBA8 palette can reveal and much cheaper than full binary32
+/// rounding at every precision tier.
+pub struct EscapeSample {
+    pub iterations: i32,
+    pub magnitude_squared: f32,
+}
+
+fn presentation_f32<const L: usize>(_ mag: Limbs<L>) -> f32
+    where Limbs<L>: Top + UpperFraction + Copy,
+{
+    let integer_word: i32 = __bitcast(<Limbs<L> as Top>::top(mag))
+    let fractional_word: i32 =
+        __bitcast(<Limbs<L> as UpperFraction>::upper_fraction(mag))
+    __f32_from_i32(integer_word) + __f32_from_i32(fractional_word) / 8192.0
+}
+
+/// Check one `Fixed<8>` reference value and, when it has not escaped, advance
+/// it by one exact recurrence step. `Fixed<8>` is the declared reference
+/// precision; every operation below is still the general `Fixed<L>` form
+/// instantiated once at that width. The final slot is `1` when the input value
+/// already satisfies strict `|z|^2 > 4`.
+pub fn mandelbrot_advance8(
+    _ zx_s: u32, _ zx: Limbs<8>, _ zy_s: u32, _ zy: Limbs<8>,
+    _ cx_s: u32, _ cx: Limbs<8>, _ cy_s: u32, _ cy: Limbs<8>,
+) -> (u32, Limbs<8>, u32, Limbs<8>, u32)
+{
+    let (xx_s, xx) = sqr<8>(zx_s, zx)
+    let (yy_s, yy) = sqr<8>(zy_s, zy)
+    let (_mag_s, mag2) = add<Limbs<8>>(xx_s, xx, yy_s, yy)
+    let did_escape: u32 = escaped<8>(mag2)
+    if did_escape == 1 {
+        (zx_s, zx, zy_s, zy, 1)
+    } else {
+        let (re_s, re) = sub<Limbs<8>>(xx_s, xx, yy_s, yy)
+        let (nzx_s, nzx) = add<Limbs<8>>(re_s, re, cx_s, cx)
+        let (m_s, m) = mul<8>(zx_s, zx, zy_s, zy)
+        let (d_s, d) = add<Limbs<8>>(m_s, m, m_s, m)
+        let (nzy_s, nzy) = add<Limbs<8>>(d_s, d, cy_s, cy)
+        (nzx_s, nzx, nzy_s, nzy, 0)
+    }
+}
+
+/// One escape-time sample at fixed-point coordinate `(cx, cy)`, returning the
+/// iteration count and first escaped magnitude. The `Expansion<2>` mandelbrot
+/// loop's exact shape, with
+/// `Fixed<L>` integer ops in place of the df64 float ops: freeze the orbit with
+/// a `done` flag after escape (so the count is preserved and no early return
+/// from the loop is needed), fixed trip count, no `bool`, no `&&`.
+pub fn escape_sample<const L: usize>(
+    _ cx_s: u32, _ cx: Limbs<L>, _ cy_s: u32, _ cy: Limbs<L>, _ max_iter: i32,
+) -> EscapeSample
+    where Limbs<L>: TruncRows<Limbs<L>> + Mac + ShiftAppend + Head + Carry
+                  + Zero + SubBorrow + Select + Top + OrLower + UpperFraction
+                  + Copy,
+{
+    let mut zx_s: u32 = 0
+    let mut zx: Limbs<L> = <Limbs<L> as Zero>::zero()
+    let mut zy_s: u32 = 0
+    let mut zy: Limbs<L> = <Limbs<L> as Zero>::zero()
+    let mut count: i32 = 0
+    let mut done: i32 = 0
+    let mut magnitude_squared: f32 = 4.0
+    let mut i: i32 = 0
+    while i < max_iter {
+        if done == 0 {
+            let (xx_s, xx) = sqr<L>(zx_s, zx)
+            let (yy_s, yy) = sqr<L>(zy_s, zy)
+            let (_mag_s, mag2) = add<Limbs<L>>(xx_s, xx, yy_s, yy)
+            if escaped<L>(mag2) == 1 {
+                done = 1
+                magnitude_squared = presentation_f32<L>(mag2)
+            } else {
+                let (re_s, re) = sub<Limbs<L>>(xx_s, xx, yy_s, yy)
+                let (nzx_s, nzx) = add<Limbs<L>>(re_s, re, cx_s, cx)
+                let (m_s, m) = mul<L>(zx_s, zx, zy_s, zy)
+                let (d_s, d) = add<Limbs<L>>(m_s, m, m_s, m)
+                let (nzy_s, nzy) = add<Limbs<L>>(d_s, d, cy_s, cy)
+                zx_s = nzx_s
+                zx = nzx
+                zy_s = nzy_s
+                zy = nzy
+                count = count + 1
+            }
+        }
+        i = i + 1
+    }
+    EscapeSample {
+        iterations: count,
+        magnitude_squared: magnitude_squared,
+    }
+}
+
+/// Compatibility projection for fixed-point arithmetic oracles that need only
+/// the exact iteration count. The optimizer discards the presentation field.
+pub fn escape<const L: usize>(
+    _ cx_s: u32, _ cx: Limbs<L>, _ cy_s: u32, _ cy: Limbs<L>, _ max_iter: i32,
+) -> i32
+    where Limbs<L>: TruncRows<Limbs<L>> + Mac + ShiftAppend + Head + Carry
+                  + Zero + SubBorrow + Select + Top + OrLower + UpperFraction
+                  + Copy,
+{
+    escape_sample<L>(cx_s, cx, cy_s, cy, max_iter).iterations
+}

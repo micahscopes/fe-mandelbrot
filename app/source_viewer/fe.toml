@@ -1,0 +1,6 @@
+[ingot]
+name = "mb2_source_viewer"
+version = "0.1.0"
+
+[dependencies]
+source_inspector = "../../lib/source_inspector"
