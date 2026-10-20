@@ -39,27 +39,18 @@ struct FeLocal_fe_shader_private_layout_2_ {
     f0_: f32,
     f1_: f32,
     f2_: f32,
-    f3_: u32,
-    f4_: f32,
-    f5_: u32,
 }
 
 struct pixels_element {
     l: f32,
     a: f32,
     b: f32,
-    iteration: u32,
-    magnitude: f32,
-    flags: u32,
 }
 
 struct initial_pixels_element {
     l: f32,
     a: f32,
     b: f32,
-    iteration: u32,
-    magnitude: f32,
-    flags: u32,
 }
 
 struct cache_element {
@@ -156,31 +147,25 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
                         let _e52 = pixels[i32(_e48)].l;
                         let _e54 = pixels[i32(_e48)].a;
                         let _e56 = pixels[i32(_e48)].b;
-                        let _e58 = pixels[i32(_e48)].iteration;
-                        let _e60 = pixels[i32(_e48)].magnitude;
-                        let _e62 = pixels[i32(_e48)].flags;
                         initial_pixels[i32(_e48)].l = _e52;
                         initial_pixels[i32(_e48)].a = _e54;
                         initial_pixels[i32(_e48)].b = _e56;
-                        initial_pixels[i32(_e48)].iteration = _e58;
-                        initial_pixels[i32(_e48)].magnitude = _e60;
-                        initial_pixels[i32(_e48)].flags = _e62;
                         local_1 = true;
                     }
-                    let _e74 = local_1;
-                    if _e74 {
+                    let _e65 = local_1;
+                    if _e65 {
                     }
                 }
-                let _e76 = local_1;
-                if _e76 {
+                let _e67 = local_1;
+                if _e67 {
                 }
             }
-            let _e78 = local_1;
-            if _e78 {
+            let _e69 = local_1;
+            if _e69 {
             }
         }
-        let _e80 = local_1;
-        if _e80 {
+        let _e71 = local_1;
+        if _e71 {
         }
     }
 }

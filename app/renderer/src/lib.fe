@@ -74,7 +74,7 @@ use ingot::orbit::{
     ORBIT_META_INDEX,
 }
 use ingot::partition::{order_word,phase_order,phase_order_rect}
-use ingot::image::{Color, PreviewSample, preview_sample, color, packed, rgba, blend, contrast, sample, sample_snapshot, gaussian}
+use ingot::image::{Color, color, packed, rgba, blend, contrast, sample, sample_snapshot, gaussian}
 use ingot::cache::{ViewCache, ReferenceControl, ReferenceAnchor, SampleOracle, same_camera}
 
 actor SmoothPerturbationalMandelbrot uses (
@@ -82,8 +82,8 @@ actor SmoothPerturbationalMandelbrot uses (
     SurfaceRecovery<StandardSurfaceRecovery>,
 ) {
     orbit: OrbitBuffer<ComplexQF32Bits, ORBIT_CAPACITY>,
-    pixels: OrbitBuffer<PreviewSample, 65536>,
-    initial_pixels: OrbitBuffer<PreviewSample, 65536>,
+    pixels: OrbitBuffer<Color, 65536>,
+    initial_pixels: OrbitBuffer<Color, 65536>,
     snapshot_oracle: OrbitBuffer<SampleOracle,4194304>,
     horizontal: OrbitBuffer<Color, 65536>,
     blurred: OrbitBuffer<Color, 65536>,
@@ -313,14 +313,14 @@ actor SmoothPerturbationalMandelbrot uses (
         let age:f32=max(0.0,self.clock-max(self.last_input,self.reference.load(index:0).ready_at))*(1.0-self.drag_active)
             *(1.0-from_i32(__bitcast<u32,i32>(self.reference.load(index:0).pending)))
         if reusable && age<60.0 {
-            self.pixels.store(index:(y<<8)|x,value:preview_sample(cached,SampleOracle { iteration:0,magnitude:0.0,flags:0 }))
+            self.pixels.store(index:(y<<8)|x,value:cached)
             return
         }
         let computed=sample_progress(self.orbit,self.reference.load(index:0).active*8195,self.center_x_w0,self.center_x_w1,self.center_x_w2,self.center_x_w3,self.center_y_w0,self.center_y_w1,self.center_y_w2,self.center_y_w3,self.zoom,self.res,px,py,preview_budget(self.zoom,age),0.0,0.0)
         let bits=progress_color(computed)
         let current:Color=color(__bitcast<i32,u32>(bits))
         let result:Color=if reusable { blend(cached,current,progress(age,60.0,300.0)) } else { current }
-        self.pixels.store(index:(y<<8)|x,value:preview_sample(result,SampleOracle { iteration:computed.iteration,magnitude:computed.magnitude,flags:computed.reference_i & 3221225472 }))
+        self.pixels.store(index:(y<<8)|x,value:result)
     }
     // Preserve the first settled preview before native refinement finishes.
     // Neither this image nor its camera metadata changes while input is live.

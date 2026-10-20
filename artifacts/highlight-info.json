@@ -2,8 +2,8 @@
   "source": "fe doc json SCIP export",
   "files": {
     "lib.fe": {
-      "bytes": 38040,
-      "semanticOccurrences": 880
+      "bytes": 37795,
+      "semanticOccurrences": 870
     },
     "policy.fe": {
       "bytes": 6773,
@@ -14,8 +14,8 @@
       "semanticOccurrences": 224
     },
     "image.fe": {
-      "bytes": 5448,
-      "semanticOccurrences": 171
+      "bytes": 4682,
+      "semanticOccurrences": 119
     },
     "cache.fe": {
       "bytes": 1531,

@@ -192,7 +192,7 @@ fn gaussian(a1_5: u32, a2_2: u32, a3_: f32, a4_: bool, fe_trapped_1: ptr<functio
     var local_17: u32 = u32();
     var loop_result: FeLocal_fe_shader_private_layout_0_;
     var loop_did_return: bool = false;
-    var loop_header_carry_47_: bool;
+    var loop_header_carry_46_: bool;
     var local_18: f32 = f32();
     var local_19: f32 = f32();
     var local_20: f32 = f32();
@@ -202,8 +202,8 @@ fn gaussian(a1_5: u32, a2_2: u32, a3_: f32, a4_: bool, fe_trapped_1: ptr<functio
     var local_24: u32 = u32();
     var loop_result_1: FeLocal_fe_shader_private_layout_0_;
     var loop_did_return_1: bool = false;
-    var loop_header_carry_71_: bool;
-    var loop_header_carry_73_: bool;
+    var loop_header_carry_70_: bool;
+    var loop_header_carry_72_: bool;
     var local_25: u32 = u32();
     var local_26: u32 = u32();
     var local_27: u32 = u32();
@@ -227,7 +227,7 @@ fn gaussian(a1_5: u32, a2_2: u32, a3_: f32, a4_: bool, fe_trapped_1: ptr<functio
             let _e47 = local_16;
             let _e49 = local_17;
             let _e51 = (_e49 < 8u);
-            loop_header_carry_47_ = _e51;
+            loop_header_carry_46_ = _e51;
             if _e51 {
                 local_16 = (_e47 * _e47);
                 local_17 = (_e49 + 1u);
@@ -256,8 +256,8 @@ fn gaussian(a1_5: u32, a2_2: u32, a3_: f32, a4_: bool, fe_trapped_1: ptr<functio
             let _e94 = local_24;
             let _e97 = (bitcast<i32>(_e30) < bitcast<i32>(_e94));
             let _e99 = (_e97 == false);
-            loop_header_carry_71_ = _e97;
-            loop_header_carry_73_ = _e99;
+            loop_header_carry_70_ = _e97;
+            loop_header_carry_72_ = _e99;
             if _e99 {
                 let _e101 = (_e92 * _e90);
                 let _e103 = from_i32_(_e94);

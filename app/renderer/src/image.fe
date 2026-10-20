@@ -1,6 +1,5 @@
 //! Color buffers, interpolation and a dense separable Gaussian filter.
 use std::webgpu::StorageBuffer as OrbitBuffer
-use ingot::cache::SampleOracle
 use fmath::{abs, floor, from_i32, to_i32}
 
 extern {
@@ -17,34 +16,22 @@ fn clamp(_ value:f32,_ low:f32,_ high:f32) -> f32 {
 }
 
 pub use perceptual_color::{Color,color,packed,rgba,blend}
-/// Keep a preview's numerical result with its color in the same GPU binding.
-pub struct PreviewSample {
-    pub l:f32,pub a:f32,pub b:f32,
-    pub iteration:u32,pub magnitude:f32,pub flags:u32,
-}
-pub fn preview_sample(_ c:Color,_ result:SampleOracle) -> PreviewSample {
-    PreviewSample { l:c.l,a:c.a,b:c.b,iteration:result.iteration,magnitude:result.magnitude,flags:result.flags }
-}
-
-/// Sampling and filtering specialize over plain colors or numerical previews.
-pub trait PixelColor { fn lab(self) -> Color }
-impl PixelColor for Color { fn lab(self) -> Color { self } }
-impl PixelColor for PreviewSample { fn lab(self) -> Color { Color { l:self.l,a:self.a,b:self.b } } }
 
 pub fn contrast(_ a: Color, _ b: Color) -> f32 {
     max(2.0*abs(a.l-b.l),max(4.0*abs(a.a-b.a),4.0*abs(a.b-b.b)))
 }
+
 // Adjacent taps avoid the comb pattern made by spreading a small kernel.
 // q approximates exp(-1/(2*sigma^2)); the Gaussian weights then advance
 // with two multiplies per tap. Each axis is normalized independently.
-pub fn gaussian<T:PixelColor>(
-    _ image: OrbitBuffer<T, 65536>,
+pub fn gaussian(
+    _ image: OrbitBuffer<Color, 65536>,
     _ x: u32,
     _ y: u32,
     _ sigma: f32,
     _ vertical: bool,
 ) -> Color {
-    let center: Color = image.load(index: (y << 8) | x).lab()
+    let center: Color = image.load(index: (y << 8) | x)
     if sigma < 0.05 {
         return center
     }
@@ -90,8 +77,8 @@ pub fn gaussian<T:PixelColor>(
         } else {
             y
         }
-        let a: Color = image.load(index: (ay << 8) | ax).lab()
-        let c: Color = image.load(index: (by << 8) | bx).lab()
+        let a: Color = image.load(index: (ay << 8) | ax)
+        let c: Color = image.load(index: (by << 8) | bx)
         lightness = lightness + (a.l + c.l) * weight
         axis_a = axis_a + (a.a + c.a) * weight
         b = b + (a.b + c.b) * weight
@@ -100,7 +87,8 @@ pub fn gaussian<T:PixelColor>(
     }
     Color { l: lightness / total, a: axis_a / total, b: b / total }
 }
-pub fn sample<T:PixelColor>(_ image: OrbitBuffer<T, 65536>, _ x: f32, _ y: f32) -> Color {
+
+pub fn sample(_ image: OrbitBuffer<Color, 65536>, _ x: f32, _ y: f32) -> Color {
     let u: f32 = clamp(x, 0.0, 255.0)
     let v: f32 = clamp(y, 0.0, 255.0)
     let fx: f32 = floor(u)
@@ -111,13 +99,13 @@ pub fn sample<T:PixelColor>(_ image: OrbitBuffer<T, 65536>, _ x: f32, _ y: f32) 
     let y1: u32 = __bitcast<i32, u32>(to_i32(min(fy + 1.0, 255.0)))
     blend(
         blend(
-            image.load(index: (y0 << 8) | x0).lab(),
-            image.load(index: (y0 << 8) | x1).lab(),
+            image.load(index: (y0 << 8) | x0),
+            image.load(index: (y0 << 8) | x1),
             u - fx,
         ),
         blend(
-            image.load(index: (y1 << 8) | x0).lab(),
-            image.load(index: (y1 << 8) | x1).lab(),
+            image.load(index: (y1 << 8) | x0),
+            image.load(index: (y1 << 8) | x1),
             u - fx,
         ),
         v - fy,
