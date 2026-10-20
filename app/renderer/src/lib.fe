@@ -78,7 +78,20 @@ use ingot::orbit::{
     PROGRESS_GLITCHED_BIT,
 }
 use ingot::partition::{CohortPixel, RefinementSchedule, order_block, unpack_order_byte, seed_pixel}
-use ingot::image::{Color, color, packed, rgba, blend, contrast, sample, sample_snapshot, gaussian}
+use ingot::image::{
+    BilinearTap,
+    Color,
+    unpack_lab,
+    pack_lab,
+    display_rgba,
+    blend,
+    blend_corners,
+    contrast,
+    lattice_tap,
+    sample,
+    sample_snapshot,
+    gaussian,
+}
 use ingot::cache::{ViewCache, ReferenceControl, ReferenceAnchor, SampleOracle, oracle_is_usable, same_camera}
 
 actor SmoothPerturbationalMandelbrot uses (
@@ -297,7 +310,7 @@ actor SmoothPerturbationalMandelbrot uses (
             preview_budget(s.zoom),
         )
         let bits = progress_color(computed)
-        let current: Color = color(__bitcast<i32, u32>(bits))
+        let current: Color = unpack_lab(__bitcast<i32, u32>(bits))
         let result: Color = if reusable { blend(cached, current, progress(age, 60.0, 300.0)) } else { current }
         self.pixels.store(index: (y << 8) | x, value: result)
     }
@@ -455,7 +468,7 @@ actor SmoothPerturbationalMandelbrot uses (
         let pixel: CohortPixel = schedule.aa_pixel(c.cursor, invocation.global.x, invocation.global.y, s.res)
         if !pixel.active { return }
         let bits: u32 = self.native_pixels.load(index: pixel.index)
-        let center: Color = color(bits)
+        let center: Color = unpack_lab(bits)
         let xf: f32 = from_i32(__bitcast<u32, i32>(pixel.x))
         let yf: f32 = from_i32(__bitcast<u32, i32>(pixel.y))
         let left: u32 = __bitcast<i32, u32>(to_i32(max(0.0, xf - 1.0)))
@@ -464,33 +477,33 @@ actor SmoothPerturbationalMandelbrot uses (
         let down: u32 = __bitcast<i32, u32>(to_i32(min(s.res - 1.0, yf + 1.0)))
         let edge: f32 = max(
             max(
-                contrast(center, color(self.native_pixels.load(index: (pixel.y << 11) | left))),
-                contrast(center, color(self.native_pixels.load(index: (pixel.y << 11) | right))),
+                contrast(center, unpack_lab(self.native_pixels.load(index: (pixel.y << 11) | left))),
+                contrast(center, unpack_lab(self.native_pixels.load(index: (pixel.y << 11) | right))),
             ),
             max(
-                contrast(center, color(self.native_pixels.load(index: (up << 11) | pixel.x))),
-                contrast(center, color(self.native_pixels.load(index: (down << 11) | pixel.x))),
+                contrast(center, unpack_lab(self.native_pixels.load(index: (up << 11) | pixel.x))),
+                contrast(center, unpack_lab(self.native_pixels.load(index: (down << 11) | pixel.x))),
             ),
         )
         if s.antialias >= 0.5 && edge > 0.12 {
             let camera: Camera = s.camera()
             let px: i32 = __bitcast<u32, i32>(pixel.x)
             let py: i32 = __bitcast<u32, i32>(pixel.y)
-            let a: Color = color(__bitcast<i32, u32>(sample_pixel(
+            let a: Color = unpack_lab(__bitcast<i32, u32>(sample_pixel(
                 self.orbit,
                 ref_state.active * 8195,
                 camera,
                 offset_sample(px, py, 0.28, -0.28),
                 schedule.limit,
             )))
-            let b: Color = color(__bitcast<i32, u32>(sample_pixel(
+            let b: Color = unpack_lab(__bitcast<i32, u32>(sample_pixel(
                 self.orbit,
                 ref_state.active * 8195,
                 camera,
                 offset_sample(px, py, -0.28, 0.28),
                 schedule.limit,
             )))
-            self.antialiased_pixels.store(index: pixel.index, value: __bitcast<i32, u32>(packed(Color {
+            self.antialiased_pixels.store(index: pixel.index, value: __bitcast<i32, u32>(pack_lab(Color {
                 l: (center.l + a.l + b.l) / 3.0,
                 a: (center.a + a.a + b.a) / 3.0,
                 b: (center.b + a.b + b.b) / 3.0,
@@ -549,51 +562,38 @@ actor SmoothPerturbationalMandelbrot uses (
         if saved.is_presentable_in(c.epoch) {
             let bits: u32 = self.antialiased_pixels.load(index: index)
             let amount: f32 = progress(s.clock - saved.fade_started_at(), 0.0, 350.0) * reveal
-            if amount >= 1.0 { return rgba(color(bits)) }
+            if amount >= 1.0 { return display_rgba(unpack_lab(bits)) }
             let coarse: Color = sample(self.blurred, from_i32(px) * 256.0 / s.res, from_i32(py) * 256.0 / s.res)
-            return rgba(blend(coarse, color(bits), amount))
+            return display_rgba(blend(coarse, unpack_lab(bits), amount))
         }
         let coarse: Color = sample(self.blurred, from_i32(px) * 256.0 / s.res, from_i32(py) * 256.0 / s.res)
-        {
-            let stride: f32 = from_i32(to_i32((s.res + 511.0) / 512.0))
-            let fx: f32 = from_i32(px)
-            let fy: f32 = from_i32(py)
-            let lx: f32 = from_i32(to_i32(fx / stride)) * stride
-            let ly: f32 = from_i32(to_i32(fy / stride)) * stride
-            let x0: u32 = __bitcast<i32, u32>(to_i32(lx)) & 2047
-            let y0: u32 = __bitcast<i32, u32>(to_i32(ly)) & 2047
-            let x1: u32 = __bitcast<i32, u32>(to_i32(ingot::image::min(lx + stride, s.res - 1.0))) & 2047
-            let y1: u32 = __bitcast<i32, u32>(to_i32(ingot::image::min(ly + stride, s.res - 1.0))) & 2047
-            let a: OrbitProgress = self.progress_pixels.load(index: ((y0 << 11) | x0) & 4194303)
-            let b: OrbitProgress = self.progress_pixels.load(index: ((y0 << 11) | x1) & 4194303)
-            let d: OrbitProgress = self.progress_pixels.load(index: ((y1 << 11) | x0) & 4194303)
-            let e: OrbitProgress = self.progress_pixels.load(index: ((y1 << 11) | x1) & 4194303)
-            let ready: bool = a.is_presentable_in(c.epoch)
-                && b.is_presentable_in(c.epoch)
-                && d.is_presentable_in(c.epoch)
-                && e.is_presentable_in(c.epoch)
-            if ready {
-                let tx: f32 = (fx - lx) / stride
-                let ty: f32 = (fy - ly) / stride
-                let top: Color = blend(
-                    color(self.native_pixels.load(index: ((y0 << 11) | x0) & 4194303)),
-                    color(self.native_pixels.load(index: ((y0 << 11) | x1) & 4194303)),
-                    tx,
-                )
-                let bottom: Color = blend(
-                    color(self.native_pixels.load(index: ((y1 << 11) | x0) & 4194303)),
-                    color(self.native_pixels.load(index: ((y1 << 11) | x1) & 4194303)),
-                    tx,
-                )
-                let latest_fade: f32 = ingot::image::max(
-                    ingot::image::max(a.fade_started_at(), b.fade_started_at()),
-                    ingot::image::max(d.fade_started_at(), e.fade_started_at()),
-                )
-                let since: f32 = s.clock - latest_fade
-                rgba(blend(coarse, blend(top, bottom, ty), progress(since, 0.0, 350.0) * reveal))
-            } else {
-                rgba(coarse)
-            }
+        let stride: f32 = from_i32(to_i32((s.res + 511.0) / 512.0))
+        let tap: BilinearTap = lattice_tap(px, py, stride, s.res - 1.0)
+        let a: OrbitProgress = self.progress_pixels.load(index: tap.i00)
+        let b: OrbitProgress = self.progress_pixels.load(index: tap.i10)
+        let d: OrbitProgress = self.progress_pixels.load(index: tap.i01)
+        let e: OrbitProgress = self.progress_pixels.load(index: tap.i11)
+        let ready: bool = a.is_presentable_in(c.epoch)
+            && b.is_presentable_in(c.epoch)
+            && d.is_presentable_in(c.epoch)
+            && e.is_presentable_in(c.epoch)
+        if ready {
+            let sparse: Color = blend_corners(
+                unpack_lab(self.native_pixels.load(index: tap.i00)),
+                unpack_lab(self.native_pixels.load(index: tap.i10)),
+                unpack_lab(self.native_pixels.load(index: tap.i01)),
+                unpack_lab(self.native_pixels.load(index: tap.i11)),
+                tap.tx,
+                tap.ty,
+            )
+            let latest_fade: f32 = ingot::image::max(
+                ingot::image::max(a.fade_started_at(), b.fade_started_at()),
+                ingot::image::max(d.fade_started_at(), e.fade_started_at()),
+            )
+            let since: f32 = s.clock - latest_fade
+            display_rgba(blend(coarse, sparse, progress(since, 0.0, 350.0) * reveal))
+        } else {
+            display_rgba(coarse)
         }
     }
 

@@ -14,7 +14,7 @@ struct FeLocal_fe_shader_private_layout_1_ {
     f3_: bool,
 }
 
-struct FeLocal_fe_shader_private_layout_7_ {
+struct FeLocal_fe_shader_private_layout_11_ {
     f0_: f32,
     f1_: f32,
     f2_: f32,
@@ -46,7 +46,12 @@ struct FeLocal_fe_shader_private_layout_9_ {
     f3_: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_12_ {
+struct FeLocal_fe_shader_private_layout_13_ {
+    f0_: f32,
+    f1_: f32,
+}
+
+struct FeLocal_fe_shader_private_layout_15_ {
     f0_: f32,
     f1_: f32,
 }
@@ -56,19 +61,14 @@ struct FeLocal_fe_shader_private_layout_14_ {
     f1_: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_13_ {
-    f0_: f32,
-    f1_: f32,
-}
-
-struct FeLocal_fe_shader_private_layout_15_ {
+struct FeLocal_fe_shader_private_layout_16_ {
     f0_: f32,
     f1_: f32,
     f2_: f32,
     f3_: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_11_ {
+struct FeLocal_fe_shader_private_layout_12_ {
     f0_: u32,
     f1_: u32,
     f2_: u32,
@@ -88,6 +88,12 @@ struct FeLocal_fe_shader_private_layout_6_ {
     f5_: u32,
     f6_: u32,
     f7_: f32,
+}
+
+struct FeLocal_fe_shader_private_layout_7_ {
+    f0_: f32,
+    f1_: f32,
+    f2_: f32,
 }
 
 struct FeLocal_fe_shader_private_layout_8_ {
@@ -118,7 +124,7 @@ struct FeLocal_fe_shader_private_layout_10_ {
     f6_: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_16_ {
+struct FeLocal_fe_shader_private_layout_17_ {
     f0_: f32,
     f1_: f32,
     f2_: f32,
@@ -139,7 +145,7 @@ struct FeLocal_fe_shader_private_layout_16_ {
     f17_: u32,
 }
 
-struct FeLocal_fe_shader_private_layout_17_ {
+struct FeLocal_fe_shader_private_layout_18_ {
     f0_: u32,
     f1_: u32,
     f2_: u32,
@@ -528,11 +534,11 @@ fn aa_pixel(a0_8: FeLocal_fe_shader_private_layout_0_, a1_3: u32, a2_1: u32, a3_
     return _e115;
 }
 
-fn color(a0_9: u32) -> FeLocal_fe_shader_private_layout_7_ {
+fn unpack_lab(a0_9: u32) -> FeLocal_fe_shader_private_layout_11_ {
     let _e3 = from_i32_((a0_9 & 4095u));
     let _e10 = from_i32_(((a0_9 >> 12u) & 1023u));
     let _e17 = from_i32_((a0_9 >> 22u));
-    return FeLocal_fe_shader_private_layout_7_((_e3 / 4095f), ((_e10 - 512f) / 2048f), ((_e17 - 512f) / 2048f));
+    return FeLocal_fe_shader_private_layout_11_((_e3 / 4095f), ((_e10 - 512f) / 2048f), ((_e17 - 512f) / 2048f));
 }
 
 fn impl_trait_f32_max(a0_10: f32, a1_4: f32) -> f32 {
@@ -565,7 +571,7 @@ fn lib_image_max(a0_13: f32, a1_6: f32) -> f32 {
     return _e8;
 }
 
-fn contrast(a0_14: FeLocal_fe_shader_private_layout_7_, a1_7: FeLocal_fe_shader_private_layout_7_) -> f32 {
+fn contrast(a0_14: FeLocal_fe_shader_private_layout_11_, a1_7: FeLocal_fe_shader_private_layout_11_) -> f32 {
     let _e5 = impl_trait_f32_abs((a0_14.f0_ - a1_7.f0_));
     let _e11 = impl_trait_f32_abs((a0_14.f1_ - a1_7.f1_));
     let _e17 = impl_trait_f32_abs((a0_14.f2_ - a1_7.f2_));
@@ -584,24 +590,24 @@ fn camera(a0_16: FeLocal_fe_shader_private_layout_8_) -> FeLocal_fe_shader_priva
     return FeLocal_fe_shader_private_layout_9_(_e5, _e10, a0_16.f8_, a0_16.f9_);
 }
 
-fn ordered_2x2_(a0_17: u32, a1_9: u32) -> FeLocal_fe_shader_private_layout_12_ {
+fn ordered_2x2_(a0_17: u32, a1_9: u32) -> FeLocal_fe_shader_private_layout_13_ {
     let _e6 = from_i32_(a0_17);
     let _e9 = from_i32_((a0_17 & 1u));
     let _e13 = from_i32_(a1_9);
     let _e16 = from_i32_((a1_9 & 1u));
-    return FeLocal_fe_shader_private_layout_12_(((_e6 + 0.375f) + (0.25f * _e9)), ((_e13 + 0.375f) + (0.25f * _e16)));
+    return FeLocal_fe_shader_private_layout_13_(((_e6 + 0.375f) + (0.25f * _e9)), ((_e13 + 0.375f) + (0.25f * _e16)));
 }
 
-fn offset_sample(a0_18: u32, a1_10: u32, a2_3: f32, a3_3: f32) -> FeLocal_fe_shader_private_layout_12_ {
+fn offset_sample(a0_18: u32, a1_10: u32, a2_3: f32, a3_3: f32) -> FeLocal_fe_shader_private_layout_13_ {
     let _e4 = ordered_2x2_(a0_18, a1_10);
-    return FeLocal_fe_shader_private_layout_12_((_e4.f0_ + a2_3), (_e4.f1_ + a3_3));
+    return FeLocal_fe_shader_private_layout_13_((_e4.f0_ + a2_3), (_e4.f1_ + a3_3));
 }
 
-fn plane(a0_19: FeLocal_fe_shader_private_layout_12_, a1_11: f32) -> FeLocal_fe_shader_private_layout_14_ {
-    return FeLocal_fe_shader_private_layout_14_((((a0_19.f0_ / a1_11) * 2f) - 1f), (1f - ((a0_19.f1_ / a1_11) * 2f)));
+fn plane(a0_19: FeLocal_fe_shader_private_layout_13_, a1_11: f32) -> FeLocal_fe_shader_private_layout_15_ {
+    return FeLocal_fe_shader_private_layout_15_((((a0_19.f0_ / a1_11) * 2f) - 1f), (1f - ((a0_19.f1_ / a1_11) * 2f)));
 }
 
-fn re_expansion(a0_20: FeLocal_fe_shader_private_layout_11_) -> FeLocal_fe_shader_private_layout_5_ {
+fn re_expansion(a0_20: FeLocal_fe_shader_private_layout_12_) -> FeLocal_fe_shader_private_layout_5_ {
     let _e9 = from_quad(bitcast<f32>(a0_20.f0_), bitcast<f32>(a0_20.f1_), bitcast<f32>(a0_20.f2_), bitcast<f32>(a0_20.f3_));
     return _e9;
 }
@@ -625,10 +631,10 @@ fn negate_ga905_(a0_24: FeLocal_fe_shader_private_layout_5_) -> FeLocal_fe_shade
     return FeLocal_fe_shader_private_layout_5_(-(a0_24.f0_), _e4);
 }
 
-fn precision_lib_two_sum_34a0_(a0_25: f32, a1_12: f32) -> FeLocal_fe_shader_private_layout_13_ {
+fn precision_lib_two_sum_34a0_(a0_25: f32, a1_12: f32) -> FeLocal_fe_shader_private_layout_14_ {
     let _e2 = (a0_25 + a1_12);
     let _e3 = (_e2 - a0_25);
-    return FeLocal_fe_shader_private_layout_13_(_e2, ((a0_25 - (_e2 - _e3)) + (a1_12 - _e3)));
+    return FeLocal_fe_shader_private_layout_14_(_e2, ((a0_25 - (_e2 - _e3)) + (a1_12 - _e3)));
 }
 
 fn impl_trait_Last_add_corr(a0_26: f32, a1_13: f32, a2_4: f32) -> f32 {
@@ -685,13 +691,13 @@ fn sub(a0_34: FeLocal_fe_shader_private_layout_5_, a1_19: FeLocal_fe_shader_priv
     return _e4;
 }
 
-fn im_expansion(a0_35: FeLocal_fe_shader_private_layout_11_) -> FeLocal_fe_shader_private_layout_5_ {
+fn im_expansion(a0_35: FeLocal_fe_shader_private_layout_12_) -> FeLocal_fe_shader_private_layout_5_ {
     let _e9 = from_quad(bitcast<f32>(a0_35.f4_), bitcast<f32>(a0_35.f5_), bitcast<f32>(a0_35.f6_), bitcast<f32>(a0_35.f7_));
     return _e9;
 }
 
-fn to_quad(a0_36: FeLocal_fe_shader_private_layout_5_) -> FeLocal_fe_shader_private_layout_15_ {
-    return FeLocal_fe_shader_private_layout_15_(a0_36.f0_, a0_36.f1_.f0_, a0_36.f1_.f1_.f0_, a0_36.f1_.f1_.f1_.f0_);
+fn to_quad(a0_36: FeLocal_fe_shader_private_layout_5_) -> FeLocal_fe_shader_private_layout_16_ {
+    return FeLocal_fe_shader_private_layout_16_(a0_36.f0_, a0_36.f1_.f0_, a0_36.f1_.f1_.f0_, a0_36.f1_.f1_.f1_.f0_);
 }
 
 fn reference_plus_delta(a0_37: f32, a1_20: f32, a2_8: f32, a3_4: f32, a4_1: f32) -> f32 {
@@ -702,8 +708,8 @@ fn reference_plus_delta(a0_37: f32, a1_20: f32, a2_8: f32, a3_4: f32, a4_1: f32)
     return (_e14.f0_ + (((_e14.f1_ + _e11.f1_) + _e8.f1_) + _e5.f1_));
 }
 
-fn pixel_delta_from_reference(a1_21: u32, a2_9: FeLocal_fe_shader_private_layout_9_, a3_5: FeLocal_fe_shader_private_layout_12_, fe_trapped_6: ptr<function, bool>) -> FeLocal_fe_shader_private_layout_13_ {
-    var local_32: FeLocal_fe_shader_private_layout_13_;
+fn pixel_delta_from_reference(a1_21: u32, a2_9: FeLocal_fe_shader_private_layout_9_, a3_5: FeLocal_fe_shader_private_layout_13_, fe_trapped_6: ptr<function, bool>) -> FeLocal_fe_shader_private_layout_14_ {
+    var local_32: FeLocal_fe_shader_private_layout_14_;
     var local_33: bool = false;
 
     let _e7 = plane(a3_5, a2_9.f3_);
@@ -718,7 +724,7 @@ fn pixel_delta_from_reference(a1_21: u32, a2_9: FeLocal_fe_shader_private_layout
     let _e27 = orbit[i32((a1_21 + 8193u))].im_w1_bits;
     let _e29 = orbit[i32((a1_21 + 8193u))].im_w2_bits;
     let _e31 = orbit[i32((a1_21 + 8193u))].im_w3_bits;
-    let _e32 = FeLocal_fe_shader_private_layout_11_(_e17, _e19, _e21, _e23, _e25, _e27, _e29, _e31);
+    let _e32 = FeLocal_fe_shader_private_layout_12_(_e17, _e19, _e21, _e23, _e25, _e27, _e29, _e31);
     let _e34 = re_expansion(_e32);
     let _e35 = sub(a2_9.f0_, _e34);
     let _e37 = im_expansion(_e32);
@@ -727,7 +733,7 @@ fn pixel_delta_from_reference(a1_21: u32, a2_9: FeLocal_fe_shader_private_layout
     let _e44 = to_quad(_e38);
     let _e52 = reference_plus_delta(_e39.f0_, _e39.f1_, _e39.f2_, _e39.f3_, (_e7.f0_ * a2_9.f2_));
     let _e56 = reference_plus_delta(_e44.f0_, _e44.f1_, _e44.f2_, _e44.f3_, (_e7.f1_ * a2_9.f2_));
-    return FeLocal_fe_shader_private_layout_13_(_e52, _e56);
+    return FeLocal_fe_shader_private_layout_14_(_e52, _e56);
 }
 
 fn empty_progress(a0_38: u32) -> FeLocal_fe_shader_private_layout_6_ {
@@ -738,7 +744,7 @@ fn is_glitched(a0_39: FeLocal_fe_shader_private_layout_6_) -> bool {
     return (((a0_39.f4_ & 1073741824u) == 0u) == false);
 }
 
-fn invalid_reference(a0_40: FeLocal_fe_shader_private_layout_11_) -> bool {
+fn invalid_reference(a0_40: FeLocal_fe_shader_private_layout_12_) -> bool {
     var local_34: bool;
     var local_35: bool = false;
     var local_36: bool = bool();
@@ -880,7 +886,7 @@ fn advance_progress(a1_22: u32, a2_10: f32, a3_6: f32, a4_2: u32, a5_: u32, a6_:
                                         let _e173 = orbit[i32((_e144 + 1u))].im_w1_bits;
                                         let _e175 = orbit[i32((_e144 + 1u))].im_w2_bits;
                                         let _e177 = orbit[i32((_e144 + 1u))].im_w3_bits;
-                                        let _e179 = invalid_reference(FeLocal_fe_shader_private_layout_11_(_e127, _e129, _e131, _e133, _e135, _e137, _e139, _e141));
+                                        let _e179 = invalid_reference(FeLocal_fe_shader_private_layout_12_(_e127, _e129, _e131, _e133, _e135, _e137, _e139, _e141));
                                         if _e179 {
                                             local_54 = _e62;
                                             local_55 = _e64;
@@ -891,7 +897,7 @@ fn advance_progress(a1_22: u32, a2_10: f32, a3_6: f32, a4_2: u32, a5_: u32, a6_:
                                             local_60 = _e119;
                                             local_61 = _e76;
                                         } else {
-                                            let _e180 = invalid_reference(FeLocal_fe_shader_private_layout_11_(_e163, _e165, _e167, _e169, _e171, _e173, _e175, _e177));
+                                            let _e180 = invalid_reference(FeLocal_fe_shader_private_layout_12_(_e163, _e165, _e167, _e169, _e171, _e173, _e175, _e177));
                                             if _e180 {
                                                 local_54 = _e62;
                                                 local_55 = _e64;
@@ -1057,7 +1063,7 @@ fn advance_progress(a1_22: u32, a2_10: f32, a3_6: f32, a4_2: u32, a5_: u32, a6_:
     return _e432;
 }
 
-fn sample_progress(a1_23: u32, a2_11: FeLocal_fe_shader_private_layout_9_, a3_7: FeLocal_fe_shader_private_layout_12_, a4_3: u32, fe_trapped_8: ptr<function, bool>) -> FeLocal_fe_shader_private_layout_6_ {
+fn sample_progress(a1_23: u32, a2_11: FeLocal_fe_shader_private_layout_9_, a3_7: FeLocal_fe_shader_private_layout_13_, a4_3: u32, fe_trapped_8: ptr<function, bool>) -> FeLocal_fe_shader_private_layout_6_ {
     var local_63: FeLocal_fe_shader_private_layout_6_;
     var local_64: bool = false;
     var local_65: FeLocal_fe_shader_private_layout_6_;
@@ -1098,7 +1104,7 @@ fn clamp_(a0_44: f32, a1_24: f32, a2_12: f32) -> f32 {
     return _e11;
 }
 
-fn packed(a0_45: FeLocal_fe_shader_private_layout_7_) -> u32 {
+fn pack_lab(a0_45: FeLocal_fe_shader_private_layout_11_) -> u32 {
     let _e4 = clamp_(a0_45.f0_, 0f, 1f);
     let _e9 = to_i32_(((_e4 * 4095f) + 0.5f));
     let _e17 = clamp_(((a0_45.f1_ * 2048f) + 512f), 0f, 1023f);
@@ -1109,7 +1115,7 @@ fn packed(a0_45: FeLocal_fe_shader_private_layout_7_) -> u32 {
 }
 
 fn glitch() -> u32 {
-    let _e4 = packed(FeLocal_fe_shader_private_layout_7_(0.72f, 0.18f, -0.09f));
+    let _e4 = pack_lab(FeLocal_fe_shader_private_layout_11_(0.72f, 0.18f, -0.09f));
     return _e4;
 }
 
@@ -1148,46 +1154,61 @@ fn anchor(a0_48: u32) -> FeLocal_fe_shader_private_layout_7_ {
     return _e29;
 }
 
-fn wrap_pi(a0_49: f32) -> f32 {
-    let _e5 = impl_trait_f32_floor(((a0_49 / 6.2831855f) + 0.5f));
-    return (a0_49 - (6.2831855f * _e5));
+fn interpolate(a0_49: FeLocal_fe_shader_private_layout_7_, a1_25: FeLocal_fe_shader_private_layout_7_, a2_13: f32) -> FeLocal_fe_shader_private_layout_7_ {
+    var local_74: FeLocal_fe_shader_private_layout_7_;
+    var local_75: bool = false;
+    var local_76: f32 = f32();
+
+    let _e7 = (a1_25.f2_ - a0_49.f2_);
+    if (180f < _e7) {
+        local_76 = (_e7 - 360f);
+    } else {
+        if (_e7 < -180f) {
+            local_76 = (_e7 + 360f);
+        } else {
+            local_76 = _e7;
+        }
+    }
+    let _e20 = local_76;
+    return FeLocal_fe_shader_private_layout_7_((a0_49.f0_ + ((a1_25.f0_ - a0_49.f0_) * a2_13)), (a0_49.f1_ + ((a1_25.f1_ - a0_49.f1_) * a2_13)), (a0_49.f2_ + (_e20 * a2_13)));
 }
 
-fn sin_(a0_50: f32) -> f32 {
-    let _e1 = wrap_pi(a0_50);
+fn wrap_pi(a0_50: f32) -> f32 {
+    let _e5 = impl_trait_f32_floor(((a0_50 / 6.2831855f) + 0.5f));
+    return (a0_50 - (6.2831855f * _e5));
+}
+
+fn sin_(a0_51: f32) -> f32 {
+    let _e1 = wrap_pi(a0_51);
     let _e6 = impl_trait_f32_abs(_e1);
     let _e8 = ((1.2732395f * _e1) - ((0.40528473f * _e1) * _e6));
     let _e9 = impl_trait_f32_abs(_e8);
     return ((0.225f * ((_e8 * _e9) - _e8)) + _e8);
 }
 
-fn cos_(a0_51: f32) -> f32 {
-    let _e3 = sin_((a0_51 + 1.5707964f));
+fn cos_(a0_52: f32) -> f32 {
+    let _e3 = sin_((a0_52 + 1.5707964f));
     return _e3;
 }
 
-fn oklch(a0_52: f32, a1_25: f32, a2_13: f32) -> FeLocal_fe_shader_private_layout_7_ {
-    let _e4 = (a2_13 * 0.017453292f);
-    let _e5 = cos_(_e4);
-    let _e7 = sin_(_e4);
-    return FeLocal_fe_shader_private_layout_7_(a0_52, (a1_25 * _e5), (a1_25 * _e7));
+fn to_color(a0_53: FeLocal_fe_shader_private_layout_7_) -> FeLocal_fe_shader_private_layout_11_ {
+    let _e3 = (a0_53.f2_ * 0.017453292f);
+    let _e6 = cos_(_e3);
+    let _e9 = sin_(_e3);
+    return FeLocal_fe_shader_private_layout_11_(a0_53.f0_, (a0_53.f1_ * _e6), (a0_53.f1_ * _e9));
 }
 
-fn escape_palette(a0_53: u32, a1_26: f32, fe_trapped_9: ptr<function, bool>) -> u32 {
-    var local_74: u32;
-    var local_75: bool = false;
-    var local_76: u32 = u32();
+fn escape_palette(a0_54: u32, a1_26: f32, fe_trapped_9: ptr<function, bool>) -> u32 {
     var local_77: u32;
     var local_78: bool = false;
-    var local_79: f32 = f32();
+    var local_79: u32 = u32();
 
-    let _e5 = from_i32_(a0_53);
+    let _e5 = from_i32_(a0_54);
     let _e11 = fract_(((_e5 + (4f / a1_26)) / 256f));
     let _e13 = (_e11 * 5f);
     let _e14 = to_i32_(_e13);
     let _e15 = from_i32_(_e14);
     let _e16 = (_e13 - _e15);
-    let _e22 = ((_e16 * _e16) * (3f - (2f * _e16)));
     let _e23 = anchor(_e14);
     if (_e14 == 4u) {
     } else {
@@ -1195,45 +1216,35 @@ fn escape_palette(a0_53: u32, a1_26: f32, fe_trapped_9: ptr<function, bool>) -> 
         if ((((_e14 ^ _e29) & (1u ^ _e29)) & 2147483648u) != 0u) {
             (*fe_trapped_9) = true;
         } else {
-            local_76 = _e29;
+            local_79 = _e29;
         }
     }
-    let _e40 = local_76;
-    let _e41 = anchor(_e40);
-    let _e44 = (_e41.f2_ - _e23.f2_);
-    if (180f < _e44) {
-        local_79 = (_e44 - 360f);
-    } else {
-        if (_e44 < -180f) {
-            local_79 = (_e44 + 360f);
-        } else {
-            local_79 = _e44;
-        }
-    }
-    let _e57 = local_79;
-    let _e73 = oklch((_e23.f0_ + ((_e41.f0_ - _e23.f0_) * _e22)), (_e23.f1_ + ((_e41.f1_ - _e23.f1_) * _e22)), (_e23.f2_ + (_e57 * _e22)));
-    let _e74 = packed(_e73);
-    return _e74;
+    let _e38 = local_79;
+    let _e39 = anchor(_e38);
+    let _e40 = interpolate(_e23, _e39, ((_e16 * _e16) * (3f - (2f * _e16))));
+    let _e41 = to_color(_e40);
+    let _e42 = pack_lab(_e41);
+    return _e42;
 }
 
 fn interior() -> u32 {
-    let _e4 = packed(FeLocal_fe_shader_private_layout_7_(0.14f, 0.008f, -0.018f));
+    let _e4 = pack_lab(FeLocal_fe_shader_private_layout_11_(0.14f, 0.008f, -0.018f));
     return _e4;
 }
 
-fn progress_color(a0_54: FeLocal_fe_shader_private_layout_6_, fe_trapped_10: ptr<function, bool>) -> u32 {
+fn progress_color(a0_55: FeLocal_fe_shader_private_layout_6_, fe_trapped_10: ptr<function, bool>) -> u32 {
     var local_80: u32;
     var local_81: bool = false;
     var local_82: u32 = u32();
 
-    let _e4 = is_glitched(a0_54);
+    let _e4 = is_glitched(a0_55);
     if _e4 {
         let _e5 = glitch();
         local_82 = _e5;
     } else {
-        let _e6 = is_escaped(a0_54);
+        let _e6 = is_escaped(a0_55);
         if _e6 {
-            let _e9 = escape_palette(a0_54.f5_, a0_54.f7_, fe_trapped_10);
+            let _e9 = escape_palette(a0_55.f5_, a0_55.f7_, fe_trapped_10);
             local_82 = _e9;
         } else {
             let _e10 = interior();
@@ -1296,7 +1307,7 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
         if _e222 {
         } else {
             let _e79 = native_pixels[i32(_e71.f2_)];
-            let _e80 = color(_e79);
+            let _e80 = unpack_lab(_e79);
             let _e82 = from_i32_(_e71.f0_);
             let _e84 = from_i32_(_e71.f1_);
             let _e88 = impl_trait_f32_max(0f, (_e82 - 1f));
@@ -1308,17 +1319,17 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
             let _e105 = impl_trait_f32_min((_e30 - 1f), (_e84 + 1f));
             let _e106 = to_i32_(_e105);
             let _e113 = native_pixels[i32(((_e71.f1_ << 11u) | _e89))];
-            let _e114 = color(_e113);
+            let _e114 = unpack_lab(_e113);
             let _e115 = contrast(_e80, _e114);
             let _e122 = native_pixels[i32(((_e71.f1_ << 11u) | _e95))];
-            let _e123 = color(_e122);
+            let _e123 = unpack_lab(_e122);
             let _e124 = contrast(_e80, _e123);
             let _e125 = impl_trait_f32_max(_e115, _e124);
             let _e132 = native_pixels[i32(((_e100 << 11u) | _e71.f0_))];
-            let _e133 = color(_e132);
+            let _e133 = unpack_lab(_e132);
             let _e134 = contrast(_e80, _e133);
             let _e141 = native_pixels[i32(((_e106 << 11u) | _e71.f0_))];
-            let _e142 = color(_e141);
+            let _e142 = unpack_lab(_e141);
             let _e143 = contrast(_e80, _e142);
             let _e144 = impl_trait_f32_max(_e134, _e143);
             let _e145 = impl_trait_f32_max(_e125, _e144);
@@ -1331,7 +1342,7 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
                         let _e165 = offset_sample(_e71.f0_, _e71.f1_, 0.28f, -0.28f);
                         let _e167 = sample_progress((_e47 * 8195u), _e150, _e165, _e70.f0_, (&fe_trapped));
                         let _e168 = progress_color(_e167, (&fe_trapped));
-                        let _e169 = color(_e168);
+                        let _e169 = unpack_lab(_e168);
                         let _e175 = (_e47 != 0u);
                         if (_e175 && (8195u > (4294967295u / select(1u, _e47, _e175)))) {
                             fe_trapped = true;
@@ -1339,8 +1350,8 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
                         let _e183 = offset_sample(_e71.f0_, _e71.f1_, -0.28f, 0.28f);
                         let _e185 = sample_progress((_e47 * 8195u), _e150, _e183, _e70.f0_, (&fe_trapped));
                         let _e186 = progress_color(_e185, (&fe_trapped));
-                        let _e187 = color(_e186);
-                        let _e211 = packed(FeLocal_fe_shader_private_layout_7_((((_e80.f0_ + _e169.f0_) + _e187.f0_) / 3f), (((_e80.f1_ + _e169.f1_) + _e187.f1_) / 3f), (((_e80.f2_ + _e169.f2_) + _e187.f2_) / 3f)));
+                        let _e187 = unpack_lab(_e186);
+                        let _e211 = pack_lab(FeLocal_fe_shader_private_layout_11_((((_e80.f0_ + _e169.f0_) + _e187.f0_) / 3f), (((_e80.f1_ + _e169.f1_) + _e187.f1_) / 3f), (((_e80.f2_ + _e169.f2_) + _e187.f2_) / 3f)));
                         antialiased_pixels[i32(_e71.f2_)] = _e211;
                         local_5 = true;
                     }

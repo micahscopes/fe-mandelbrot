@@ -12,21 +12,154 @@
         "path": "perceptual_color",
         "rich_signature": [
           {
-            "text": "//! OKLCH construction, OKLab blending and compact storage, and sRGB display.\n//! Hue uses degrees. Out-of-gamut RGB channels are clipped at display.\nuse fmath::{from_i32,to_i32,sqrt,mix,cos,sin}\nextern { const fn __bitcast<From,To>(_:From) -> To }\nfn clamp(_ value:f32,_ low:f32,_ high:f32) -> f32 {\n    if value<low { low } else { if value>high { high } else { value } }\n}\n/// Cartesian OKLab: lightness L and signed chromatic axes a/b.\npub struct Color { pub l: f32, pub a: f32, pub b: f32 }\n/// Construct Cartesian OKLab from lightness, chroma and hue in degrees.\npub fn oklch(_ lightness:f32,_ chroma:f32,_ hue:f32) -> "
+            "text": "//! OKLCH construction, OKLab blending and compact storage, and sRGB display.\n//! Hue uses degrees. Out-of-gamut RGB channels are clipped at display.\nuse core::marker::Copy\nuse fmath::{from_i32, to_i32, sqrt, mix, cos, sin}\n\nextern {\n    const fn __bitcast<From, To>(_: From) -> To\n}\n\nfn clamp(_ value: f32, _ low: f32, _ high: f32) -> f32 {\n    if value < low {\n        low\n    } else {\n        if value > high { high } else { value }\n    }\n}\n\n/// Polar OKLCH: lightness L, non-negative chroma C, and hue in degrees.\npub struct Oklch {\n    pub l: f32,\n    pub chroma: f32,\n    pub hue: f32,\n}\n\nimpl Copy for "
+          },
+          {
+            "link": "perceptual_color::Oklch/struct",
+            "text": "Oklch"
+          },
+          {
+            "text": " {}\n\n/// Cartesian OKLab: lightness L and signed chromatic axes a/b.\npub struct Color {\n    pub l: f32,\n    pub a: f32,\n    pub b: f32,\n}\n\nimpl Copy for "
           },
           {
             "link": "perceptual_color::Color/struct",
             "text": "Color"
           },
           {
-            "text": " {\n    let radians:f32=hue*0.017453292519943295\n    "
+            "text": " {}\n\nimpl "
+          },
+          {
+            "link": "perceptual_color::Oklch/struct",
+            "text": "Oklch"
+          },
+          {
+            "text": " {\n    /// Convert polar OKLCH coordinates (hue in degrees) to Cartesian OKLab.\n    pub fn to_color("
+          },
+          {
+            "link": "perceptual_color::Oklch/struct",
+            "text": "self"
+          },
+          {
+            "text": ") -> "
           },
           {
             "link": "perceptual_color::Color/struct",
             "text": "Color"
           },
           {
-            "text": " {l:lightness,a:chroma*cos(radians),b:chroma*sin(radians)}\n}\n/// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n/// Signed chroma spans [-0.25,0.2495], with an exactly representable neutral.\npub fn color(_ bits:u32) -> "
+            "text": " {\n        let radians: f32 = self."
+          },
+          {
+            "link": "perceptual_color::Oklch/struct~field.hue",
+            "text": "hue"
+          },
+          {
+            "text": " * 0.017453292519943295\n        "
+          },
+          {
+            "link": "perceptual_color::Color/struct",
+            "text": "Color"
+          },
+          {
+            "text": " {\n            l: self.l,\n            a: self."
+          },
+          {
+            "link": "perceptual_color::Oklch/struct~field.chroma",
+            "text": "chroma"
+          },
+          {
+            "text": " * cos(radians),\n            b: self."
+          },
+          {
+            "link": "perceptual_color::Oklch/struct~field.chroma",
+            "text": "chroma"
+          },
+          {
+            "text": " * sin(radians),\n        }\n    }\n\n    /// Shortest-arc interpolation in polar OKLCH coordinates.\n    pub fn interpolate(_ start: "
+          },
+          {
+            "link": "perceptual_color::Oklch/struct",
+            "text": "Oklch"
+          },
+          {
+            "text": ", _ end: "
+          },
+          {
+            "link": "perceptual_color::Oklch/struct",
+            "text": "Oklch"
+          },
+          {
+            "text": ", _ t: f32) -> "
+          },
+          {
+            "link": "perceptual_color::Oklch/struct",
+            "text": "Oklch"
+          },
+          {
+            "text": " {\n        let delta: f32 = end."
+          },
+          {
+            "link": "perceptual_color::Oklch/struct~field.hue",
+            "text": "hue"
+          },
+          {
+            "text": " - start."
+          },
+          {
+            "link": "perceptual_color::Oklch/struct~field.hue",
+            "text": "hue"
+          },
+          {
+            "text": "\n        let arc: f32 = if delta > 180.0 {\n            delta - 360.0\n        } else {\n            if delta < -180.0 { delta + 360.0 } else { delta }\n        }\n        "
+          },
+          {
+            "link": "perceptual_color::Oklch/struct",
+            "text": "Oklch"
+          },
+          {
+            "text": " {\n            l: start.l + (end.l - start.l) * t,\n            chroma: start."
+          },
+          {
+            "link": "perceptual_color::Oklch/struct~field.chroma",
+            "text": "chroma"
+          },
+          {
+            "text": " + (end."
+          },
+          {
+            "link": "perceptual_color::Oklch/struct~field.chroma",
+            "text": "chroma"
+          },
+          {
+            "text": " - start."
+          },
+          {
+            "link": "perceptual_color::Oklch/struct~field.chroma",
+            "text": "chroma"
+          },
+          {
+            "text": ") * t,\n            hue: start."
+          },
+          {
+            "link": "perceptual_color::Oklch/struct~field.hue",
+            "text": "hue"
+          },
+          {
+            "text": " + arc * t,\n        }\n    }\n}\n\n/// Construct Cartesian OKLab from lightness, chroma and hue in degrees.\npub fn oklch(_ lightness: f32, _ chroma: f32, _ hue: f32) -> "
+          },
+          {
+            "link": "perceptual_color::Color/struct",
+            "text": "Color"
+          },
+          {
+            "text": " {\n    "
+          },
+          {
+            "link": "perceptual_color::Oklch/struct",
+            "text": "Oklch"
+          },
+          {
+            "text": " { l: lightness, chroma: chroma, hue: hue }.to_color()\n}\n\n/// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n/// Signed chroma spans [-0.25, 0.2495], with an exactly representable neutral.\npub fn unpack_lab(_ bits: u32) -> "
           },
           {
             "link": "perceptual_color::Color/struct",
@@ -40,63 +173,56 @@
             "text": "Color"
           },
           {
-            "text": " {l:from_i32("
+            "text": " {\n        l: from_i32("
           },
           {
             "link": "perceptual_color::__bitcast/fn",
             "text": "__bitcast"
           },
           {
-            "text": "<u32,i32>(bits&4095))/4095.0,\n        a:(from_i32("
+            "text": "<u32, i32>(bits & 4095)) / 4095.0,\n        a: (from_i32("
           },
           {
             "link": "perceptual_color::__bitcast/fn",
             "text": "__bitcast"
           },
           {
-            "text": "<u32,i32>((bits>>12)&1023))-512.0)/2048.0,\n        b:(from_i32("
+            "text": "<u32, i32>((bits >> 12) & 1023)) - 512.0) / 2048.0,\n        b: (from_i32("
           },
           {
             "link": "perceptual_color::__bitcast/fn",
             "text": "__bitcast"
           },
           {
-            "text": "<u32,i32>((bits>>22)&1023))-512.0)/2048.0}\n}\npub fn packed(_ c:"
+            "text": "<u32, i32>((bits >> 22) & 1023)) - 512.0) / 2048.0,\n    }\n}\n\npub fn pack_lab(_ c: "
           },
           {
             "link": "perceptual_color::Color/struct",
             "text": "Color"
           },
           {
-            "text": ") -> i32 {\n    let l:u32="
+            "text": ") -> i32 {\n    let l: u32 = "
           },
           {
             "link": "perceptual_color::__bitcast/fn",
             "text": "__bitcast"
           },
           {
-            "text": "<i32,u32>(to_i32("
+            "text": "<i32, u32>(to_i32("
           },
           {
             "link": "perceptual_color::clamp/fn",
             "text": "clamp"
           },
           {
-            "text": "(c."
-          },
-          {
-            "link": "perceptual_color::Color/struct~field.l",
-            "text": "l"
-          },
-          {
-            "text": ",0.0,1.0)*4095.0+0.5))\n    let a:u32="
+            "text": "(c.l, 0.0, 1.0) * 4095.0 + 0.5))\n    let a: u32 = "
           },
           {
             "link": "perceptual_color::__bitcast/fn",
             "text": "__bitcast"
           },
           {
-            "text": "<i32,u32>(to_i32("
+            "text": "<i32, u32>(to_i32("
           },
           {
             "link": "perceptual_color::clamp/fn",
@@ -110,14 +236,14 @@
             "text": "a"
           },
           {
-            "text": "*2048.0+512.0,0.0,1023.0)+0.5))\n    let b:u32="
+            "text": " * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    let b: u32 = "
           },
           {
             "link": "perceptual_color::__bitcast/fn",
             "text": "__bitcast"
           },
           {
-            "text": "<i32,u32>(to_i32("
+            "text": "<i32, u32>(to_i32("
           },
           {
             "link": "perceptual_color::clamp/fn",
@@ -131,147 +257,168 @@
             "text": "b"
           },
           {
-            "text": "*2048.0+512.0,0.0,1023.0)+0.5))\n    "
+            "text": " * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    "
           },
           {
             "link": "perceptual_color::__bitcast/fn",
             "text": "__bitcast"
           },
           {
-            "text": "<u32,i32>((l&4095)|((a&1023)<<12)|((b&1023)<<22))\n}\n// Ian Taylor's square-root sRGB approximation, with the exact linear toe.\n// Keeps transfer work at presentation, outside orbit and Gaussian loops.\nfn srgb(_ linear:f32) -> f32 {\n    let x:f32="
-          },
-          {
-            "link": "perceptual_color::clamp/fn",
-            "text": "clamp"
-          },
-          {
-            "text": "(linear,0.0,1.0)\n    if x<=0.0031308 {return 12.92*x}\n    let s1:f32=sqrt(x)\n    let s2:f32=sqrt(s1)\n    let s3:f32=sqrt(s2)\n    "
-          },
-          {
-            "link": "perceptual_color::clamp/fn",
-            "text": "clamp"
-          },
-          {
-            "text": "(0.662002687*s1+0.684122060*s2-0.323583601*s3-0.022541147*x,0.0,1.0)\n}\n/// Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer.\npub fn rgba(_ c:"
+            "text": "<u32, i32>((l & 4095) | ((a & 1023) << 12) | ((b & 1023) << 22))\n}\n\npub fn color(_ bits: u32) -> "
           },
           {
             "link": "perceptual_color::Color/struct",
             "text": "Color"
           },
           {
-            "text": ") -> i32 {\n    let lp:f32=c."
+            "text": " {\n    "
           },
           {
-            "link": "perceptual_color::Color/struct~field.l",
-            "text": "l"
+            "link": "perceptual_color::unpack_lab/fn",
+            "text": "unpack_lab"
           },
           {
-            "text": "+0.3963377774*c."
+            "text": "(bits)\n}\n\npub fn packed(_ c: "
           },
           {
-            "link": "perceptual_color::Color/struct~field.a",
-            "text": "a"
+            "link": "perceptual_color::Color/struct",
+            "text": "Color"
           },
           {
-            "text": "+0.2158037573*c."
+            "text": ") -> i32 {\n    "
           },
           {
-            "link": "perceptual_color::Color/struct~field.b",
-            "text": "b"
+            "link": "perceptual_color::pack_lab/fn",
+            "text": "pack_lab"
           },
           {
-            "text": "\n    let mp:f32=c."
+            "text": "(c)\n}\n\n// Ian Taylor's square-root sRGB approximation, with the exact linear toe.\n// Keeps transfer work at presentation, outside orbit and Gaussian loops.\nfn srgb(_ linear: f32) -> f32 {\n    let x: f32 = "
           },
           {
-            "link": "perceptual_color::Color/struct~field.l",
-            "text": "l"
+            "link": "perceptual_color::clamp/fn",
+            "text": "clamp"
           },
           {
-            "text": "-0.1055613458*c."
+            "text": "(linear, 0.0, 1.0)\n    if x <= 0.0031308 {\n        return 12.92 * x\n    }\n    let s1: f32 = sqrt(x)\n    let s2: f32 = sqrt(s1)\n    let s3: f32 = sqrt(s2)\n    "
           },
           {
-            "link": "perceptual_color::Color/struct~field.a",
-            "text": "a"
+            "link": "perceptual_color::clamp/fn",
+            "text": "clamp"
           },
           {
-            "text": "-0.0638541728*c."
+            "text": "(0.662002687 * s1 + 0.684122060 * s2 - 0.323583601 * s3 - 0.022541147 * x, 0.0, 1.0)\n}\n\n/// Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer.\npub fn display_rgba(_ c: "
           },
           {
-            "link": "perceptual_color::Color/struct~field.b",
-            "text": "b"
+            "link": "perceptual_color::Color/struct",
+            "text": "Color"
           },
           {
-            "text": "\n    let sp:f32=c."
-          },
-          {
-            "link": "perceptual_color::Color/struct~field.l",
-            "text": "l"
-          },
-          {
-            "text": "-0.0894841775*c."
+            "text": ") -> i32 {\n    let lp: f32 = c.l + 0.3963377774 * c."
           },
           {
             "link": "perceptual_color::Color/struct~field.a",
             "text": "a"
           },
           {
-            "text": "-1.2914855480*c."
+            "text": " + 0.2158037573 * c."
           },
           {
             "link": "perceptual_color::Color/struct~field.b",
             "text": "b"
           },
           {
-            "text": "\n    let l:f32=lp*lp*lp\n    let m:f32=mp*mp*mp\n    let s:f32=sp*sp*sp\n    let r:u32="
+            "text": "\n    let mp: f32 = c.l - 0.1055613458 * c."
+          },
+          {
+            "link": "perceptual_color::Color/struct~field.a",
+            "text": "a"
+          },
+          {
+            "text": " - 0.0638541728 * c."
+          },
+          {
+            "link": "perceptual_color::Color/struct~field.b",
+            "text": "b"
+          },
+          {
+            "text": "\n    let sp: f32 = c.l - 0.0894841775 * c."
+          },
+          {
+            "link": "perceptual_color::Color/struct~field.a",
+            "text": "a"
+          },
+          {
+            "text": " - 1.2914855480 * c."
+          },
+          {
+            "link": "perceptual_color::Color/struct~field.b",
+            "text": "b"
+          },
+          {
+            "text": "\n    let l: f32 = lp * lp * lp\n    let m: f32 = mp * mp * mp\n    let s: f32 = sp * sp * sp\n    let r: u32 = "
           },
           {
             "link": "perceptual_color::__bitcast/fn",
             "text": "__bitcast"
           },
           {
-            "text": "<i32,u32>(to_i32("
+            "text": "<i32, u32>(to_i32("
           },
           {
             "link": "perceptual_color::srgb/fn",
             "text": "srgb"
           },
           {
-            "text": "(4.0767416621*l-3.3077115913*m+0.2309699292*s)*255.0+0.5))\n    let g:u32="
+            "text": "(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s) * 255.0 + 0.5))\n    let g: u32 = "
           },
           {
             "link": "perceptual_color::__bitcast/fn",
             "text": "__bitcast"
           },
           {
-            "text": "<i32,u32>(to_i32("
+            "text": "<i32, u32>(to_i32("
           },
           {
             "link": "perceptual_color::srgb/fn",
             "text": "srgb"
           },
           {
-            "text": "(-1.2684380046*l+2.6097574011*m-0.3413193965*s)*255.0+0.5))\n    let b:u32="
+            "text": "(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s) * 255.0 + 0.5))\n    let b: u32 = "
           },
           {
             "link": "perceptual_color::__bitcast/fn",
             "text": "__bitcast"
           },
           {
-            "text": "<i32,u32>(to_i32("
+            "text": "<i32, u32>(to_i32("
           },
           {
             "link": "perceptual_color::srgb/fn",
             "text": "srgb"
           },
           {
-            "text": "(-0.0041960863*l-0.7034186147*m+1.7076147010*s)*255.0+0.5))\n    "
+            "text": "(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s) * 255.0 + 0.5))\n    "
           },
           {
             "link": "perceptual_color::__bitcast/fn",
             "text": "__bitcast"
           },
           {
-            "text": "<u32,i32>((r&255)|((g&255)<<8)|((b&255)<<16)|4278190080)\n}\npub fn blend(_ a: "
+            "text": "<u32, i32>((r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | 4278190080)\n}\n\npub fn rgba(_ c: "
+          },
+          {
+            "link": "perceptual_color::Color/struct",
+            "text": "Color"
+          },
+          {
+            "text": ") -> i32 {\n    "
+          },
+          {
+            "link": "perceptual_color::display_rgba/fn",
+            "text": "display_rgba"
+          },
+          {
+            "text": "(c)\n}\n\npub fn blend(_ a: "
           },
           {
             "link": "perceptual_color::Color/struct",
@@ -299,21 +446,7 @@
             "text": "Color"
           },
           {
-            "text": " { l: mix(a."
-          },
-          {
-            "link": "perceptual_color::Color/struct~field.l",
-            "text": "l"
-          },
-          {
-            "text": ", b."
-          },
-          {
-            "link": "perceptual_color::Color/struct~field.l",
-            "text": "l"
-          },
-          {
-            "text": ", t), a: mix(a."
+            "text": " {\n        l: mix(a.l, b.l, t),\n        a: mix(a."
           },
           {
             "link": "perceptual_color::Color/struct~field.a",
@@ -327,7 +460,7 @@
             "text": "a"
           },
           {
-            "text": ", t), b: mix(a."
+            "text": ", t),\n        b: mix(a."
           },
           {
             "link": "perceptual_color::Color/struct~field.b",
@@ -341,17 +474,17 @@
             "text": "b"
           },
           {
-            "text": ", t) }\n}"
+            "text": ", t),\n    }\n}"
           }
         ],
         "sig_scope": "__sig__/perceptual_color/mod",
-        "signature": "//! OKLCH construction, OKLab blending and compact storage, and sRGB display.\n//! Hue uses degrees. Out-of-gamut RGB channels are clipped at display.\nuse fmath::{from_i32,to_i32,sqrt,mix,cos,sin}\nextern { const fn __bitcast<From,To>(_:From) -> To }\nfn clamp(_ value:f32,_ low:f32,_ high:f32) -> f32 {\n    if value<low { low } else { if value>high { high } else { value } }\n}\n/// Cartesian OKLab: lightness L and signed chromatic axes a/b.\npub struct Color { pub l: f32, pub a: f32, pub b: f32 }\n/// Construct Cartesian OKLab from lightness, chroma and hue in degrees.\npub fn oklch(_ lightness:f32,_ chroma:f32,_ hue:f32) -> Color {\n    let radians:f32=hue*0.017453292519943295\n    Color {l:lightness,a:chroma*cos(radians),b:chroma*sin(radians)}\n}\n/// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n/// Signed chroma spans [-0.25,0.2495], with an exactly representable neutral.\npub fn color(_ bits:u32) -> Color {\n    Color {l:from_i32(__bitcast<u32,i32>(bits&4095))/4095.0,\n        a:(from_i32(__bitcast<u32,i32>((bits>>12)&1023))-512.0)/2048.0,\n        b:(from_i32(__bitcast<u32,i32>((bits>>22)&1023))-512.0)/2048.0}\n}\npub fn packed(_ c:Color) -> i32 {\n    let l:u32=__bitcast<i32,u32>(to_i32(clamp(c.l,0.0,1.0)*4095.0+0.5))\n    let a:u32=__bitcast<i32,u32>(to_i32(clamp(c.a*2048.0+512.0,0.0,1023.0)+0.5))\n    let b:u32=__bitcast<i32,u32>(to_i32(clamp(c.b*2048.0+512.0,0.0,1023.0)+0.5))\n    __bitcast<u32,i32>((l&4095)|((a&1023)<<12)|((b&1023)<<22))\n}\n// Ian Taylor's square-root sRGB approximation, with the exact linear toe.\n// Keeps transfer work at presentation, outside orbit and Gaussian loops.\nfn srgb(_ linear:f32) -> f32 {\n    let x:f32=clamp(linear,0.0,1.0)\n    if x<=0.0031308 {return 12.92*x}\n    let s1:f32=sqrt(x)\n    let s2:f32=sqrt(s1)\n    let s3:f32=sqrt(s2)\n    clamp(0.662002687*s1+0.684122060*s2-0.323583601*s3-0.022541147*x,0.0,1.0)\n}\n/// Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer.\npub fn rgba(_ c:Color) -> i32 {\n    let lp:f32=c.l+0.3963377774*c.a+0.2158037573*c.b\n    let mp:f32=c.l-0.1055613458*c.a-0.0638541728*c.b\n    let sp:f32=c.l-0.0894841775*c.a-1.2914855480*c.b\n    let l:f32=lp*lp*lp\n    let m:f32=mp*mp*mp\n    let s:f32=sp*sp*sp\n    let r:u32=__bitcast<i32,u32>(to_i32(srgb(4.0767416621*l-3.3077115913*m+0.2309699292*s)*255.0+0.5))\n    let g:u32=__bitcast<i32,u32>(to_i32(srgb(-1.2684380046*l+2.6097574011*m-0.3413193965*s)*255.0+0.5))\n    let b:u32=__bitcast<i32,u32>(to_i32(srgb(-0.0041960863*l-0.7034186147*m+1.7076147010*s)*255.0+0.5))\n    __bitcast<u32,i32>((r&255)|((g&255)<<8)|((b&255)<<16)|4278190080)\n}\npub fn blend(_ a: Color, _ b: Color, _ t: f32) -> Color {\n    Color { l: mix(a.l, b.l, t), a: mix(a.a, b.a, t), b: mix(a.b, b.b, t) }\n}",
+        "signature": "//! OKLCH construction, OKLab blending and compact storage, and sRGB display.\n//! Hue uses degrees. Out-of-gamut RGB channels are clipped at display.\nuse core::marker::Copy\nuse fmath::{from_i32, to_i32, sqrt, mix, cos, sin}\n\nextern {\n    const fn __bitcast<From, To>(_: From) -> To\n}\n\nfn clamp(_ value: f32, _ low: f32, _ high: f32) -> f32 {\n    if value < low {\n        low\n    } else {\n        if value > high { high } else { value }\n    }\n}\n\n/// Polar OKLCH: lightness L, non-negative chroma C, and hue in degrees.\npub struct Oklch {\n    pub l: f32,\n    pub chroma: f32,\n    pub hue: f32,\n}\n\nimpl Copy for Oklch {}\n\n/// Cartesian OKLab: lightness L and signed chromatic axes a/b.\npub struct Color {\n    pub l: f32,\n    pub a: f32,\n    pub b: f32,\n}\n\nimpl Copy for Color {}\n\nimpl Oklch {\n    /// Convert polar OKLCH coordinates (hue in degrees) to Cartesian OKLab.\n    pub fn to_color(self) -> Color {\n        let radians: f32 = self.hue * 0.017453292519943295\n        Color {\n            l: self.l,\n            a: self.chroma * cos(radians),\n            b: self.chroma * sin(radians),\n        }\n    }\n\n    /// Shortest-arc interpolation in polar OKLCH coordinates.\n    pub fn interpolate(_ start: Oklch, _ end: Oklch, _ t: f32) -> Oklch {\n        let delta: f32 = end.hue - start.hue\n        let arc: f32 = if delta > 180.0 {\n            delta - 360.0\n        } else {\n            if delta < -180.0 { delta + 360.0 } else { delta }\n        }\n        Oklch {\n            l: start.l + (end.l - start.l) * t,\n            chroma: start.chroma + (end.chroma - start.chroma) * t,\n            hue: start.hue + arc * t,\n        }\n    }\n}\n\n/// Construct Cartesian OKLab from lightness, chroma and hue in degrees.\npub fn oklch(_ lightness: f32, _ chroma: f32, _ hue: f32) -> Color {\n    Oklch { l: lightness, chroma: chroma, hue: hue }.to_color()\n}\n\n/// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n/// Signed chroma spans [-0.25, 0.2495], with an exactly representable neutral.\npub fn unpack_lab(_ bits: u32) -> Color {\n    Color {\n        l: from_i32(__bitcast<u32, i32>(bits & 4095)) / 4095.0,\n        a: (from_i32(__bitcast<u32, i32>((bits >> 12) & 1023)) - 512.0) / 2048.0,\n        b: (from_i32(__bitcast<u32, i32>((bits >> 22) & 1023)) - 512.0) / 2048.0,\n    }\n}\n\npub fn pack_lab(_ c: Color) -> i32 {\n    let l: u32 = __bitcast<i32, u32>(to_i32(clamp(c.l, 0.0, 1.0) * 4095.0 + 0.5))\n    let a: u32 = __bitcast<i32, u32>(to_i32(clamp(c.a * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    let b: u32 = __bitcast<i32, u32>(to_i32(clamp(c.b * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    __bitcast<u32, i32>((l & 4095) | ((a & 1023) << 12) | ((b & 1023) << 22))\n}\n\npub fn color(_ bits: u32) -> Color {\n    unpack_lab(bits)\n}\n\npub fn packed(_ c: Color) -> i32 {\n    pack_lab(c)\n}\n\n// Ian Taylor's square-root sRGB approximation, with the exact linear toe.\n// Keeps transfer work at presentation, outside orbit and Gaussian loops.\nfn srgb(_ linear: f32) -> f32 {\n    let x: f32 = clamp(linear, 0.0, 1.0)\n    if x <= 0.0031308 {\n        return 12.92 * x\n    }\n    let s1: f32 = sqrt(x)\n    let s2: f32 = sqrt(s1)\n    let s3: f32 = sqrt(s2)\n    clamp(0.662002687 * s1 + 0.684122060 * s2 - 0.323583601 * s3 - 0.022541147 * x, 0.0, 1.0)\n}\n\n/// Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer.\npub fn display_rgba(_ c: Color) -> i32 {\n    let lp: f32 = c.l + 0.3963377774 * c.a + 0.2158037573 * c.b\n    let mp: f32 = c.l - 0.1055613458 * c.a - 0.0638541728 * c.b\n    let sp: f32 = c.l - 0.0894841775 * c.a - 1.2914855480 * c.b\n    let l: f32 = lp * lp * lp\n    let m: f32 = mp * mp * mp\n    let s: f32 = sp * sp * sp\n    let r: u32 = __bitcast<i32, u32>(to_i32(srgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s) * 255.0 + 0.5))\n    let g: u32 = __bitcast<i32, u32>(to_i32(srgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s) * 255.0 + 0.5))\n    let b: u32 = __bitcast<i32, u32>(to_i32(srgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s) * 255.0 + 0.5))\n    __bitcast<u32, i32>((r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | 4278190080)\n}\n\npub fn rgba(_ c: Color) -> i32 {\n    display_rgba(c)\n}\n\npub fn blend(_ a: Color, _ b: Color, _ t: f32) -> Color {\n    Color {\n        l: mix(a.l, b.l, t),\n        a: mix(a.a, b.a, t),\n        b: mix(a.b, b.b, t),\n    }\n}",
         "source": {
           "column": 0,
           "display_file": "lib/perceptual_color/src/lib.fe",
           "line": 1
         },
-        "source_text": "//! OKLCH construction, OKLab blending and compact storage, and sRGB display.\n//! Hue uses degrees. Out-of-gamut RGB channels are clipped at display.\nuse fmath::{from_i32,to_i32,sqrt,mix,cos,sin}\nextern { const fn __bitcast<From,To>(_:From) -> To }\nfn clamp(_ value:f32,_ low:f32,_ high:f32) -> f32 {\n    if value<low { low } else { if value>high { high } else { value } }\n}\n/// Cartesian OKLab: lightness L and signed chromatic axes a/b.\npub struct Color { pub l: f32, pub a: f32, pub b: f32 }\n/// Construct Cartesian OKLab from lightness, chroma and hue in degrees.\npub fn oklch(_ lightness:f32,_ chroma:f32,_ hue:f32) -> Color {\n    let radians:f32=hue*0.017453292519943295\n    Color {l:lightness,a:chroma*cos(radians),b:chroma*sin(radians)}\n}\n/// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n/// Signed chroma spans [-0.25,0.2495], with an exactly representable neutral.\npub fn color(_ bits:u32) -> Color {\n    Color {l:from_i32(__bitcast<u32,i32>(bits&4095))/4095.0,\n        a:(from_i32(__bitcast<u32,i32>((bits>>12)&1023))-512.0)/2048.0,\n        b:(from_i32(__bitcast<u32,i32>((bits>>22)&1023))-512.0)/2048.0}\n}\npub fn packed(_ c:Color) -> i32 {\n    let l:u32=__bitcast<i32,u32>(to_i32(clamp(c.l,0.0,1.0)*4095.0+0.5))\n    let a:u32=__bitcast<i32,u32>(to_i32(clamp(c.a*2048.0+512.0,0.0,1023.0)+0.5))\n    let b:u32=__bitcast<i32,u32>(to_i32(clamp(c.b*2048.0+512.0,0.0,1023.0)+0.5))\n    __bitcast<u32,i32>((l&4095)|((a&1023)<<12)|((b&1023)<<22))\n}\n// Ian Taylor's square-root sRGB approximation, with the exact linear toe.\n// Keeps transfer work at presentation, outside orbit and Gaussian loops.\nfn srgb(_ linear:f32) -> f32 {\n    let x:f32=clamp(linear,0.0,1.0)\n    if x<=0.0031308 {return 12.92*x}\n    let s1:f32=sqrt(x)\n    let s2:f32=sqrt(s1)\n    let s3:f32=sqrt(s2)\n    clamp(0.662002687*s1+0.684122060*s2-0.323583601*s3-0.022541147*x,0.0,1.0)\n}\n/// Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer.\npub fn rgba(_ c:Color) -> i32 {\n    let lp:f32=c.l+0.3963377774*c.a+0.2158037573*c.b\n    let mp:f32=c.l-0.1055613458*c.a-0.0638541728*c.b\n    let sp:f32=c.l-0.0894841775*c.a-1.2914855480*c.b\n    let l:f32=lp*lp*lp\n    let m:f32=mp*mp*mp\n    let s:f32=sp*sp*sp\n    let r:u32=__bitcast<i32,u32>(to_i32(srgb(4.0767416621*l-3.3077115913*m+0.2309699292*s)*255.0+0.5))\n    let g:u32=__bitcast<i32,u32>(to_i32(srgb(-1.2684380046*l+2.6097574011*m-0.3413193965*s)*255.0+0.5))\n    let b:u32=__bitcast<i32,u32>(to_i32(srgb(-0.0041960863*l-0.7034186147*m+1.7076147010*s)*255.0+0.5))\n    __bitcast<u32,i32>((r&255)|((g&255)<<8)|((b&255)<<16)|4278190080)\n}\npub fn blend(_ a: Color, _ b: Color, _ t: f32) -> Color {\n    Color { l: mix(a.l, b.l, t), a: mix(a.a, b.a, t), b: mix(a.b, b.b, t) }\n}\n",
+        "source_text": "//! OKLCH construction, OKLab blending and compact storage, and sRGB display.\n//! Hue uses degrees. Out-of-gamut RGB channels are clipped at display.\nuse core::marker::Copy\nuse fmath::{from_i32, to_i32, sqrt, mix, cos, sin}\n\nextern {\n    const fn __bitcast<From, To>(_: From) -> To\n}\n\nfn clamp(_ value: f32, _ low: f32, _ high: f32) -> f32 {\n    if value < low {\n        low\n    } else {\n        if value > high { high } else { value }\n    }\n}\n\n/// Polar OKLCH: lightness L, non-negative chroma C, and hue in degrees.\npub struct Oklch {\n    pub l: f32,\n    pub chroma: f32,\n    pub hue: f32,\n}\n\nimpl Copy for Oklch {}\n\n/// Cartesian OKLab: lightness L and signed chromatic axes a/b.\npub struct Color {\n    pub l: f32,\n    pub a: f32,\n    pub b: f32,\n}\n\nimpl Copy for Color {}\n\nimpl Oklch {\n    /// Convert polar OKLCH coordinates (hue in degrees) to Cartesian OKLab.\n    pub fn to_color(self) -> Color {\n        let radians: f32 = self.hue * 0.017453292519943295\n        Color {\n            l: self.l,\n            a: self.chroma * cos(radians),\n            b: self.chroma * sin(radians),\n        }\n    }\n\n    /// Shortest-arc interpolation in polar OKLCH coordinates.\n    pub fn interpolate(_ start: Oklch, _ end: Oklch, _ t: f32) -> Oklch {\n        let delta: f32 = end.hue - start.hue\n        let arc: f32 = if delta > 180.0 {\n            delta - 360.0\n        } else {\n            if delta < -180.0 { delta + 360.0 } else { delta }\n        }\n        Oklch {\n            l: start.l + (end.l - start.l) * t,\n            chroma: start.chroma + (end.chroma - start.chroma) * t,\n            hue: start.hue + arc * t,\n        }\n    }\n}\n\n/// Construct Cartesian OKLab from lightness, chroma and hue in degrees.\npub fn oklch(_ lightness: f32, _ chroma: f32, _ hue: f32) -> Color {\n    Oklch { l: lightness, chroma: chroma, hue: hue }.to_color()\n}\n\n/// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n/// Signed chroma spans [-0.25, 0.2495], with an exactly representable neutral.\npub fn unpack_lab(_ bits: u32) -> Color {\n    Color {\n        l: from_i32(__bitcast<u32, i32>(bits & 4095)) / 4095.0,\n        a: (from_i32(__bitcast<u32, i32>((bits >> 12) & 1023)) - 512.0) / 2048.0,\n        b: (from_i32(__bitcast<u32, i32>((bits >> 22) & 1023)) - 512.0) / 2048.0,\n    }\n}\n\npub fn pack_lab(_ c: Color) -> i32 {\n    let l: u32 = __bitcast<i32, u32>(to_i32(clamp(c.l, 0.0, 1.0) * 4095.0 + 0.5))\n    let a: u32 = __bitcast<i32, u32>(to_i32(clamp(c.a * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    let b: u32 = __bitcast<i32, u32>(to_i32(clamp(c.b * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    __bitcast<u32, i32>((l & 4095) | ((a & 1023) << 12) | ((b & 1023) << 22))\n}\n\npub fn color(_ bits: u32) -> Color {\n    unpack_lab(bits)\n}\n\npub fn packed(_ c: Color) -> i32 {\n    pack_lab(c)\n}\n\n// Ian Taylor's square-root sRGB approximation, with the exact linear toe.\n// Keeps transfer work at presentation, outside orbit and Gaussian loops.\nfn srgb(_ linear: f32) -> f32 {\n    let x: f32 = clamp(linear, 0.0, 1.0)\n    if x <= 0.0031308 {\n        return 12.92 * x\n    }\n    let s1: f32 = sqrt(x)\n    let s2: f32 = sqrt(s1)\n    let s3: f32 = sqrt(s2)\n    clamp(0.662002687 * s1 + 0.684122060 * s2 - 0.323583601 * s3 - 0.022541147 * x, 0.0, 1.0)\n}\n\n/// Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer.\npub fn display_rgba(_ c: Color) -> i32 {\n    let lp: f32 = c.l + 0.3963377774 * c.a + 0.2158037573 * c.b\n    let mp: f32 = c.l - 0.1055613458 * c.a - 0.0638541728 * c.b\n    let sp: f32 = c.l - 0.0894841775 * c.a - 1.2914855480 * c.b\n    let l: f32 = lp * lp * lp\n    let m: f32 = mp * mp * mp\n    let s: f32 = sp * sp * sp\n    let r: u32 = __bitcast<i32, u32>(to_i32(srgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s) * 255.0 + 0.5))\n    let g: u32 = __bitcast<i32, u32>(to_i32(srgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s) * 255.0 + 0.5))\n    let b: u32 = __bitcast<i32, u32>(to_i32(srgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s) * 255.0 + 0.5))\n    __bitcast<u32, i32>((r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | 4278190080)\n}\n\npub fn rgba(_ c: Color) -> i32 {\n    display_rgba(c)\n}\n\npub fn blend(_ a: Color, _ b: Color, _ t: f32) -> Color {\n    Color {\n        l: mix(a.l, b.l, t),\n        a: mix(a.a, b.a, t),\n        b: mix(a.b, b.b, t),\n    }\n}\n",
         "trait_impls": [],
         "visibility": "public",
         "where_bounds": []
@@ -375,13 +508,13 @@
         "name": "__bitcast",
         "path": "perceptual_color::__bitcast",
         "sig_scope": "__sig__/perceptual_color::__bitcast/fn",
-        "signature": "extern { const fn __bitcast<From,To>(_:From) -> To",
+        "signature": "const fn __bitcast<From, To>(_: From) -> To",
         "source": {
-          "column": 9,
+          "column": 4,
           "display_file": "lib/perceptual_color/src/lib.fe",
-          "line": 4
+          "line": 7
         },
-        "source_text": "const fn __bitcast<From,To>(_:From) -> To",
+        "source_text": "const fn __bitcast<From, To>(_: From) -> To",
         "trait_impls": [],
         "visibility": "private",
         "where_bounds": []
@@ -394,15 +527,159 @@
         "name": "clamp",
         "path": "perceptual_color::clamp",
         "sig_scope": "__sig__/perceptual_color::clamp/fn",
-        "signature": "fn clamp(_ value:f32,_ low:f32,_ high:f32) -> f32",
+        "signature": "fn clamp(_ value: f32, _ low: f32, _ high: f32) -> f32",
         "source": {
           "column": 0,
           "display_file": "lib/perceptual_color/src/lib.fe",
-          "line": 5
+          "line": 10
         },
-        "source_text": "fn clamp(_ value:f32,_ low:f32,_ high:f32) -> f32 {\n    if value<low { low } else { if value>high { high } else { value } }\n}",
+        "source_text": "fn clamp(_ value: f32, _ low: f32, _ high: f32) -> f32 {\n    if value < low {\n        low\n    } else {\n        if value > high { high } else { value }\n    }\n}",
         "trait_impls": [],
         "visibility": "private",
+        "where_bounds": []
+      },
+      {
+        "children": [
+          {
+            "docs": null,
+            "kind": "field",
+            "name": "l",
+            "sig_scope": "__sig__/perceptual_color::Oklch/struct/field.l",
+            "signature": "l: f32",
+            "visibility": "public"
+          },
+          {
+            "docs": null,
+            "kind": "field",
+            "name": "chroma",
+            "sig_scope": "__sig__/perceptual_color::Oklch/struct/field.chroma",
+            "signature": "chroma: f32",
+            "visibility": "public"
+          },
+          {
+            "docs": null,
+            "kind": "field",
+            "name": "hue",
+            "sig_scope": "__sig__/perceptual_color::Oklch/struct/field.hue",
+            "signature": "hue: f32",
+            "visibility": "public"
+          }
+        ],
+        "docs": {
+          "body": "Polar OKLCH: lightness L, non-negative chroma C, and hue in degrees.",
+          "html_body": "<p>Polar OKLCH: lightness L, non-negative chroma C, and hue in degrees.</p>\n",
+          "sections": [],
+          "summary": "Polar OKLCH: lightness L, non-negative chroma C, and hue in degrees."
+        },
+        "generics": [],
+        "kind": "struct",
+        "name": "Oklch",
+        "path": "perceptual_color::Oklch",
+        "sig_scope": "__sig__/perceptual_color::Oklch/struct",
+        "signature": "pub struct Oklch",
+        "source": {
+          "column": 0,
+          "display_file": "lib/perceptual_color/src/lib.fe",
+          "line": 18
+        },
+        "source_text": "/// Polar OKLCH: lightness L, non-negative chroma C, and hue in degrees.\npub struct Oklch {\n    pub l: f32,\n    pub chroma: f32,\n    pub hue: f32,\n}",
+        "trait_impls": [
+          {
+            "impl_url": "perceptual_color::Oklch::impl_Copy/impl",
+            "methods": [],
+            "rich_signature": [
+              {
+                "text": "impl Copy for "
+              },
+              {
+                "link": "perceptual_color::Oklch/struct",
+                "text": "Oklch"
+              }
+            ],
+            "sig_scope": "__sig__/perceptual_color::Oklch/struct/impl-Copy",
+            "signature": "impl Copy for Oklch",
+            "trait_name": "Copy"
+          },
+          {
+            "impl_url": "perceptual_color::Oklch::impl/impl",
+            "methods": [
+              {
+                "docs": {
+                  "body": "Convert polar OKLCH coordinates (hue in degrees) to Cartesian OKLab.",
+                  "html_body": "<p>Convert polar OKLCH coordinates (hue in degrees) to Cartesian OKLab.</p>\n",
+                  "sections": [],
+                  "summary": "Convert polar OKLCH coordinates (hue in degrees) to Cartesian OKLab."
+                },
+                "name": "to_color",
+                "rich_signature": [
+                  {
+                    "text": "pub fn to_color("
+                  },
+                  {
+                    "link": "perceptual_color::Oklch/struct",
+                    "text": "self"
+                  },
+                  {
+                    "text": ") -> "
+                  },
+                  {
+                    "link": "perceptual_color::Color/struct",
+                    "text": "Color"
+                  }
+                ],
+                "sig_scope": "__sig__/perceptual_color::Oklch/struct/impl-7028/method.to_color",
+                "signature": "pub fn to_color(self) -> Color"
+              },
+              {
+                "docs": {
+                  "body": "Shortest-arc interpolation in polar OKLCH coordinates.",
+                  "html_body": "<p>Shortest-arc interpolation in polar OKLCH coordinates.</p>\n",
+                  "sections": [],
+                  "summary": "Shortest-arc interpolation in polar OKLCH coordinates."
+                },
+                "name": "interpolate",
+                "rich_signature": [
+                  {
+                    "text": "pub fn interpolate(_ start: "
+                  },
+                  {
+                    "link": "perceptual_color::Oklch/struct",
+                    "text": "Oklch"
+                  },
+                  {
+                    "text": ", _ end: "
+                  },
+                  {
+                    "link": "perceptual_color::Oklch/struct",
+                    "text": "Oklch"
+                  },
+                  {
+                    "text": ", _ t: f32) -> "
+                  },
+                  {
+                    "link": "perceptual_color::Oklch/struct",
+                    "text": "Oklch"
+                  }
+                ],
+                "sig_scope": "__sig__/perceptual_color::Oklch/struct/impl-7028/method.interpolate",
+                "signature": "pub fn interpolate(_ start: Oklch, _ end: Oklch, _ t: f32) -> Oklch"
+              }
+            ],
+            "rich_signature": [
+              {
+                "text": "impl "
+              },
+              {
+                "link": "perceptual_color::Oklch/struct",
+                "text": "Oklch"
+              }
+            ],
+            "sig_scope": "__sig__/perceptual_color::Oklch/struct/impl-7028",
+            "signature": "impl Oklch",
+            "trait_name": ""
+          }
+        ],
+        "visibility": "public",
         "where_bounds": []
       },
       {
@@ -447,10 +724,27 @@
         "source": {
           "column": 0,
           "display_file": "lib/perceptual_color/src/lib.fe",
-          "line": 8
+          "line": 27
         },
-        "source_text": "/// Cartesian OKLab: lightness L and signed chromatic axes a/b.\npub struct Color { pub l: f32, pub a: f32, pub b: f32 }",
-        "trait_impls": [],
+        "source_text": "/// Cartesian OKLab: lightness L and signed chromatic axes a/b.\npub struct Color {\n    pub l: f32,\n    pub a: f32,\n    pub b: f32,\n}",
+        "trait_impls": [
+          {
+            "impl_url": "perceptual_color::Color::impl_Copy/impl",
+            "methods": [],
+            "rich_signature": [
+              {
+                "text": "impl Copy for "
+              },
+              {
+                "link": "perceptual_color::Color/struct",
+                "text": "Color"
+              }
+            ],
+            "sig_scope": "__sig__/perceptual_color::Color/struct/impl-Copy",
+            "signature": "impl Copy for Color",
+            "trait_name": "Copy"
+          }
+        ],
         "visibility": "public",
         "where_bounds": []
       },
@@ -468,7 +762,7 @@
         "path": "perceptual_color::oklch",
         "rich_signature": [
           {
-            "text": "pub fn oklch(_ lightness:f32,_ chroma:f32,_ hue:f32) -> "
+            "text": "pub fn oklch(_ lightness: f32, _ chroma: f32, _ hue: f32) -> "
           },
           {
             "link": "perceptual_color::Color/struct",
@@ -476,13 +770,13 @@
           }
         ],
         "sig_scope": "__sig__/perceptual_color::oklch/fn",
-        "signature": "pub fn oklch(_ lightness:f32,_ chroma:f32,_ hue:f32) -> Color",
+        "signature": "pub fn oklch(_ lightness: f32, _ chroma: f32, _ hue: f32) -> Color",
         "source": {
           "column": 0,
           "display_file": "lib/perceptual_color/src/lib.fe",
-          "line": 10
+          "line": 63
         },
-        "source_text": "/// Construct Cartesian OKLab from lightness, chroma and hue in degrees.\npub fn oklch(_ lightness:f32,_ chroma:f32,_ hue:f32) -> Color {\n    let radians:f32=hue*0.017453292519943295\n    Color {l:lightness,a:chroma*cos(radians),b:chroma*sin(radians)}\n}",
+        "source_text": "/// Construct Cartesian OKLab from lightness, chroma and hue in degrees.\npub fn oklch(_ lightness: f32, _ chroma: f32, _ hue: f32) -> Color {\n    Oklch { l: lightness, chroma: chroma, hue: hue }.to_color()\n}",
         "trait_impls": [],
         "visibility": "public",
         "where_bounds": []
@@ -490,18 +784,77 @@
       {
         "children": [],
         "docs": {
-          "body": "Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n Signed chroma spans [-0.25,0.2495], with an exactly representable neutral.",
-          "html_body": "<p>Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.<br />\nSigned chroma spans [-0.25,0.2495], with an exactly representable neutral.</p>\n",
+          "body": "Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n Signed chroma spans [-0.25, 0.2495], with an exactly representable neutral.",
+          "html_body": "<p>Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.<br />\nSigned chroma spans [-0.25, 0.2495], with an exactly representable neutral.</p>\n",
           "sections": [],
-          "summary": "Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n Signed chroma spans [-0.25,0.2495], with an exactly representable neutral."
+          "summary": "Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n Signed chroma spans [-0.25, 0.2495], with an exactly representable neutral."
         },
+        "generics": [],
+        "kind": "function",
+        "name": "unpack_lab",
+        "path": "perceptual_color::unpack_lab",
+        "rich_signature": [
+          {
+            "text": "pub fn unpack_lab(_ bits: u32) -> "
+          },
+          {
+            "link": "perceptual_color::Color/struct",
+            "text": "Color"
+          }
+        ],
+        "sig_scope": "__sig__/perceptual_color::unpack_lab/fn",
+        "signature": "pub fn unpack_lab(_ bits: u32) -> Color",
+        "source": {
+          "column": 0,
+          "display_file": "lib/perceptual_color/src/lib.fe",
+          "line": 68
+        },
+        "source_text": "/// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n/// Signed chroma spans [-0.25, 0.2495], with an exactly representable neutral.\npub fn unpack_lab(_ bits: u32) -> Color {\n    Color {\n        l: from_i32(__bitcast<u32, i32>(bits & 4095)) / 4095.0,\n        a: (from_i32(__bitcast<u32, i32>((bits >> 12) & 1023)) - 512.0) / 2048.0,\n        b: (from_i32(__bitcast<u32, i32>((bits >> 22) & 1023)) - 512.0) / 2048.0,\n    }\n}",
+        "trait_impls": [],
+        "visibility": "public",
+        "where_bounds": []
+      },
+      {
+        "children": [],
+        "docs": null,
+        "generics": [],
+        "kind": "function",
+        "name": "pack_lab",
+        "path": "perceptual_color::pack_lab",
+        "rich_signature": [
+          {
+            "text": "pub fn pack_lab(_ c: "
+          },
+          {
+            "link": "perceptual_color::Color/struct",
+            "text": "Color"
+          },
+          {
+            "text": ") -> i32"
+          }
+        ],
+        "sig_scope": "__sig__/perceptual_color::pack_lab/fn",
+        "signature": "pub fn pack_lab(_ c: Color) -> i32",
+        "source": {
+          "column": 0,
+          "display_file": "lib/perceptual_color/src/lib.fe",
+          "line": 78
+        },
+        "source_text": "pub fn pack_lab(_ c: Color) -> i32 {\n    let l: u32 = __bitcast<i32, u32>(to_i32(clamp(c.l, 0.0, 1.0) * 4095.0 + 0.5))\n    let a: u32 = __bitcast<i32, u32>(to_i32(clamp(c.a * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    let b: u32 = __bitcast<i32, u32>(to_i32(clamp(c.b * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    __bitcast<u32, i32>((l & 4095) | ((a & 1023) << 12) | ((b & 1023) << 22))\n}",
+        "trait_impls": [],
+        "visibility": "public",
+        "where_bounds": []
+      },
+      {
+        "children": [],
+        "docs": null,
         "generics": [],
         "kind": "function",
         "name": "color",
         "path": "perceptual_color::color",
         "rich_signature": [
           {
-            "text": "pub fn color(_ bits:u32) -> "
+            "text": "pub fn color(_ bits: u32) -> "
           },
           {
             "link": "perceptual_color::Color/struct",
@@ -509,13 +862,13 @@
           }
         ],
         "sig_scope": "__sig__/perceptual_color::color/fn",
-        "signature": "pub fn color(_ bits:u32) -> Color",
+        "signature": "pub fn color(_ bits: u32) -> Color",
         "source": {
           "column": 0,
           "display_file": "lib/perceptual_color/src/lib.fe",
-          "line": 15
+          "line": 85
         },
-        "source_text": "/// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n/// Signed chroma spans [-0.25,0.2495], with an exactly representable neutral.\npub fn color(_ bits:u32) -> Color {\n    Color {l:from_i32(__bitcast<u32,i32>(bits&4095))/4095.0,\n        a:(from_i32(__bitcast<u32,i32>((bits>>12)&1023))-512.0)/2048.0,\n        b:(from_i32(__bitcast<u32,i32>((bits>>22)&1023))-512.0)/2048.0}\n}",
+        "source_text": "pub fn color(_ bits: u32) -> Color {\n    unpack_lab(bits)\n}",
         "trait_impls": [],
         "visibility": "public",
         "where_bounds": []
@@ -529,7 +882,7 @@
         "path": "perceptual_color::packed",
         "rich_signature": [
           {
-            "text": "pub fn packed(_ c:"
+            "text": "pub fn packed(_ c: "
           },
           {
             "link": "perceptual_color::Color/struct",
@@ -540,13 +893,13 @@
           }
         ],
         "sig_scope": "__sig__/perceptual_color::packed/fn",
-        "signature": "pub fn packed(_ c:Color) -> i32",
+        "signature": "pub fn packed(_ c: Color) -> i32",
         "source": {
           "column": 0,
           "display_file": "lib/perceptual_color/src/lib.fe",
-          "line": 22
+          "line": 89
         },
-        "source_text": "pub fn packed(_ c:Color) -> i32 {\n    let l:u32=__bitcast<i32,u32>(to_i32(clamp(c.l,0.0,1.0)*4095.0+0.5))\n    let a:u32=__bitcast<i32,u32>(to_i32(clamp(c.a*2048.0+512.0,0.0,1023.0)+0.5))\n    let b:u32=__bitcast<i32,u32>(to_i32(clamp(c.b*2048.0+512.0,0.0,1023.0)+0.5))\n    __bitcast<u32,i32>((l&4095)|((a&1023)<<12)|((b&1023)<<22))\n}",
+        "source_text": "pub fn packed(_ c: Color) -> i32 {\n    pack_lab(c)\n}",
         "trait_impls": [],
         "visibility": "public",
         "where_bounds": []
@@ -559,13 +912,13 @@
         "name": "srgb",
         "path": "perceptual_color::srgb",
         "sig_scope": "__sig__/perceptual_color::srgb/fn",
-        "signature": "fn srgb(_ linear:f32) -> f32",
+        "signature": "fn srgb(_ linear: f32) -> f32",
         "source": {
           "column": 0,
           "display_file": "lib/perceptual_color/src/lib.fe",
-          "line": 30
+          "line": 95
         },
-        "source_text": "fn srgb(_ linear:f32) -> f32 {\n    let x:f32=clamp(linear,0.0,1.0)\n    if x<=0.0031308 {return 12.92*x}\n    let s1:f32=sqrt(x)\n    let s2:f32=sqrt(s1)\n    let s3:f32=sqrt(s2)\n    clamp(0.662002687*s1+0.684122060*s2-0.323583601*s3-0.022541147*x,0.0,1.0)\n}",
+        "source_text": "fn srgb(_ linear: f32) -> f32 {\n    let x: f32 = clamp(linear, 0.0, 1.0)\n    if x <= 0.0031308 {\n        return 12.92 * x\n    }\n    let s1: f32 = sqrt(x)\n    let s2: f32 = sqrt(s1)\n    let s3: f32 = sqrt(s2)\n    clamp(0.662002687 * s1 + 0.684122060 * s2 - 0.323583601 * s3 - 0.022541147 * x, 0.0, 1.0)\n}",
         "trait_impls": [],
         "visibility": "private",
         "where_bounds": []
@@ -580,11 +933,42 @@
         },
         "generics": [],
         "kind": "function",
+        "name": "display_rgba",
+        "path": "perceptual_color::display_rgba",
+        "rich_signature": [
+          {
+            "text": "pub fn display_rgba(_ c: "
+          },
+          {
+            "link": "perceptual_color::Color/struct",
+            "text": "Color"
+          },
+          {
+            "text": ") -> i32"
+          }
+        ],
+        "sig_scope": "__sig__/perceptual_color::display_rgba/fn",
+        "signature": "pub fn display_rgba(_ c: Color) -> i32",
+        "source": {
+          "column": 0,
+          "display_file": "lib/perceptual_color/src/lib.fe",
+          "line": 106
+        },
+        "source_text": "/// Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer.\npub fn display_rgba(_ c: Color) -> i32 {\n    let lp: f32 = c.l + 0.3963377774 * c.a + 0.2158037573 * c.b\n    let mp: f32 = c.l - 0.1055613458 * c.a - 0.0638541728 * c.b\n    let sp: f32 = c.l - 0.0894841775 * c.a - 1.2914855480 * c.b\n    let l: f32 = lp * lp * lp\n    let m: f32 = mp * mp * mp\n    let s: f32 = sp * sp * sp\n    let r: u32 = __bitcast<i32, u32>(to_i32(srgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s) * 255.0 + 0.5))\n    let g: u32 = __bitcast<i32, u32>(to_i32(srgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s) * 255.0 + 0.5))\n    let b: u32 = __bitcast<i32, u32>(to_i32(srgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s) * 255.0 + 0.5))\n    __bitcast<u32, i32>((r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | 4278190080)\n}",
+        "trait_impls": [],
+        "visibility": "public",
+        "where_bounds": []
+      },
+      {
+        "children": [],
+        "docs": null,
+        "generics": [],
+        "kind": "function",
         "name": "rgba",
         "path": "perceptual_color::rgba",
         "rich_signature": [
           {
-            "text": "pub fn rgba(_ c:"
+            "text": "pub fn rgba(_ c: "
           },
           {
             "link": "perceptual_color::Color/struct",
@@ -595,13 +979,13 @@
           }
         ],
         "sig_scope": "__sig__/perceptual_color::rgba/fn",
-        "signature": "pub fn rgba(_ c:Color) -> i32",
+        "signature": "pub fn rgba(_ c: Color) -> i32",
         "source": {
           "column": 0,
           "display_file": "lib/perceptual_color/src/lib.fe",
-          "line": 38
+          "line": 120
         },
-        "source_text": "/// Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer.\npub fn rgba(_ c:Color) -> i32 {\n    let lp:f32=c.l+0.3963377774*c.a+0.2158037573*c.b\n    let mp:f32=c.l-0.1055613458*c.a-0.0638541728*c.b\n    let sp:f32=c.l-0.0894841775*c.a-1.2914855480*c.b\n    let l:f32=lp*lp*lp\n    let m:f32=mp*mp*mp\n    let s:f32=sp*sp*sp\n    let r:u32=__bitcast<i32,u32>(to_i32(srgb(4.0767416621*l-3.3077115913*m+0.2309699292*s)*255.0+0.5))\n    let g:u32=__bitcast<i32,u32>(to_i32(srgb(-1.2684380046*l+2.6097574011*m-0.3413193965*s)*255.0+0.5))\n    let b:u32=__bitcast<i32,u32>(to_i32(srgb(-0.0041960863*l-0.7034186147*m+1.7076147010*s)*255.0+0.5))\n    __bitcast<u32,i32>((r&255)|((g&255)<<8)|((b&255)<<16)|4278190080)\n}",
+        "source_text": "pub fn rgba(_ c: Color) -> i32 {\n    display_rgba(c)\n}",
         "trait_impls": [],
         "visibility": "public",
         "where_bounds": []
@@ -641,9 +1025,9 @@
         "source": {
           "column": 0,
           "display_file": "lib/perceptual_color/src/lib.fe",
-          "line": 51
+          "line": 124
         },
-        "source_text": "pub fn blend(_ a: Color, _ b: Color, _ t: f32) -> Color {\n    Color { l: mix(a.l, b.l, t), a: mix(a.a, b.a, t), b: mix(a.b, b.b, t) }\n}",
+        "source_text": "pub fn blend(_ a: Color, _ b: Color, _ t: f32) -> Color {\n    Color {\n        l: mix(a.l, b.l, t),\n        a: mix(a.a, b.a, t),\n        b: mix(a.b, b.b, t),\n    }\n}",
         "trait_impls": [],
         "visibility": "public",
         "where_bounds": []
@@ -671,8 +1055,13 @@
           {
             "kind": "function",
             "name": "color",
-            "path": "perceptual_color::color",
-            "summary": "Internal pixels pack L:12, a:10, b:10."
+            "path": "perceptual_color::color"
+          },
+          {
+            "kind": "function",
+            "name": "display_rgba",
+            "path": "perceptual_color::display_rgba",
+            "summary": "Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer."
           },
           {
             "kind": "function",
@@ -682,14 +1071,18 @@
           },
           {
             "kind": "function",
+            "name": "pack_lab",
+            "path": "perceptual_color::pack_lab"
+          },
+          {
+            "kind": "function",
             "name": "packed",
             "path": "perceptual_color::packed"
           },
           {
             "kind": "function",
             "name": "rgba",
-            "path": "perceptual_color::rgba",
-            "summary": "Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer."
+            "path": "perceptual_color::rgba"
           },
           {
             "kind": "function",
@@ -697,10 +1090,22 @@
             "path": "perceptual_color::srgb"
           },
           {
+            "kind": "function",
+            "name": "unpack_lab",
+            "path": "perceptual_color::unpack_lab",
+            "summary": "Internal pixels pack L:12, a:10, b:10."
+          },
+          {
             "kind": "struct",
             "name": "Color",
             "path": "perceptual_color::Color",
             "summary": "Cartesian OKLab: lightness L and signed chromatic axes a/b."
+          },
+          {
+            "kind": "struct",
+            "name": "Oklch",
+            "path": "perceptual_color::Oklch",
+            "summary": "Polar OKLCH: lightness L, non-negative chroma C, and hue in degrees."
           }
         ],
         "name": "perceptual_color",
@@ -712,539 +1117,816 @@
     "files": {
       "__sig__/perceptual_color/mod": [
         {
-          "ce": 9,
+          "ce": 8,
           "cs": 4,
           "line": 2,
+          "sym": "fe fe core 0.1.0 lib:"
+        },
+        {
+          "ce": 16,
+          "cs": 10,
+          "line": 2,
+          "sym": "fe fe core 0.1.0 lib/marker:"
+        },
+        {
+          "ce": 22,
+          "cs": 18,
+          "line": 2,
+          "sym": "fe fe core 0.1.0 lib/marker/Copy#"
+        },
+        {
+          "ce": 9,
+          "cs": 4,
+          "line": 3,
           "sym": "fe fe fmath 0.1.0 lib:"
         },
         {
           "ce": 20,
           "cs": 12,
-          "line": 2,
+          "line": 3,
           "sym": "fe fe fmath 0.1.0 lib/from_i32."
         },
         {
-          "ce": 27,
-          "cs": 21,
-          "line": 2,
+          "ce": 28,
+          "cs": 22,
+          "line": 3,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
-          "ce": 32,
-          "cs": 28,
-          "line": 2,
+          "ce": 34,
+          "cs": 30,
+          "line": 3,
           "sym": "fe fe fmath 0.1.0 lib/sqrt."
         },
         {
-          "ce": 36,
-          "cs": 33,
-          "line": 2,
+          "ce": 39,
+          "cs": 36,
+          "line": 3,
           "sym": "fe fe fmath 0.1.0 lib/mix."
-        },
-        {
-          "ce": 40,
-          "cs": 37,
-          "line": 2,
-          "sym": "fe fe fmath 0.1.0 lib/cos."
         },
         {
           "ce": 44,
           "cs": 41,
-          "line": 2,
+          "line": 3,
+          "sym": "fe fe fmath 0.1.0 lib/cos."
+        },
+        {
+          "ce": 49,
+          "cs": 46,
+          "line": 3,
           "sym": "fe fe fmath 0.1.0 lib/sin."
         },
         {
-          "ce": 27,
-          "cs": 18,
+          "ce": 22,
+          "cs": 13,
           "def": true,
-          "line": 3,
+          "line": 6,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
-          "ce": 32,
-          "cs": 28,
+          "ce": 27,
+          "cs": 23,
           "def": true,
-          "line": 3,
+          "line": 6,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast.[From]"
         },
         {
-          "ce": 35,
-          "cs": 33,
+          "ce": 31,
+          "cs": 29,
           "def": true,
-          "line": 3,
+          "line": 6,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast.[To]"
         },
         {
-          "ce": 43,
-          "cs": 39,
-          "line": 3,
+          "ce": 40,
+          "cs": 36,
+          "line": 6,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast.[From]"
         },
         {
-          "ce": 50,
-          "cs": 48,
-          "line": 3,
+          "ce": 47,
+          "cs": 45,
+          "line": 6,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast.[To]"
         },
         {
           "ce": 8,
           "cs": 3,
           "def": true,
-          "line": 4,
+          "line": 9,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
           "ce": 16,
           "cs": 11,
           "def": true,
-          "line": 8,
-          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+          "line": 18,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
         },
         {
-          "ce": 24,
-          "cs": 23,
+          "ce": 9,
+          "cs": 8,
           "def": true,
-          "line": 8,
-          "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
+          "line": 19,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#l."
         },
         {
-          "ce": 36,
-          "cs": 35,
+          "ce": 14,
+          "cs": 8,
           "def": true,
-          "line": 8,
-          "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
+          "line": 20,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
         },
         {
-          "ce": 48,
-          "cs": 47,
+          "ce": 11,
+          "cs": 8,
           "def": true,
-          "line": 8,
-          "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
+          "line": 21,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
         },
         {
-          "ce": 12,
-          "cs": 7,
+          "ce": 9,
+          "cs": 5,
+          "line": 24,
+          "sym": "fe fe core 0.1.0 lib/marker/Copy#"
+        },
+        {
+          "ce": 19,
+          "cs": 14,
+          "line": 24,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        },
+        {
+          "ce": 16,
+          "cs": 11,
           "def": true,
-          "line": 10,
-          "sym": "fe fe perceptual_color 0.1.0 lib/oklch."
-        },
-        {
-          "ce": 61,
-          "cs": 56,
-          "line": 10,
+          "line": 27,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 9,
-          "cs": 4,
-          "line": 12,
+          "cs": 8,
+          "def": true,
+          "line": 28,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
+        },
+        {
+          "ce": 9,
+          "cs": 8,
+          "def": true,
+          "line": 29,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
+        },
+        {
+          "ce": 9,
+          "cs": 8,
+          "def": true,
+          "line": 30,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
+        },
+        {
+          "ce": 9,
+          "cs": 5,
+          "line": 33,
+          "sym": "fe fe core 0.1.0 lib/marker/Copy#"
+        },
+        {
+          "ce": 19,
+          "cs": 14,
+          "line": 33,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        },
+        {
+          "ce": 10,
+          "cs": 5,
+          "line": 35,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        },
+        {
+          "ce": 24,
+          "cs": 20,
+          "line": 37,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        },
+        {
+          "ce": 34,
+          "cs": 29,
+          "line": 37,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        },
+        {
+          "ce": 31,
+          "cs": 27,
+          "line": 38,
+          "sym": "fe fe perceptual_color 0.1.0 lib:"
         },
         {
           "ce": 35,
           "cs": 32,
-          "line": 12,
+          "line": 38,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 13,
+          "cs": 8,
+          "line": 39,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        },
+        {
+          "ce": 19,
+          "cs": 15,
+          "line": 40,
+          "sym": "fe fe perceptual_color 0.1.0 lib:"
+        },
+        {
+          "ce": 21,
+          "cs": 20,
+          "line": 40,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#l."
+        },
+        {
+          "ce": 19,
+          "cs": 15,
+          "line": 41,
+          "sym": "fe fe perceptual_color 0.1.0 lib:"
+        },
+        {
+          "ce": 26,
+          "cs": 20,
+          "line": 41,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
+        },
+        {
+          "ce": 32,
+          "cs": 29,
+          "line": 41,
           "sym": "fe fe fmath 0.1.0 lib/cos."
         },
         {
-          "ce": 57,
-          "cs": 54,
-          "line": 12,
+          "ce": 19,
+          "cs": 15,
+          "line": 42,
+          "sym": "fe fe perceptual_color 0.1.0 lib:"
+        },
+        {
+          "ce": 26,
+          "cs": 20,
+          "line": 42,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
+        },
+        {
+          "ce": 32,
+          "cs": 29,
+          "line": 42,
           "sym": "fe fe fmath 0.1.0 lib/sin."
+        },
+        {
+          "ce": 37,
+          "cs": 32,
+          "line": 47,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        },
+        {
+          "ce": 51,
+          "cs": 46,
+          "line": 47,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        },
+        {
+          "ce": 71,
+          "cs": 66,
+          "line": 47,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        },
+        {
+          "ce": 32,
+          "cs": 29,
+          "line": 48,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 44,
+          "cs": 41,
+          "line": 48,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 13,
+          "cs": 8,
+          "line": 54,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        },
+        {
+          "ce": 22,
+          "cs": 21,
+          "line": 55,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#l."
+        },
+        {
+          "ce": 31,
+          "cs": 30,
+          "line": 55,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#l."
+        },
+        {
+          "ce": 41,
+          "cs": 40,
+          "line": 55,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#l."
+        },
+        {
+          "ce": 32,
+          "cs": 26,
+          "line": 56,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
+        },
+        {
+          "ce": 46,
+          "cs": 40,
+          "line": 56,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
+        },
+        {
+          "ce": 61,
+          "cs": 55,
+          "line": 56,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
+        },
+        {
+          "ce": 26,
+          "cs": 23,
+          "line": 57,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
         },
         {
           "ce": 12,
           "cs": 7,
           "def": true,
-          "line": 16,
-          "sym": "fe fe perceptual_color 0.1.0 lib/color."
+          "line": 63,
+          "sym": "fe fe perceptual_color 0.1.0 lib/oklch."
         },
         {
-          "ce": 33,
-          "cs": 28,
-          "line": 16,
+          "ce": 66,
+          "cs": 61,
+          "line": 63,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 9,
           "cs": 4,
-          "line": 17,
-          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+          "line": 64,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
         },
         {
-          "ce": 21,
-          "cs": 13,
-          "line": 17,
-          "sym": "fe fe fmath 0.1.0 lib/from_i32."
-        },
-        {
-          "ce": 31,
-          "cs": 22,
-          "line": 17,
-          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
-        },
-        {
-          "ce": 19,
-          "cs": 11,
-          "line": 18,
-          "sym": "fe fe fmath 0.1.0 lib/from_i32."
-        },
-        {
-          "ce": 29,
-          "cs": 20,
-          "line": 18,
-          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
-        },
-        {
-          "ce": 19,
-          "cs": 11,
-          "line": 19,
-          "sym": "fe fe fmath 0.1.0 lib/from_i32."
-        },
-        {
-          "ce": 29,
-          "cs": 20,
-          "line": 19,
-          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
-        },
-        {
-          "ce": 13,
+          "ce": 17,
           "cs": 7,
           "def": true,
-          "line": 21,
-          "sym": "fe fe perceptual_color 0.1.0 lib/packed."
-        },
-        {
-          "ce": 23,
-          "cs": 18,
-          "line": 21,
-          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
-        },
-        {
-          "ce": 23,
-          "cs": 14,
-          "line": 22,
-          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+          "line": 69,
+          "sym": "fe fe perceptual_color 0.1.0 lib/unpack_lab."
         },
         {
           "ce": 39,
-          "cs": 33,
-          "line": 22,
+          "cs": 34,
+          "line": 69,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        },
+        {
+          "ce": 9,
+          "cs": 4,
+          "line": 70,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        },
+        {
+          "ce": 19,
+          "cs": 11,
+          "line": 71,
+          "sym": "fe fe fmath 0.1.0 lib/from_i32."
+        },
+        {
+          "ce": 29,
+          "cs": 20,
+          "line": 71,
+          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+        },
+        {
+          "ce": 20,
+          "cs": 12,
+          "line": 72,
+          "sym": "fe fe fmath 0.1.0 lib/from_i32."
+        },
+        {
+          "ce": 30,
+          "cs": 21,
+          "line": 72,
+          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+        },
+        {
+          "ce": 20,
+          "cs": 12,
+          "line": 73,
+          "sym": "fe fe fmath 0.1.0 lib/from_i32."
+        },
+        {
+          "ce": 30,
+          "cs": 21,
+          "line": 73,
+          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+        },
+        {
+          "ce": 15,
+          "cs": 7,
+          "def": true,
+          "line": 77,
+          "sym": "fe fe perceptual_color 0.1.0 lib/pack_lab."
+        },
+        {
+          "ce": 26,
+          "cs": 21,
+          "line": 77,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        },
+        {
+          "ce": 26,
+          "cs": 17,
+          "line": 78,
+          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+        },
+        {
+          "ce": 43,
+          "cs": 37,
+          "line": 78,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
-          "ce": 45,
-          "cs": 40,
-          "line": 22,
+          "ce": 49,
+          "cs": 44,
+          "line": 78,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
-          "ce": 49,
-          "cs": 48,
-          "line": 22,
+          "ce": 53,
+          "cs": 52,
+          "line": 78,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         },
         {
-          "ce": 23,
-          "cs": 14,
-          "line": 23,
+          "ce": 26,
+          "cs": 17,
+          "line": 79,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
-          "ce": 39,
-          "cs": 33,
-          "line": 23,
+          "ce": 43,
+          "cs": 37,
+          "line": 79,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
-          "ce": 45,
-          "cs": 40,
-          "line": 23,
+          "ce": 49,
+          "cs": 44,
+          "line": 79,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
-          "ce": 49,
-          "cs": 48,
-          "line": 23,
+          "ce": 53,
+          "cs": 52,
+          "line": 79,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
         },
         {
-          "ce": 23,
-          "cs": 14,
-          "line": 24,
+          "ce": 26,
+          "cs": 17,
+          "line": 80,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
-          "ce": 39,
-          "cs": 33,
-          "line": 24,
+          "ce": 43,
+          "cs": 37,
+          "line": 80,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
-          "ce": 45,
-          "cs": 40,
-          "line": 24,
+          "ce": 49,
+          "cs": 44,
+          "line": 80,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
-          "ce": 49,
-          "cs": 48,
-          "line": 24,
+          "ce": 53,
+          "cs": 52,
+          "line": 80,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
         },
         {
           "ce": 13,
           "cs": 4,
-          "line": 25,
+          "line": 81,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+        },
+        {
+          "ce": 12,
+          "cs": 7,
+          "def": true,
+          "line": 84,
+          "sym": "fe fe perceptual_color 0.1.0 lib/color."
+        },
+        {
+          "ce": 34,
+          "cs": 29,
+          "line": 84,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        },
+        {
+          "ce": 14,
+          "cs": 4,
+          "line": 85,
+          "sym": "fe fe perceptual_color 0.1.0 lib/unpack_lab."
+        },
+        {
+          "ce": 13,
+          "cs": 7,
+          "def": true,
+          "line": 88,
+          "sym": "fe fe perceptual_color 0.1.0 lib/packed."
+        },
+        {
+          "ce": 24,
+          "cs": 19,
+          "line": 88,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        },
+        {
+          "ce": 12,
+          "cs": 4,
+          "line": 89,
+          "sym": "fe fe perceptual_color 0.1.0 lib/pack_lab."
         },
         {
           "ce": 7,
           "cs": 3,
           "def": true,
-          "line": 29,
+          "line": 94,
           "sym": "fe fe perceptual_color 0.1.0 lib/srgb."
         },
         {
-          "ce": 19,
-          "cs": 14,
-          "line": 30,
+          "ce": 22,
+          "cs": 17,
+          "line": 95,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
-          "ce": 19,
-          "cs": 15,
-          "line": 32,
+          "ce": 22,
+          "cs": 18,
+          "line": 99,
           "sym": "fe fe fmath 0.1.0 lib/sqrt."
         },
         {
-          "ce": 19,
-          "cs": 15,
-          "line": 33,
+          "ce": 22,
+          "cs": 18,
+          "line": 100,
           "sym": "fe fe fmath 0.1.0 lib/sqrt."
         },
         {
-          "ce": 19,
-          "cs": 15,
-          "line": 34,
+          "ce": 22,
+          "cs": 18,
+          "line": 101,
           "sym": "fe fe fmath 0.1.0 lib/sqrt."
         },
         {
           "ce": 9,
           "cs": 4,
-          "line": 35,
+          "line": 102,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
-          "ce": 11,
+          "ce": 19,
           "cs": 7,
           "def": true,
-          "line": 38,
-          "sym": "fe fe perceptual_color 0.1.0 lib/rgba."
+          "line": 106,
+          "sym": "fe fe perceptual_color 0.1.0 lib/display_rgba."
         },
         {
-          "ce": 21,
-          "cs": 16,
-          "line": 38,
+          "ce": 30,
+          "cs": 25,
+          "line": 106,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
-          "ce": 18,
-          "cs": 17,
-          "line": 39,
+          "ce": 21,
+          "cs": 20,
+          "line": 107,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         },
         {
-          "ce": 35,
-          "cs": 34,
-          "line": 39,
+          "ce": 42,
+          "cs": 41,
+          "line": 107,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
         },
         {
-          "ce": 52,
-          "cs": 51,
-          "line": 39,
+          "ce": 63,
+          "cs": 62,
+          "line": 107,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
         },
         {
-          "ce": 18,
-          "cs": 17,
-          "line": 40,
+          "ce": 21,
+          "cs": 20,
+          "line": 108,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         },
         {
-          "ce": 35,
-          "cs": 34,
-          "line": 40,
+          "ce": 42,
+          "cs": 41,
+          "line": 108,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
         },
         {
-          "ce": 52,
-          "cs": 51,
-          "line": 40,
+          "ce": 63,
+          "cs": 62,
+          "line": 108,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
         },
         {
-          "ce": 18,
-          "cs": 17,
-          "line": 41,
+          "ce": 21,
+          "cs": 20,
+          "line": 109,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         },
         {
-          "ce": 35,
-          "cs": 34,
-          "line": 41,
+          "ce": 42,
+          "cs": 41,
+          "line": 109,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
         },
         {
-          "ce": 52,
-          "cs": 51,
-          "line": 41,
+          "ce": 63,
+          "cs": 62,
+          "line": 109,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
         },
         {
-          "ce": 23,
-          "cs": 14,
-          "line": 45,
+          "ce": 26,
+          "cs": 17,
+          "line": 113,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
-          "ce": 39,
-          "cs": 33,
-          "line": 45,
+          "ce": 43,
+          "cs": 37,
+          "line": 113,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
-          "ce": 44,
-          "cs": 40,
-          "line": 45,
+          "ce": 48,
+          "cs": 44,
+          "line": 113,
           "sym": "fe fe perceptual_color 0.1.0 lib/srgb."
         },
         {
-          "ce": 23,
-          "cs": 14,
-          "line": 46,
+          "ce": 26,
+          "cs": 17,
+          "line": 114,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
-          "ce": 39,
-          "cs": 33,
-          "line": 46,
+          "ce": 43,
+          "cs": 37,
+          "line": 114,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
-          "ce": 44,
-          "cs": 40,
-          "line": 46,
+          "ce": 48,
+          "cs": 44,
+          "line": 114,
           "sym": "fe fe perceptual_color 0.1.0 lib/srgb."
         },
         {
-          "ce": 23,
-          "cs": 14,
-          "line": 47,
+          "ce": 26,
+          "cs": 17,
+          "line": 115,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
-          "ce": 39,
-          "cs": 33,
-          "line": 47,
+          "ce": 43,
+          "cs": 37,
+          "line": 115,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
-          "ce": 44,
-          "cs": 40,
-          "line": 47,
+          "ce": 48,
+          "cs": 44,
+          "line": 115,
           "sym": "fe fe perceptual_color 0.1.0 lib/srgb."
         },
         {
           "ce": 13,
           "cs": 4,
-          "line": 48,
+          "line": 116,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+        },
+        {
+          "ce": 11,
+          "cs": 7,
+          "def": true,
+          "line": 119,
+          "sym": "fe fe perceptual_color 0.1.0 lib/rgba."
+        },
+        {
+          "ce": 22,
+          "cs": 17,
+          "line": 119,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        },
+        {
+          "ce": 16,
+          "cs": 4,
+          "line": 120,
+          "sym": "fe fe perceptual_color 0.1.0 lib/display_rgba."
         },
         {
           "ce": 12,
           "cs": 7,
           "def": true,
-          "line": 50,
+          "line": 123,
           "sym": "fe fe perceptual_color 0.1.0 lib/blend."
         },
         {
           "ce": 23,
           "cs": 18,
-          "line": 50,
+          "line": 123,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 35,
           "cs": 30,
-          "line": 50,
+          "line": 123,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 55,
           "cs": 50,
-          "line": 50,
+          "line": 123,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 9,
           "cs": 4,
-          "line": 51,
+          "line": 124,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
+          "ce": 14,
+          "cs": 11,
+          "line": 125,
+          "sym": "fe fe fmath 0.1.0 lib/mix."
+        },
+        {
           "ce": 18,
-          "cs": 15,
-          "line": 51,
-          "sym": "fe fe fmath 0.1.0 lib/mix."
-        },
-        {
-          "ce": 22,
-          "cs": 21,
-          "line": 51,
+          "cs": 17,
+          "line": 125,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         },
         {
-          "ce": 27,
-          "cs": 26,
-          "line": 51,
+          "ce": 23,
+          "cs": 22,
+          "line": 125,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         },
         {
-          "ce": 39,
-          "cs": 36,
-          "line": 51,
+          "ce": 14,
+          "cs": 11,
+          "line": 126,
           "sym": "fe fe fmath 0.1.0 lib/mix."
         },
         {
-          "ce": 43,
-          "cs": 42,
-          "line": 51,
+          "ce": 18,
+          "cs": 17,
+          "line": 126,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
         },
         {
-          "ce": 48,
-          "cs": 47,
-          "line": 51,
+          "ce": 23,
+          "cs": 22,
+          "line": 126,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
         },
         {
-          "ce": 60,
-          "cs": 57,
-          "line": 51,
+          "ce": 14,
+          "cs": 11,
+          "line": 127,
           "sym": "fe fe fmath 0.1.0 lib/mix."
         },
         {
-          "ce": 64,
-          "cs": 63,
-          "line": 51,
+          "ce": 18,
+          "cs": 17,
+          "line": 127,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
         },
         {
-          "ce": 69,
-          "cs": 68,
-          "line": 51,
+          "ce": 23,
+          "cs": 22,
+          "line": 127,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
         }
       ],
@@ -1284,37 +1966,143 @@
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         }
       ],
+      "__sig__/perceptual_color::Color/struct/impl-Copy": [
+        {
+          "ce": 9,
+          "cs": 5,
+          "line": 0,
+          "sym": "fe fe core 0.1.0 lib/marker/Copy#"
+        },
+        {
+          "ce": 19,
+          "cs": 14,
+          "line": 0,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        }
+      ],
+      "__sig__/perceptual_color::Oklch/struct": [
+        {
+          "ce": 16,
+          "cs": 11,
+          "def": true,
+          "line": 0,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        }
+      ],
+      "__sig__/perceptual_color::Oklch/struct/field.chroma": [
+        {
+          "ce": 6,
+          "cs": 0,
+          "def": true,
+          "line": 0,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
+        }
+      ],
+      "__sig__/perceptual_color::Oklch/struct/field.hue": [
+        {
+          "ce": 3,
+          "cs": 0,
+          "def": true,
+          "line": 0,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        }
+      ],
+      "__sig__/perceptual_color::Oklch/struct/field.l": [
+        {
+          "ce": 1,
+          "cs": 0,
+          "def": true,
+          "line": 0,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#l."
+        }
+      ],
+      "__sig__/perceptual_color::Oklch/struct/impl-7028": [
+        {
+          "ce": 10,
+          "cs": 5,
+          "line": 0,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        }
+      ],
+      "__sig__/perceptual_color::Oklch/struct/impl-7028/method.interpolate": [
+        {
+          "ce": 33,
+          "cs": 28,
+          "line": 0,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        },
+        {
+          "ce": 47,
+          "cs": 42,
+          "line": 0,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        },
+        {
+          "ce": 67,
+          "cs": 62,
+          "line": 0,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        }
+      ],
+      "__sig__/perceptual_color::Oklch/struct/impl-7028/method.to_color": [
+        {
+          "ce": 20,
+          "cs": 16,
+          "line": 0,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        },
+        {
+          "ce": 30,
+          "cs": 25,
+          "line": 0,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        }
+      ],
+      "__sig__/perceptual_color::Oklch/struct/impl-Copy": [
+        {
+          "ce": 9,
+          "cs": 5,
+          "line": 0,
+          "sym": "fe fe core 0.1.0 lib/marker/Copy#"
+        },
+        {
+          "ce": 19,
+          "cs": 14,
+          "line": 0,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        }
+      ],
       "__sig__/perceptual_color::__bitcast/fn": [
         {
-          "ce": 27,
-          "cs": 18,
+          "ce": 18,
+          "cs": 9,
           "def": true,
           "line": 0,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
-          "ce": 32,
-          "cs": 28,
+          "ce": 23,
+          "cs": 19,
           "def": true,
           "line": 0,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast.[From]"
         },
         {
-          "ce": 35,
-          "cs": 33,
+          "ce": 27,
+          "cs": 25,
           "def": true,
           "line": 0,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast.[To]"
         },
         {
-          "ce": 43,
-          "cs": 39,
+          "ce": 36,
+          "cs": 32,
           "line": 0,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast.[From]"
         },
         {
-          "ce": 50,
-          "cs": 48,
+          "ce": 43,
+          "cs": 41,
           "line": 0,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast.[To]"
         }
@@ -1364,8 +2152,23 @@
           "sym": "fe fe perceptual_color 0.1.0 lib/color."
         },
         {
-          "ce": 33,
-          "cs": 28,
+          "ce": 34,
+          "cs": 29,
+          "line": 0,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        }
+      ],
+      "__sig__/perceptual_color::display_rgba/fn": [
+        {
+          "ce": 19,
+          "cs": 7,
+          "def": true,
+          "line": 0,
+          "sym": "fe fe perceptual_color 0.1.0 lib/display_rgba."
+        },
+        {
+          "ce": 30,
+          "cs": 25,
           "line": 0,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         }
@@ -1379,8 +2182,23 @@
           "sym": "fe fe perceptual_color 0.1.0 lib/oklch."
         },
         {
-          "ce": 61,
-          "cs": 56,
+          "ce": 66,
+          "cs": 61,
+          "line": 0,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        }
+      ],
+      "__sig__/perceptual_color::pack_lab/fn": [
+        {
+          "ce": 15,
+          "cs": 7,
+          "def": true,
+          "line": 0,
+          "sym": "fe fe perceptual_color 0.1.0 lib/pack_lab."
+        },
+        {
+          "ce": 26,
+          "cs": 21,
           "line": 0,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         }
@@ -1394,8 +2212,8 @@
           "sym": "fe fe perceptual_color 0.1.0 lib/packed."
         },
         {
-          "ce": 23,
-          "cs": 18,
+          "ce": 24,
+          "cs": 19,
           "line": 0,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         }
@@ -1409,8 +2227,8 @@
           "sym": "fe fe perceptual_color 0.1.0 lib/rgba."
         },
         {
-          "ce": 21,
-          "cs": 16,
+          "ce": 22,
+          "cs": 17,
           "line": 0,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         }
@@ -1424,546 +2242,850 @@
           "sym": "fe fe perceptual_color 0.1.0 lib/srgb."
         }
       ],
+      "__sig__/perceptual_color::unpack_lab/fn": [
+        {
+          "ce": 17,
+          "cs": 7,
+          "def": true,
+          "line": 0,
+          "sym": "fe fe perceptual_color 0.1.0 lib/unpack_lab."
+        },
+        {
+          "ce": 39,
+          "cs": 34,
+          "line": 0,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        }
+      ],
       "src/lib.fe": [
+        {
+          "ce": 8,
+          "cs": 4,
+          "line": 2,
+          "sym": "fe fe core 0.1.0 lib:"
+        },
+        {
+          "ce": 16,
+          "cs": 10,
+          "line": 2,
+          "sym": "fe fe core 0.1.0 lib/marker:"
+        },
+        {
+          "ce": 22,
+          "cs": 18,
+          "line": 2,
+          "sym": "fe fe core 0.1.0 lib/marker/Copy#"
+        },
         {
           "ce": 9,
           "cs": 4,
-          "line": 2,
+          "line": 3,
           "sym": "fe fe fmath 0.1.0 lib:"
         },
         {
           "ce": 20,
           "cs": 12,
-          "line": 2,
+          "line": 3,
           "sym": "fe fe fmath 0.1.0 lib/from_i32."
         },
         {
-          "ce": 27,
-          "cs": 21,
-          "line": 2,
+          "ce": 28,
+          "cs": 22,
+          "line": 3,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
-          "ce": 32,
-          "cs": 28,
-          "line": 2,
+          "ce": 34,
+          "cs": 30,
+          "line": 3,
           "sym": "fe fe fmath 0.1.0 lib/sqrt."
         },
         {
-          "ce": 36,
-          "cs": 33,
-          "line": 2,
+          "ce": 39,
+          "cs": 36,
+          "line": 3,
           "sym": "fe fe fmath 0.1.0 lib/mix."
-        },
-        {
-          "ce": 40,
-          "cs": 37,
-          "line": 2,
-          "sym": "fe fe fmath 0.1.0 lib/cos."
         },
         {
           "ce": 44,
           "cs": 41,
-          "line": 2,
+          "line": 3,
+          "sym": "fe fe fmath 0.1.0 lib/cos."
+        },
+        {
+          "ce": 49,
+          "cs": 46,
+          "line": 3,
           "sym": "fe fe fmath 0.1.0 lib/sin."
         },
         {
-          "ce": 27,
-          "cs": 18,
+          "ce": 22,
+          "cs": 13,
           "def": true,
-          "line": 3,
+          "line": 6,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
-          "ce": 32,
-          "cs": 28,
+          "ce": 27,
+          "cs": 23,
           "def": true,
-          "line": 3,
+          "line": 6,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast.[From]"
         },
         {
-          "ce": 35,
-          "cs": 33,
+          "ce": 31,
+          "cs": 29,
           "def": true,
-          "line": 3,
+          "line": 6,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast.[To]"
         },
         {
-          "ce": 43,
-          "cs": 39,
-          "line": 3,
+          "ce": 40,
+          "cs": 36,
+          "line": 6,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast.[From]"
         },
         {
-          "ce": 50,
-          "cs": 48,
-          "line": 3,
+          "ce": 47,
+          "cs": 45,
+          "line": 6,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast.[To]"
         },
         {
           "ce": 8,
           "cs": 3,
           "def": true,
-          "line": 4,
+          "line": 9,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
           "ce": 16,
           "cs": 11,
           "def": true,
-          "line": 8,
-          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+          "line": 18,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
         },
         {
-          "ce": 24,
-          "cs": 23,
+          "ce": 9,
+          "cs": 8,
           "def": true,
-          "line": 8,
-          "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
+          "line": 19,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#l."
         },
         {
-          "ce": 36,
-          "cs": 35,
+          "ce": 14,
+          "cs": 8,
           "def": true,
-          "line": 8,
-          "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
+          "line": 20,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
         },
         {
-          "ce": 48,
-          "cs": 47,
+          "ce": 11,
+          "cs": 8,
           "def": true,
-          "line": 8,
-          "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
+          "line": 21,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
         },
         {
-          "ce": 12,
-          "cs": 7,
+          "ce": 9,
+          "cs": 5,
+          "line": 24,
+          "sym": "fe fe core 0.1.0 lib/marker/Copy#"
+        },
+        {
+          "ce": 19,
+          "cs": 14,
+          "line": 24,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        },
+        {
+          "ce": 16,
+          "cs": 11,
           "def": true,
-          "line": 10,
-          "sym": "fe fe perceptual_color 0.1.0 lib/oklch."
-        },
-        {
-          "ce": 61,
-          "cs": 56,
-          "line": 10,
+          "line": 27,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 9,
-          "cs": 4,
-          "line": 12,
+          "cs": 8,
+          "def": true,
+          "line": 28,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
+        },
+        {
+          "ce": 9,
+          "cs": 8,
+          "def": true,
+          "line": 29,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
+        },
+        {
+          "ce": 9,
+          "cs": 8,
+          "def": true,
+          "line": 30,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
+        },
+        {
+          "ce": 9,
+          "cs": 5,
+          "line": 33,
+          "sym": "fe fe core 0.1.0 lib/marker/Copy#"
+        },
+        {
+          "ce": 19,
+          "cs": 14,
+          "line": 33,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        },
+        {
+          "ce": 10,
+          "cs": 5,
+          "line": 35,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        },
+        {
+          "ce": 24,
+          "cs": 20,
+          "line": 37,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        },
+        {
+          "ce": 34,
+          "cs": 29,
+          "line": 37,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        },
+        {
+          "ce": 31,
+          "cs": 27,
+          "line": 38,
+          "sym": "fe fe perceptual_color 0.1.0 lib:"
         },
         {
           "ce": 35,
           "cs": 32,
-          "line": 12,
+          "line": 38,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 13,
+          "cs": 8,
+          "line": 39,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        },
+        {
+          "ce": 19,
+          "cs": 15,
+          "line": 40,
+          "sym": "fe fe perceptual_color 0.1.0 lib:"
+        },
+        {
+          "ce": 21,
+          "cs": 20,
+          "line": 40,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#l."
+        },
+        {
+          "ce": 19,
+          "cs": 15,
+          "line": 41,
+          "sym": "fe fe perceptual_color 0.1.0 lib:"
+        },
+        {
+          "ce": 26,
+          "cs": 20,
+          "line": 41,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
+        },
+        {
+          "ce": 32,
+          "cs": 29,
+          "line": 41,
           "sym": "fe fe fmath 0.1.0 lib/cos."
         },
         {
-          "ce": 57,
-          "cs": 54,
-          "line": 12,
+          "ce": 19,
+          "cs": 15,
+          "line": 42,
+          "sym": "fe fe perceptual_color 0.1.0 lib:"
+        },
+        {
+          "ce": 26,
+          "cs": 20,
+          "line": 42,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
+        },
+        {
+          "ce": 32,
+          "cs": 29,
+          "line": 42,
           "sym": "fe fe fmath 0.1.0 lib/sin."
+        },
+        {
+          "ce": 37,
+          "cs": 32,
+          "line": 47,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        },
+        {
+          "ce": 51,
+          "cs": 46,
+          "line": 47,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        },
+        {
+          "ce": 71,
+          "cs": 66,
+          "line": 47,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        },
+        {
+          "ce": 32,
+          "cs": 29,
+          "line": 48,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 44,
+          "cs": 41,
+          "line": 48,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 13,
+          "cs": 8,
+          "line": 54,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
+        },
+        {
+          "ce": 22,
+          "cs": 21,
+          "line": 55,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#l."
+        },
+        {
+          "ce": 31,
+          "cs": 30,
+          "line": 55,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#l."
+        },
+        {
+          "ce": 41,
+          "cs": 40,
+          "line": 55,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#l."
+        },
+        {
+          "ce": 32,
+          "cs": 26,
+          "line": 56,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
+        },
+        {
+          "ce": 46,
+          "cs": 40,
+          "line": 56,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
+        },
+        {
+          "ce": 61,
+          "cs": 55,
+          "line": 56,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
+        },
+        {
+          "ce": 26,
+          "cs": 23,
+          "line": 57,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
         },
         {
           "ce": 12,
           "cs": 7,
           "def": true,
-          "line": 16,
-          "sym": "fe fe perceptual_color 0.1.0 lib/color."
+          "line": 63,
+          "sym": "fe fe perceptual_color 0.1.0 lib/oklch."
         },
         {
-          "ce": 33,
-          "cs": 28,
-          "line": 16,
+          "ce": 66,
+          "cs": 61,
+          "line": 63,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 9,
           "cs": 4,
-          "line": 17,
-          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+          "line": 64,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
         },
         {
-          "ce": 21,
-          "cs": 13,
-          "line": 17,
-          "sym": "fe fe fmath 0.1.0 lib/from_i32."
-        },
-        {
-          "ce": 31,
-          "cs": 22,
-          "line": 17,
-          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
-        },
-        {
-          "ce": 19,
-          "cs": 11,
-          "line": 18,
-          "sym": "fe fe fmath 0.1.0 lib/from_i32."
-        },
-        {
-          "ce": 29,
-          "cs": 20,
-          "line": 18,
-          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
-        },
-        {
-          "ce": 19,
-          "cs": 11,
-          "line": 19,
-          "sym": "fe fe fmath 0.1.0 lib/from_i32."
-        },
-        {
-          "ce": 29,
-          "cs": 20,
-          "line": 19,
-          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
-        },
-        {
-          "ce": 13,
+          "ce": 17,
           "cs": 7,
           "def": true,
-          "line": 21,
-          "sym": "fe fe perceptual_color 0.1.0 lib/packed."
-        },
-        {
-          "ce": 23,
-          "cs": 18,
-          "line": 21,
-          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
-        },
-        {
-          "ce": 23,
-          "cs": 14,
-          "line": 22,
-          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+          "line": 69,
+          "sym": "fe fe perceptual_color 0.1.0 lib/unpack_lab."
         },
         {
           "ce": 39,
-          "cs": 33,
-          "line": 22,
+          "cs": 34,
+          "line": 69,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        },
+        {
+          "ce": 9,
+          "cs": 4,
+          "line": 70,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        },
+        {
+          "ce": 19,
+          "cs": 11,
+          "line": 71,
+          "sym": "fe fe fmath 0.1.0 lib/from_i32."
+        },
+        {
+          "ce": 29,
+          "cs": 20,
+          "line": 71,
+          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+        },
+        {
+          "ce": 20,
+          "cs": 12,
+          "line": 72,
+          "sym": "fe fe fmath 0.1.0 lib/from_i32."
+        },
+        {
+          "ce": 30,
+          "cs": 21,
+          "line": 72,
+          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+        },
+        {
+          "ce": 20,
+          "cs": 12,
+          "line": 73,
+          "sym": "fe fe fmath 0.1.0 lib/from_i32."
+        },
+        {
+          "ce": 30,
+          "cs": 21,
+          "line": 73,
+          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+        },
+        {
+          "ce": 15,
+          "cs": 7,
+          "def": true,
+          "line": 77,
+          "sym": "fe fe perceptual_color 0.1.0 lib/pack_lab."
+        },
+        {
+          "ce": 26,
+          "cs": 21,
+          "line": 77,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        },
+        {
+          "ce": 26,
+          "cs": 17,
+          "line": 78,
+          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+        },
+        {
+          "ce": 43,
+          "cs": 37,
+          "line": 78,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
-          "ce": 45,
-          "cs": 40,
-          "line": 22,
+          "ce": 49,
+          "cs": 44,
+          "line": 78,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
-          "ce": 49,
-          "cs": 48,
-          "line": 22,
+          "ce": 53,
+          "cs": 52,
+          "line": 78,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         },
         {
-          "ce": 23,
-          "cs": 14,
-          "line": 23,
+          "ce": 26,
+          "cs": 17,
+          "line": 79,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
-          "ce": 39,
-          "cs": 33,
-          "line": 23,
+          "ce": 43,
+          "cs": 37,
+          "line": 79,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
-          "ce": 45,
-          "cs": 40,
-          "line": 23,
+          "ce": 49,
+          "cs": 44,
+          "line": 79,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
-          "ce": 49,
-          "cs": 48,
-          "line": 23,
+          "ce": 53,
+          "cs": 52,
+          "line": 79,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
         },
         {
-          "ce": 23,
-          "cs": 14,
-          "line": 24,
+          "ce": 26,
+          "cs": 17,
+          "line": 80,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
-          "ce": 39,
-          "cs": 33,
-          "line": 24,
+          "ce": 43,
+          "cs": 37,
+          "line": 80,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
-          "ce": 45,
-          "cs": 40,
-          "line": 24,
+          "ce": 49,
+          "cs": 44,
+          "line": 80,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
-          "ce": 49,
-          "cs": 48,
-          "line": 24,
+          "ce": 53,
+          "cs": 52,
+          "line": 80,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
         },
         {
           "ce": 13,
           "cs": 4,
-          "line": 25,
+          "line": 81,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+        },
+        {
+          "ce": 12,
+          "cs": 7,
+          "def": true,
+          "line": 84,
+          "sym": "fe fe perceptual_color 0.1.0 lib/color."
+        },
+        {
+          "ce": 34,
+          "cs": 29,
+          "line": 84,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        },
+        {
+          "ce": 14,
+          "cs": 4,
+          "line": 85,
+          "sym": "fe fe perceptual_color 0.1.0 lib/unpack_lab."
+        },
+        {
+          "ce": 13,
+          "cs": 7,
+          "def": true,
+          "line": 88,
+          "sym": "fe fe perceptual_color 0.1.0 lib/packed."
+        },
+        {
+          "ce": 24,
+          "cs": 19,
+          "line": 88,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        },
+        {
+          "ce": 12,
+          "cs": 4,
+          "line": 89,
+          "sym": "fe fe perceptual_color 0.1.0 lib/pack_lab."
         },
         {
           "ce": 7,
           "cs": 3,
           "def": true,
-          "line": 29,
+          "line": 94,
           "sym": "fe fe perceptual_color 0.1.0 lib/srgb."
         },
         {
-          "ce": 19,
-          "cs": 14,
-          "line": 30,
+          "ce": 22,
+          "cs": 17,
+          "line": 95,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
-          "ce": 19,
-          "cs": 15,
-          "line": 32,
+          "ce": 22,
+          "cs": 18,
+          "line": 99,
           "sym": "fe fe fmath 0.1.0 lib/sqrt."
         },
         {
-          "ce": 19,
-          "cs": 15,
-          "line": 33,
+          "ce": 22,
+          "cs": 18,
+          "line": 100,
           "sym": "fe fe fmath 0.1.0 lib/sqrt."
         },
         {
-          "ce": 19,
-          "cs": 15,
-          "line": 34,
+          "ce": 22,
+          "cs": 18,
+          "line": 101,
           "sym": "fe fe fmath 0.1.0 lib/sqrt."
         },
         {
           "ce": 9,
           "cs": 4,
-          "line": 35,
+          "line": 102,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
-          "ce": 11,
+          "ce": 19,
           "cs": 7,
           "def": true,
-          "line": 38,
-          "sym": "fe fe perceptual_color 0.1.0 lib/rgba."
+          "line": 106,
+          "sym": "fe fe perceptual_color 0.1.0 lib/display_rgba."
         },
         {
-          "ce": 21,
-          "cs": 16,
-          "line": 38,
+          "ce": 30,
+          "cs": 25,
+          "line": 106,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
-          "ce": 18,
-          "cs": 17,
-          "line": 39,
+          "ce": 21,
+          "cs": 20,
+          "line": 107,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         },
         {
-          "ce": 35,
-          "cs": 34,
-          "line": 39,
+          "ce": 42,
+          "cs": 41,
+          "line": 107,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
         },
         {
-          "ce": 52,
-          "cs": 51,
-          "line": 39,
+          "ce": 63,
+          "cs": 62,
+          "line": 107,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
         },
         {
-          "ce": 18,
-          "cs": 17,
-          "line": 40,
+          "ce": 21,
+          "cs": 20,
+          "line": 108,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         },
         {
-          "ce": 35,
-          "cs": 34,
-          "line": 40,
+          "ce": 42,
+          "cs": 41,
+          "line": 108,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
         },
         {
-          "ce": 52,
-          "cs": 51,
-          "line": 40,
+          "ce": 63,
+          "cs": 62,
+          "line": 108,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
         },
         {
-          "ce": 18,
-          "cs": 17,
-          "line": 41,
+          "ce": 21,
+          "cs": 20,
+          "line": 109,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         },
         {
-          "ce": 35,
-          "cs": 34,
-          "line": 41,
+          "ce": 42,
+          "cs": 41,
+          "line": 109,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
         },
         {
-          "ce": 52,
-          "cs": 51,
-          "line": 41,
+          "ce": 63,
+          "cs": 62,
+          "line": 109,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
         },
         {
-          "ce": 23,
-          "cs": 14,
-          "line": 45,
+          "ce": 26,
+          "cs": 17,
+          "line": 113,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
-          "ce": 39,
-          "cs": 33,
-          "line": 45,
+          "ce": 43,
+          "cs": 37,
+          "line": 113,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
-          "ce": 44,
-          "cs": 40,
-          "line": 45,
+          "ce": 48,
+          "cs": 44,
+          "line": 113,
           "sym": "fe fe perceptual_color 0.1.0 lib/srgb."
         },
         {
-          "ce": 23,
-          "cs": 14,
-          "line": 46,
+          "ce": 26,
+          "cs": 17,
+          "line": 114,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
-          "ce": 39,
-          "cs": 33,
-          "line": 46,
+          "ce": 43,
+          "cs": 37,
+          "line": 114,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
-          "ce": 44,
-          "cs": 40,
-          "line": 46,
+          "ce": 48,
+          "cs": 44,
+          "line": 114,
           "sym": "fe fe perceptual_color 0.1.0 lib/srgb."
         },
         {
-          "ce": 23,
-          "cs": 14,
-          "line": 47,
+          "ce": 26,
+          "cs": 17,
+          "line": 115,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
-          "ce": 39,
-          "cs": 33,
-          "line": 47,
+          "ce": 43,
+          "cs": 37,
+          "line": 115,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
-          "ce": 44,
-          "cs": 40,
-          "line": 47,
+          "ce": 48,
+          "cs": 44,
+          "line": 115,
           "sym": "fe fe perceptual_color 0.1.0 lib/srgb."
         },
         {
           "ce": 13,
           "cs": 4,
-          "line": 48,
+          "line": 116,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+        },
+        {
+          "ce": 11,
+          "cs": 7,
+          "def": true,
+          "line": 119,
+          "sym": "fe fe perceptual_color 0.1.0 lib/rgba."
+        },
+        {
+          "ce": 22,
+          "cs": 17,
+          "line": 119,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
+        },
+        {
+          "ce": 16,
+          "cs": 4,
+          "line": 120,
+          "sym": "fe fe perceptual_color 0.1.0 lib/display_rgba."
         },
         {
           "ce": 12,
           "cs": 7,
           "def": true,
-          "line": 50,
+          "line": 123,
           "sym": "fe fe perceptual_color 0.1.0 lib/blend."
         },
         {
           "ce": 23,
           "cs": 18,
-          "line": 50,
+          "line": 123,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 35,
           "cs": 30,
-          "line": 50,
+          "line": 123,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 55,
           "cs": 50,
-          "line": 50,
+          "line": 123,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 9,
           "cs": 4,
-          "line": 51,
+          "line": 124,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
+          "ce": 14,
+          "cs": 11,
+          "line": 125,
+          "sym": "fe fe fmath 0.1.0 lib/mix."
+        },
+        {
           "ce": 18,
-          "cs": 15,
-          "line": 51,
-          "sym": "fe fe fmath 0.1.0 lib/mix."
-        },
-        {
-          "ce": 22,
-          "cs": 21,
-          "line": 51,
+          "cs": 17,
+          "line": 125,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         },
         {
-          "ce": 27,
-          "cs": 26,
-          "line": 51,
+          "ce": 23,
+          "cs": 22,
+          "line": 125,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         },
         {
-          "ce": 39,
-          "cs": 36,
-          "line": 51,
+          "ce": 14,
+          "cs": 11,
+          "line": 126,
           "sym": "fe fe fmath 0.1.0 lib/mix."
         },
         {
-          "ce": 43,
-          "cs": 42,
-          "line": 51,
+          "ce": 18,
+          "cs": 17,
+          "line": 126,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
         },
         {
-          "ce": 48,
-          "cs": 47,
-          "line": 51,
+          "ce": 23,
+          "cs": 22,
+          "line": 126,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
         },
         {
-          "ce": 60,
-          "cs": 57,
-          "line": 51,
+          "ce": 14,
+          "cs": 11,
+          "line": 127,
           "sym": "fe fe fmath 0.1.0 lib/mix."
         },
         {
-          "ce": 64,
-          "cs": 63,
-          "line": 51,
+          "ce": 18,
+          "cs": 17,
+          "line": 127,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
         },
         {
-          "ce": 69,
-          "cs": 68,
-          "line": 51,
+          "ce": 23,
+          "cs": 22,
+          "line": 127,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
         }
       ]
     },
     "symbols": {
+      "fe fe core 0.1.0 lib/marker/Copy#": {
+        "kind": 53,
+        "name": "Copy"
+      },
+      "fe fe core 0.1.0 lib/marker:": {
+        "kind": 0,
+        "name": "marker"
+      },
+      "fe fe core 0.1.0 lib:": {
+        "kind": 0,
+        "name": "lib"
+      },
       "fe fe fmath 0.1.0 lib/cos.": {
         "kind": 17,
         "name": "cos"
@@ -2018,10 +3140,36 @@
         "kind": 15,
         "name": "l"
       },
+      "fe fe perceptual_color 0.1.0 lib/Oklch#": {
+        "doc_url": "perceptual_color::Oklch/struct",
+        "docs": [
+          "```fe\npub struct Oklch\n```\n\n Polar OKLCH: lightness L, non-negative chroma C, and hue in degrees."
+        ],
+        "kind": 49,
+        "name": "Oklch"
+      },
+      "fe fe perceptual_color 0.1.0 lib/Oklch#chroma.": {
+        "doc_url": "perceptual_color::Oklch/struct~field.chroma",
+        "enclosing": "fe fe perceptual_color 0.1.0 lib/Oklch#",
+        "kind": 15,
+        "name": "chroma"
+      },
+      "fe fe perceptual_color 0.1.0 lib/Oklch#hue.": {
+        "doc_url": "perceptual_color::Oklch/struct~field.hue",
+        "enclosing": "fe fe perceptual_color 0.1.0 lib/Oklch#",
+        "kind": 15,
+        "name": "hue"
+      },
+      "fe fe perceptual_color 0.1.0 lib/Oklch#l.": {
+        "doc_url": "perceptual_color::Oklch/struct~field.l",
+        "enclosing": "fe fe perceptual_color 0.1.0 lib/Oklch#",
+        "kind": 15,
+        "name": "l"
+      },
       "fe fe perceptual_color 0.1.0 lib/__bitcast.": {
         "doc_url": "perceptual_color::__bitcast/fn",
         "docs": [
-          "```fe\nextern { const fn __bitcast<From,To>(_:From) -> To\n```"
+          "```fe\nconst fn __bitcast<From, To>(_: From) -> To\n```"
         ],
         "kind": 17,
         "name": "__bitcast"
@@ -2046,7 +3194,7 @@
       },
       "fe fe perceptual_color 0.1.0 lib/blend/`{fn_body}`:": {
         "docs": [
-          "```fe\n{\n    Color { l: mix(a.l, b.l, t), a: mix(a.a, b.a, t), b: mix(a.b, b.b, t) }\n}\n```"
+          "```fe\n{\n    Color {\n        l: mix(a.l, b.l, t),\n        a: mix(a.a, b.a, t),\n        b: mix(a.b, b.b, t),\n    }\n}\n```"
         ],
         "kind": 0,
         "name": "{fn_body}"
@@ -2054,14 +3202,14 @@
       "fe fe perceptual_color 0.1.0 lib/clamp.": {
         "doc_url": "perceptual_color::clamp/fn",
         "docs": [
-          "```fe\nfn clamp(_ value:f32,_ low:f32,_ high:f32) -> f32\n```"
+          "```fe\nfn clamp(_ value: f32, _ low: f32, _ high: f32) -> f32\n```"
         ],
         "kind": 17,
         "name": "clamp"
       },
       "fe fe perceptual_color 0.1.0 lib/clamp/`{fn_body}`:": {
         "docs": [
-          "```fe\n{\n    if value<low { low } else { if value>high { high } else { value } }\n}\n```"
+          "```fe\n{\n    if value < low {\n        low\n    } else {\n        if value > high { high } else { value }\n    }\n}\n```"
         ],
         "kind": 0,
         "name": "{fn_body}"
@@ -2069,14 +3217,29 @@
       "fe fe perceptual_color 0.1.0 lib/color.": {
         "doc_url": "perceptual_color::color/fn",
         "docs": [
-          "```fe\npub fn color(_ bits:u32) -> Color\n```\n\n Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n Signed chroma spans [-0.25,0.2495], with an exactly representable neutral."
+          "```fe\npub fn color(_ bits: u32) -> Color\n```"
         ],
         "kind": 17,
         "name": "color"
       },
       "fe fe perceptual_color 0.1.0 lib/color/`{fn_body}`:": {
         "docs": [
-          "```fe\n{\n    Color {l:from_i32(__bitcast<u32,i32>(bits&4095))/4095.0,\n        a:(from_i32(__bitcast<u32,i32>((bits>>12)&1023))-512.0)/2048.0,\n        b:(from_i32(__bitcast<u32,i32>((bits>>22)&1023))-512.0)/2048.0}\n}\n```"
+          "```fe\n{\n    unpack_lab(bits)\n}\n```"
+        ],
+        "kind": 0,
+        "name": "{fn_body}"
+      },
+      "fe fe perceptual_color 0.1.0 lib/display_rgba.": {
+        "doc_url": "perceptual_color::display_rgba/fn",
+        "docs": [
+          "```fe\npub fn display_rgba(_ c: Color) -> i32\n```\n\n Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer."
+        ],
+        "kind": 17,
+        "name": "display_rgba"
+      },
+      "fe fe perceptual_color 0.1.0 lib/display_rgba/`{fn_body}`:": {
+        "docs": [
+          "```fe\n{\n    let lp: f32 = c.l + 0.3963377774 * c.a + 0.2158037573 * c.b\n    let mp: f32 = c.l - 0.1055613458 * c.a - 0.0638541728 * c.b\n    let sp: f32 = c.l - 0.0894841775 * c.a - 1.2914855480 * c.b\n    let l: f32 = lp * lp * lp\n    let m: f32 = mp * mp * mp\n    let s: f32 = sp * sp * sp\n    let r: u32 = __bitcast<i32, u32>(to_i32(srgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s) * 255.0 + 0.5))\n    let g: u32 = __bitcast<i32, u32>(to_i32(srgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s) * 255.0 + 0.5))\n    let b: u32 = __bitcast<i32, u32>(to_i32(srgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s) * 255.0 + 0.5))\n    __bitcast<u32, i32>((r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | 4278190080)\n}\n```"
         ],
         "kind": 0,
         "name": "{fn_body}"
@@ -2084,14 +3247,29 @@
       "fe fe perceptual_color 0.1.0 lib/oklch.": {
         "doc_url": "perceptual_color::oklch/fn",
         "docs": [
-          "```fe\npub fn oklch(_ lightness:f32,_ chroma:f32,_ hue:f32) -> Color\n```\n\n Construct Cartesian OKLab from lightness, chroma and hue in degrees."
+          "```fe\npub fn oklch(_ lightness: f32, _ chroma: f32, _ hue: f32) -> Color\n```\n\n Construct Cartesian OKLab from lightness, chroma and hue in degrees."
         ],
         "kind": 17,
         "name": "oklch"
       },
       "fe fe perceptual_color 0.1.0 lib/oklch/`{fn_body}`:": {
         "docs": [
-          "```fe\n{\n    let radians:f32=hue*0.017453292519943295\n    Color {l:lightness,a:chroma*cos(radians),b:chroma*sin(radians)}\n}\n```"
+          "```fe\n{\n    Oklch { l: lightness, chroma: chroma, hue: hue }.to_color()\n}\n```"
+        ],
+        "kind": 0,
+        "name": "{fn_body}"
+      },
+      "fe fe perceptual_color 0.1.0 lib/pack_lab.": {
+        "doc_url": "perceptual_color::pack_lab/fn",
+        "docs": [
+          "```fe\npub fn pack_lab(_ c: Color) -> i32\n```"
+        ],
+        "kind": 17,
+        "name": "pack_lab"
+      },
+      "fe fe perceptual_color 0.1.0 lib/pack_lab/`{fn_body}`:": {
+        "docs": [
+          "```fe\n{\n    let l: u32 = __bitcast<i32, u32>(to_i32(clamp(c.l, 0.0, 1.0) * 4095.0 + 0.5))\n    let a: u32 = __bitcast<i32, u32>(to_i32(clamp(c.a * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    let b: u32 = __bitcast<i32, u32>(to_i32(clamp(c.b * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    __bitcast<u32, i32>((l & 4095) | ((a & 1023) << 12) | ((b & 1023) << 22))\n}\n```"
         ],
         "kind": 0,
         "name": "{fn_body}"
@@ -2099,14 +3277,14 @@
       "fe fe perceptual_color 0.1.0 lib/packed.": {
         "doc_url": "perceptual_color::packed/fn",
         "docs": [
-          "```fe\npub fn packed(_ c:Color) -> i32\n```"
+          "```fe\npub fn packed(_ c: Color) -> i32\n```"
         ],
         "kind": 17,
         "name": "packed"
       },
       "fe fe perceptual_color 0.1.0 lib/packed/`{fn_body}`:": {
         "docs": [
-          "```fe\n{\n    let l:u32=__bitcast<i32,u32>(to_i32(clamp(c.l,0.0,1.0)*4095.0+0.5))\n    let a:u32=__bitcast<i32,u32>(to_i32(clamp(c.a*2048.0+512.0,0.0,1023.0)+0.5))\n    let b:u32=__bitcast<i32,u32>(to_i32(clamp(c.b*2048.0+512.0,0.0,1023.0)+0.5))\n    __bitcast<u32,i32>((l&4095)|((a&1023)<<12)|((b&1023)<<22))\n}\n```"
+          "```fe\n{\n    pack_lab(c)\n}\n```"
         ],
         "kind": 0,
         "name": "{fn_body}"
@@ -2114,14 +3292,14 @@
       "fe fe perceptual_color 0.1.0 lib/rgba.": {
         "doc_url": "perceptual_color::rgba/fn",
         "docs": [
-          "```fe\npub fn rgba(_ c:Color) -> i32\n```\n\n Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer."
+          "```fe\npub fn rgba(_ c: Color) -> i32\n```"
         ],
         "kind": 17,
         "name": "rgba"
       },
       "fe fe perceptual_color 0.1.0 lib/rgba/`{fn_body}`:": {
         "docs": [
-          "```fe\n{\n    let lp:f32=c.l+0.3963377774*c.a+0.2158037573*c.b\n    let mp:f32=c.l-0.1055613458*c.a-0.0638541728*c.b\n    let sp:f32=c.l-0.0894841775*c.a-1.2914855480*c.b\n    let l:f32=lp*lp*lp\n    let m:f32=mp*mp*mp\n    let s:f32=sp*sp*sp\n    let r:u32=__bitcast<i32,u32>(to_i32(srgb(4.0767416621*l-3.3077115913*m+0.2309699292*s)*255.0+0.5))\n    let g:u32=__bitcast<i32,u32>(to_i32(srgb(-1.2684380046*l+2.6097574011*m-0.3413193965*s)*255.0+0.5))\n    let b:u32=__bitcast<i32,u32>(to_i32(srgb(-0.0041960863*l-0.7034186147*m+1.7076147010*s)*255.0+0.5))\n    __bitcast<u32,i32>((r&255)|((g&255)<<8)|((b&255)<<16)|4278190080)\n}\n```"
+          "```fe\n{\n    display_rgba(c)\n}\n```"
         ],
         "kind": 0,
         "name": "{fn_body}"
@@ -2129,14 +3307,29 @@
       "fe fe perceptual_color 0.1.0 lib/srgb.": {
         "doc_url": "perceptual_color::srgb/fn",
         "docs": [
-          "```fe\nfn srgb(_ linear:f32) -> f32\n```"
+          "```fe\nfn srgb(_ linear: f32) -> f32\n```"
         ],
         "kind": 17,
         "name": "srgb"
       },
       "fe fe perceptual_color 0.1.0 lib/srgb/`{fn_body}`:": {
         "docs": [
-          "```fe\n{\n    let x:f32=clamp(linear,0.0,1.0)\n    if x<=0.0031308 {return 12.92*x}\n    let s1:f32=sqrt(x)\n    let s2:f32=sqrt(s1)\n    let s3:f32=sqrt(s2)\n    clamp(0.662002687*s1+0.684122060*s2-0.323583601*s3-0.022541147*x,0.0,1.0)\n}\n```"
+          "```fe\n{\n    let x: f32 = clamp(linear, 0.0, 1.0)\n    if x <= 0.0031308 {\n        return 12.92 * x\n    }\n    let s1: f32 = sqrt(x)\n    let s2: f32 = sqrt(s1)\n    let s3: f32 = sqrt(s2)\n    clamp(0.662002687 * s1 + 0.684122060 * s2 - 0.323583601 * s3 - 0.022541147 * x, 0.0, 1.0)\n}\n```"
+        ],
+        "kind": 0,
+        "name": "{fn_body}"
+      },
+      "fe fe perceptual_color 0.1.0 lib/unpack_lab.": {
+        "doc_url": "perceptual_color::unpack_lab/fn",
+        "docs": [
+          "```fe\npub fn unpack_lab(_ bits: u32) -> Color\n```\n\n Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n Signed chroma spans [-0.25, 0.2495], with an exactly representable neutral."
+        ],
+        "kind": 17,
+        "name": "unpack_lab"
+      },
+      "fe fe perceptual_color 0.1.0 lib/unpack_lab/`{fn_body}`:": {
+        "docs": [
+          "```fe\n{\n    Color {\n        l: from_i32(__bitcast<u32, i32>(bits & 4095)) / 4095.0,\n        a: (from_i32(__bitcast<u32, i32>((bits >> 12) & 1023)) - 512.0) / 2048.0,\n        b: (from_i32(__bitcast<u32, i32>((bits >> 22) & 1023)) - 512.0) / 2048.0,\n    }\n}\n```"
         ],
         "kind": 0,
         "name": "{fn_body}"
@@ -2144,7 +3337,7 @@
       "fe fe perceptual_color 0.1.0 lib:": {
         "doc_url": "perceptual_color/mod",
         "docs": [
-          "```fe\n//! OKLCH construction, OKLab blending and compact storage, and sRGB display.\n//! Hue uses degrees. Out-of-gamut RGB channels are clipped at display.\nuse fmath::{from_i32,to_i32,sqrt,mix,cos,sin}\nextern { const fn __bitcast<From,To>(_:From) -> To }\nfn clamp(_ value:f32,_ low:f32,_ high:f32) -> f32 {\n    if value<low { low } else { if value>high { high } else { value } }\n}\n/// Cartesian OKLab: lightness L and signed chromatic axes a/b.\npub struct Color { pub l: f32, pub a: f32, pub b: f32 }\n/// Construct Cartesian OKLab from lightness, chroma and hue in degrees.\npub fn oklch(_ lightness:f32,_ chroma:f32,_ hue:f32) -> Color {\n    let radians:f32=hue*0.017453292519943295\n    Color {l:lightness,a:chroma*cos(radians),b:chroma*sin(radians)}\n}\n/// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n/// Signed chroma spans [-0.25,0.2495], with an exactly representable neutral.\npub fn color(_ bits:u32) -> Color {\n    Color {l:from_i32(__bitcast<u32,i32>(bits&4095))/4095.0,\n        a:(from_i32(__bitcast<u32,i32>((bits>>12)&1023))-512.0)/2048.0,\n        b:(from_i32(__bitcast<u32,i32>((bits>>22)&1023))-512.0)/2048.0}\n}\npub fn packed(_ c:Color) -> i32 {\n    let l:u32=__bitcast<i32,u32>(to_i32(clamp(c.l,0.0,1.0)*4095.0+0.5))\n    let a:u32=__bitcast<i32,u32>(to_i32(clamp(c.a*2048.0+512.0,0.0,1023.0)+0.5))\n    let b:u32=__bitcast<i32,u32>(to_i32(clamp(c.b*2048.0+512.0,0.0,1023.0)+0.5))\n    __bitcast<u32,i32>((l&4095)|((a&1023)<<12)|((b&1023)<<22))\n}\n// Ian Taylor's square-root sRGB approximation, with the exact linear toe.\n// Keeps transfer work at presentation, outside orbit and Gaussian loops.\nfn srgb(_ linear:f32) -> f32 {\n    let x:f32=clamp(linear,0.0,1.0)\n    if x<=0.0031308 {return 12.92*x}\n    let s1:f32=sqrt(x)\n    let s2:f32=sqrt(s1)\n    let s3:f32=sqrt(s2)\n    clamp(0.662002687*s1+0.684122060*s2-0.323583601*s3-0.022541147*x,0.0,1.0)\n}\n/// Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer.\npub fn rgba(_ c:Color) -> i32 {\n    let lp:f32=c.l+0.3963377774*c.a+0.2158037573*c.b\n    let mp:f32=c.l-0.1055613458*c.a-0.0638541728*c.b\n    let sp:f32=c.l-0.0894841775*c.a-1.2914855480*c.b\n    let l:f32=lp*lp*lp\n    let m:f32=mp*mp*mp\n    let s:f32=sp*sp*sp\n    let r:u32=__bitcast<i32,u32>(to_i32(srgb(4.0767416621*l-3.3077115913*m+0.2309699292*s)*255.0+0.5))\n    let g:u32=__bitcast<i32,u32>(to_i32(srgb(-1.2684380046*l+2.6097574011*m-0.3413193965*s)*255.0+0.5))\n    let b:u32=__bitcast<i32,u32>(to_i32(srgb(-0.0041960863*l-0.7034186147*m+1.7076147010*s)*255.0+0.5))\n    __bitcast<u32,i32>((r&255)|((g&255)<<8)|((b&255)<<16)|4278190080)\n}\npub fn blend(_ a: Color, _ b: Color, _ t: f32) -> Color {\n    Color { l: mix(a.l, b.l, t), a: mix(a.a, b.a, t), b: mix(a.b, b.b, t) }\n}\n```"
+          "```fe\n//! OKLCH construction, OKLab blending and compact storage, and sRGB display.\n//! Hue uses degrees. Out-of-gamut RGB channels are clipped at display.\nuse core::marker::Copy\nuse fmath::{from_i32, to_i32, sqrt, mix, cos, sin}\n\nextern {\n    const fn __bitcast<From, To>(_: From) -> To\n}\n\nfn clamp(_ value: f32, _ low: f32, _ high: f32) -> f32 {\n    if value < low {\n        low\n    } else {\n        if value > high { high } else { value }\n    }\n}\n\n/// Polar OKLCH: lightness L, non-negative chroma C, and hue in degrees.\npub struct Oklch {\n    pub l: f32,\n    pub chroma: f32,\n    pub hue: f32,\n}\n\nimpl Copy for Oklch {}\n\n/// Cartesian OKLab: lightness L and signed chromatic axes a/b.\npub struct Color {\n    pub l: f32,\n    pub a: f32,\n    pub b: f32,\n}\n\nimpl Copy for Color {}\n\nimpl Oklch {\n    /// Convert polar OKLCH coordinates (hue in degrees) to Cartesian OKLab.\n    pub fn to_color(self) -> Color {\n        let radians: f32 = self.hue * 0.017453292519943295\n        Color {\n            l: self.l,\n            a: self.chroma * cos(radians),\n            b: self.chroma * sin(radians),\n        }\n    }\n\n    /// Shortest-arc interpolation in polar OKLCH coordinates.\n    pub fn interpolate(_ start: Oklch, _ end: Oklch, _ t: f32) -> Oklch {\n        let delta: f32 = end.hue - start.hue\n        let arc: f32 = if delta > 180.0 {\n            delta - 360.0\n        } else {\n            if delta < -180.0 { delta + 360.0 } else { delta }\n        }\n        Oklch {\n            l: start.l + (end.l - start.l) * t,\n            chroma: start.chroma + (end.chroma - start.chroma) * t,\n            hue: start.hue + arc * t,\n        }\n    }\n}\n\n/// Construct Cartesian OKLab from lightness, chroma and hue in degrees.\npub fn oklch(_ lightness: f32, _ chroma: f32, _ hue: f32) -> Color {\n    Oklch { l: lightness, chroma: chroma, hue: hue }.to_color()\n}\n\n/// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n/// Signed chroma spans [-0.25, 0.2495], with an exactly representable neutral.\npub fn unpack_lab(_ bits: u32) -> Color {\n    Color {\n        l: from_i32(__bitcast<u32, i32>(bits & 4095)) / 4095.0,\n        a: (from_i32(__bitcast<u32, i32>((bits >> 12) & 1023)) - 512.0) / 2048.0,\n        b: (from_i32(__bitcast<u32, i32>((bits >> 22) & 1023)) - 512.0) / 2048.0,\n    }\n}\n\npub fn pack_lab(_ c: Color) -> i32 {\n    let l: u32 = __bitcast<i32, u32>(to_i32(clamp(c.l, 0.0, 1.0) * 4095.0 + 0.5))\n    let a: u32 = __bitcast<i32, u32>(to_i32(clamp(c.a * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    let b: u32 = __bitcast<i32, u32>(to_i32(clamp(c.b * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    __bitcast<u32, i32>((l & 4095) | ((a & 1023) << 12) | ((b & 1023) << 22))\n}\n\npub fn color(_ bits: u32) -> Color {\n    unpack_lab(bits)\n}\n\npub fn packed(_ c: Color) -> i32 {\n    pack_lab(c)\n}\n\n// Ian Taylor's square-root sRGB approximation, with the exact linear toe.\n// Keeps transfer work at presentation, outside orbit and Gaussian loops.\nfn srgb(_ linear: f32) -> f32 {\n    let x: f32 = clamp(linear, 0.0, 1.0)\n    if x <= 0.0031308 {\n        return 12.92 * x\n    }\n    let s1: f32 = sqrt(x)\n    let s2: f32 = sqrt(s1)\n    let s3: f32 = sqrt(s2)\n    clamp(0.662002687 * s1 + 0.684122060 * s2 - 0.323583601 * s3 - 0.022541147 * x, 0.0, 1.0)\n}\n\n/// Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer.\npub fn display_rgba(_ c: Color) -> i32 {\n    let lp: f32 = c.l + 0.3963377774 * c.a + 0.2158037573 * c.b\n    let mp: f32 = c.l - 0.1055613458 * c.a - 0.0638541728 * c.b\n    let sp: f32 = c.l - 0.0894841775 * c.a - 1.2914855480 * c.b\n    let l: f32 = lp * lp * lp\n    let m: f32 = mp * mp * mp\n    let s: f32 = sp * sp * sp\n    let r: u32 = __bitcast<i32, u32>(to_i32(srgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s) * 255.0 + 0.5))\n    let g: u32 = __bitcast<i32, u32>(to_i32(srgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s) * 255.0 + 0.5))\n    let b: u32 = __bitcast<i32, u32>(to_i32(srgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s) * 255.0 + 0.5))\n    __bitcast<u32, i32>((r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | 4278190080)\n}\n\npub fn rgba(_ c: Color) -> i32 {\n    display_rgba(c)\n}\n\npub fn blend(_ a: Color, _ b: Color, _ t: f32) -> Color {\n    Color {\n        l: mix(a.l, b.l, t),\n        a: mix(a.a, b.a, t),\n        b: mix(a.b, b.b, t),\n    }\n}\n```"
         ],
         "kind": 0,
         "name": "lib"
