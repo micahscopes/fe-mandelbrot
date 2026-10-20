@@ -457,17 +457,22 @@ fn rect_pixel(a0_8: FeLocal_fe_shader_private_layout_1_, a1_3: u32, a2_1: u32, a
     return _e95;
 }
 
-fn is_presentable(a0_9: FeLocal_fe_shader_private_layout_3_) -> bool {
-    return (((a0_9.f4_ & 536870912u) == 0u) == false);
+fn progress_is_presentable(a0_9: u32) -> bool {
+    return (((a0_9 & 536870912u) == 0u) == false);
 }
 
-fn is_presentable_in(a0_10: FeLocal_fe_shader_private_layout_3_, a1_4: u32) -> bool {
+fn is_presentable(a0_10: FeLocal_fe_shader_private_layout_3_) -> bool {
+    let _e2 = progress_is_presentable(a0_10.f4_);
+    return _e2;
+}
+
+fn is_presentable_in(a0_11: FeLocal_fe_shader_private_layout_3_, a1_4: u32) -> bool {
     var local_31: bool;
     var local_32: bool = false;
     var local_33: bool = bool();
 
-    if (a0_10.f6_ == a1_4) {
-        let _e6 = is_presentable(a0_10);
+    if (a0_11.f6_ == a1_4) {
+        let _e6 = is_presentable(a0_11);
         if _e6 {
             local_33 = true;
         }
@@ -476,47 +481,58 @@ fn is_presentable_in(a0_10: FeLocal_fe_shader_private_layout_3_, a1_4: u32) -> b
     return _e10;
 }
 
-fn impl_SampleOracle_is_glitched(a0_11: FeLocal_fe_shader_private_layout_2_) -> bool {
-    return (((a0_11.f2_ & 1073741824u) == 0u) == false);
+fn oracle_is_glitched(a0_12: u32) -> bool {
+    return (((a0_12 & 1073741824u) == 0u) == false);
 }
 
-fn is_usable(a0_12: FeLocal_fe_shader_private_layout_2_) -> bool {
-    let _e1 = impl_SampleOracle_is_glitched(a0_12);
+fn oracle_is_usable(a0_13: u32) -> bool {
+    let _e1 = oracle_is_glitched(a0_13);
     return (_e1 == false);
 }
 
-fn from_oracle(a0_13: FeLocal_fe_shader_private_layout_2_, a1_5: u32, a2_2: f32) -> FeLocal_fe_shader_private_layout_3_ {
-    return FeLocal_fe_shader_private_layout_3_(FeLocal_fe_shader_private_layout_3_().f0_, FeLocal_fe_shader_private_layout_3_().f1_, a2_2, 0f, (a0_13.f2_ | 536870912u), a0_13.f0_, a1_5, a0_13.f1_);
+fn is_usable(a0_14: FeLocal_fe_shader_private_layout_2_) -> bool {
+    let _e2 = oracle_is_usable(a0_14.f2_);
+    return _e2;
 }
 
-fn impl_OrbitProgress_is_glitched(a0_14: FeLocal_fe_shader_private_layout_3_) -> bool {
-    return (((a0_14.f4_ & 1073741824u) == 0u) == false);
+fn progress_with_presentable(a0_15: u32) -> u32 {
+    return (a0_15 | 536870912u);
 }
 
-fn clamp_(a0_15: f32, a1_6: f32, a2_3: f32) -> f32 {
+fn from_oracle(a0_16: FeLocal_fe_shader_private_layout_2_, a1_5: u32, a2_2: f32) -> FeLocal_fe_shader_private_layout_3_ {
+    let _e4 = progress_with_presentable(a0_16.f2_);
+    return FeLocal_fe_shader_private_layout_3_(FeLocal_fe_shader_private_layout_3_().f0_, FeLocal_fe_shader_private_layout_3_().f1_, a2_2, 0f, _e4, a0_16.f0_, a1_5, a0_16.f1_);
+}
+
+fn is_glitched(a0_17: FeLocal_fe_shader_private_layout_3_) -> bool {
+    let _e2 = oracle_is_glitched(a0_17.f4_);
+    return _e2;
+}
+
+fn clamp_(a0_18: f32, a1_6: f32, a2_3: f32) -> f32 {
     var local_34: f32;
     var local_35: bool = false;
     var local_36: f32 = f32();
 
-    if (a0_15 < a1_6) {
+    if (a0_18 < a1_6) {
         local_36 = a1_6;
     } else {
-        if (a2_3 < a0_15) {
+        if (a2_3 < a0_18) {
             local_36 = a2_3;
         } else {
-            local_36 = a0_15;
+            local_36 = a0_18;
         }
     }
     let _e11 = local_36;
     return _e11;
 }
 
-fn pack_lab(a0_16: FeLocal_fe_shader_private_layout_5_) -> u32 {
-    let _e4 = clamp_(a0_16.f0_, 0f, 1f);
+fn pack_lab(a0_19: FeLocal_fe_shader_private_layout_5_) -> u32 {
+    let _e4 = clamp_(a0_19.f0_, 0f, 1f);
     let _e9 = to_i32_(((_e4 * 4095f) + 0.5f));
-    let _e17 = clamp_(((a0_16.f1_ * 2048f) + 512f), 0f, 1023f);
+    let _e17 = clamp_(((a0_19.f1_ * 2048f) + 512f), 0f, 1023f);
     let _e20 = to_i32_((_e17 + 0.5f));
-    let _e28 = clamp_(((a0_16.f2_ * 2048f) + 512f), 0f, 1023f);
+    let _e28 = clamp_(((a0_19.f2_ * 2048f) + 512f), 0f, 1023f);
     let _e31 = to_i32_((_e28 + 0.5f));
     return (((_e9 & 4095u) | ((_e20 & 1023u) << 12u)) | (_e31 << 22u));
 }
@@ -526,25 +542,30 @@ fn glitch() -> u32 {
     return _e4;
 }
 
-fn is_escaped(a0_17: FeLocal_fe_shader_private_layout_3_) -> bool {
-    return (((a0_17.f4_ & 2147483648u) == 0u) == false);
+fn progress_is_escaped(a0_20: u32) -> bool {
+    return (((a0_20 & 2147483648u) == 0u) == false);
 }
 
-fn impl_trait_f32_floor(a0_18: f32) -> f32 {
-    return floor(a0_18);
+fn is_escaped(a0_21: FeLocal_fe_shader_private_layout_3_) -> bool {
+    let _e2 = progress_is_escaped(a0_21.f4_);
+    return _e2;
 }
 
-fn fract_(a0_19: f32) -> f32 {
-    let _e1 = impl_trait_f32_floor(a0_19);
-    return (a0_19 - _e1);
+fn impl_trait_f32_floor(a0_22: f32) -> f32 {
+    return floor(a0_22);
 }
 
-fn anchor(a0_20: u32) -> FeLocal_fe_shader_private_layout_0_ {
+fn fract_(a0_23: f32) -> f32 {
+    let _e1 = impl_trait_f32_floor(a0_23);
+    return (a0_23 - _e1);
+}
+
+fn anchor(a0_24: u32) -> FeLocal_fe_shader_private_layout_0_ {
     var local_37: FeLocal_fe_shader_private_layout_0_;
     var local_38: bool = false;
     var local_39: FeLocal_fe_shader_private_layout_0_ = FeLocal_fe_shader_private_layout_0_();
 
-    switch a0_20 {
+    switch a0_24 {
         case 0u: {
             local_39 = FeLocal_fe_shader_private_layout_0_(0.58f, 0.215f, 275f);
         }
@@ -565,12 +586,12 @@ fn anchor(a0_20: u32) -> FeLocal_fe_shader_private_layout_0_ {
     return _e29;
 }
 
-fn interpolate(a0_21: FeLocal_fe_shader_private_layout_0_, a1_7: FeLocal_fe_shader_private_layout_0_, a2_4: f32) -> FeLocal_fe_shader_private_layout_0_ {
+fn interpolate(a0_25: FeLocal_fe_shader_private_layout_0_, a1_7: FeLocal_fe_shader_private_layout_0_, a2_4: f32) -> FeLocal_fe_shader_private_layout_0_ {
     var local_40: FeLocal_fe_shader_private_layout_0_;
     var local_41: bool = false;
     var local_42: f32 = f32();
 
-    let _e7 = (a1_7.f2_ - a0_21.f2_);
+    let _e7 = (a1_7.f2_ - a0_25.f2_);
     if (180f < _e7) {
         local_42 = (_e7 - 360f);
     } else {
@@ -581,44 +602,44 @@ fn interpolate(a0_21: FeLocal_fe_shader_private_layout_0_, a1_7: FeLocal_fe_shad
         }
     }
     let _e20 = local_42;
-    return FeLocal_fe_shader_private_layout_0_((a0_21.f0_ + ((a1_7.f0_ - a0_21.f0_) * a2_4)), (a0_21.f1_ + ((a1_7.f1_ - a0_21.f1_) * a2_4)), (a0_21.f2_ + (_e20 * a2_4)));
+    return FeLocal_fe_shader_private_layout_0_((a0_25.f0_ + ((a1_7.f0_ - a0_25.f0_) * a2_4)), (a0_25.f1_ + ((a1_7.f1_ - a0_25.f1_) * a2_4)), (a0_25.f2_ + (_e20 * a2_4)));
 }
 
-fn wrap_pi(a0_22: f32) -> f32 {
-    let _e5 = impl_trait_f32_floor(((a0_22 / 6.2831855f) + 0.5f));
-    return (a0_22 - (6.2831855f * _e5));
+fn wrap_pi(a0_26: f32) -> f32 {
+    let _e5 = impl_trait_f32_floor(((a0_26 / 6.2831855f) + 0.5f));
+    return (a0_26 - (6.2831855f * _e5));
 }
 
-fn impl_trait_f32_abs(a0_23: f32) -> f32 {
-    return bitcast<f32>((bitcast<u32>(a0_23) & 2147483647u));
+fn impl_trait_f32_abs(a0_27: f32) -> f32 {
+    return bitcast<f32>((bitcast<u32>(a0_27) & 2147483647u));
 }
 
-fn sin_(a0_24: f32) -> f32 {
-    let _e1 = wrap_pi(a0_24);
+fn sin_(a0_28: f32) -> f32 {
+    let _e1 = wrap_pi(a0_28);
     let _e6 = impl_trait_f32_abs(_e1);
     let _e8 = ((1.2732395f * _e1) - ((0.40528473f * _e1) * _e6));
     let _e9 = impl_trait_f32_abs(_e8);
     return ((0.225f * ((_e8 * _e9) - _e8)) + _e8);
 }
 
-fn cos_(a0_25: f32) -> f32 {
-    let _e3 = sin_((a0_25 + 1.5707964f));
+fn cos_(a0_29: f32) -> f32 {
+    let _e3 = sin_((a0_29 + 1.5707964f));
     return _e3;
 }
 
-fn to_color(a0_26: FeLocal_fe_shader_private_layout_0_) -> FeLocal_fe_shader_private_layout_5_ {
-    let _e3 = (a0_26.f2_ * 0.017453292f);
+fn to_color(a0_30: FeLocal_fe_shader_private_layout_0_) -> FeLocal_fe_shader_private_layout_5_ {
+    let _e3 = (a0_30.f2_ * 0.017453292f);
     let _e6 = cos_(_e3);
     let _e9 = sin_(_e3);
-    return FeLocal_fe_shader_private_layout_5_(a0_26.f0_, (a0_26.f1_ * _e6), (a0_26.f1_ * _e9));
+    return FeLocal_fe_shader_private_layout_5_(a0_30.f0_, (a0_30.f1_ * _e6), (a0_30.f1_ * _e9));
 }
 
-fn escape_palette(a0_27: u32, a1_8: f32, fe_trapped_6: ptr<function, bool>) -> u32 {
+fn escape_palette(a0_31: u32, a1_8: f32, fe_trapped_6: ptr<function, bool>) -> u32 {
     var local_43: u32;
     var local_44: bool = false;
     var local_45: u32 = u32();
 
-    let _e5 = from_i32_(a0_27);
+    let _e5 = from_i32_(a0_31);
     let _e11 = fract_(((_e5 + (4f / a1_8)) / 256f));
     let _e13 = (_e11 * 5f);
     let _e14 = to_i32_(_e13);
@@ -647,19 +668,19 @@ fn interior() -> u32 {
     return _e4;
 }
 
-fn progress_color(a0_28: FeLocal_fe_shader_private_layout_3_, fe_trapped_7: ptr<function, bool>) -> u32 {
+fn progress_color(a0_32: FeLocal_fe_shader_private_layout_3_, fe_trapped_7: ptr<function, bool>) -> u32 {
     var local_46: u32;
     var local_47: bool = false;
     var local_48: u32 = u32();
 
-    let _e4 = impl_OrbitProgress_is_glitched(a0_28);
+    let _e4 = is_glitched(a0_32);
     if _e4 {
         let _e5 = glitch();
         local_48 = _e5;
     } else {
-        let _e6 = is_escaped(a0_28);
+        let _e6 = is_escaped(a0_32);
         if _e6 {
-            let _e9 = escape_palette(a0_28.f5_, a0_28.f7_, fe_trapped_7);
+            let _e9 = escape_palette(a0_32.f5_, a0_32.f7_, fe_trapped_7);
             local_48 = _e9;
         } else {
             let _e10 = interior();

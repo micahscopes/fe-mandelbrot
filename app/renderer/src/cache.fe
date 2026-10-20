@@ -1,7 +1,7 @@
 //! GPU-resident camera and reference metadata.
 //! Epochs invalidate orbit checkpoints without clearing the large buffers.
 use core::marker::Copy
-use fmath::max
+use ingot::image::max
 use ingot::policy::{MandelbrotViewState, blur_radius}
 
 pub const ORACLE_GLITCHED_BIT: u32 = 1073741824
@@ -76,11 +76,11 @@ impl Copy for SampleOracle {}
 
 impl SampleOracle {
     pub fn is_glitched(self) -> bool {
-        (self.flags & ORACLE_GLITCHED_BIT) != 0
+        oracle_is_glitched(self.flags)
     }
 
     pub fn is_usable(self) -> bool {
-        !self.is_glitched()
+        oracle_is_usable(self.flags)
     }
 }
 

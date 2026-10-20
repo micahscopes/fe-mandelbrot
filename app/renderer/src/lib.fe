@@ -68,6 +68,7 @@ use ingot::orbit::{
     progress_outcome_flags,
     progress_reference_index,
     progress_with_presentable,
+    pack_progress_reference,
     sample_pixel,
     sample_progress,
     continue_pixel,
@@ -92,7 +93,15 @@ use ingot::image::{
     sample_snapshot,
     gaussian,
 }
-use ingot::cache::{ViewCache, ReferenceControl, ReferenceAnchor, SampleOracle, oracle_is_usable, same_camera}
+use ingot::cache::{
+    ViewCache,
+    ReferenceControl,
+    ReferenceAnchor,
+    SampleOracle,
+    oracle_is_glitched,
+    oracle_is_usable,
+    same_camera,
+}
 
 actor SmoothPerturbationalMandelbrot uses (
     PassGraph<WebGpuBackend>, SurfaceQuality<SharpBacking>,
@@ -626,7 +635,7 @@ fn orbit_progress_and_oracle_flags_roundtrip() {
     assert(!progress_is_terminal(initial_bits, 0, 256))
     assert(progress_is_terminal(initial_bits, 256, 256))
 
-    let escaped_bits: u32 = progress_with_presentable(42 | PROGRESS_ESCAPED_BIT)
+    let escaped_bits: u32 = progress_with_presentable(pack_progress_reference(42, 1, 0))
     assert(progress_is_presentable(escaped_bits))
     assert(progress_is_escaped(escaped_bits))
     assert(!progress_is_glitched(escaped_bits))
@@ -634,6 +643,7 @@ fn orbit_progress_and_oracle_flags_roundtrip() {
     assert(progress_reference_index(escaped_bits) == 42)
 
     let oracle_flags: u32 = progress_outcome_flags(escaped_bits)
+    assert(!oracle_is_glitched(oracle_flags))
     assert(oracle_is_usable(oracle_flags))
     let restored_bits: u32 = progress_with_presentable(oracle_flags)
     assert(progress_is_presentable(restored_bits))
@@ -641,7 +651,9 @@ fn orbit_progress_and_oracle_flags_roundtrip() {
     assert(!progress_is_glitched(restored_bits))
     assert(progress_reference_index(restored_bits) == 0)
 
-    let glitched_flags: u32 = progress_outcome_flags(PROGRESS_GLITCHED_BIT)
+    let glitched_bits: u32 = pack_progress_reference(19, 0, 1)
+    let glitched_flags: u32 = progress_outcome_flags(glitched_bits)
+    assert(oracle_is_glitched(glitched_flags))
     assert(!oracle_is_usable(glitched_flags))
 }
 

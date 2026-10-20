@@ -131,17 +131,22 @@ var<storage> params: Params;
 @group(0) @binding(6)
 var<storage, read_write> trap: array<u32, 65536>;
 
-fn outcome_flags(a0_: FeLocal_fe_shader_private_layout_0_) -> u32 {
-    return (a0_.f4_ & 3221225472u);
+fn progress_outcome_flags(a0_: u32) -> u32 {
+    return (a0_ & 3221225472u);
 }
 
-fn to_oracle(a0_1: FeLocal_fe_shader_private_layout_0_) -> FeLocal_fe_shader_private_layout_1_ {
-    let _e3 = outcome_flags(a0_1);
-    return FeLocal_fe_shader_private_layout_1_(a0_1.f5_, a0_1.f7_, _e3);
+fn outcome_flags(a0_1: FeLocal_fe_shader_private_layout_0_) -> u32 {
+    let _e2 = progress_outcome_flags(a0_1.f4_);
+    return _e2;
 }
 
-fn from_i32_(a0_2: u32) -> f32 {
-    return f32(bitcast<i32>(a0_2));
+fn to_oracle(a0_2: FeLocal_fe_shader_private_layout_0_) -> FeLocal_fe_shader_private_layout_1_ {
+    let _e3 = outcome_flags(a0_2);
+    return FeLocal_fe_shader_private_layout_1_(a0_2.f5_, a0_2.f7_, _e3);
+}
+
+fn from_i32_(a0_3: u32) -> f32 {
+    return f32(bitcast<i32>(a0_3));
 }
 
 @compute @workgroup_size(8, 8, 1)

@@ -57,6 +57,10 @@ pub fn progress_with_presentable(_ reference_i: u32) -> u32 {
     reference_i | PROGRESS_PRESENTABLE_BIT
 }
 
+pub fn pack_progress_reference(_ reference_i: u32, _ escaped: u32, _ glitched: u32) -> u32 {
+    (reference_i & PROGRESS_REF_MASK) | (escaped << 31) | (glitched << 30)
+}
+
 pub struct ComplexQF32Bits {
     pub re_w0_bits: u32,
     pub re_w1_bits: u32,
@@ -241,11 +245,11 @@ impl Copy for OrbitProgress {}
 
 impl OrbitProgress {
     pub fn reference_index(self) -> u32 {
-        self.reference_i & PROGRESS_REF_MASK
+        progress_reference_index(self.reference_i)
     }
 
     pub fn is_presentable(self) -> bool {
-        (self.reference_i & PROGRESS_PRESENTABLE_BIT) != 0
+        progress_is_presentable(self.reference_i)
     }
 
     pub fn is_presentable_in(self, _ epoch: u32) -> bool {
@@ -253,23 +257,23 @@ impl OrbitProgress {
     }
 
     pub fn is_glitched(self) -> bool {
-        (self.reference_i & PROGRESS_GLITCHED_BIT) != 0
+        progress_is_glitched(self.reference_i)
     }
 
     pub fn is_escaped(self) -> bool {
-        (self.reference_i & PROGRESS_ESCAPED_BIT) != 0
+        progress_is_escaped(self.reference_i)
     }
 
     pub fn has_outcome(self) -> bool {
-        (self.reference_i & PROGRESS_OUTCOME_MASK) != 0
+        progress_has_outcome(self.reference_i)
     }
 
     pub fn is_terminal(self, _ limit: u32) -> bool {
-        self.iteration >= limit || self.has_outcome()
+        progress_is_terminal(self.reference_i, self.iteration, limit)
     }
 
     pub fn outcome_flags(self) -> u32 {
-        self.reference_i & PROGRESS_OUTCOME_MASK
+        progress_outcome_flags(self.reference_i)
     }
 
     /// While non-terminal, `z_re` holds the live real coordinate for rebasing;
@@ -281,7 +285,7 @@ impl OrbitProgress {
     pub fn with_fade_start(self, _ clock: f32) -> Self {
         let mut next: Self = self
         next.z_re = clock
-        next.reference_i = self.reference_i | PROGRESS_PRESENTABLE_BIT
+        next.reference_i = progress_with_presentable(self.reference_i)
         next
     }
 
@@ -299,7 +303,7 @@ impl OrbitProgress {
             dz_im: 0.0,
             z_re: clock,
             z_im: 0.0,
-            reference_i: oracle.flags | PROGRESS_PRESENTABLE_BIT,
+            reference_i: progress_with_presentable(oracle.flags),
             iteration: oracle.iteration,
             epoch: epoch,
             magnitude: oracle.magnitude,
@@ -445,7 +449,7 @@ fn advance_progress(
         dz_im: dz_im,
         z_re: z_re,
         z_im: z_im,
-        reference_i: reference_i | (escaped << 31) | (glitched << 30),
+        reference_i: pack_progress_reference(reference_i, escaped, glitched),
         iteration: i,
         epoch: saved.epoch,
         magnitude: escape_magnitude,

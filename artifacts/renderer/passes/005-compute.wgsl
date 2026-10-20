@@ -103,30 +103,38 @@ var<storage, read_write> reference: array<reference_element>;
 @group(0) @binding(2)
 var<storage> params: Params;
 
-fn impl_trait_f32_max(a0_: f32, a1_: f32) -> f32 {
-    let _e2 = bitcast<u32>(a0_);
-    let _e3 = bitcast<u32>(a1_);
-    return bitcast<f32>(select(select(_e3, _e2, ((_e2 ^ ((0u - (_e2 >> 31u)) | 2147483648u)) > (_e3 ^ ((0u - (_e3 >> 31u)) | 2147483648u)))), 2143289344u, (((_e2 & 2147483647u) > 2139095040u) || ((_e3 & 2147483647u) > 2139095040u))));
+fn max_(a0_: f32, a1_: f32) -> f32 {
+    var local_2: f32;
+    var local_3: bool = false;
+    var local_4: f32 = f32();
+
+    if (a1_ < a0_) {
+        local_4 = a0_;
+    } else {
+        local_4 = a1_;
+    }
+    let _e8 = local_4;
+    return _e8;
 }
 
 fn can_publish_initial(a0_1: FeLocal_fe_shader_private_layout_1_, a1_1: FeLocal_fe_shader_private_layout_2_, a2_: u32, a3_: u32) -> bool {
-    var local_2: bool;
-    var local_3: bool = false;
-    var local_4: bool = bool();
+    var local_5: bool;
+    var local_6: bool = false;
+    var local_7: bool = bool();
 
     if (a0_1.f1_ == 1u) {
         if (a0_1.f2_ == 0u) {
             if (a1_1.f13_ < 0.5f) {
-                let _e18 = impl_trait_f32_max(a1_1.f11_, a0_1.f6_);
+                let _e18 = max_(a1_1.f11_, a0_1.f6_);
                 if (360f <= (a1_1.f10_ - _e18)) {
                     if ((a3_ == a2_) == false) {
-                        local_4 = true;
+                        local_7 = true;
                     }
                 }
             }
         }
     }
-    let _e28 = local_4;
+    let _e28 = local_7;
     return _e28;
 }
 

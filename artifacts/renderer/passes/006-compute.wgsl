@@ -133,45 +133,53 @@ var<storage> params: Params;
 @group(0) @binding(5)
 var<storage, read_write> trap: array<u32, 65536>;
 
-fn impl_trait_f32_max(a0_: f32, a1_: f32) -> f32 {
-    let _e2 = bitcast<u32>(a0_);
-    let _e3 = bitcast<u32>(a1_);
-    return bitcast<f32>(select(select(_e3, _e2, ((_e2 ^ ((0u - (_e2 >> 31u)) | 2147483648u)) > (_e3 ^ ((0u - (_e3 >> 31u)) | 2147483648u)))), 2143289344u, (((_e2 & 2147483647u) > 2139095040u) || ((_e3 & 2147483647u) > 2139095040u))));
-}
-
-fn display_age(a0_1: FeLocal_fe_shader_private_layout_0_, a1_1: FeLocal_fe_shader_private_layout_1_) -> f32 {
+fn max_(a0_: f32, a1_: f32) -> f32 {
     var local_2: f32;
     var local_3: bool = false;
     var local_4: f32 = f32();
+
+    if (a1_ < a0_) {
+        local_4 = a0_;
+    } else {
+        local_4 = a1_;
+    }
+    let _e8 = local_4;
+    return _e8;
+}
+
+fn display_age(a0_1: FeLocal_fe_shader_private_layout_0_, a1_1: FeLocal_fe_shader_private_layout_1_) -> f32 {
+    var local_5: f32;
+    var local_6: bool = false;
+    var local_7: f32 = f32();
 
     if (0.5f <= a1_1.f13_) {
     } else {
         if (a0_1.f2_ == 1u) {
         } else {
-            let _e13 = impl_trait_f32_max(a1_1.f11_, a0_1.f6_);
-            let _e16 = impl_trait_f32_max(0f, (a1_1.f10_ - _e13));
-            local_4 = _e16;
+            let _e13 = max_(a1_1.f11_, a0_1.f6_);
+            let _e16 = max_(0f, (a1_1.f10_ - _e13));
+            local_7 = _e16;
         }
     }
-    let _e19 = local_4;
+    let _e19 = local_7;
     return _e19;
 }
 
 fn clamp_f(a0_2: f32, a1_2: f32, a2_: f32) -> f32 {
-    var local_5: f32;
-    var local_6: bool = false;
-    var local_7: f32 = f32();
+    var local_8: f32;
+    var local_9: bool = false;
+    var local_10: f32 = f32();
 
     if (a0_2 < a1_2) {
-        local_7 = a1_2;
+        local_10 = a1_2;
     } else {
         if (a2_ < a0_2) {
-            local_7 = a2_;
+            local_10 = a2_;
         } else {
-            local_7 = a0_2;
+            local_10 = a0_2;
         }
     }
-    let _e11 = local_7;
+    let _e11 = local_10;
     return _e11;
 }
 
@@ -192,16 +200,16 @@ fn blur_sigma(a0_5: FeLocal_fe_shader_private_layout_0_, a1_4: FeLocal_fe_shader
 }
 
 fn min_(a0_6: f32, a1_5: f32) -> f32 {
-    var local_8: f32;
-    var local_9: bool = false;
-    var local_10: f32 = f32();
+    var local_11: f32;
+    var local_12: bool = false;
+    var local_13: f32 = f32();
 
     if (a0_6 < a1_5) {
-        local_10 = a0_6;
+        local_13 = a0_6;
     } else {
-        local_10 = a1_5;
+        local_13 = a1_5;
     }
-    let _e8 = local_10;
+    let _e8 = local_13;
     return _e8;
 }
 
@@ -213,21 +221,7 @@ fn from_i32_(a0_8: u32) -> f32 {
     return f32(bitcast<i32>(a0_8));
 }
 
-fn lib_image_max(a0_9: f32, a1_6: f32) -> f32 {
-    var local_11: f32;
-    var local_12: bool = false;
-    var local_13: f32 = f32();
-
-    if (a1_6 < a0_9) {
-        local_13 = a0_9;
-    } else {
-        local_13 = a1_6;
-    }
-    let _e8 = local_13;
-    return _e8;
-}
-
-fn gaussian(a1_7: u32, a2_2: u32, a3_: f32, a4_: bool, fe_trapped_1: ptr<function, bool>) -> FeLocal_fe_shader_private_layout_2_ {
+fn gaussian(a1_6: u32, a2_2: u32, a3_: f32, a4_: bool, fe_trapped_1: ptr<function, bool>) -> FeLocal_fe_shader_private_layout_2_ {
     var local_14: FeLocal_fe_shader_private_layout_2_;
     var local_15: bool = false;
     var local_16: f32 = f32();
@@ -251,9 +245,9 @@ fn gaussian(a1_7: u32, a2_2: u32, a3_: f32, a4_: bool, fe_trapped_1: ptr<functio
     var local_27: u32 = u32();
     var local_28: u32 = u32();
 
-    let _e13 = pixels[i32(((a2_2 << 8u) | a1_7))].l;
-    let _e15 = pixels[i32(((a2_2 << 8u) | a1_7))].a;
-    let _e17 = pixels[i32(((a2_2 << 8u) | a1_7))].b;
+    let _e13 = pixels[i32(((a2_2 << 8u) | a1_6))].l;
+    let _e15 = pixels[i32(((a2_2 << 8u) | a1_6))].a;
+    let _e17 = pixels[i32(((a2_2 << 8u) | a1_6))].b;
     if (a3_ < 0.05f) {
         local_14 = FeLocal_fe_shader_private_layout_2_(_e13, _e15, _e17);
         local_15 = true;
@@ -279,7 +273,7 @@ fn gaussian(a1_7: u32, a2_2: u32, a3_: f32, a4_: bool, fe_trapped_1: ptr<functio
             }
         }
         let _e59 = local_16;
-        let _e61 = from_i32_(a1_7);
+        let _e61 = from_i32_(a1_6);
         let _e62 = from_i32_(a2_2);
         local_18 = _e17;
         local_19 = _e15;
@@ -304,15 +298,15 @@ fn gaussian(a1_7: u32, a2_2: u32, a3_: f32, a4_: bool, fe_trapped_1: ptr<functio
                 let _e101 = (_e92 * _e90);
                 let _e103 = from_i32_(_e94);
                 if a4_ {
-                    local_25 = a1_7;
+                    local_25 = a1_6;
                 } else {
-                    let _e106 = lib_image_max(0f, (_e61 - _e103));
+                    let _e106 = max_(0f, (_e61 - _e103));
                     let _e107 = to_i32_(_e106);
                     local_25 = _e107;
                 }
                 let _e112 = local_25;
                 if a4_ {
-                    local_26 = a1_7;
+                    local_26 = a1_6;
                 } else {
                     let _e115 = min_(255f, (_e61 + _e103));
                     let _e116 = to_i32_(_e115);
@@ -320,7 +314,7 @@ fn gaussian(a1_7: u32, a2_2: u32, a3_: f32, a4_: bool, fe_trapped_1: ptr<functio
                 }
                 let _e121 = local_26;
                 if a4_ {
-                    let _e124 = lib_image_max(0f, (_e62 - _e103));
+                    let _e124 = max_(0f, (_e62 - _e103));
                     let _e125 = to_i32_(_e124);
                     local_27 = _e125;
                 } else {
