@@ -2,32 +2,32 @@
   "source": "fe doc json SCIP export",
   "files": {
     "lib.fe": {
-      "bytes": 37302,
-      "semanticOccurrences": 984
+      "bytes": 29182,
+      "semanticOccurrences": 702
     },
     "policy.fe": {
-      "bytes": 10470,
-      "semanticOccurrences": 323
+      "bytes": 10744,
+      "semanticOccurrences": 337
     },
     "orbit.fe": {
-      "bytes": 11878,
-      "semanticOccurrences": 232
+      "bytes": 15965,
+      "semanticOccurrences": 319
     },
     "image.fe": {
       "bytes": 4682,
       "semanticOccurrences": 119
     },
     "cache.fe": {
-      "bytes": 1531,
-      "semanticOccurrences": 67
+      "bytes": 7573,
+      "semanticOccurrences": 309
     },
     "palette.fe": {
       "bytes": 1376,
       "semanticOccurrences": 43
     },
     "partition.fe": {
-      "bytes": 3254,
-      "semanticOccurrences": 35
+      "bytes": 7617,
+      "semanticOccurrences": 159
     },
     "color_library.fe": {
       "bytes": 2726,

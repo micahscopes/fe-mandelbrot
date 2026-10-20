@@ -202,7 +202,7 @@ pub fn progress(_ age: f32, _ start: f32, _ duration: f32) -> f32 {
 
 /// Lower spatial resolution during interaction, not the required orbit depth.
 /// Short iteration caps can turn a perfectly valid deep view solid black.
-pub fn preview_budget(_ zoom: f32, _ age: f32) -> u32 {
+pub fn preview_budget(_ zoom: f32) -> u32 {
     iteration_limit(zoom)
 }
 
@@ -216,6 +216,18 @@ pub fn blur_radius(_ age: f32) -> f32 {
 }
 
 impl MandelbrotViewState {
+    pub fn input_age(self) -> f32 {
+        if self.drag_active >= 0.5 {
+            0.0
+        } else {
+            self.clock - self.last_input
+        }
+    }
+
+    pub fn is_input_settled(self) -> bool {
+        self.drag_active < 0.5 && self.clock - self.last_input >= 60.0
+    }
+
     pub fn camera(self) -> Camera {
         Camera {
             center_x: from_quad(

@@ -5,13 +5,8 @@ struct FeLocal_fe_shader_private_layout_0_ {
     f3_: u32,
     f4_: u32,
     f5_: u32,
-    f6_: f32,
-}
-
-struct FeLocal_fe_shader_private_layout_2_ {
-    f0_: u32,
-    f1_: u32,
-    f2_: u32,
+    f6_: u32,
+    f7_: u32,
 }
 
 struct FeLocal_fe_shader_private_layout_1_ {
@@ -21,8 +16,13 @@ struct FeLocal_fe_shader_private_layout_1_ {
     f3_: u32,
     f4_: u32,
     f5_: u32,
-    f6_: u32,
-    f7_: u32,
+    f6_: f32,
+}
+
+struct FeLocal_fe_shader_private_layout_2_ {
+    f0_: u32,
+    f1_: u32,
+    f2_: u32,
 }
 
 struct orbit_element {
@@ -278,6 +278,81 @@ fn order_word(a0_: u32) -> u32 {
     return _e132;
 }
 
+fn from_quad_bits(a0_1: u32, a1_: u32, a2_: u32, a3_: u32, a4_: u32, a5_: u32, a6_: u32, a7_: u32) -> FeLocal_fe_shader_private_layout_0_ {
+    return FeLocal_fe_shader_private_layout_0_(a0_1, a1_, a2_, a3_, a4_, a5_, a6_, a7_);
+}
+
+fn order_block(a0_2: u32, fe_trapped_1: ptr<function, bool>) -> FeLocal_fe_shader_private_layout_0_ {
+    var local_5: FeLocal_fe_shader_private_layout_0_;
+    var local_6: bool = false;
+
+    let _e7 = (a0_2 * 8u);
+    let _e8 = (a0_2 != 0u);
+    if (_e8 && (8u > (4294967295u / select(1u, a0_2, _e8)))) {
+    } else {
+        let _e13 = order_word(_e7);
+        if (_e7 > (4294967295u - 1u)) {
+        } else {
+            let _e19 = order_word((_e7 + 1u));
+            if (_e7 > (4294967295u - 2u)) {
+            } else {
+                let _e25 = order_word((_e7 + 2u));
+                if (_e7 > (4294967295u - 3u)) {
+                } else {
+                    let _e31 = order_word((_e7 + 3u));
+                    if (_e7 > (4294967295u - 4u)) {
+                    } else {
+                        let _e37 = order_word((_e7 + 4u));
+                        if (_e7 > (4294967295u - 5u)) {
+                        } else {
+                            let _e43 = order_word((_e7 + 5u));
+                            if (_e7 > (4294967295u - 6u)) {
+                            } else {
+                                let _e49 = order_word((_e7 + 6u));
+                                if (_e7 > (4294967295u - 7u)) {
+                                } else {
+                                    let _e55 = order_word((_e7 + 7u));
+                                    let _e56 = from_quad_bits(_e13, _e19, _e25, _e31, _e37, _e43, _e49, _e55);
+                                    local_5 = _e56;
+                                    local_6 = true;
+                                }
+                                let _e61 = local_6;
+                                if _e61 {
+                                }
+                            }
+                            let _e63 = local_6;
+                            if _e63 {
+                            }
+                        }
+                        let _e65 = local_6;
+                        if _e65 {
+                        }
+                    }
+                    let _e67 = local_6;
+                    if _e67 {
+                    }
+                }
+                let _e69 = local_6;
+                if _e69 {
+                }
+            }
+            let _e71 = local_6;
+            if _e71 {
+            }
+        }
+        let _e73 = local_6;
+        if _e73 {
+        }
+    }
+    let _e76 = local_6;
+    if _e76 {
+    } else {
+        (*fe_trapped_1) = true;
+    }
+    let _e78 = local_5;
+    return _e78;
+}
+
 @compute @workgroup_size(8, 1, 1)
 fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin(local_invocation_id) local_invocation_id: vec3<u32>, @builtin(workgroup_id) workgroup_id: vec3<u32>, @builtin(num_workgroups) num_workgroups: vec3<u32>, @builtin(local_invocation_index) local_invocation_index: u32) {
     var fe_trapped: bool = false;
@@ -291,86 +366,24 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
         if (_e13 == 1u) {
             local_1 = true;
         }
-        let _e110 = local_1;
-        if _e110 {
+        let _e48 = local_1;
+        if _e48 {
         } else {
-            let _e24 = (global_invocation_id.x * 8u);
-            let _e25 = (global_invocation_id.x != 0u);
-            if (_e25 && (8u > (4294967295u / select(1u, global_invocation_id.x, _e25)))) {
-            } else {
-                if (16390u > (4294967295u - global_invocation_id.x)) {
-                } else {
-                    let _e35 = order_word(_e24);
-                    if (_e24 > (4294967295u - 1u)) {
-                    } else {
-                        let _e41 = order_word((_e24 + 1u));
-                        if (_e24 > (4294967295u - 2u)) {
-                        } else {
-                            let _e47 = order_word((_e24 + 2u));
-                            if (_e24 > (4294967295u - 3u)) {
-                            } else {
-                                let _e53 = order_word((_e24 + 3u));
-                                if (_e24 > (4294967295u - 4u)) {
-                                } else {
-                                    let _e59 = order_word((_e24 + 4u));
-                                    if (_e24 > (4294967295u - 5u)) {
-                                    } else {
-                                        let _e65 = order_word((_e24 + 5u));
-                                        if (_e24 > (4294967295u - 6u)) {
-                                        } else {
-                                            let _e71 = order_word((_e24 + 6u));
-                                            if (_e24 > (4294967295u - 7u)) {
-                                            } else {
-                                                let _e77 = order_word((_e24 + 7u));
-                                                orbit[i32((16390u + global_invocation_id.x))].re_w0_bits = _e35;
-                                                orbit[i32((16390u + global_invocation_id.x))].re_w1_bits = _e41;
-                                                orbit[i32((16390u + global_invocation_id.x))].re_w2_bits = _e47;
-                                                orbit[i32((16390u + global_invocation_id.x))].re_w3_bits = _e53;
-                                                orbit[i32((16390u + global_invocation_id.x))].im_w0_bits = _e59;
-                                                orbit[i32((16390u + global_invocation_id.x))].im_w1_bits = _e65;
-                                                orbit[i32((16390u + global_invocation_id.x))].im_w2_bits = _e71;
-                                                orbit[i32((16390u + global_invocation_id.x))].im_w3_bits = _e77;
-                                                local_1 = true;
-                                            }
-                                            let _e91 = local_1;
-                                            if _e91 {
-                                            }
-                                        }
-                                        let _e93 = local_1;
-                                        if _e93 {
-                                        }
-                                    }
-                                    let _e95 = local_1;
-                                    if _e95 {
-                                    }
-                                }
-                                let _e97 = local_1;
-                                if _e97 {
-                                }
-                            }
-                            let _e99 = local_1;
-                            if _e99 {
-                            }
-                        }
-                        let _e101 = local_1;
-                        if _e101 {
-                        }
-                    }
-                    let _e103 = local_1;
-                    if _e103 {
-                    }
-                }
-                let _e105 = local_1;
-                if _e105 {
-                }
-            }
-            let _e108 = local_1;
-            if _e108 {
-            } else {
+            if (16390u > (4294967295u - global_invocation_id.x)) {
                 fe_trapped = true;
             }
+            let _e26 = order_block(global_invocation_id.x, (&fe_trapped));
+            orbit[i32((16390u + global_invocation_id.x))].re_w0_bits = _e26.f0_;
+            orbit[i32((16390u + global_invocation_id.x))].re_w1_bits = _e26.f1_;
+            orbit[i32((16390u + global_invocation_id.x))].re_w2_bits = _e26.f2_;
+            orbit[i32((16390u + global_invocation_id.x))].re_w3_bits = _e26.f3_;
+            orbit[i32((16390u + global_invocation_id.x))].im_w0_bits = _e26.f4_;
+            orbit[i32((16390u + global_invocation_id.x))].im_w1_bits = _e26.f5_;
+            orbit[i32((16390u + global_invocation_id.x))].im_w2_bits = _e26.f6_;
+            orbit[i32((16390u + global_invocation_id.x))].im_w3_bits = _e26.f7_;
+            local_1 = true;
         }
     }
-    let _e121 = fe_trapped;
-    trap[((global_invocation_id.x + (global_invocation_id.y * 8u)) + (global_invocation_id.z * 8u))] = u32(_e121);
+    let _e59 = fe_trapped;
+    trap[((global_invocation_id.x + (global_invocation_id.y * 8u)) + (global_invocation_id.z * 8u))] = u32(_e59);
 }
