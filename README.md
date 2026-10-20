@@ -57,8 +57,10 @@ pinned compiler and all three Fe applications, publishing the site as an artifac
 
 - `app/renderer`: camera/input, quality policy, orbit computation, progressive
   cohorts, numerical caches, color conversion, blur and antialiasing.
-- `app/source_viewer`: source selection, fetching, cancellation and rendering,
-  also written in Fe.
+- `app/source_viewer`: the Fe source-viewer ingot shared by both demos. It owns
+  source selection, fetching, cancellation, line numbers and rendering.
+  Its catalog includes Mandelbrot, the color library, the color demo and itself.
+  Both demo pages link to it, and it links back to both demos.
 - `app/color_demo`: interactive OKLCH hue, OKLab blending and lightness/chroma demo.
 - `lib/perceptual_color`: shared color construction, interpolation, packing and display.
 - `lib`: the matching Fe math/precision and source-inspection dependencies.
@@ -119,3 +121,11 @@ interpolates in OKLab; `rgba(color)` converts for display.
 When using an older already-built compiler, the build script also applies the
 generic Wasm channel-order patch to its emitted adapter. A freshly bootstrapped
 compiler emits that fix directly.
+
+The Fe source viewer highlights comments, strings, keywords and numbers in Fe.
+At build time, `fe doc … json` supplies the compiler's existing SCIP export,
+which adds type, function and field colors. `tools/source_catalog.py` packages
+UTF-8 byte ranges with the unchanged source; no browser JavaScript tokenizes or
+interprets source. Raw links and copied source retain the original bytes.
+Run `node tests/source-viewer.mjs` to check both demo links, all source files,
+highlighting, exact text, stale fetches, error recovery and phone layout.

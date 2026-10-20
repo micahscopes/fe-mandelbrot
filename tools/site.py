@@ -12,8 +12,9 @@ if __name__=='__main__':
     for name in ['renderer','viewer','colors']:shutil.copytree(artifacts/name,out/name,dirs_exist_ok=True)
     for name in ['index.html','style.css']:shutil.copy2(ROOT/'web'/name,out/name)
     source=out/'viewer/source';source.mkdir(exist_ok=True)
-    for p in (ROOT/'app/renderer/src').glob('*.fe'):shutil.copy2(p,source/p.name)
-    shutil.copy2(ROOT/'app/source_viewer/src/lib.fe',source/'viewer.fe')
+    from source_catalog import SOURCES
+    for alias,(ingot,path) in SOURCES.items():shutil.copy2(ROOT/ingot/path,source/alias)
+    shutil.copytree(artifacts/'highlighted',source,dirs_exist_ok=True)
     shutil.copy2(ROOT/'web/colors.html',out/'colors/index.html')
     color_source=out/'colors/source';color_source.mkdir(exist_ok=True)
     shutil.copy2(ROOT/'lib/perceptual_color/src/lib.fe',color_source/'lib.fe')

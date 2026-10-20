@@ -17,7 +17,7 @@ use std::web::component::{
     VisibleParts,
     allocate_component_buffer,
 }
-use std::web::identity::{ComponentSchema, ComponentSchemaProvider, Part, Text, Link, Visibility}
+use std::web::identity::{ComponentSchema, ComponentSchemaProvider, Part, Text, Link, Visibility, Repeat, Class}
 use std::web::page::{
     ComponentComposition,
     ComponentView,
@@ -39,20 +39,40 @@ use source_inspector::{
     load_inspector_resources,
     publish_load_command,
     URL_CAPACITY,
-    PATCH_CAPACITY,
     CONTENT_CAPACITY,
     CONTROL_CAPACITY,
 }
 
-const VIEW_CAPACITY: usize = 256
+const VIEW_CAPACITY: usize = 384
+const PATCH_CAPACITY:u32=2097152
 const GUTTER_CAPACITY: u32 = 65536
+
+struct SourceToken {}
+struct Ty {}
+struct Function {}
+struct Property {}
+struct Variable {}
+struct Keyword {}
+struct Comment {}
+struct StringToken {}
+struct Number {}
 
 struct SourceParts {
     loading: Part<Visibility>,
     ready: Part<Visibility>,
     error: Part<Visibility>,
     empty: Part<Visibility>,
-    code: Part<Text>,
+    code: Part<Repeat<SourceToken>>,
+    token:Part<Text>,
+    ty:Part<Class<Ty>>,
+    function:Part<Class<Function>>,
+    property:Part<Class<Property>>,
+    variable:Part<Class<Variable>>,
+    keyword:Part<Class<Keyword>>,
+    comment:Part<Class<Comment>>,
+    string:Part<Class<StringToken>>,
+    number:Part<Class<Number>>,
+
     gutter: Part<Text>,
     title: Part<Text>,
     error_text: Part<Text>,
@@ -94,7 +114,7 @@ const fn file_link(
     page.open(element: PageElement::Anchor)
         .attribute(value: PageAttribute::class(value: "file"))
         .attribute(
-            value: PageAttribute::href(value: PageText::two(first: "source/", second: file)),
+            value: PageAttribute::href(value: PageText::three(first: "source/", second: file, third: ".view")),
         )
         .attribute(
             value: PageAttribute::action(value: InspectorAction::Source),
@@ -175,8 +195,11 @@ actor FeSourceViewer {
             .open(element:PageElement::Anchor)
             .attribute(value:PageAttribute::href(value:label("../index.html")))
             .text(value:label("← Mandelbrot")).close()
+            .open(element:PageElement::Anchor)
+            .attribute(value:PageAttribute::href(value:label("../colors/index.html")))
+            .text(value:label("← Color lab")).close()
             .open(element:PageElement::Heading1).text(value:label("Fe source")).close()
-            .open(element:PageElement::Paragraph).text(value:label("Perturbation renderer · MB2")).close()
+            .open(element:PageElement::Paragraph).text(value:label("Renderer, colors and viewer")).close()
             .close()
             .open(element:PageElement::Div).attribute(value:PageAttribute::class(value:"workspace"))
             .open(element:PageElement::Section).attribute(value:PageAttribute::class(value:"files"))
@@ -185,9 +208,12 @@ actor FeSourceViewer {
         let page=file_link(page,"orbit.fe","Resumable perturbation")
         let page=file_link(page,"image.fe","Color, sampling and Gaussian")
         let page=file_link(page,"cache.fe","GPU cache metadata")
-        let page=file_link(page,"palette.fe","Pastel OKLCH palette")
+        let page=file_link(page,"palette.fe","Rich OKLCH palette")
         let page=file_link(page,"partition.fe","Blue-noise ordering")
+        let page=file_link(page,"color_library.fe","OKLCH and OKLab library")
+        let page=file_link(page,"color_demo.fe","Interactive color lab")
         let page=file_link(page,"viewer.fe","This Fe source viewer")
+        let page=file_link(page,"viewer_highlight.fe","Fe lexical and semantic colors")
         page.close()
             .open(element:PageElement::Main)
             .open(element:PageElement::Div).attribute(value:PageAttribute::class(value:"file-heading"))
@@ -212,6 +238,18 @@ actor FeSourceViewer {
             .attribute(value:PageAttribute::node(value:ui.gutter)).close()
             .open(element:PageElement::Pre).attribute(value:PageAttribute::class(value:"source-code"))
             .attribute(value:PageAttribute::node(value:ui.code)).close()
+            .close().close().close()
+            .open(element:PageElement::Template).attribute(value:PageAttribute::template(value:ui.code))
+            .open(element:PageElement::Span)
+            .open(element:PageElement::Span).attribute(value:PageAttribute::node(value:ui.token))
+            .attribute(value:PageAttribute::class_token(slot:ui.ty,value:"hl-ty"))
+            .attribute(value:PageAttribute::class_token(slot:ui.function,value:"hl-function"))
+            .attribute(value:PageAttribute::class_token(slot:ui.property,value:"hl-property"))
+            .attribute(value:PageAttribute::class_token(slot:ui.variable,value:"hl-variable"))
+            .attribute(value:PageAttribute::class_token(slot:ui.keyword,value:"hl-keyword"))
+            .attribute(value:PageAttribute::class_token(slot:ui.comment,value:"hl-comment"))
+            .attribute(value:PageAttribute::class_token(slot:ui.string,value:"hl-string"))
+            .attribute(value:PageAttribute::class_token(slot:ui.number,value:"hl-number"))
             .close().close().close().finish_component()
     }
 
@@ -302,17 +340,41 @@ actor FeSourceViewer {
             .show_if(target:ui.empty,visible:match self.status { SourceStatus::Empty=>true,_=>false })
             .show_if(target:ui.loading,visible:match self.status { SourceStatus::Loading=>true,_=>false })
             .show_if(target:ui.error,visible:match self.status { SourceStatus::Error=>true,_=>false })
-        let url=Utf8Buffer::with_len(ptr:self.url_ptr,len:self.url_len,capacity:URL_CAPACITY).view()
+        let requested=Utf8Buffer::with_len(ptr:self.url_ptr,len:self.url_len,capacity:URL_CAPACITY).view()
+        let url=if requested.len()>5 && requested.slice(start:requested.len()-5,end:requested.len()).view.equals_literal([46,118,105,101,119]) {
+            requested.slice(start:0,end:requested.len()-5).view
+        } else {requested}
         let content=Utf8Buffer::with_len(ptr:self.content_ptr,len:self.content_len,capacity:CONTENT_CAPACITY).view()
         let mut writer=ComponentWriter::new(buffer:BrowserBytes { ptr:self.patch_ptr,len:PATCH_CAPACITY })
         if self.url_len>0 {
             writer=writer.set_href(target:ui.raw,value:url.browser_string())
                 .set_text(target:ui.title,value:filename(url))
         }
+        writer=writer.repeat_begin(region:ui.code)
         if ready {
-            writer=writer.set_text(target:ui.code,value:content.browser_string())
-                .set_text(target:ui.gutter,value:line_numbers(self.gutter_ptr,content))
+            let doc=ingot::highlight::document(content)
+            let mut at:u32=0
+            let mut tokens:u32=0
+            while at<doc.text.len() {
+                let token=if tokens>=8191 {ingot::highlight::Token {end:doc.text.len(),kind:0}}
+                    else {ingot::highlight::next(doc,at)}
+                writer=writer.repeat_item(key:at+1)
+                    .set_text(target:ui.token,value:doc.text.slice(start:at,end:token.end).view.browser_string())
+                    .set_class(target:ui.token,token:ui.ty,enabled:token.kind==1)
+                    .set_class(target:ui.token,token:ui.function,enabled:token.kind==2)
+                    .set_class(target:ui.token,token:ui.property,enabled:token.kind==3)
+                    .set_class(target:ui.token,token:ui.variable,enabled:token.kind==4)
+                    .set_class(target:ui.token,token:ui.keyword,enabled:token.kind==5)
+                    .set_class(target:ui.token,token:ui.comment,enabled:token.kind==6)
+                    .set_class(target:ui.token,token:ui.string,enabled:token.kind==7)
+                    .set_class(target:ui.token,token:ui.number,enabled:token.kind==8)
+                at=token.end
+                tokens=tokens+1
+            }
+            writer=writer.repeat_end()
+                .set_text(target:ui.gutter,value:line_numbers(self.gutter_ptr,doc.text))
         } else {
+            writer=writer.repeat_end()
             writer=writer.set_text(target:ui.error_text,value:content.browser_string())
         }
         ComponentPatch::new(visible:visible,focus_target:InspectorAction::Unknown,

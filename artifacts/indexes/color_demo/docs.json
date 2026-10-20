@@ -1,0 +1,1812 @@
+{
+  "schema_version": 4,
+  "compiler_version": "26.2.0",
+  "index": {
+    "items": [
+      {
+        "children": [],
+        "docs": null,
+        "generics": [],
+        "kind": "module",
+        "name": "color_demo",
+        "path": "color_demo",
+        "rich_signature": [
+          {
+            "text": "//! Three bands: OKLCH hue sweep, OKLab blending, and lightness/chroma field.\n//! The same perceptual_color ingot is used by the Mandelbrot renderer.\nuse std::webgpu::{FragmentSurface,GpuProgram,ResponsiveBacking,\n    StandardSurfaceRecovery,SurfaceQuality,SurfaceRecovery,\n    SurfaceTransition,WebGpuBackend}\nuse std::web::"
+          },
+          {
+            "link": "color_demo::view/fn",
+            "text": "view"
+          },
+          {
+            "text": "::{ApplyParamBindings,Extent,Param,ParamBindingsProvider,\n    Surface,SurfaceEvent,SurfaceState}\nuse fmath::{from_i32}\nuse perceptual_color::{oklch,blend,rgba}\n\nstruct ColorParams { hue:Param, chroma:Param, lightness:Param, res:Param }\nstruct ColorState { hue:f32, chroma:f32, lightness:f32, res:f32 }\nimpl SurfaceState for "
+          },
+          {
+            "link": "color_demo::ColorState/struct",
+            "text": "ColorState"
+          },
+          {
+            "text": " { type Params=ColorParams }\n"
+          },
+          {
+            "link": "color_demo::ColorState/struct",
+            "text": "derive ApplyParamBindings for ColorState using ParamBindingsProvider<ColorParams>"
+          },
+          {
+            "text": "\nconst fn params() -> "
+          },
+          {
+            "link": "color_demo::ColorParams/struct",
+            "text": "ColorParams"
+          },
+          {
+            "text": " {\n    "
+          },
+          {
+            "link": "color_demo::ColorParams/struct",
+            "text": "ColorParams"
+          },
+          {
+            "text": " {\n        hue:Param::range(min:0.0,max:360.0,init:275.0).drag_x(per_px:0.5),\n        chroma:Param::range(min:0.0,max:0.25,init:0.18),\n        lightness:Param::range(min:0.1,max:0.95,init:0.65).drag_y(per_px:-0.001),\n        res:Param::extent_x(),\n    }\n}\n"
+          },
+          {
+            "link": "color_demo::ColorParams/struct",
+            "text": "actor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>) {\n    hue:f32, chroma:f32, lightness:f32, res:f32,\n    const fn view() -> Surface<ColorParams> {\n        Surface {extent:Extent::square(768),params:params()}\n    }\n    fn navigate(self,event:own SurfaceEvent) -> ColorState\n        uses (SurfaceTransition) {\n        ColorState {hue:self.hue,chroma:self.chroma,lightness:self.lightness,res:self.res}\n            .apply_param_bindings(params(),event)\n    }\n    fn shade(self,px:i32,py:i32) -> i32 uses (FragmentSurface) {\n        let x:f32=(from_i32(px)+0.5)/self.res\n        let y:f32=(from_i32(py)+0.5)/self.res\n        if y<0.3333333 {\n            rgba(oklch(self.lightness,self.chroma,self.hue+x*360.0))\n        } else {if y<0.6666667 {\n            rgba(blend(oklch(self.lightness,self.chroma,self.hue),\n                oklch(self.lightness,self.chroma,self.hue+140.0),x))\n        } else {\n            rgba(oklch(0.15+0.75*x,self.chroma*(y-0.6666667)*3.0,self.hue))\n        }}\n    }\n}"
+          }
+        ],
+        "sig_scope": "__sig__/color_demo/mod",
+        "signature": "//! Three bands: OKLCH hue sweep, OKLab blending, and lightness/chroma field.\n//! The same perceptual_color ingot is used by the Mandelbrot renderer.\nuse std::webgpu::{FragmentSurface,GpuProgram,ResponsiveBacking,\n    StandardSurfaceRecovery,SurfaceQuality,SurfaceRecovery,\n    SurfaceTransition,WebGpuBackend}\nuse std::web::view::{ApplyParamBindings,Extent,Param,ParamBindingsProvider,\n    Surface,SurfaceEvent,SurfaceState}\nuse fmath::{from_i32}\nuse perceptual_color::{oklch,blend,rgba}\n\nstruct ColorParams { hue:Param, chroma:Param, lightness:Param, res:Param }\nstruct ColorState { hue:f32, chroma:f32, lightness:f32, res:f32 }\nimpl SurfaceState for ColorState { type Params=ColorParams }\nderive ApplyParamBindings for ColorState using ParamBindingsProvider<ColorParams>\nconst fn params() -> ColorParams {\n    ColorParams {\n        hue:Param::range(min:0.0,max:360.0,init:275.0).drag_x(per_px:0.5),\n        chroma:Param::range(min:0.0,max:0.25,init:0.18),\n        lightness:Param::range(min:0.1,max:0.95,init:0.65).drag_y(per_px:-0.001),\n        res:Param::extent_x(),\n    }\n}\nactor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>) {\n    hue:f32, chroma:f32, lightness:f32, res:f32,\n    const fn view() -> Surface<ColorParams> {\n        Surface {extent:Extent::square(768),params:params()}\n    }\n    fn navigate(self,event:own SurfaceEvent) -> ColorState\n        uses (SurfaceTransition) {\n        ColorState {hue:self.hue,chroma:self.chroma,lightness:self.lightness,res:self.res}\n            .apply_param_bindings(params(),event)\n    }\n    fn shade(self,px:i32,py:i32) -> i32 uses (FragmentSurface) {\n        let x:f32=(from_i32(px)+0.5)/self.res\n        let y:f32=(from_i32(py)+0.5)/self.res\n        if y<0.3333333 {\n            rgba(oklch(self.lightness,self.chroma,self.hue+x*360.0))\n        } else {if y<0.6666667 {\n            rgba(blend(oklch(self.lightness,self.chroma,self.hue),\n                oklch(self.lightness,self.chroma,self.hue+140.0),x))\n        } else {\n            rgba(oklch(0.15+0.75*x,self.chroma*(y-0.6666667)*3.0,self.hue))\n        }}\n    }\n}",
+        "source": {
+          "column": 0,
+          "display_file": "app/color_demo/src/lib.fe",
+          "line": 1
+        },
+        "source_text": "//! Three bands: OKLCH hue sweep, OKLab blending, and lightness/chroma field.\n//! The same perceptual_color ingot is used by the Mandelbrot renderer.\nuse std::webgpu::{FragmentSurface,GpuProgram,ResponsiveBacking,\n    StandardSurfaceRecovery,SurfaceQuality,SurfaceRecovery,\n    SurfaceTransition,WebGpuBackend}\nuse std::web::view::{ApplyParamBindings,Extent,Param,ParamBindingsProvider,\n    Surface,SurfaceEvent,SurfaceState}\nuse fmath::{from_i32}\nuse perceptual_color::{oklch,blend,rgba}\n\nstruct ColorParams { hue:Param, chroma:Param, lightness:Param, res:Param }\nstruct ColorState { hue:f32, chroma:f32, lightness:f32, res:f32 }\nimpl SurfaceState for ColorState { type Params=ColorParams }\nderive ApplyParamBindings for ColorState using ParamBindingsProvider<ColorParams>\nconst fn params() -> ColorParams {\n    ColorParams {\n        hue:Param::range(min:0.0,max:360.0,init:275.0).drag_x(per_px:0.5),\n        chroma:Param::range(min:0.0,max:0.25,init:0.18),\n        lightness:Param::range(min:0.1,max:0.95,init:0.65).drag_y(per_px:-0.001),\n        res:Param::extent_x(),\n    }\n}\nactor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>) {\n    hue:f32, chroma:f32, lightness:f32, res:f32,\n    const fn view() -> Surface<ColorParams> {\n        Surface {extent:Extent::square(768),params:params()}\n    }\n    fn navigate(self,event:own SurfaceEvent) -> ColorState\n        uses (SurfaceTransition) {\n        ColorState {hue:self.hue,chroma:self.chroma,lightness:self.lightness,res:self.res}\n            .apply_param_bindings(params(),event)\n    }\n    fn shade(self,px:i32,py:i32) -> i32 uses (FragmentSurface) {\n        let x:f32=(from_i32(px)+0.5)/self.res\n        let y:f32=(from_i32(py)+0.5)/self.res\n        if y<0.3333333 {\n            rgba(oklch(self.lightness,self.chroma,self.hue+x*360.0))\n        } else {if y<0.6666667 {\n            rgba(blend(oklch(self.lightness,self.chroma,self.hue),\n                oklch(self.lightness,self.chroma,self.hue+140.0),x))\n        } else {\n            rgba(oklch(0.15+0.75*x,self.chroma*(y-0.6666667)*3.0,self.hue))\n        }}\n    }\n}\n",
+        "trait_impls": [],
+        "visibility": "public",
+        "where_bounds": []
+      },
+      {
+        "children": [
+          {
+            "docs": null,
+            "kind": "field",
+            "name": "hue",
+            "signature": "hue: Param",
+            "visibility": "private"
+          },
+          {
+            "docs": null,
+            "kind": "field",
+            "name": "chroma",
+            "signature": "chroma: Param",
+            "visibility": "private"
+          },
+          {
+            "docs": null,
+            "kind": "field",
+            "name": "lightness",
+            "signature": "lightness: Param",
+            "visibility": "private"
+          },
+          {
+            "docs": null,
+            "kind": "field",
+            "name": "res",
+            "signature": "res: Param",
+            "visibility": "private"
+          }
+        ],
+        "docs": null,
+        "generics": [],
+        "kind": "struct",
+        "name": "ColorParams",
+        "path": "color_demo::ColorParams",
+        "sig_scope": "__sig__/color_demo::ColorParams/struct",
+        "signature": "struct ColorParams",
+        "source": {
+          "column": 0,
+          "display_file": "app/color_demo/src/lib.fe",
+          "line": 11
+        },
+        "source_text": "struct ColorParams { hue:Param, chroma:Param, lightness:Param, res:Param }",
+        "trait_impls": [],
+        "visibility": "private",
+        "where_bounds": []
+      },
+      {
+        "children": [
+          {
+            "docs": null,
+            "kind": "field",
+            "name": "hue",
+            "signature": "hue: f32",
+            "visibility": "private"
+          },
+          {
+            "docs": null,
+            "kind": "field",
+            "name": "chroma",
+            "signature": "chroma: f32",
+            "visibility": "private"
+          },
+          {
+            "docs": null,
+            "kind": "field",
+            "name": "lightness",
+            "signature": "lightness: f32",
+            "visibility": "private"
+          },
+          {
+            "docs": null,
+            "kind": "field",
+            "name": "res",
+            "signature": "res: f32",
+            "visibility": "private"
+          }
+        ],
+        "docs": null,
+        "generics": [],
+        "kind": "struct",
+        "name": "ColorState",
+        "path": "color_demo::ColorState",
+        "sig_scope": "__sig__/color_demo::ColorState/struct",
+        "signature": "struct ColorState",
+        "source": {
+          "column": 0,
+          "display_file": "app/color_demo/src/lib.fe",
+          "line": 12
+        },
+        "source_text": "struct ColorState { hue:f32, chroma:f32, lightness:f32, res:f32 }",
+        "trait_impls": [
+          {
+            "impl_url": "color_demo::ColorState::impl_SurfaceState/impl",
+            "methods": [],
+            "rich_signature": [
+              {
+                "text": "impl SurfaceState for "
+              },
+              {
+                "link": "color_demo::ColorState/struct",
+                "text": "ColorState"
+              }
+            ],
+            "sig_scope": "__sig__/color_demo::ColorState/struct/impl-SurfaceState",
+            "signature": "impl SurfaceState for ColorState",
+            "trait_name": "SurfaceState"
+          },
+          {
+            "impl_url": "color_demo::ColorState::impl_ApplyParamBindings/impl",
+            "methods": [
+              {
+                "docs": null,
+                "name": "apply_param_bindings",
+                "rich_signature": [
+                  {
+                    "link": "color_demo::ColorState/struct",
+                    "text": "derive ApplyParamBindings for ColorState using ParamBindingsProvider<ColorParams>"
+                  }
+                ],
+                "sig_scope": "__sig__/color_demo::ColorState/struct/impl-ApplyParamBindings/method.apply_param_bindings",
+                "signature": "derive ApplyParamBindings for ColorState using ParamBindingsProvider<ColorParams>"
+              }
+            ],
+            "rich_signature": [
+              {
+                "link": "color_demo::ColorState/struct",
+                "text": "derive ApplyParamBindings for ColorState using ParamBindingsProvider<ColorParams>"
+              }
+            ],
+            "sig_scope": "__sig__/color_demo::ColorState/struct/impl-ApplyParamBindings",
+            "signature": "derive ApplyParamBindings for ColorState using ParamBindingsProvider<ColorParams>",
+            "trait_name": "ApplyParamBindings"
+          }
+        ],
+        "visibility": "private",
+        "where_bounds": []
+      },
+      {
+        "children": [],
+        "docs": null,
+        "generics": [],
+        "kind": "function",
+        "name": "params",
+        "path": "color_demo::params",
+        "rich_signature": [
+          {
+            "text": "const fn params() -> "
+          },
+          {
+            "link": "color_demo::ColorParams/struct",
+            "text": "ColorParams"
+          }
+        ],
+        "sig_scope": "__sig__/color_demo::params/fn",
+        "signature": "const fn params() -> ColorParams",
+        "source": {
+          "column": 0,
+          "display_file": "app/color_demo/src/lib.fe",
+          "line": 15
+        },
+        "source_text": "const fn params() -> ColorParams {\n    ColorParams {\n        hue:Param::range(min:0.0,max:360.0,init:275.0).drag_x(per_px:0.5),\n        chroma:Param::range(min:0.0,max:0.25,init:0.18),\n        lightness:Param::range(min:0.1,max:0.95,init:0.65).drag_y(per_px:-0.001),\n        res:Param::extent_x(),\n    }\n}",
+        "trait_impls": [],
+        "visibility": "private",
+        "where_bounds": []
+      },
+      {
+        "children": [
+          {
+            "docs": null,
+            "kind": "field",
+            "name": "hue",
+            "signature": "hue: actor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>) {\n    hue:f32, chroma:f32, lightness:f32, res:f32,\n    const fn view() -> Surface<ColorParams> {\n        Surface {extent:Extent::square(768),params:params()}\n    }\n    fn navigate(self,event:own SurfaceEvent) -> ColorState\n        uses (SurfaceTransition) {\n        ColorState {hue:self.hue,chroma:self.chroma,lightness:self.lightness,res:self.res}\n            .apply_param_bindings(params(),event)\n    }\n    fn shade(self,px:i32,py:i32) -> i32 uses (FragmentSurface) {\n        let x:f32=(from_i32(px)+0.5)/self.res\n        let y:f32=(from_i32(py)+0.5)/self.res\n        if y<0.3333333 {\n            rgba(oklch(self.lightness,self.chroma,self.hue+x*360.0))\n        } else {if y<0.6666667 {\n            rgba(blend(oklch(self.lightness,self.chroma,self.hue),\n                oklch(self.lightness,self.chroma,self.hue+140.0),x))\n        } else {\n            rgba(oklch(0.15+0.75*x,self.chroma*(y-0.6666667)*3.0,self.hue))\n        }}\n    }\n}",
+            "visibility": "public"
+          },
+          {
+            "docs": null,
+            "kind": "field",
+            "name": "chroma",
+            "signature": "chroma: actor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>) {\n    hue:f32, chroma:f32, lightness:f32, res:f32,\n    const fn view() -> Surface<ColorParams> {\n        Surface {extent:Extent::square(768),params:params()}\n    }\n    fn navigate(self,event:own SurfaceEvent) -> ColorState\n        uses (SurfaceTransition) {\n        ColorState {hue:self.hue,chroma:self.chroma,lightness:self.lightness,res:self.res}\n            .apply_param_bindings(params(),event)\n    }\n    fn shade(self,px:i32,py:i32) -> i32 uses (FragmentSurface) {\n        let x:f32=(from_i32(px)+0.5)/self.res\n        let y:f32=(from_i32(py)+0.5)/self.res\n        if y<0.3333333 {\n            rgba(oklch(self.lightness,self.chroma,self.hue+x*360.0))\n        } else {if y<0.6666667 {\n            rgba(blend(oklch(self.lightness,self.chroma,self.hue),\n                oklch(self.lightness,self.chroma,self.hue+140.0),x))\n        } else {\n            rgba(oklch(0.15+0.75*x,self.chroma*(y-0.6666667)*3.0,self.hue))\n        }}\n    }\n}",
+            "visibility": "public"
+          },
+          {
+            "docs": null,
+            "kind": "field",
+            "name": "lightness",
+            "signature": "lightness: actor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>) {\n    hue:f32, chroma:f32, lightness:f32, res:f32,\n    const fn view() -> Surface<ColorParams> {\n        Surface {extent:Extent::square(768),params:params()}\n    }\n    fn navigate(self,event:own SurfaceEvent) -> ColorState\n        uses (SurfaceTransition) {\n        ColorState {hue:self.hue,chroma:self.chroma,lightness:self.lightness,res:self.res}\n            .apply_param_bindings(params(),event)\n    }\n    fn shade(self,px:i32,py:i32) -> i32 uses (FragmentSurface) {\n        let x:f32=(from_i32(px)+0.5)/self.res\n        let y:f32=(from_i32(py)+0.5)/self.res\n        if y<0.3333333 {\n            rgba(oklch(self.lightness,self.chroma,self.hue+x*360.0))\n        } else {if y<0.6666667 {\n            rgba(blend(oklch(self.lightness,self.chroma,self.hue),\n                oklch(self.lightness,self.chroma,self.hue+140.0),x))\n        } else {\n            rgba(oklch(0.15+0.75*x,self.chroma*(y-0.6666667)*3.0,self.hue))\n        }}\n    }\n}",
+            "visibility": "public"
+          },
+          {
+            "docs": null,
+            "kind": "field",
+            "name": "res",
+            "signature": "res: actor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>) {\n    hue:f32, chroma:f32, lightness:f32, res:f32,\n    const fn view() -> Surface<ColorParams> {\n        Surface {extent:Extent::square(768),params:params()}\n    }\n    fn navigate(self,event:own SurfaceEvent) -> ColorState\n        uses (SurfaceTransition) {\n        ColorState {hue:self.hue,chroma:self.chroma,lightness:self.lightness,res:self.res}\n            .apply_param_bindings(params(),event)\n    }\n    fn shade(self,px:i32,py:i32) -> i32 uses (FragmentSurface) {\n        let x:f32=(from_i32(px)+0.5)/self.res\n        let y:f32=(from_i32(py)+0.5)/self.res\n        if y<0.3333333 {\n            rgba(oklch(self.lightness,self.chroma,self.hue+x*360.0))\n        } else {if y<0.6666667 {\n            rgba(blend(oklch(self.lightness,self.chroma,self.hue),\n                oklch(self.lightness,self.chroma,self.hue+140.0),x))\n        } else {\n            rgba(oklch(0.15+0.75*x,self.chroma*(y-0.6666667)*3.0,self.hue))\n        }}\n    }\n}",
+            "visibility": "public"
+          }
+        ],
+        "docs": null,
+        "generics": [],
+        "kind": "struct",
+        "name": "ColorDemo",
+        "path": "color_demo::ColorDemo",
+        "signature": "actor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>)",
+        "source": {
+          "column": 0,
+          "display_file": "app/color_demo/src/lib.fe",
+          "line": 23
+        },
+        "source_text": "actor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>) {\n    hue:f32, chroma:f32, lightness:f32, res:f32,\n    const fn view() -> Surface<ColorParams> {\n        Surface {extent:Extent::square(768),params:params()}\n    }\n    fn navigate(self,event:own SurfaceEvent) -> ColorState\n        uses (SurfaceTransition) {\n        ColorState {hue:self.hue,chroma:self.chroma,lightness:self.lightness,res:self.res}\n            .apply_param_bindings(params(),event)\n    }\n    fn shade(self,px:i32,py:i32) -> i32 uses (FragmentSurface) {\n        let x:f32=(from_i32(px)+0.5)/self.res\n        let y:f32=(from_i32(py)+0.5)/self.res\n        if y<0.3333333 {\n            rgba(oklch(self.lightness,self.chroma,self.hue+x*360.0))\n        } else {if y<0.6666667 {\n            rgba(blend(oklch(self.lightness,self.chroma,self.hue),\n                oklch(self.lightness,self.chroma,self.hue+140.0),x))\n        } else {\n            rgba(oklch(0.15+0.75*x,self.chroma*(y-0.6666667)*3.0,self.hue))\n        }}\n    }\n}",
+        "trait_impls": [],
+        "visibility": "public",
+        "where_bounds": []
+      },
+      {
+        "children": [],
+        "docs": null,
+        "generics": [],
+        "kind": "function",
+        "name": "view",
+        "path": "color_demo::view",
+        "signature": "actor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>) {\n    hue:f32, chroma:f32, lightness:f32, res:f32,\n    const fn view() -> Surface<ColorParams>",
+        "source": {
+          "column": 0,
+          "display_file": "app/color_demo/src/lib.fe",
+          "line": 23
+        },
+        "source_text": "actor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>) {\n    hue:f32, chroma:f32, lightness:f32, res:f32,\n    const fn view() -> Surface<ColorParams> {\n        Surface {extent:Extent::square(768),params:params()}\n    }\n    fn navigate(self,event:own SurfaceEvent) -> ColorState\n        uses (SurfaceTransition) {\n        ColorState {hue:self.hue,chroma:self.chroma,lightness:self.lightness,res:self.res}\n            .apply_param_bindings(params(),event)\n    }\n    fn shade(self,px:i32,py:i32) -> i32 uses (FragmentSurface) {\n        let x:f32=(from_i32(px)+0.5)/self.res\n        let y:f32=(from_i32(py)+0.5)/self.res\n        if y<0.3333333 {\n            rgba(oklch(self.lightness,self.chroma,self.hue+x*360.0))\n        } else {if y<0.6666667 {\n            rgba(blend(oklch(self.lightness,self.chroma,self.hue),\n                oklch(self.lightness,self.chroma,self.hue+140.0),x))\n        } else {\n            rgba(oklch(0.15+0.75*x,self.chroma*(y-0.6666667)*3.0,self.hue))\n        }}\n    }\n}",
+        "trait_impls": [],
+        "visibility": "public",
+        "where_bounds": []
+      },
+      {
+        "children": [],
+        "docs": null,
+        "generics": [],
+        "kind": "function",
+        "name": "navigate",
+        "path": "color_demo::navigate",
+        "rich_signature": [
+          {
+            "text": "actor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>) {\n    hue:f32, chroma:f32, lightness:f32, res:f32,\n    const fn view() -> Surface<ColorParams> {\n        Surface {extent:Extent::square(768),params:"
+          },
+          {
+            "link": "color_demo::params/fn",
+            "text": "params"
+          },
+          {
+            "text": "()}\n    }\n    fn navigate(self,event:own SurfaceEvent) -> ColorState\n        uses (SurfaceTransition)"
+          }
+        ],
+        "sig_scope": "__sig__/color_demo::navigate/fn",
+        "signature": "actor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>) {\n    hue:f32, chroma:f32, lightness:f32, res:f32,\n    const fn view() -> Surface<ColorParams> {\n        Surface {extent:Extent::square(768),params:params()}\n    }\n    fn navigate(self,event:own SurfaceEvent) -> ColorState\n        uses (SurfaceTransition)",
+        "source": {
+          "column": 0,
+          "display_file": "app/color_demo/src/lib.fe",
+          "line": 23
+        },
+        "source_text": "actor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>) {\n    hue:f32, chroma:f32, lightness:f32, res:f32,\n    const fn view() -> Surface<ColorParams> {\n        Surface {extent:Extent::square(768),params:params()}\n    }\n    fn navigate(self,event:own SurfaceEvent) -> ColorState\n        uses (SurfaceTransition) {\n        ColorState {hue:self.hue,chroma:self.chroma,lightness:self.lightness,res:self.res}\n            .apply_param_bindings(params(),event)\n    }\n    fn shade(self,px:i32,py:i32) -> i32 uses (FragmentSurface) {\n        let x:f32=(from_i32(px)+0.5)/self.res\n        let y:f32=(from_i32(py)+0.5)/self.res\n        if y<0.3333333 {\n            rgba(oklch(self.lightness,self.chroma,self.hue+x*360.0))\n        } else {if y<0.6666667 {\n            rgba(blend(oklch(self.lightness,self.chroma,self.hue),\n                oklch(self.lightness,self.chroma,self.hue+140.0),x))\n        } else {\n            rgba(oklch(0.15+0.75*x,self.chroma*(y-0.6666667)*3.0,self.hue))\n        }}\n    }\n}",
+        "trait_impls": [],
+        "visibility": "public",
+        "where_bounds": []
+      },
+      {
+        "children": [],
+        "docs": null,
+        "generics": [],
+        "kind": "function",
+        "name": "shade",
+        "path": "color_demo::shade",
+        "rich_signature": [
+          {
+            "text": "actor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>) {\n    hue:f32, chroma:f32, lightness:f32, res:f32,\n    const fn view() -> Surface<ColorParams> {\n        Surface {extent:Extent::square(768),params:"
+          },
+          {
+            "link": "color_demo::params/fn",
+            "text": "params"
+          },
+          {
+            "text": "()}\n    }\n    fn navigate(self,event:own SurfaceEvent) -> ColorState\n        uses (SurfaceTransition) {\n        "
+          },
+          {
+            "link": "color_demo::ColorState/struct",
+            "text": "ColorState"
+          },
+          {
+            "text": " {hue:self.hue,chroma:self.chroma,lightness:self.lightness,res:self.res}\n            ."
+          },
+          {
+            "link": "color_demo::ColorState/struct~method.apply_param_bindings",
+            "text": "apply_param_bindings"
+          },
+          {
+            "text": "("
+          },
+          {
+            "link": "color_demo::params/fn",
+            "text": "params"
+          },
+          {
+            "text": "(),event)\n    }\n    fn shade(self,px:i32,py:i32) -> i32 uses (FragmentSurface)"
+          }
+        ],
+        "sig_scope": "__sig__/color_demo::shade/fn",
+        "signature": "actor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>) {\n    hue:f32, chroma:f32, lightness:f32, res:f32,\n    const fn view() -> Surface<ColorParams> {\n        Surface {extent:Extent::square(768),params:params()}\n    }\n    fn navigate(self,event:own SurfaceEvent) -> ColorState\n        uses (SurfaceTransition) {\n        ColorState {hue:self.hue,chroma:self.chroma,lightness:self.lightness,res:self.res}\n            .apply_param_bindings(params(),event)\n    }\n    fn shade(self,px:i32,py:i32) -> i32 uses (FragmentSurface)",
+        "source": {
+          "column": 0,
+          "display_file": "app/color_demo/src/lib.fe",
+          "line": 23
+        },
+        "source_text": "actor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>) {\n    hue:f32, chroma:f32, lightness:f32, res:f32,\n    const fn view() -> Surface<ColorParams> {\n        Surface {extent:Extent::square(768),params:params()}\n    }\n    fn navigate(self,event:own SurfaceEvent) -> ColorState\n        uses (SurfaceTransition) {\n        ColorState {hue:self.hue,chroma:self.chroma,lightness:self.lightness,res:self.res}\n            .apply_param_bindings(params(),event)\n    }\n    fn shade(self,px:i32,py:i32) -> i32 uses (FragmentSurface) {\n        let x:f32=(from_i32(px)+0.5)/self.res\n        let y:f32=(from_i32(py)+0.5)/self.res\n        if y<0.3333333 {\n            rgba(oklch(self.lightness,self.chroma,self.hue+x*360.0))\n        } else {if y<0.6666667 {\n            rgba(blend(oklch(self.lightness,self.chroma,self.hue),\n                oklch(self.lightness,self.chroma,self.hue+140.0),x))\n        } else {\n            rgba(oklch(0.15+0.75*x,self.chroma*(y-0.6666667)*3.0,self.hue))\n        }}\n    }\n}",
+        "trait_impls": [],
+        "visibility": "public",
+        "where_bounds": []
+      }
+    ],
+    "modules": [
+      {
+        "children": [],
+        "items": [
+          {
+            "kind": "function",
+            "name": "navigate",
+            "path": "color_demo::navigate"
+          },
+          {
+            "kind": "function",
+            "name": "params",
+            "path": "color_demo::params"
+          },
+          {
+            "kind": "function",
+            "name": "shade",
+            "path": "color_demo::shade"
+          },
+          {
+            "kind": "function",
+            "name": "view",
+            "path": "color_demo::view"
+          },
+          {
+            "kind": "struct",
+            "name": "ColorDemo",
+            "path": "color_demo::ColorDemo"
+          },
+          {
+            "kind": "struct",
+            "name": "ColorParams",
+            "path": "color_demo::ColorParams"
+          },
+          {
+            "kind": "struct",
+            "name": "ColorState",
+            "path": "color_demo::ColorState"
+          }
+        ],
+        "name": "color_demo",
+        "path": "color_demo"
+      }
+    ]
+  },
+  "scip": {
+    "files": {
+      "__sig__/color_demo/mod": [
+        {
+          "ce": 7,
+          "cs": 4,
+          "line": 2,
+          "sym": "fe fe std 0.1.0 lib:"
+        },
+        {
+          "ce": 15,
+          "cs": 9,
+          "line": 2,
+          "sym": "fe fe std 0.1.0 lib/webgpu:"
+        },
+        {
+          "ce": 33,
+          "cs": 18,
+          "line": 2,
+          "sym": "fe fe std 0.1.0 lib/webgpu/FragmentSurface#"
+        },
+        {
+          "ce": 44,
+          "cs": 34,
+          "line": 2,
+          "sym": "fe fe std 0.1.0 lib/webgpu/GpuProgram#"
+        },
+        {
+          "ce": 62,
+          "cs": 45,
+          "line": 2,
+          "sym": "fe fe std 0.1.0 lib/webgpu/ResponsiveBacking#"
+        },
+        {
+          "ce": 27,
+          "cs": 4,
+          "line": 3,
+          "sym": "fe fe std 0.1.0 lib/webgpu/StandardSurfaceRecovery#"
+        },
+        {
+          "ce": 42,
+          "cs": 28,
+          "line": 3,
+          "sym": "fe fe std 0.1.0 lib/webgpu/SurfaceQuality#"
+        },
+        {
+          "ce": 58,
+          "cs": 43,
+          "line": 3,
+          "sym": "fe fe std 0.1.0 lib/webgpu/SurfaceRecovery#"
+        },
+        {
+          "ce": 21,
+          "cs": 4,
+          "line": 4,
+          "sym": "fe fe std 0.1.0 lib/webgpu/SurfaceTransition#"
+        },
+        {
+          "ce": 35,
+          "cs": 22,
+          "line": 4,
+          "sym": "fe fe std 0.1.0 lib/webgpu/WebGpuBackend#"
+        },
+        {
+          "ce": 7,
+          "cs": 4,
+          "line": 5,
+          "sym": "fe fe std 0.1.0 lib:"
+        },
+        {
+          "ce": 12,
+          "cs": 9,
+          "line": 5,
+          "sym": "fe fe std 0.1.0 lib/web:"
+        },
+        {
+          "ce": 18,
+          "cs": 14,
+          "line": 5,
+          "sym": "fe fe std 0.1.0 lib/web/view:"
+        },
+        {
+          "ce": 39,
+          "cs": 21,
+          "line": 5,
+          "sym": "fe fe std 0.1.0 lib/web/view/ApplyParamBindings#"
+        },
+        {
+          "ce": 46,
+          "cs": 40,
+          "line": 5,
+          "sym": "fe fe std 0.1.0 lib/web/view/Extent#"
+        },
+        {
+          "ce": 52,
+          "cs": 47,
+          "line": 5,
+          "sym": "fe fe std 0.1.0 lib/web/view/Param#"
+        },
+        {
+          "ce": 74,
+          "cs": 53,
+          "line": 5,
+          "sym": "fe fe std 0.1.0 lib/web/view/ParamBindingsProvider#"
+        },
+        {
+          "ce": 11,
+          "cs": 4,
+          "line": 6,
+          "sym": "fe fe std 0.1.0 lib/web/view/Surface#"
+        },
+        {
+          "ce": 24,
+          "cs": 12,
+          "line": 6,
+          "sym": "fe fe std 0.1.0 lib/web/view/SurfaceEvent#"
+        },
+        {
+          "ce": 37,
+          "cs": 25,
+          "line": 6,
+          "sym": "fe fe std 0.1.0 lib/web/view/SurfaceState#"
+        },
+        {
+          "ce": 9,
+          "cs": 4,
+          "line": 7,
+          "sym": "fe fe fmath 0.1.0 lib:"
+        },
+        {
+          "ce": 20,
+          "cs": 12,
+          "line": 7,
+          "sym": "fe fe fmath 0.1.0 lib/from_i32."
+        },
+        {
+          "ce": 20,
+          "cs": 4,
+          "line": 8,
+          "sym": "fe fe perceptual_color 0.1.0 lib:"
+        },
+        {
+          "ce": 28,
+          "cs": 23,
+          "line": 8,
+          "sym": "fe fe perceptual_color 0.1.0 lib/oklch."
+        },
+        {
+          "ce": 34,
+          "cs": 29,
+          "line": 8,
+          "sym": "fe fe perceptual_color 0.1.0 lib/blend."
+        },
+        {
+          "ce": 39,
+          "cs": 35,
+          "line": 8,
+          "sym": "fe fe perceptual_color 0.1.0 lib/rgba."
+        },
+        {
+          "ce": 18,
+          "cs": 7,
+          "def": true,
+          "line": 10,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#"
+        },
+        {
+          "ce": 24,
+          "cs": 21,
+          "def": true,
+          "line": 10,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#hue."
+        },
+        {
+          "ce": 30,
+          "cs": 25,
+          "line": 10,
+          "sym": "fe fe std 0.1.0 lib/web/view/Param#"
+        },
+        {
+          "ce": 38,
+          "cs": 32,
+          "def": true,
+          "line": 10,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#chroma."
+        },
+        {
+          "ce": 44,
+          "cs": 39,
+          "line": 10,
+          "sym": "fe fe std 0.1.0 lib/web/view/Param#"
+        },
+        {
+          "ce": 55,
+          "cs": 46,
+          "def": true,
+          "line": 10,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#lightness."
+        },
+        {
+          "ce": 61,
+          "cs": 56,
+          "line": 10,
+          "sym": "fe fe std 0.1.0 lib/web/view/Param#"
+        },
+        {
+          "ce": 66,
+          "cs": 63,
+          "def": true,
+          "line": 10,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#res."
+        },
+        {
+          "ce": 72,
+          "cs": 67,
+          "line": 10,
+          "sym": "fe fe std 0.1.0 lib/web/view/Param#"
+        },
+        {
+          "ce": 17,
+          "cs": 7,
+          "def": true,
+          "line": 11,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#"
+        },
+        {
+          "ce": 23,
+          "cs": 20,
+          "def": true,
+          "line": 11,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#hue."
+        },
+        {
+          "ce": 35,
+          "cs": 29,
+          "def": true,
+          "line": 11,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#chroma."
+        },
+        {
+          "ce": 50,
+          "cs": 41,
+          "def": true,
+          "line": 11,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#lightness."
+        },
+        {
+          "ce": 59,
+          "cs": 56,
+          "def": true,
+          "line": 11,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#res."
+        },
+        {
+          "ce": 17,
+          "cs": 5,
+          "line": 12,
+          "sym": "fe fe std 0.1.0 lib/web/view/SurfaceState#"
+        },
+        {
+          "ce": 32,
+          "cs": 22,
+          "line": 12,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#"
+        },
+        {
+          "ce": 81,
+          "cs": 0,
+          "line": 13,
+          "sym": "fe fe color_demo 0.1.0 lib:"
+        },
+        {
+          "ce": 15,
+          "cs": 9,
+          "def": true,
+          "line": 14,
+          "sym": "fe fe color_demo 0.1.0 lib/params."
+        },
+        {
+          "ce": 32,
+          "cs": 21,
+          "line": 14,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#"
+        },
+        {
+          "ce": 15,
+          "cs": 4,
+          "line": 15,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#"
+        },
+        {
+          "ce": 17,
+          "cs": 12,
+          "line": 16,
+          "sym": "fe fe std 0.1.0 lib/web/view/Param#"
+        },
+        {
+          "ce": 20,
+          "cs": 15,
+          "line": 17,
+          "sym": "fe fe std 0.1.0 lib/web/view/Param#"
+        },
+        {
+          "ce": 23,
+          "cs": 18,
+          "line": 18,
+          "sym": "fe fe std 0.1.0 lib/web/view/Param#"
+        },
+        {
+          "ce": 17,
+          "cs": 12,
+          "line": 19,
+          "sym": "fe fe std 0.1.0 lib/web/view/Param#"
+        },
+        {
+          "ce": 1,
+          "cs": 0,
+          "def": true,
+          "line": 22,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorDemo#"
+        },
+        {
+          "ce": 15,
+          "cs": 8,
+          "line": 26,
+          "sym": "fe fe std 0.1.0 lib/web/view/Surface#"
+        },
+        {
+          "ce": 30,
+          "cs": 24,
+          "line": 26,
+          "sym": "fe fe std 0.1.0 lib/web/view/Extent#"
+        },
+        {
+          "ce": 57,
+          "cs": 51,
+          "line": 26,
+          "sym": "fe fe color_demo 0.1.0 lib/params."
+        },
+        {
+          "ce": 18,
+          "cs": 8,
+          "line": 30,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#"
+        },
+        {
+          "ce": 33,
+          "cs": 13,
+          "line": 31,
+          "sym": "fe fe std 0.1.0 lib/web/view/ApplyParamBindings/apply_param_bindings."
+        },
+        {
+          "ce": 40,
+          "cs": 34,
+          "line": 31,
+          "sym": "fe fe color_demo 0.1.0 lib/params."
+        },
+        {
+          "ce": 27,
+          "cs": 19,
+          "line": 34,
+          "sym": "fe fe fmath 0.1.0 lib/from_i32."
+        },
+        {
+          "ce": 27,
+          "cs": 19,
+          "line": 35,
+          "sym": "fe fe fmath 0.1.0 lib/from_i32."
+        },
+        {
+          "ce": 16,
+          "cs": 12,
+          "line": 37,
+          "sym": "fe fe perceptual_color 0.1.0 lib/rgba."
+        },
+        {
+          "ce": 22,
+          "cs": 17,
+          "line": 37,
+          "sym": "fe fe perceptual_color 0.1.0 lib/oklch."
+        },
+        {
+          "ce": 16,
+          "cs": 12,
+          "line": 39,
+          "sym": "fe fe perceptual_color 0.1.0 lib/rgba."
+        },
+        {
+          "ce": 22,
+          "cs": 17,
+          "line": 39,
+          "sym": "fe fe perceptual_color 0.1.0 lib/blend."
+        },
+        {
+          "ce": 28,
+          "cs": 23,
+          "line": 39,
+          "sym": "fe fe perceptual_color 0.1.0 lib/oklch."
+        },
+        {
+          "ce": 21,
+          "cs": 16,
+          "line": 40,
+          "sym": "fe fe perceptual_color 0.1.0 lib/oklch."
+        },
+        {
+          "ce": 16,
+          "cs": 12,
+          "line": 42,
+          "sym": "fe fe perceptual_color 0.1.0 lib/rgba."
+        },
+        {
+          "ce": 22,
+          "cs": 17,
+          "line": 42,
+          "sym": "fe fe perceptual_color 0.1.0 lib/oklch."
+        }
+      ],
+      "__sig__/color_demo::ColorParams/struct": [
+        {
+          "ce": 18,
+          "cs": 7,
+          "def": true,
+          "line": 0,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#"
+        }
+      ],
+      "__sig__/color_demo::ColorState/struct": [
+        {
+          "ce": 17,
+          "cs": 7,
+          "def": true,
+          "line": 0,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#"
+        }
+      ],
+      "__sig__/color_demo::ColorState/struct/impl-ApplyParamBindings": [
+        {
+          "ce": 81,
+          "cs": 0,
+          "line": 0,
+          "sym": "fe fe color_demo 0.1.0 lib:"
+        }
+      ],
+      "__sig__/color_demo::ColorState/struct/impl-ApplyParamBindings/method.apply_param_bindings": [
+        {
+          "ce": 81,
+          "cs": 0,
+          "line": 0,
+          "sym": "fe fe color_demo 0.1.0 lib:"
+        }
+      ],
+      "__sig__/color_demo::ColorState/struct/impl-SurfaceState": [
+        {
+          "ce": 17,
+          "cs": 5,
+          "line": 0,
+          "sym": "fe fe std 0.1.0 lib/web/view/SurfaceState#"
+        },
+        {
+          "ce": 32,
+          "cs": 22,
+          "line": 0,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#"
+        }
+      ],
+      "__sig__/color_demo::navigate/fn": [
+        {
+          "ce": 15,
+          "cs": 8,
+          "line": 4,
+          "sym": "fe fe std 0.1.0 lib/web/view/Surface#"
+        },
+        {
+          "ce": 30,
+          "cs": 24,
+          "line": 4,
+          "sym": "fe fe std 0.1.0 lib/web/view/Extent#"
+        },
+        {
+          "ce": 57,
+          "cs": 51,
+          "line": 4,
+          "sym": "fe fe color_demo 0.1.0 lib/params."
+        }
+      ],
+      "__sig__/color_demo::params/fn": [
+        {
+          "ce": 15,
+          "cs": 9,
+          "def": true,
+          "line": 0,
+          "sym": "fe fe color_demo 0.1.0 lib/params."
+        },
+        {
+          "ce": 32,
+          "cs": 21,
+          "line": 0,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#"
+        }
+      ],
+      "__sig__/color_demo::shade/fn": [
+        {
+          "ce": 15,
+          "cs": 8,
+          "line": 4,
+          "sym": "fe fe std 0.1.0 lib/web/view/Surface#"
+        },
+        {
+          "ce": 30,
+          "cs": 24,
+          "line": 4,
+          "sym": "fe fe std 0.1.0 lib/web/view/Extent#"
+        },
+        {
+          "ce": 57,
+          "cs": 51,
+          "line": 4,
+          "sym": "fe fe color_demo 0.1.0 lib/params."
+        },
+        {
+          "ce": 18,
+          "cs": 8,
+          "line": 8,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#"
+        },
+        {
+          "ce": 33,
+          "cs": 13,
+          "line": 9,
+          "sym": "fe fe std 0.1.0 lib/web/view/ApplyParamBindings/apply_param_bindings."
+        },
+        {
+          "ce": 40,
+          "cs": 34,
+          "line": 9,
+          "sym": "fe fe color_demo 0.1.0 lib/params."
+        }
+      ],
+      "src/lib.fe": [
+        {
+          "ce": 7,
+          "cs": 4,
+          "line": 2,
+          "sym": "fe fe std 0.1.0 lib:"
+        },
+        {
+          "ce": 15,
+          "cs": 9,
+          "line": 2,
+          "sym": "fe fe std 0.1.0 lib/webgpu:"
+        },
+        {
+          "ce": 33,
+          "cs": 18,
+          "line": 2,
+          "sym": "fe fe std 0.1.0 lib/webgpu/FragmentSurface#"
+        },
+        {
+          "ce": 44,
+          "cs": 34,
+          "line": 2,
+          "sym": "fe fe std 0.1.0 lib/webgpu/GpuProgram#"
+        },
+        {
+          "ce": 62,
+          "cs": 45,
+          "line": 2,
+          "sym": "fe fe std 0.1.0 lib/webgpu/ResponsiveBacking#"
+        },
+        {
+          "ce": 27,
+          "cs": 4,
+          "line": 3,
+          "sym": "fe fe std 0.1.0 lib/webgpu/StandardSurfaceRecovery#"
+        },
+        {
+          "ce": 42,
+          "cs": 28,
+          "line": 3,
+          "sym": "fe fe std 0.1.0 lib/webgpu/SurfaceQuality#"
+        },
+        {
+          "ce": 58,
+          "cs": 43,
+          "line": 3,
+          "sym": "fe fe std 0.1.0 lib/webgpu/SurfaceRecovery#"
+        },
+        {
+          "ce": 21,
+          "cs": 4,
+          "line": 4,
+          "sym": "fe fe std 0.1.0 lib/webgpu/SurfaceTransition#"
+        },
+        {
+          "ce": 35,
+          "cs": 22,
+          "line": 4,
+          "sym": "fe fe std 0.1.0 lib/webgpu/WebGpuBackend#"
+        },
+        {
+          "ce": 7,
+          "cs": 4,
+          "line": 5,
+          "sym": "fe fe std 0.1.0 lib:"
+        },
+        {
+          "ce": 12,
+          "cs": 9,
+          "line": 5,
+          "sym": "fe fe std 0.1.0 lib/web:"
+        },
+        {
+          "ce": 18,
+          "cs": 14,
+          "line": 5,
+          "sym": "fe fe std 0.1.0 lib/web/view:"
+        },
+        {
+          "ce": 39,
+          "cs": 21,
+          "line": 5,
+          "sym": "fe fe std 0.1.0 lib/web/view/ApplyParamBindings#"
+        },
+        {
+          "ce": 46,
+          "cs": 40,
+          "line": 5,
+          "sym": "fe fe std 0.1.0 lib/web/view/Extent#"
+        },
+        {
+          "ce": 52,
+          "cs": 47,
+          "line": 5,
+          "sym": "fe fe std 0.1.0 lib/web/view/Param#"
+        },
+        {
+          "ce": 74,
+          "cs": 53,
+          "line": 5,
+          "sym": "fe fe std 0.1.0 lib/web/view/ParamBindingsProvider#"
+        },
+        {
+          "ce": 11,
+          "cs": 4,
+          "line": 6,
+          "sym": "fe fe std 0.1.0 lib/web/view/Surface#"
+        },
+        {
+          "ce": 24,
+          "cs": 12,
+          "line": 6,
+          "sym": "fe fe std 0.1.0 lib/web/view/SurfaceEvent#"
+        },
+        {
+          "ce": 37,
+          "cs": 25,
+          "line": 6,
+          "sym": "fe fe std 0.1.0 lib/web/view/SurfaceState#"
+        },
+        {
+          "ce": 9,
+          "cs": 4,
+          "line": 7,
+          "sym": "fe fe fmath 0.1.0 lib:"
+        },
+        {
+          "ce": 20,
+          "cs": 12,
+          "line": 7,
+          "sym": "fe fe fmath 0.1.0 lib/from_i32."
+        },
+        {
+          "ce": 20,
+          "cs": 4,
+          "line": 8,
+          "sym": "fe fe perceptual_color 0.1.0 lib:"
+        },
+        {
+          "ce": 28,
+          "cs": 23,
+          "line": 8,
+          "sym": "fe fe perceptual_color 0.1.0 lib/oklch."
+        },
+        {
+          "ce": 34,
+          "cs": 29,
+          "line": 8,
+          "sym": "fe fe perceptual_color 0.1.0 lib/blend."
+        },
+        {
+          "ce": 39,
+          "cs": 35,
+          "line": 8,
+          "sym": "fe fe perceptual_color 0.1.0 lib/rgba."
+        },
+        {
+          "ce": 18,
+          "cs": 7,
+          "def": true,
+          "line": 10,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#"
+        },
+        {
+          "ce": 24,
+          "cs": 21,
+          "def": true,
+          "line": 10,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#hue."
+        },
+        {
+          "ce": 30,
+          "cs": 25,
+          "line": 10,
+          "sym": "fe fe std 0.1.0 lib/web/view/Param#"
+        },
+        {
+          "ce": 38,
+          "cs": 32,
+          "def": true,
+          "line": 10,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#chroma."
+        },
+        {
+          "ce": 44,
+          "cs": 39,
+          "line": 10,
+          "sym": "fe fe std 0.1.0 lib/web/view/Param#"
+        },
+        {
+          "ce": 55,
+          "cs": 46,
+          "def": true,
+          "line": 10,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#lightness."
+        },
+        {
+          "ce": 61,
+          "cs": 56,
+          "line": 10,
+          "sym": "fe fe std 0.1.0 lib/web/view/Param#"
+        },
+        {
+          "ce": 66,
+          "cs": 63,
+          "def": true,
+          "line": 10,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#res."
+        },
+        {
+          "ce": 72,
+          "cs": 67,
+          "line": 10,
+          "sym": "fe fe std 0.1.0 lib/web/view/Param#"
+        },
+        {
+          "ce": 17,
+          "cs": 7,
+          "def": true,
+          "line": 11,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#"
+        },
+        {
+          "ce": 23,
+          "cs": 20,
+          "def": true,
+          "line": 11,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#hue."
+        },
+        {
+          "ce": 35,
+          "cs": 29,
+          "def": true,
+          "line": 11,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#chroma."
+        },
+        {
+          "ce": 50,
+          "cs": 41,
+          "def": true,
+          "line": 11,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#lightness."
+        },
+        {
+          "ce": 59,
+          "cs": 56,
+          "def": true,
+          "line": 11,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#res."
+        },
+        {
+          "ce": 17,
+          "cs": 5,
+          "line": 12,
+          "sym": "fe fe std 0.1.0 lib/web/view/SurfaceState#"
+        },
+        {
+          "ce": 32,
+          "cs": 22,
+          "line": 12,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#"
+        },
+        {
+          "ce": 81,
+          "cs": 0,
+          "line": 13,
+          "sym": "fe fe color_demo 0.1.0 lib:"
+        },
+        {
+          "ce": 81,
+          "cs": 0,
+          "line": 13,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#hue."
+        },
+        {
+          "ce": 81,
+          "cs": 0,
+          "line": 13,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#chroma."
+        },
+        {
+          "ce": 81,
+          "cs": 0,
+          "line": 13,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#lightness."
+        },
+        {
+          "ce": 81,
+          "cs": 0,
+          "line": 13,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#res."
+        },
+        {
+          "ce": 81,
+          "cs": 0,
+          "line": 13,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#"
+        },
+        {
+          "ce": 81,
+          "cs": 0,
+          "line": 13,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#hue."
+        },
+        {
+          "ce": 81,
+          "cs": 0,
+          "line": 13,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#chroma."
+        },
+        {
+          "ce": 81,
+          "cs": 0,
+          "line": 13,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#lightness."
+        },
+        {
+          "ce": 81,
+          "cs": 0,
+          "line": 13,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#res."
+        },
+        {
+          "ce": 81,
+          "cs": 0,
+          "line": 13,
+          "sym": "fe fe std 0.1.0 lib/web/view/ApplyParamBindings#"
+        },
+        {
+          "ce": 81,
+          "cs": 0,
+          "line": 13,
+          "sym": "fe fe std 0.1.0 lib/web/view/SurfaceEvent#"
+        },
+        {
+          "ce": 81,
+          "cs": 0,
+          "line": 13,
+          "sym": "fe fe std 0.1.0 lib/web/view/SurfaceState#"
+        },
+        {
+          "ce": 81,
+          "cs": 0,
+          "line": 13,
+          "sym": "fe fe std 0.1.0 lib/web/view/SurfaceState#Params#"
+        },
+        {
+          "ce": 15,
+          "cs": 9,
+          "def": true,
+          "line": 14,
+          "sym": "fe fe color_demo 0.1.0 lib/params."
+        },
+        {
+          "ce": 32,
+          "cs": 21,
+          "line": 14,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#"
+        },
+        {
+          "ce": 15,
+          "cs": 4,
+          "line": 15,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#"
+        },
+        {
+          "ce": 17,
+          "cs": 12,
+          "line": 16,
+          "sym": "fe fe std 0.1.0 lib/web/view/Param#"
+        },
+        {
+          "ce": 20,
+          "cs": 15,
+          "line": 17,
+          "sym": "fe fe std 0.1.0 lib/web/view/Param#"
+        },
+        {
+          "ce": 23,
+          "cs": 18,
+          "line": 18,
+          "sym": "fe fe std 0.1.0 lib/web/view/Param#"
+        },
+        {
+          "ce": 17,
+          "cs": 12,
+          "line": 19,
+          "sym": "fe fe std 0.1.0 lib/web/view/Param#"
+        },
+        {
+          "ce": 1,
+          "cs": 0,
+          "line": 22,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorParams#"
+        },
+        {
+          "ce": 1,
+          "cs": 0,
+          "line": 22,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#"
+        },
+        {
+          "ce": 1,
+          "cs": 0,
+          "def": true,
+          "line": 22,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorDemo#"
+        },
+        {
+          "ce": 1,
+          "cs": 0,
+          "def": true,
+          "line": 22,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorDemo#hue."
+        },
+        {
+          "ce": 1,
+          "cs": 0,
+          "def": true,
+          "line": 22,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorDemo#chroma."
+        },
+        {
+          "ce": 1,
+          "cs": 0,
+          "def": true,
+          "line": 22,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorDemo#lightness."
+        },
+        {
+          "ce": 1,
+          "cs": 0,
+          "def": true,
+          "line": 22,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorDemo#res."
+        },
+        {
+          "ce": 1,
+          "cs": 0,
+          "def": true,
+          "line": 22,
+          "sym": "fe fe color_demo 0.1.0 lib/view."
+        },
+        {
+          "ce": 1,
+          "cs": 0,
+          "def": true,
+          "line": 22,
+          "sym": "fe fe color_demo 0.1.0 lib/navigate."
+        },
+        {
+          "ce": 1,
+          "cs": 0,
+          "def": true,
+          "line": 22,
+          "sym": "fe fe color_demo 0.1.0 lib/shade."
+        },
+        {
+          "ce": 1,
+          "cs": 0,
+          "line": 22,
+          "sym": "fe fe std 0.1.0 lib/web/view/SurfaceEvent#"
+        },
+        {
+          "ce": 1,
+          "cs": 0,
+          "line": 22,
+          "sym": "fe fe std 0.1.0 lib/web/view/Surface#"
+        },
+        {
+          "ce": 15,
+          "cs": 8,
+          "line": 26,
+          "sym": "fe fe std 0.1.0 lib/web/view/Surface#"
+        },
+        {
+          "ce": 30,
+          "cs": 24,
+          "line": 26,
+          "sym": "fe fe std 0.1.0 lib/web/view/Extent#"
+        },
+        {
+          "ce": 57,
+          "cs": 51,
+          "line": 26,
+          "sym": "fe fe color_demo 0.1.0 lib/params."
+        },
+        {
+          "ce": 18,
+          "cs": 8,
+          "line": 30,
+          "sym": "fe fe color_demo 0.1.0 lib/ColorState#"
+        },
+        {
+          "ce": 33,
+          "cs": 13,
+          "line": 31,
+          "sym": "fe fe std 0.1.0 lib/web/view/ApplyParamBindings/apply_param_bindings."
+        },
+        {
+          "ce": 40,
+          "cs": 34,
+          "line": 31,
+          "sym": "fe fe color_demo 0.1.0 lib/params."
+        },
+        {
+          "ce": 27,
+          "cs": 19,
+          "line": 34,
+          "sym": "fe fe fmath 0.1.0 lib/from_i32."
+        },
+        {
+          "ce": 27,
+          "cs": 19,
+          "line": 35,
+          "sym": "fe fe fmath 0.1.0 lib/from_i32."
+        },
+        {
+          "ce": 16,
+          "cs": 12,
+          "line": 37,
+          "sym": "fe fe perceptual_color 0.1.0 lib/rgba."
+        },
+        {
+          "ce": 22,
+          "cs": 17,
+          "line": 37,
+          "sym": "fe fe perceptual_color 0.1.0 lib/oklch."
+        },
+        {
+          "ce": 16,
+          "cs": 12,
+          "line": 39,
+          "sym": "fe fe perceptual_color 0.1.0 lib/rgba."
+        },
+        {
+          "ce": 22,
+          "cs": 17,
+          "line": 39,
+          "sym": "fe fe perceptual_color 0.1.0 lib/blend."
+        },
+        {
+          "ce": 28,
+          "cs": 23,
+          "line": 39,
+          "sym": "fe fe perceptual_color 0.1.0 lib/oklch."
+        },
+        {
+          "ce": 21,
+          "cs": 16,
+          "line": 40,
+          "sym": "fe fe perceptual_color 0.1.0 lib/oklch."
+        },
+        {
+          "ce": 16,
+          "cs": 12,
+          "line": 42,
+          "sym": "fe fe perceptual_color 0.1.0 lib/rgba."
+        },
+        {
+          "ce": 22,
+          "cs": 17,
+          "line": 42,
+          "sym": "fe fe perceptual_color 0.1.0 lib/oklch."
+        }
+      ]
+    },
+    "symbols": {
+      "fe fe color_demo 0.1.0 lib/ColorDemo#": {
+        "doc_url": "color_demo::ColorDemo/struct",
+        "docs": [
+          "```fe\nactor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>)\n```"
+        ],
+        "kind": 49,
+        "name": "ColorDemo"
+      },
+      "fe fe color_demo 0.1.0 lib/ColorDemo#chroma.": {
+        "doc_url": "color_demo::ColorDemo/struct~field.chroma",
+        "enclosing": "fe fe color_demo 0.1.0 lib/ColorDemo#",
+        "kind": 15,
+        "name": "chroma"
+      },
+      "fe fe color_demo 0.1.0 lib/ColorDemo#hue.": {
+        "doc_url": "color_demo::ColorDemo/struct~field.hue",
+        "enclosing": "fe fe color_demo 0.1.0 lib/ColorDemo#",
+        "kind": 15,
+        "name": "hue"
+      },
+      "fe fe color_demo 0.1.0 lib/ColorDemo#lightness.": {
+        "doc_url": "color_demo::ColorDemo/struct~field.lightness",
+        "enclosing": "fe fe color_demo 0.1.0 lib/ColorDemo#",
+        "kind": 15,
+        "name": "lightness"
+      },
+      "fe fe color_demo 0.1.0 lib/ColorDemo#res.": {
+        "doc_url": "color_demo::ColorDemo/struct~field.res",
+        "enclosing": "fe fe color_demo 0.1.0 lib/ColorDemo#",
+        "kind": 15,
+        "name": "res"
+      },
+      "fe fe color_demo 0.1.0 lib/ColorParams#": {
+        "doc_url": "color_demo::ColorParams/struct",
+        "docs": [
+          "```fe\nstruct ColorParams\n```"
+        ],
+        "kind": 49,
+        "name": "ColorParams"
+      },
+      "fe fe color_demo 0.1.0 lib/ColorParams#chroma.": {
+        "doc_url": "color_demo::ColorParams/struct~field.chroma",
+        "enclosing": "fe fe color_demo 0.1.0 lib/ColorParams#",
+        "kind": 15,
+        "name": "chroma"
+      },
+      "fe fe color_demo 0.1.0 lib/ColorParams#hue.": {
+        "doc_url": "color_demo::ColorParams/struct~field.hue",
+        "enclosing": "fe fe color_demo 0.1.0 lib/ColorParams#",
+        "kind": 15,
+        "name": "hue"
+      },
+      "fe fe color_demo 0.1.0 lib/ColorParams#lightness.": {
+        "doc_url": "color_demo::ColorParams/struct~field.lightness",
+        "enclosing": "fe fe color_demo 0.1.0 lib/ColorParams#",
+        "kind": 15,
+        "name": "lightness"
+      },
+      "fe fe color_demo 0.1.0 lib/ColorParams#res.": {
+        "doc_url": "color_demo::ColorParams/struct~field.res",
+        "enclosing": "fe fe color_demo 0.1.0 lib/ColorParams#",
+        "kind": 15,
+        "name": "res"
+      },
+      "fe fe color_demo 0.1.0 lib/ColorState#": {
+        "doc_url": "color_demo::ColorState/struct",
+        "docs": [
+          "```fe\nstruct ColorState\n```"
+        ],
+        "kind": 49,
+        "name": "ColorState"
+      },
+      "fe fe color_demo 0.1.0 lib/ColorState#chroma.": {
+        "doc_url": "color_demo::ColorState/struct~field.chroma",
+        "enclosing": "fe fe color_demo 0.1.0 lib/ColorState#",
+        "kind": 15,
+        "name": "chroma"
+      },
+      "fe fe color_demo 0.1.0 lib/ColorState#hue.": {
+        "doc_url": "color_demo::ColorState/struct~field.hue",
+        "enclosing": "fe fe color_demo 0.1.0 lib/ColorState#",
+        "kind": 15,
+        "name": "hue"
+      },
+      "fe fe color_demo 0.1.0 lib/ColorState#lightness.": {
+        "doc_url": "color_demo::ColorState/struct~field.lightness",
+        "enclosing": "fe fe color_demo 0.1.0 lib/ColorState#",
+        "kind": 15,
+        "name": "lightness"
+      },
+      "fe fe color_demo 0.1.0 lib/ColorState#res.": {
+        "doc_url": "color_demo::ColorState/struct~field.res",
+        "enclosing": "fe fe color_demo 0.1.0 lib/ColorState#",
+        "kind": 15,
+        "name": "res"
+      },
+      "fe fe color_demo 0.1.0 lib/navigate.": {
+        "doc_url": "color_demo::navigate/fn",
+        "docs": [
+          "```fe\nactor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>) {\n    hue:f32, chroma:f32, lightness:f32, res:f32,\n    const fn view() -> Surface<ColorParams> {\n        Surface {extent:Extent::square(768),params:params()}\n    }\n    fn navigate(self,event:own SurfaceEvent) -> ColorState\n        uses (SurfaceTransition)\n```"
+        ],
+        "kind": 17,
+        "name": "navigate"
+      },
+      "fe fe color_demo 0.1.0 lib/navigate/`{fn_body}`:": {
+        "docs": [
+          "```fe\n{\n        ColorState {hue:self.hue,chroma:self.chroma,lightness:self.lightness,res:self.res}\n            .apply_param_bindings(params(),event)\n    }\n```"
+        ],
+        "kind": 0,
+        "name": "{fn_body}"
+      },
+      "fe fe color_demo 0.1.0 lib/params.": {
+        "doc_url": "color_demo::params/fn",
+        "docs": [
+          "```fe\nconst fn params() -> ColorParams\n```"
+        ],
+        "kind": 17,
+        "name": "params"
+      },
+      "fe fe color_demo 0.1.0 lib/params/`{fn_body}`:": {
+        "docs": [
+          "```fe\n{\n    ColorParams {\n        hue:Param::range(min:0.0,max:360.0,init:275.0).drag_x(per_px:0.5),\n        chroma:Param::range(min:0.0,max:0.25,init:0.18),\n        lightness:Param::range(min:0.1,max:0.95,init:0.65).drag_y(per_px:-0.001),\n        res:Param::extent_x(),\n    }\n}\n```"
+        ],
+        "kind": 0,
+        "name": "{fn_body}"
+      },
+      "fe fe color_demo 0.1.0 lib/shade.": {
+        "doc_url": "color_demo::shade/fn",
+        "docs": [
+          "```fe\nactor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>) {\n    hue:f32, chroma:f32, lightness:f32, res:f32,\n    const fn view() -> Surface<ColorParams> {\n        Surface {extent:Extent::square(768),params:params()}\n    }\n    fn navigate(self,event:own SurfaceEvent) -> ColorState\n        uses (SurfaceTransition) {\n        ColorState {hue:self.hue,chroma:self.chroma,lightness:self.lightness,res:self.res}\n            .apply_param_bindings(params(),event)\n    }\n    fn shade(self,px:i32,py:i32) -> i32 uses (FragmentSurface)\n```"
+        ],
+        "kind": 17,
+        "name": "shade"
+      },
+      "fe fe color_demo 0.1.0 lib/shade/`{fn_body}`:": {
+        "docs": [
+          "```fe\n{\n        let x:f32=(from_i32(px)+0.5)/self.res\n        let y:f32=(from_i32(py)+0.5)/self.res\n        if y<0.3333333 {\n            rgba(oklch(self.lightness,self.chroma,self.hue+x*360.0))\n        } else {if y<0.6666667 {\n            rgba(blend(oklch(self.lightness,self.chroma,self.hue),\n                oklch(self.lightness,self.chroma,self.hue+140.0),x))\n        } else {\n            rgba(oklch(0.15+0.75*x,self.chroma*(y-0.6666667)*3.0,self.hue))\n        }}\n    }\n```"
+        ],
+        "kind": 0,
+        "name": "{fn_body}"
+      },
+      "fe fe color_demo 0.1.0 lib/view.": {
+        "doc_url": "color_demo::view/fn",
+        "docs": [
+          "```fe\nactor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>) {\n    hue:f32, chroma:f32, lightness:f32, res:f32,\n    const fn view() -> Surface<ColorParams>\n```"
+        ],
+        "kind": 17,
+        "name": "view"
+      },
+      "fe fe color_demo 0.1.0 lib/view/`{fn_body}`:": {
+        "docs": [
+          "```fe\n{\n        Surface {extent:Extent::square(768),params:params()}\n    }\n```"
+        ],
+        "kind": 0,
+        "name": "{fn_body}"
+      },
+      "fe fe color_demo 0.1.0 lib:": {
+        "doc_url": "color_demo/mod",
+        "docs": [
+          "```fe\n//! Three bands: OKLCH hue sweep, OKLab blending, and lightness/chroma field.\n//! The same perceptual_color ingot is used by the Mandelbrot renderer.\nuse std::webgpu::{FragmentSurface,GpuProgram,ResponsiveBacking,\n    StandardSurfaceRecovery,SurfaceQuality,SurfaceRecovery,\n    SurfaceTransition,WebGpuBackend}\nuse std::web::view::{ApplyParamBindings,Extent,Param,ParamBindingsProvider,\n    Surface,SurfaceEvent,SurfaceState}\nuse fmath::{from_i32}\nuse perceptual_color::{oklch,blend,rgba}\n\nstruct ColorParams { hue:Param, chroma:Param, lightness:Param, res:Param }\nstruct ColorState { hue:f32, chroma:f32, lightness:f32, res:f32 }\nimpl SurfaceState for ColorState { type Params=ColorParams }\nderive ApplyParamBindings for ColorState using ParamBindingsProvider<ColorParams>\nconst fn params() -> ColorParams {\n    ColorParams {\n        hue:Param::range(min:0.0,max:360.0,init:275.0).drag_x(per_px:0.5),\n        chroma:Param::range(min:0.0,max:0.25,init:0.18),\n        lightness:Param::range(min:0.1,max:0.95,init:0.65).drag_y(per_px:-0.001),\n        res:Param::extent_x(),\n    }\n}\nactor ColorDemo uses (GpuProgram<WebGpuBackend>,SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>) {\n    hue:f32, chroma:f32, lightness:f32, res:f32,\n    const fn view() -> Surface<ColorParams> {\n        Surface {extent:Extent::square(768),params:params()}\n    }\n    fn navigate(self,event:own SurfaceEvent) -> ColorState\n        uses (SurfaceTransition) {\n        ColorState {hue:self.hue,chroma:self.chroma,lightness:self.lightness,res:self.res}\n            .apply_param_bindings(params(),event)\n    }\n    fn shade(self,px:i32,py:i32) -> i32 uses (FragmentSurface) {\n        let x:f32=(from_i32(px)+0.5)/self.res\n        let y:f32=(from_i32(py)+0.5)/self.res\n        if y<0.3333333 {\n            rgba(oklch(self.lightness,self.chroma,self.hue+x*360.0))\n        } else {if y<0.6666667 {\n            rgba(blend(oklch(self.lightness,self.chroma,self.hue),\n                oklch(self.lightness,self.chroma,self.hue+140.0),x))\n        } else {\n            rgba(oklch(0.15+0.75*x,self.chroma*(y-0.6666667)*3.0,self.hue))\n        }}\n    }\n}\n```"
+        ],
+        "kind": 0,
+        "name": "lib"
+      },
+      "fe fe fmath 0.1.0 lib/from_i32.": {
+        "kind": 17,
+        "name": "from_i32"
+      },
+      "fe fe fmath 0.1.0 lib:": {
+        "kind": 0,
+        "name": "lib"
+      },
+      "fe fe perceptual_color 0.1.0 lib/blend.": {
+        "kind": 17,
+        "name": "blend"
+      },
+      "fe fe perceptual_color 0.1.0 lib/oklch.": {
+        "kind": 17,
+        "name": "oklch"
+      },
+      "fe fe perceptual_color 0.1.0 lib/rgba.": {
+        "kind": 17,
+        "name": "rgba"
+      },
+      "fe fe perceptual_color 0.1.0 lib:": {
+        "kind": 0,
+        "name": "lib"
+      },
+      "fe fe std 0.1.0 lib/web/view/ApplyParamBindings#": {
+        "kind": 53,
+        "name": "ApplyParamBindings"
+      },
+      "fe fe std 0.1.0 lib/web/view/ApplyParamBindings/apply_param_bindings.": {
+        "kind": 17,
+        "name": "apply_param_bindings"
+      },
+      "fe fe std 0.1.0 lib/web/view/Extent#": {
+        "kind": 49,
+        "name": "Extent"
+      },
+      "fe fe std 0.1.0 lib/web/view/Param#": {
+        "kind": 49,
+        "name": "Param"
+      },
+      "fe fe std 0.1.0 lib/web/view/ParamBindingsProvider#": {
+        "kind": 49,
+        "name": "ParamBindingsProvider"
+      },
+      "fe fe std 0.1.0 lib/web/view/Surface#": {
+        "kind": 49,
+        "name": "Surface"
+      },
+      "fe fe std 0.1.0 lib/web/view/SurfaceEvent#": {
+        "kind": 49,
+        "name": "SurfaceEvent"
+      },
+      "fe fe std 0.1.0 lib/web/view/SurfaceState#": {
+        "kind": 53,
+        "name": "SurfaceState"
+      },
+      "fe fe std 0.1.0 lib/web/view/SurfaceState#Params#": {
+        "kind": 55,
+        "name": "Params"
+      },
+      "fe fe std 0.1.0 lib/web/view:": {
+        "kind": 0,
+        "name": "view"
+      },
+      "fe fe std 0.1.0 lib/web:": {
+        "kind": 0,
+        "name": "web"
+      },
+      "fe fe std 0.1.0 lib/webgpu/FragmentSurface#": {
+        "kind": 49,
+        "name": "FragmentSurface"
+      },
+      "fe fe std 0.1.0 lib/webgpu/GpuProgram#": {
+        "kind": 49,
+        "name": "GpuProgram"
+      },
+      "fe fe std 0.1.0 lib/webgpu/ResponsiveBacking#": {
+        "kind": 49,
+        "name": "ResponsiveBacking"
+      },
+      "fe fe std 0.1.0 lib/webgpu/StandardSurfaceRecovery#": {
+        "kind": 49,
+        "name": "StandardSurfaceRecovery"
+      },
+      "fe fe std 0.1.0 lib/webgpu/SurfaceQuality#": {
+        "kind": 49,
+        "name": "SurfaceQuality"
+      },
+      "fe fe std 0.1.0 lib/webgpu/SurfaceRecovery#": {
+        "kind": 49,
+        "name": "SurfaceRecovery"
+      },
+      "fe fe std 0.1.0 lib/webgpu/SurfaceTransition#": {
+        "kind": 49,
+        "name": "SurfaceTransition"
+      },
+      "fe fe std 0.1.0 lib/webgpu/WebGpuBackend#": {
+        "kind": 49,
+        "name": "WebGpuBackend"
+      },
+      "fe fe std 0.1.0 lib/webgpu:": {
+        "kind": 0,
+        "name": "webgpu"
+      },
+      "fe fe std 0.1.0 lib:": {
+        "kind": 0,
+        "name": "lib"
+      }
+    }
+  }
+}

@@ -9,7 +9,7 @@ fe-surface::part(panel){display:grid;grid-template-columns:repeat(3,minmax(0,1fr
 fe-surface::part(side){margin-top:16px}fe-surface::part(meta),fe-surface::part(badge){display:none}
 @media(max-width:650px){fe-surface::part(panel){grid-template-columns:1fr}}
 </style></head><body>
-<nav><a href="../index.html">Mandelbrot</a><a href="source/lib.fe">Color library source</a><a href="source/demo.fe">Demo ingot source</a></nav>
+<nav><a href="../index.html">Mandelbrot</a><a href="../viewer/index.html" target="_blank" rel="noopener">Fe source viewer</a></nav>
 <h1>Fe color lab</h1><p>Rich colors with perceptual blending. Drag to adjust hue and lightness, or use the controls.</p>
 <p>Top: OKLCH hue sweep. Middle: an OKLab blend between two hues. Bottom: lightness from left to right, chroma from top to bottom. Out-of-gamut colors clip to sRGB.</p>
 <fe-surface boot="manual" manifest="manifest.json"></fe-surface><p id="status" role="status">Preparing colors…</p>

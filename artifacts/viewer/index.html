@@ -1,5 +1,5 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Fe source · Mandelbrot</title>
+<title>Fe source · Mandelbrot and colors</title>
 <style>
 :root {
   color-scheme:dark;
@@ -22,6 +22,7 @@ header {
 }
 header>a {
   float:right;
+  margin-left:20px;
 }
 h1 {
   margin:0;
@@ -169,10 +170,15 @@ pre {
     padding:10px 16px;
   }
 }
+/* Lexical categories and compiler-SCIP symbol roles; text stays selectable. */
+.hl-ty{color:oklch(82% .1 180)}.hl-function{color:oklch(83% .12 85)}
+.hl-property{color:oklch(83% .09 240)}.hl-variable{color:#dce4f3}
+.hl-keyword{color:oklch(79% .13 310)}.hl-comment{color:oklch(68% .035 255)}
+.hl-string{color:oklch(82% .1 145)}.hl-number{color:oklch(82% .12 55)}
 </style></head>
 <body>
-<script type="application/fe+wasm" data-fe-src="assets/fe-0937d33d6c63d642.wasm" data-fe-component="" data-fe-mount="#fe-source" data-fe-manifest="assets/fe-a3771b2bf24cc9a8.json" data-fe-adapter="assets/fe-adapter-e43950be3ebce664.js" data-fe-scoped-tasks="assets/fe-task-8f72f09cceaa47a2/tasks.js" data-fe-integrity="sha256-CTfTPWxj1kKEOVc2l2HOK9QjSuI6zK6MsJHROfUbSFs="></script>
-<fe-component id="fe-source"><header><a href="../index.html">← Mandelbrot</a><h1>Fe source</h1><p>Perturbation renderer · MB2</p></header><div class="workspace"><section class="files"><a class="file" href="source/lib.fe" data-fe-action="1"><code>lib.fe</code><span>Actor and pass graph</span></a><a class="file" href="source/policy.fe" data-fe-action="1"><code>policy.fe</code><span>Camera and quality policy</span></a><a class="file" href="source/orbit.fe" data-fe-action="1"><code>orbit.fe</code><span>Resumable perturbation</span></a><a class="file" href="source/image.fe" data-fe-action="1"><code>image.fe</code><span>Color, sampling and Gaussian</span></a><a class="file" href="source/cache.fe" data-fe-action="1"><code>cache.fe</code><span>GPU cache metadata</span></a><a class="file" href="source/palette.fe" data-fe-action="1"><code>palette.fe</code><span>Pastel OKLCH palette</span></a><a class="file" href="source/partition.fe" data-fe-action="1"><code>partition.fe</code><span>Blue-noise ordering</span></a><a class="file" href="source/viewer.fe" data-fe-action="1"><code>viewer.fe</code><span>This Fe source viewer</span></a></section><main><div class="file-heading"><strong data-fe-node="6">Choose a file</strong><a data-fe-node="8" target="_blank" rel="noopener">Raw source ↗</a></div><p data-fe-view="3" class="message">Choose a module to explore.</p><p data-fe-view="0" class="message">Loading source…</p><pre data-fe-view="2" data-fe-node="7" class="message error"></pre><div class="source-lines" data-fe-view="1"><pre class="line-numbers" data-fe-node="5"></pre><pre class="source-code" data-fe-node="4"></pre></div></main></div></fe-component>
+<script type="application/fe+wasm" data-fe-src="assets/fe-6a526b08b927ee76.wasm" data-fe-component="" data-fe-mount="#fe-source" data-fe-manifest="assets/fe-bf2044ee7d556644.json" data-fe-adapter="assets/fe-adapter-e43950be3ebce664.js" data-fe-scoped-tasks="assets/fe-task-8f72f09cceaa47a2/tasks.js" data-fe-integrity="sha256-alJrCLkn7nZvKGNjVTddQwLiAbaZWobsQ9kU/IJF0Y0="></script>
+<fe-component id="fe-source"><header><a href="../index.html">← Mandelbrot</a><a href="../colors/index.html">← Color lab</a><h1>Fe source</h1><p>Renderer, colors and viewer</p></header><div class="workspace"><section class="files"><a class="file" href="source/lib.fe.view" data-fe-action="1"><code>lib.fe</code><span>Actor and pass graph</span></a><a class="file" href="source/policy.fe.view" data-fe-action="1"><code>policy.fe</code><span>Camera and quality policy</span></a><a class="file" href="source/orbit.fe.view" data-fe-action="1"><code>orbit.fe</code><span>Resumable perturbation</span></a><a class="file" href="source/image.fe.view" data-fe-action="1"><code>image.fe</code><span>Color, sampling and Gaussian</span></a><a class="file" href="source/cache.fe.view" data-fe-action="1"><code>cache.fe</code><span>GPU cache metadata</span></a><a class="file" href="source/palette.fe.view" data-fe-action="1"><code>palette.fe</code><span>Rich OKLCH palette</span></a><a class="file" href="source/partition.fe.view" data-fe-action="1"><code>partition.fe</code><span>Blue-noise ordering</span></a><a class="file" href="source/color_library.fe.view" data-fe-action="1"><code>color_library.fe</code><span>OKLCH and OKLab library</span></a><a class="file" href="source/color_demo.fe.view" data-fe-action="1"><code>color_demo.fe</code><span>Interactive color lab</span></a><a class="file" href="source/viewer.fe.view" data-fe-action="1"><code>viewer.fe</code><span>This Fe source viewer</span></a><a class="file" href="source/viewer_highlight.fe.view" data-fe-action="1"><code>viewer_highlight.fe</code><span>Fe lexical and semantic colors</span></a></section><main><div class="file-heading"><strong data-fe-node="15">Choose a file</strong><a data-fe-node="17" target="_blank" rel="noopener">Raw source ↗</a></div><p data-fe-view="3" class="message">Choose a module to explore.</p><p data-fe-view="0" class="message">Loading source…</p><pre data-fe-view="2" data-fe-node="16" class="message error"></pre><div class="source-lines" data-fe-view="1"><pre class="line-numbers" data-fe-node="14"></pre><pre class="source-code" data-fe-node="4"></pre></div></main></div><template data-fe-template="4"><span><span data-fe-node="5" data-fe-class-6="hl-ty" data-fe-class-7="hl-function" data-fe-class-8="hl-property" data-fe-class-9="hl-variable" data-fe-class-10="hl-keyword" data-fe-class-11="hl-comment" data-fe-class-12="hl-string" data-fe-class-13="hl-number"></span></span></template></fe-component>
 
 
 <script type="module" src="assets/fe-bootstrap-4cb87a78ce901629.js" data-fe-bootstrap=""></script></body></html>

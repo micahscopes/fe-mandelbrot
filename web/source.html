@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Fe source · Mandelbrot</title>
+<title>Fe source · Mandelbrot and colors</title>
 <style>
 :root {
   color-scheme:dark;
@@ -24,6 +24,7 @@ header {
 }
 header>a {
   float:right;
+  margin-left:20px;
 }
 h1 {
   margin:0;
@@ -171,6 +172,11 @@ pre {
     padding:10px 16px;
   }
 }
+/* Lexical categories and compiler-SCIP symbol roles; text stays selectable. */
+.hl-ty{color:oklch(82% .1 180)}.hl-function{color:oklch(83% .12 85)}
+.hl-property{color:oklch(83% .09 240)}.hl-variable{color:#dce4f3}
+.hl-keyword{color:oklch(79% .13 310)}.hl-comment{color:oklch(68% .035 255)}
+.hl-string{color:oklch(82% .1 145)}.hl-number{color:oklch(82% .12 55)}
 </style></head>
 <body>
 <script type="application/fe" data-fe-src="../app/source_viewer/src/lib.fe" data-fe-component data-fe-mount="#fe-source"></script>

@@ -18,7 +18,7 @@ jobs:
         run: python3 tools/bootstrap.py --prepare-only
       - name: Build compiler
         run: python3 tools/bootstrap.py
-      - name: Compile renderer and Fe source viewer
+      - name: Compile Fe applications and export SCIP data
         run: python3 tools/build.py --fe .cache/target/release/fe --out .cache/rebuilt
       - name: Assemble rebuilt site
         run: python3 tools/site.py --artifacts .cache/rebuilt --out dist
