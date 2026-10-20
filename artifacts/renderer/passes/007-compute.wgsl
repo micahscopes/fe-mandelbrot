@@ -15,6 +15,24 @@ struct FeLocal_fe_shader_private_layout_1_ {
     f7_: f32,
     f8_: f32,
     f9_: f32,
+    f10_: f32,
+    f11_: f32,
+    f12_: f32,
+    f13_: f32,
+    f14_: f32,
+}
+
+struct FeLocal_fe_shader_private_layout_3_ {
+    f0_: f32,
+    f1_: f32,
+    f2_: f32,
+    f3_: f32,
+    f4_: f32,
+    f5_: f32,
+    f6_: f32,
+    f7_: f32,
+    f8_: f32,
+    f9_: f32,
     f10_: u32,
     f11_: f32,
     f12_: u32,
@@ -35,7 +53,7 @@ struct FeLocal_fe_shader_private_layout_2_ {
     f6_: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_3_ {
+struct FeLocal_fe_shader_private_layout_4_ {
     f0_: u32,
     f1_: u32,
     f2_: u32,
@@ -343,27 +361,27 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
     if (_e23 == 0u) {
         local_1 = true;
     }
-    let _e69 = local_1;
-    if _e69 {
+    let _e66 = local_1;
+    if _e66 {
     } else {
+        let _e34 = reference[i32(0u)].pending;
+        let _e36 = reference[i32(0u)].ready_at;
         if (0.5f <= _e17) {
         } else {
-            let _e36 = reference[i32(0u)].pending;
-            if (_e36 == 1u) {
+            if (_e34 == 1u) {
             } else {
-                let _e43 = reference[i32(0u)].ready_at;
-                let _e44 = impl_trait_f32_max(_e15, _e43);
-                let _e47 = impl_trait_f32_max(0f, (_e13 - _e44));
-                local_4 = _e47;
+                let _e41 = impl_trait_f32_max(_e15, _e36);
+                let _e44 = impl_trait_f32_max(0f, (_e13 - _e41));
+                local_4 = _e44;
             }
         }
-        let _e50 = local_4;
-        let _e51 = blur_radius(_e50);
-        let _e59 = gaussian(global_invocation_id.x, global_invocation_id.y, ((_e51 * 192f) / _e11), true, (&fe_trapped));
-        blurred[i32(((global_invocation_id.y << 8u) | global_invocation_id.x))].l = _e59.f0_;
-        blurred[i32(((global_invocation_id.y << 8u) | global_invocation_id.x))].a = _e59.f1_;
-        blurred[i32(((global_invocation_id.y << 8u) | global_invocation_id.x))].b = _e59.f2_;
+        let _e47 = local_4;
+        let _e48 = blur_radius(_e47);
+        let _e56 = gaussian(global_invocation_id.x, global_invocation_id.y, ((_e48 * 192f) / _e11), true, (&fe_trapped));
+        blurred[i32(((global_invocation_id.y << 8u) | global_invocation_id.x))].l = _e56.f0_;
+        blurred[i32(((global_invocation_id.y << 8u) | global_invocation_id.x))].a = _e56.f1_;
+        blurred[i32(((global_invocation_id.y << 8u) | global_invocation_id.x))].b = _e56.f2_;
     }
-    let _e80 = fe_trapped;
-    trap[((global_invocation_id.x + (global_invocation_id.y * 256u)) + (global_invocation_id.z * 65536u))] = u32(_e80);
+    let _e77 = fe_trapped;
+    trap[((global_invocation_id.x + (global_invocation_id.y * 256u)) + (global_invocation_id.z * 65536u))] = u32(_e77);
 }

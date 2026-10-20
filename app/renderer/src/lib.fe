@@ -21,13 +21,11 @@ use std::webgpu::{
     WebGpuBackend,
 }
 use std::web::view::{
-    ApplyParamBindings,
     Extent,
     Surface,
     SurfaceEvent,
 }
-use fmath::{abs, from_i32, to_i32, max, min}
-use precision::{add_f32, from_quad, to_quad}
+use fmath::{PixelSample, abs, from_i32, to_i32, max, min}
 use precision::fixed::{
     from_qf_offset,
     mandelbrot_advance8,
@@ -41,30 +39,26 @@ extern {
 }
 
 use ingot::policy::{
+    Camera,
     MandelbrotParams,
     MandelbrotViewState,
+    SurfaceStateEnvelope,
     SharpBacking,
     mandelbrot_params,
-    initial_view,
+    initial_state,
+    transition,
     iteration_limit,
     progress,
     preview_budget,
     blur_radius,
     sharpness,
-    zoom_step,
-    clamp_f,
-    clamp_quad,
-    CENTER_X_MIN,
-    CENTER_X_MAX,
-    CENTER_Y_MIN,
-    CENTER_Y_MAX,
     ZOOM_MIN,
-    ZOOM_MAX,
 }
 use ingot::orbit::{
     ComplexQF32Bits,
     OrbitProgress,
     empty_progress,
+    offset_sample,
     progress_color,
     sample_pixel,
     sample_progress,
@@ -73,7 +67,7 @@ use ingot::orbit::{
     ORBIT_CENTER_INDEX,
     ORBIT_META_INDEX,
 }
-use ingot::partition::{order_word,phase_order,phase_order_rect}
+use ingot::partition::{order_word, phase_order, phase_order_rect}
 use ingot::image::{Color, color, packed, rgba, blend, contrast, sample, sample_snapshot, gaussian}
 use ingot::cache::{ViewCache, ReferenceControl, ReferenceAnchor, SampleOracle, same_camera}
 
@@ -84,38 +78,22 @@ actor SmoothPerturbationalMandelbrot uses (
     orbit: OrbitBuffer<ComplexQF32Bits, ORBIT_CAPACITY>,
     pixels: OrbitBuffer<Color, 65536>,
     initial_pixels: OrbitBuffer<Color, 65536>,
-    snapshot_oracle: OrbitBuffer<SampleOracle,4194304>,
+    snapshot_oracle: OrbitBuffer<SampleOracle, 4194304>,
     horizontal: OrbitBuffer<Color, 65536>,
     blurred: OrbitBuffer<Color, 65536>,
     cache: OrbitBuffer<ViewCache, 3>,
     anchor: OrbitBuffer<ReferenceAnchor, 2>,
-    reference: OrbitBuffer<ReferenceControl,1>,
-    reference_words: OrbitBuffer<u32,16>,
+    reference: OrbitBuffer<ReferenceControl, 1>,
+    reference_words: OrbitBuffer<u32, 16>,
     native_pixels: OrbitBuffer<u32, 4194304>,
     antialiased_pixels: OrbitBuffer<u32, 4194304>,
-    progress_pixels: OrbitBuffer<OrbitProgress,4194304>,
-    snapshot_pixels: OrbitBuffer<u32,4194304>,
-    /// Most-significant word of a four-word center expansion. Fe gesture math
-    /// updates this and the three hidden low words together.
-    center_x_w0: f32,
-    center_x_w1: f32,
-    center_x_w2: f32,
-    center_x_w3: f32,
-    /// Most-significant word of the four-word vertical center expansion.
-    center_y_w0: f32,
-    center_y_w1: f32,
-    center_y_w2: f32,
-    center_y_w3: f32,
-    zoom: f32,
-    res: f32,
-    clock: f32,
-    last_input: f32,
-    antialias:f32,
-    drag_active:f32,
-    /// Magnification relative to the full initial view (3 / view half-span).
-    magnification:f32,
+    progress_pixels: OrbitBuffer<OrbitProgress, 4194304>,
+    snapshot_pixels: OrbitBuffer<u32, 4194304>,
+    state: MandelbrotViewState,
 
-    fn initial() -> MandelbrotViewState uses (core::actor::InitialState) { initial_view() }
+    fn initial() -> SurfaceStateEnvelope uses (core::actor::InitialState) {
+        initial_state()
+    }
 
     const fn view() -> Surface<MandelbrotParams> {
         Surface {
@@ -124,33 +102,46 @@ actor SmoothPerturbationalMandelbrot uses (
         }
     }
 
-    fn initialize_order(self, invocation:ComputeInvocation)
-        uses (ReferencePass<Threads<8,1,1>,Once<1,1,1>>)
+    fn initialize_order(self, invocation: ComputeInvocation)
+        uses (ReferencePass<Threads<8, 1, 1>, Once<1, 1, 1>>)
     {
-        let r:ReferenceControl=self.reference.load(index:0)
-        if r.active_valid==1 || r.pending==1 { return }
-        let i:u32=invocation.global.x*8
-        self.orbit.store(index:16390+invocation.global.x,value:ComplexQF32Bits {
-            re_w0_bits:order_word(i),re_w1_bits:order_word(i+1),re_w2_bits:order_word(i+2),re_w3_bits:order_word(i+3),
-            im_w0_bits:order_word(i+4),im_w1_bits:order_word(i+5),im_w2_bits:order_word(i+6),im_w3_bits:order_word(i+7),
+        let r: ReferenceControl = self.reference.load(index: 0)
+        if r.active_valid == 1 || r.pending == 1 { return }
+        let i: u32 = invocation.global.x * 8
+        self.orbit.store(index: 16390 + invocation.global.x, value: ComplexQF32Bits {
+            re_w0_bits: order_word(i),
+            re_w1_bits: order_word(i + 1),
+            re_w2_bits: order_word(i + 2),
+            re_w3_bits: order_word(i + 3),
+            im_w0_bits: order_word(i + 4),
+            im_w1_bits: order_word(i + 5),
+            im_w2_bits: order_word(i + 6),
+            im_w3_bits: order_word(i + 7),
         })
     }
 
     // Validate a candidate against the latest view before doing more work.
     fn discard_stale_reference(self)
-        uses (ReferencePass<Threads<1,1,1>,Once<1,1,1>>)
+        uses (ReferencePass<Threads<1, 1, 1>, Once<1, 1, 1>>)
     {
-        let control:ReferenceControl=self.reference.load(index:0)
-        if control.pending==0 || self.drag_active>=0.5 || self.clock-self.last_input<60.0 { return }
-        let bank:u32=if control.active==0 { 1 } else { 0 }
-        let candidate:ReferenceAnchor=self.anchor.load(index:bank)
-        let dx:f32=((self.center_x_w0-candidate.x0)+(self.center_x_w1-candidate.x1))
-            +((self.center_x_w2-candidate.x2)+(self.center_x_w3-candidate.x3))
-        let dy:f32=((self.center_y_w0-candidate.y0)+(self.center_y_w1-candidate.y1))
-            +((self.center_y_w2-candidate.y2)+(self.center_y_w3-candidate.y3))
-        if candidate.limit<iteration_limit(self.zoom) || max(abs(dx),abs(dy))>self.zoom*0.5 {
-            self.reference.store(index:0,value:ReferenceControl {
-                active:control.active,active_valid:control.active_valid,pending:0,index:0,zx_s:0,zy_s:0,ready_at:control.ready_at,
+        let s: MandelbrotViewState = self.state
+        let control: ReferenceControl = self.reference.load(index: 0)
+        if control.pending == 0 || s.drag_active >= 0.5 || s.clock - s.last_input < 60.0 { return }
+        let bank: u32 = if control.active == 0 { 1 } else { 0 }
+        let candidate: ReferenceAnchor = self.anchor.load(index: bank)
+        let dx: f32 = ((s.center_x_w0 - candidate.x0) + (s.center_x_w1 - candidate.x1))
+            + ((s.center_x_w2 - candidate.x2) + (s.center_x_w3 - candidate.x3))
+        let dy: f32 = ((s.center_y_w0 - candidate.y0) + (s.center_y_w1 - candidate.y1))
+            + ((s.center_y_w2 - candidate.y2) + (s.center_y_w3 - candidate.y3))
+        if candidate.limit < iteration_limit(s.zoom) || max(abs(dx), abs(dy)) > s.zoom * 0.5 {
+            self.reference.store(index: 0, value: ReferenceControl {
+                active: control.active,
+                active_valid: control.active_valid,
+                pending: 0,
+                index: 0,
+                zx_s: 0,
+                zy_s: 0,
+                ready_at: control.ready_at,
             })
         }
     }
@@ -158,527 +149,617 @@ actor SmoothPerturbationalMandelbrot uses (
     fn build_reference(self)
         uses (ReferencePass<Threads<1, 1, 1>, Once<1, 1, 1>>)
     {
-        let previous: ViewCache = self.cache.load(index:0)
-        let age:f32=if self.drag_active>=0.5 { 0.0 } else { self.clock-self.last_input }
-        let budget:u32=preview_budget(self.zoom,age)
-        let display_reference:ReferenceControl=self.reference.load(index:0)
-        let display_age:f32=if display_reference.pending==1 { 0.0 } else { max(0.0,self.clock-max(self.last_input,display_reference.ready_at))*(1.0-self.drag_active) }
-        let radius:f32=blur_radius(display_age)
-        let same:bool=previous.x0 == self.center_x_w0 && previous.x1 == self.center_x_w1
-            && previous.x2 == self.center_x_w2 && previous.x3 == self.center_x_w3
-            && previous.y0 == self.center_y_w0 && previous.y1 == self.center_y_w1
-            && previous.y2 == self.center_y_w2 && previous.y3 == self.center_y_w3
-            && previous.zoom == self.zoom && previous.res == self.res && previous.aa == self.antialias
-        let preview_dirty:u32=if same && previous.budget==budget && display_age>=360.0 { 0 } else { 1 }
-        let blur_dirty:u32=if preview_dirty==0 && previous.radius==radius { 0 } else { 1 }
-        self.cache.store(index:0,value:ViewCache {
-            x0:self.center_x_w0,x1:self.center_x_w1,x2:self.center_x_w2,x3:self.center_x_w3,
-            y0:self.center_y_w0,y1:self.center_y_w1,y2:self.center_y_w2,y3:self.center_y_w3,
-            zoom:self.zoom,res:self.res,cursor:if same { previous.cursor } else { 0 },aa:self.antialias,
-            budget:budget,radius:radius,preview_dirty:preview_dirty,blur_dirty:blur_dirty,
-            epoch:if same { previous.epoch } else { previous.epoch+1 },
-            completed:if same { previous.completed } else { 0 },
+        let s: MandelbrotViewState = self.state
+        let previous: ViewCache = self.cache.load(index: 0)
+        let age: f32 = if s.drag_active >= 0.5 { 0.0 } else { s.clock - s.last_input }
+        let budget: u32 = preview_budget(s.zoom, age)
+        let display_reference: ReferenceControl = self.reference.load(index: 0)
+        let display_age: f32 = if display_reference.pending == 1 {
+            0.0
+        } else {
+            max(0.0, s.clock - max(s.last_input, display_reference.ready_at)) * (1.0 - s.drag_active)
+        }
+        let radius: f32 = blur_radius(display_age)
+        let same: bool = previous.x0 == s.center_x_w0 && previous.x1 == s.center_x_w1
+            && previous.x2 == s.center_x_w2 && previous.x3 == s.center_x_w3
+            && previous.y0 == s.center_y_w0 && previous.y1 == s.center_y_w1
+            && previous.y2 == s.center_y_w2 && previous.y3 == s.center_y_w3
+            && previous.zoom == s.zoom && previous.res == s.res && previous.aa == s.antialias
+        let preview_dirty: u32 = if same && previous.budget == budget && display_age >= 360.0 { 0 } else { 1 }
+        let blur_dirty: u32 = if preview_dirty == 0 && previous.radius == radius { 0 } else { 1 }
+        self.cache.store(index: 0, value: ViewCache {
+            x0: s.center_x_w0,
+            x1: s.center_x_w1,
+            x2: s.center_x_w2,
+            x3: s.center_x_w3,
+            y0: s.center_y_w0,
+            y1: s.center_y_w1,
+            y2: s.center_y_w2,
+            y3: s.center_y_w3,
+            zoom: s.zoom,
+            res: s.res,
+            cursor: if same { previous.cursor } else { 0 },
+            aa: s.antialias,
+            budget: budget,
+            radius: radius,
+            preview_dirty: preview_dirty,
+            blur_dirty: blur_dirty,
+            epoch: if same { previous.epoch } else { previous.epoch + 1 },
+            completed: if same { previous.completed } else { 0 },
         })
-        let control:ReferenceControl=self.reference.load(index:0)
-        let active_anchor:ReferenceAnchor=self.anchor.load(index:control.active)
-        let dx:f32=((self.center_x_w0-active_anchor.x0)+(self.center_x_w1-active_anchor.x1))
-            +((self.center_x_w2-active_anchor.x2)+(self.center_x_w3-active_anchor.x3))
-        let dy:f32=((self.center_y_w0-active_anchor.y0)+(self.center_y_w1-active_anchor.y1))
-            +((self.center_y_w2-active_anchor.y2)+(self.center_y_w3-active_anchor.y3))
-        let target:u32=iteration_limit(self.zoom)
-        let reusable:bool=control.active_valid==1 && active_anchor.limit>=target
-            && abs(dx)<=self.zoom*0.125 && abs(dy)<=self.zoom*0.125
-        if control.pending==0 && reusable { return }
+        let control: ReferenceControl = self.reference.load(index: 0)
+        let active_anchor: ReferenceAnchor = self.anchor.load(index: control.active)
+        let dx: f32 = ((s.center_x_w0 - active_anchor.x0) + (s.center_x_w1 - active_anchor.x1))
+            + ((s.center_x_w2 - active_anchor.x2) + (s.center_x_w3 - active_anchor.x3))
+        let dy: f32 = ((s.center_y_w0 - active_anchor.y0) + (s.center_y_w1 - active_anchor.y1))
+            + ((s.center_y_w2 - active_anchor.y2) + (s.center_y_w3 - active_anchor.y3))
+        let target: u32 = iteration_limit(s.zoom)
+        let reusable: bool = control.active_valid == 1 && active_anchor.limit >= target
+            && abs(dx) <= s.zoom * 0.125 && abs(dy) <= s.zoom * 0.125
+        if control.pending == 0 && reusable { return }
         // Keep the active orbit available while a replacement advances in
         // bounded exact-integer batches. Pointer input never queues behind
         // an entire multi-thousand-step reference recurrence.
-        if control.active_valid==1 && age<60.0 { return }
-        let bank:u32=1-control.active
-        let base:u32=bank*8195
-        if control.pending==0 {
-            self.anchor.store(index:bank,value:ReferenceAnchor {
-                x0:self.center_x_w0,x1:self.center_x_w1,x2:self.center_x_w2,x3:self.center_x_w3,
-                y0:self.center_y_w0,y1:self.center_y_w1,y2:self.center_y_w2,y3:self.center_y_w3,
-                limit:target,generation:active_anchor.generation+1,
+        if control.active_valid == 1 && age < 60.0 { return }
+        let bank: u32 = 1 - control.active
+        let base: u32 = bank * 8195
+        if control.pending == 0 {
+            self.anchor.store(index: bank, value: ReferenceAnchor {
+                x0: s.center_x_w0,
+                x1: s.center_x_w1,
+                x2: s.center_x_w2,
+                x3: s.center_x_w3,
+                y0: s.center_y_w0,
+                y1: s.center_y_w1,
+                y2: s.center_y_w2,
+                y3: s.center_y_w3,
+                limit: target,
+                generation: active_anchor.generation + 1,
             })
-            let mut word:u32=0
-            while word<16 {
-                self.reference_words.store(index:word,value:0)
-                word=word+1
+            let mut word: u32 = 0
+            while word < 16 {
+                self.reference_words.store(index: word, value: 0)
+                word = word + 1
             }
-            self.orbit.store(index:base,value:ComplexQF32Bits {
-                re_w0_bits:0,re_w1_bits:0,re_w2_bits:0,re_w3_bits:0,
-                im_w0_bits:0,im_w1_bits:0,im_w2_bits:0,im_w3_bits:0,
+            self.orbit.store(index: base, value: ComplexQF32Bits {
+                re_w0_bits: 0, re_w1_bits: 0, re_w2_bits: 0, re_w3_bits: 0,
+                im_w0_bits: 0, im_w1_bits: 0, im_w2_bits: 0, im_w3_bits: 0,
             })
-            self.reference.store(index:0,value:ReferenceControl {
-                active:control.active,active_valid:control.active_valid,pending:1,index:0,zx_s:0,zy_s:0,ready_at:control.ready_at,
+            self.reference.store(index: 0, value: ReferenceControl {
+                active: control.active,
+                active_valid: control.active_valid,
+                pending: 1,
+                index: 0,
+                zx_s: 0,
+                zy_s: 0,
+                ready_at: control.ready_at,
             })
             return
         }
-        let pending_anchor:ReferenceAnchor=self.anchor.load(index:bank)
-        let (cx_s,cx)=from_qf_offset<8>(pending_anchor.x0,pending_anchor.x1,pending_anchor.x2,pending_anchor.x3,0.0)
-        let (cy_s,cy)=from_qf_offset<8>(pending_anchor.y0,pending_anchor.y1,pending_anchor.y2,pending_anchor.y3,0.0)
-        let mut x_words:[u32;8]=[0;8]
-        let mut y_words:[u32;8]=[0;8]
-        let mut w:usize=0
-        while w<8 {
-            let slot:u32=w.downcast_truncate()
-            x_words[w]=self.reference_words.load(index:slot)
-            y_words[w]=self.reference_words.load(index:slot+8)
-            w=w+1
+        let pending_anchor: ReferenceAnchor = self.anchor.load(index: bank)
+        let (cx_s, cx) = from_qf_offset<8>(pending_anchor.x0, pending_anchor.x1, pending_anchor.x2, pending_anchor.x3, 0.0)
+        let (cy_s, cy) = from_qf_offset<8>(pending_anchor.y0, pending_anchor.y1, pending_anchor.y2, pending_anchor.y3, 0.0)
+        let mut x_words: [u32; 8] = [0; 8]
+        let mut y_words: [u32; 8] = [0; 8]
+        let mut w: usize = 0
+        while w < 8 {
+            let slot: u32 = w.downcast_truncate()
+            x_words[w] = self.reference_words.load(index: slot)
+            y_words[w] = self.reference_words.load(index: slot + 8)
+            w = w + 1
         }
-        let mut zx=fixed_magnitude_from_words<8>(x_words)
-        let mut zy=fixed_magnitude_from_words<8>(y_words)
-        let mut zx_s:u32=control.zx_s
-        let mut zy_s:u32=control.zy_s
-        let mut i:u32=control.index
-        let mut step:u32=0
-        let mut escaped:u32=0
-        while step<64 && i<pending_anchor.limit && escaped==0 {
-            let (nx_s,nx,ny_s,ny,did_escape)=mandelbrot_advance8(zx_s,zx,zy_s,zy,cx_s,cx,cy_s,cy)
-            let (x0,x1,x2,x3)=to_f32_quad_bits<8>(nx_s,nx)
-            let (y0,y1,y2,y3)=to_f32_quad_bits<8>(ny_s,ny)
-            self.orbit.store(index:base+i+1,value:ComplexQF32Bits {
-                re_w0_bits:x0,re_w1_bits:x1,re_w2_bits:x2,re_w3_bits:x3,
-                im_w0_bits:y0,im_w1_bits:y1,im_w2_bits:y2,im_w3_bits:y3,
+        let mut zx = fixed_magnitude_from_words<8>(x_words)
+        let mut zy = fixed_magnitude_from_words<8>(y_words)
+        let mut zx_s: u32 = control.zx_s
+        let mut zy_s: u32 = control.zy_s
+        let mut i: u32 = control.index
+        let mut step: u32 = 0
+        let mut escaped: u32 = 0
+        while step < 64 && i < pending_anchor.limit && escaped == 0 {
+            let (nx_s, nx, ny_s, ny, did_escape) = mandelbrot_advance8(zx_s, zx, zy_s, zy, cx_s, cx, cy_s, cy)
+            let (x0, x1, x2, x3) = to_f32_quad_bits<8>(nx_s, nx)
+            let (y0, y1, y2, y3) = to_f32_quad_bits<8>(ny_s, ny)
+            self.orbit.store(index: base + i + 1, value: ComplexQF32Bits {
+                re_w0_bits: x0, re_w1_bits: x1, re_w2_bits: x2, re_w3_bits: x3,
+                im_w0_bits: y0, im_w1_bits: y1, im_w2_bits: y2, im_w3_bits: y3,
             })
-            zx_s=nx_s
-            zx=nx
-            zy_s=ny_s
-            zy=ny
-            escaped=did_escape
-            i=i+1
-            step=step+1
+            zx_s = nx_s
+            zx = nx
+            zy_s = ny_s
+            zy = ny
+            escaped = did_escape
+            i = i + 1
+            step = step + 1
         }
-        if escaped==1 || i>=pending_anchor.limit {
-            let (x0,x1,x2,x3)=to_f32_quad_bits<8>(cx_s,cx)
-            let (y0,y1,y2,y3)=to_f32_quad_bits<8>(cy_s,cy)
-            self.orbit.store(index:base+ORBIT_CENTER_INDEX,value:ComplexQF32Bits {
-                re_w0_bits:x0,re_w1_bits:x1,re_w2_bits:x2,re_w3_bits:x3,
-                im_w0_bits:y0,im_w1_bits:y1,im_w2_bits:y2,im_w3_bits:y3,
+        if escaped == 1 || i >= pending_anchor.limit {
+            let (x0, x1, x2, x3) = to_f32_quad_bits<8>(cx_s, cx)
+            let (y0, y1, y2, y3) = to_f32_quad_bits<8>(cy_s, cy)
+            self.orbit.store(index: base + ORBIT_CENTER_INDEX, value: ComplexQF32Bits {
+                re_w0_bits: x0, re_w1_bits: x1, re_w2_bits: x2, re_w3_bits: x3,
+                im_w0_bits: y0, im_w1_bits: y1, im_w2_bits: y2, im_w3_bits: y3,
             })
-            self.orbit.store(index:base+ORBIT_META_INDEX,value:ComplexQF32Bits {
-                re_w0_bits:i+1,re_w1_bits:pending_anchor.limit,re_w2_bits:0,re_w3_bits:0,
-                im_w0_bits:0,im_w1_bits:0,im_w2_bits:0,im_w3_bits:0,
+            self.orbit.store(index: base + ORBIT_META_INDEX, value: ComplexQF32Bits {
+                re_w0_bits: i + 1, re_w1_bits: pending_anchor.limit, re_w2_bits: 0, re_w3_bits: 0,
+                im_w0_bits: 0, im_w1_bits: 0, im_w2_bits: 0, im_w3_bits: 0,
             })
-            self.reference.store(index:0,value:ReferenceControl {
-                active:bank,active_valid:1,pending:0,index:i,zx_s:zx_s,zy_s:zy_s,ready_at:self.clock,
+            self.reference.store(index: 0, value: ReferenceControl {
+                active: bank, active_valid: 1, pending: 0, index: i, zx_s: zx_s, zy_s: zy_s, ready_at: s.clock,
             })
-            let view:ViewCache=self.cache.load(index:0)
-            self.cache.store(index:0,value:ViewCache {
-                x0:view.x0,x1:view.x1,x2:view.x2,x3:view.x3,y0:view.y0,y1:view.y1,y2:view.y2,y3:view.y3,
-                zoom:view.zoom,res:view.res,cursor:0,aa:view.aa,budget:view.budget,radius:view.radius,preview_dirty:1,blur_dirty:1,
-                epoch:view.epoch+1,completed:0,
+            let view: ViewCache = self.cache.load(index: 0)
+            self.cache.store(index: 0, value: ViewCache {
+                x0: view.x0, x1: view.x1, x2: view.x2, x3: view.x3,
+                y0: view.y0, y1: view.y1, y2: view.y2, y3: view.y3,
+                zoom: view.zoom, res: view.res, cursor: 0, aa: view.aa,
+                budget: view.budget, radius: view.radius, preview_dirty: 1, blur_dirty: 1,
+                epoch: view.epoch + 1, completed: 0,
             })
         } else {
-            let xs=fixed_magnitude_to_words<8>(zx)
-            let ys=fixed_magnitude_to_words<8>(zy)
-            let mut slot:usize=0
-            while slot<8 {
-                let index:u32=slot.downcast_truncate()
-                self.reference_words.store(index:index,value:xs[slot])
-                self.reference_words.store(index:index+8,value:ys[slot])
-                slot=slot+1
+            let xs = fixed_magnitude_to_words<8>(zx)
+            let ys = fixed_magnitude_to_words<8>(zy)
+            let mut slot: usize = 0
+            while slot < 8 {
+                let index: u32 = slot.downcast_truncate()
+                self.reference_words.store(index: index, value: xs[slot])
+                self.reference_words.store(index: index + 8, value: ys[slot])
+                slot = slot + 1
             }
-            self.reference.store(index:0,value:ReferenceControl {
-                active:control.active,active_valid:control.active_valid,pending:1,index:i,zx_s:zx_s,zy_s:zy_s,ready_at:control.ready_at,
+            self.reference.store(index: 0, value: ReferenceControl {
+                active: control.active,
+                active_valid: control.active_valid,
+                pending: 1,
+                index: i,
+                zx_s: zx_s,
+                zy_s: zy_s,
+                ready_at: control.ready_at,
             })
         }
     }
 
     fn render_preview(self, invocation: ComputeInvocation)
-        uses (ReferencePass<Threads<8,8,1>,Once<32,32,1>>)
+        uses (ReferencePass<Threads<8, 8, 1>, Once<32, 32, 1>>)
     {
-        if self.reference.load(index:0).active_valid==0 { return }
-        if self.cache.load(index:0).preview_dirty==0 { return }
+        let s: MandelbrotViewState = self.state
+        let ref_state: ReferenceControl = self.reference.load(index: 0)
+        if ref_state.active_valid == 0 { return }
+        if self.cache.load(index: 0).preview_dirty == 0 { return }
         let x = invocation.global.x
         let y = invocation.global.y
-        let px = to_i32(from_i32(__bitcast<u32,i32>(x))*self.res/256.0)
-        let py = to_i32(from_i32(__bitcast<u32,i32>(y))*self.res/256.0)
-        let full:ViewCache=self.cache.load(index:1)
-        let initial:ViewCache=self.cache.load(index:2)
-        let use_full:bool=full.completed==1 && full.epoch>=initial.epoch
-        let old:ViewCache=if use_full { full } else { initial }
-        let dx:f32=((self.center_x_w0-old.x0)+(self.center_x_w1-old.x1))
-            +((self.center_x_w2-old.x2)+(self.center_x_w3-old.x3))
-        let dy:f32=((self.center_y_w0-old.y0)+(self.center_y_w1-old.y1))
-            +((self.center_y_w2-old.y2)+(self.center_y_w3-old.y3))
-        let u:f32=(from_i32(px)+0.5)*2.0/self.res-1.0
-        let v:f32=1.0-(from_i32(py)+0.5)*2.0/self.res
-        let sx:f32=((dx+u*self.zoom)/max(old.zoom,ZOOM_MIN)+1.0)*old.res*0.5-0.5
-        let sy:f32=(1.0-(dy+v*self.zoom)/max(old.zoom,ZOOM_MIN))*old.res*0.5-0.5
-        let reusable:bool=old.completed==1 && sx>=0.0 && sy>=0.0 && sx<old.res-1.0 && sy<old.res-1.0
-        let cached:Color=if use_full { sample_snapshot(self.snapshot_pixels,sx,sy,old.res) }
-            else { sample(self.initial_pixels,sx*256.0/max(old.res,1.0),sy*256.0/max(old.res,1.0)) }
-        let age:f32=max(0.0,self.clock-max(self.last_input,self.reference.load(index:0).ready_at))*(1.0-self.drag_active)
-            *(1.0-from_i32(__bitcast<u32,i32>(self.reference.load(index:0).pending)))
-        if reusable && age<60.0 {
-            self.pixels.store(index:(y<<8)|x,value:cached)
+        let px = to_i32(from_i32(__bitcast<u32, i32>(x)) * s.res / 256.0)
+        let py = to_i32(from_i32(__bitcast<u32, i32>(y)) * s.res / 256.0)
+        let full: ViewCache = self.cache.load(index: 1)
+        let initial: ViewCache = self.cache.load(index: 2)
+        let use_full: bool = full.completed == 1 && full.epoch >= initial.epoch
+        let old: ViewCache = if use_full { full } else { initial }
+        let dx: f32 = ((s.center_x_w0 - old.x0) + (s.center_x_w1 - old.x1))
+            + ((s.center_x_w2 - old.x2) + (s.center_x_w3 - old.x3))
+        let dy: f32 = ((s.center_y_w0 - old.y0) + (s.center_y_w1 - old.y1))
+            + ((s.center_y_w2 - old.y2) + (s.center_y_w3 - old.y3))
+        let u: f32 = (from_i32(px) + 0.5) * 2.0 / s.res - 1.0
+        let v: f32 = 1.0 - (from_i32(py) + 0.5) * 2.0 / s.res
+        let sx: f32 = ((dx + u * s.zoom) / max(old.zoom, ZOOM_MIN) + 1.0) * old.res * 0.5 - 0.5
+        let sy: f32 = (1.0 - (dy + v * s.zoom) / max(old.zoom, ZOOM_MIN)) * old.res * 0.5 - 0.5
+        let reusable: bool = old.completed == 1 && sx >= 0.0 && sy >= 0.0 && sx < old.res - 1.0 && sy < old.res - 1.0
+        let cached: Color = if use_full {
+            sample_snapshot(self.snapshot_pixels, sx, sy, old.res)
+        } else {
+            sample(self.initial_pixels, sx * 256.0 / max(old.res, 1.0), sy * 256.0 / max(old.res, 1.0))
+        }
+        let age: f32 = max(0.0, s.clock - max(s.last_input, ref_state.ready_at)) * (1.0 - s.drag_active)
+            * (1.0 - from_i32(__bitcast<u32, i32>(ref_state.pending)))
+        if reusable && age < 60.0 {
+            self.pixels.store(index: (y << 8) | x, value: cached)
             return
         }
-        let computed=sample_progress(self.orbit,self.reference.load(index:0).active*8195,self.center_x_w0,self.center_x_w1,self.center_x_w2,self.center_x_w3,self.center_y_w0,self.center_y_w1,self.center_y_w2,self.center_y_w3,self.zoom,self.res,px,py,preview_budget(self.zoom,age),0.0,0.0)
-        let bits=progress_color(computed)
-        let current:Color=color(__bitcast<i32,u32>(bits))
-        let result:Color=if reusable { blend(cached,current,progress(age,60.0,300.0)) } else { current }
-        self.pixels.store(index:(y<<8)|x,value:result)
+        let computed = sample_progress(
+            self.orbit,
+            ref_state.active * 8195,
+            s.camera(),
+            PixelSample::ordered_2x2(px, py),
+            preview_budget(s.zoom, age),
+        )
+        let bits = progress_color(computed)
+        let current: Color = color(__bitcast<i32, u32>(bits))
+        let result: Color = if reusable { blend(cached, current, progress(age, 60.0, 300.0)) } else { current }
+        self.pixels.store(index: (y << 8) | x, value: result)
     }
+
     // Preserve the first settled preview before native refinement finishes.
     // Neither this image nor its camera metadata changes while input is live.
-    fn cache_initial(self, invocation:ComputeInvocation)
-        uses (ReferencePass<Threads<8,8,1>,Once<32,32,1>>)
+    fn cache_initial(self, invocation: ComputeInvocation)
+        uses (ReferencePass<Threads<8, 8, 1>, Once<32, 32, 1>>)
     {
-        let c:ViewCache=self.cache.load(index:0)
-        let old:ViewCache=self.cache.load(index:2)
-        let ref_state:ReferenceControl=self.reference.load(index:0)
-        if ref_state.active_valid==0 || ref_state.pending==1 || self.drag_active>=0.5 || self.clock-max(self.last_input,ref_state.ready_at)<360.0 || old.epoch==c.epoch { return }
-        let index:u32=(invocation.global.y<<8)|invocation.global.x
-        self.initial_pixels.store(index:index,value:self.pixels.load(index:index))
+        let s: MandelbrotViewState = self.state
+        let c: ViewCache = self.cache.load(index: 0)
+        let old: ViewCache = self.cache.load(index: 2)
+        let ref_state: ReferenceControl = self.reference.load(index: 0)
+        if ref_state.active_valid == 0 || ref_state.pending == 1 || s.drag_active >= 0.5 || s.clock - max(s.last_input, ref_state.ready_at) < 360.0 || old.epoch == c.epoch { return }
+        let index: u32 = (invocation.global.y << 8) | invocation.global.x
+        self.initial_pixels.store(index: index, value: self.pixels.load(index: index))
     }
-    fn publish_initial(self) uses (ReferencePass<Threads<1,1,1>,Once<1,1,1>>) {
-        let c:ViewCache=self.cache.load(index:0)
-        let old:ViewCache=self.cache.load(index:2)
-        let ref_state:ReferenceControl=self.reference.load(index:0)
-        if ref_state.active_valid==0 || ref_state.pending==1 || self.drag_active>=0.5 || self.clock-max(self.last_input,ref_state.ready_at)<360.0 || old.epoch==c.epoch { return }
-        self.cache.store(index:2,value:ViewCache {
-            x0:c.x0,x1:c.x1,x2:c.x2,x3:c.x3,y0:c.y0,y1:c.y1,y2:c.y2,y3:c.y3,
-            zoom:c.zoom,res:c.res,cursor:c.cursor,aa:c.aa,budget:c.budget,radius:c.radius,
-            preview_dirty:0,blur_dirty:0,epoch:c.epoch,completed:1,
+
+    fn publish_initial(self) uses (ReferencePass<Threads<1, 1, 1>, Once<1, 1, 1>>) {
+        let s: MandelbrotViewState = self.state
+        let c: ViewCache = self.cache.load(index: 0)
+        let old: ViewCache = self.cache.load(index: 2)
+        let ref_state: ReferenceControl = self.reference.load(index: 0)
+        if ref_state.active_valid == 0 || ref_state.pending == 1 || s.drag_active >= 0.5 || s.clock - max(s.last_input, ref_state.ready_at) < 360.0 || old.epoch == c.epoch { return }
+        self.cache.store(index: 2, value: ViewCache {
+            x0: c.x0, x1: c.x1, x2: c.x2, x3: c.x3,
+            y0: c.y0, y1: c.y1, y2: c.y2, y3: c.y3,
+            zoom: c.zoom, res: c.res, cursor: c.cursor, aa: c.aa,
+            budget: c.budget, radius: c.radius,
+            preview_dirty: 0, blur_dirty: 0, epoch: c.epoch, completed: 1,
         })
     }
+
     fn blur_horizontal(self, invocation: ComputeInvocation)
-        uses (ReferencePass<Threads<8,8,1>,Once<32,32,1>>)
+        uses (ReferencePass<Threads<8, 8, 1>, Once<32, 32, 1>>)
     {
-        if self.cache.load(index:0).blur_dirty==0 { return }
-        let sigma:f32=blur_radius(if self.drag_active>=0.5 || self.reference.load(index:0).pending==1 { 0.0 } else { max(0.0,self.clock-max(self.last_input,self.reference.load(index:0).ready_at)) })*192.0/self.res
-        self.horizontal.store(index:(invocation.global.y<<8)|invocation.global.x,value:gaussian(self.pixels,invocation.global.x,invocation.global.y,sigma,false))
+        let s: MandelbrotViewState = self.state
+        if self.cache.load(index: 0).blur_dirty == 0 { return }
+        let ref_state: ReferenceControl = self.reference.load(index: 0)
+        let sigma: f32 = blur_radius(if s.drag_active >= 0.5 || ref_state.pending == 1 {
+            0.0
+        } else {
+            max(0.0, s.clock - max(s.last_input, ref_state.ready_at))
+        }) * 192.0 / s.res
+        self.horizontal.store(
+            index: (invocation.global.y << 8) | invocation.global.x,
+            value: gaussian(self.pixels, invocation.global.x, invocation.global.y, sigma, false),
+        )
     }
+
     fn blur_vertical(self, invocation: ComputeInvocation)
-        uses (ReferencePass<Threads<8,8,1>,Once<32,32,1>>)
+        uses (ReferencePass<Threads<8, 8, 1>, Once<32, 32, 1>>)
     {
-        if self.cache.load(index:0).blur_dirty==0 { return }
-        let sigma:f32=blur_radius(if self.drag_active>=0.5 || self.reference.load(index:0).pending==1 { 0.0 } else { max(0.0,self.clock-max(self.last_input,self.reference.load(index:0).ready_at)) })*192.0/self.res
-        self.blurred.store(index:(invocation.global.y<<8)|invocation.global.x,value:gaussian(self.horizontal,invocation.global.x,invocation.global.y,sigma,true))
+        let s: MandelbrotViewState = self.state
+        if self.cache.load(index: 0).blur_dirty == 0 { return }
+        let ref_state: ReferenceControl = self.reference.load(index: 0)
+        let sigma: f32 = blur_radius(if s.drag_active >= 0.5 || ref_state.pending == 1 {
+            0.0
+        } else {
+            max(0.0, s.clock - max(s.last_input, ref_state.ready_at))
+        }) * 192.0 / s.res
+        self.blurred.store(
+            index: (invocation.global.y << 8) | invocation.global.x,
+            value: gaussian(self.horizontal, invocation.global.x, invocation.global.y, sigma, true),
+        )
     }
 
     // Spatially interleaved phases cover the whole image, rather
     // than sweeping rectangles. Each orbit resumes its own saved recurrence.
-    fn restore_oracle(self,invocation:ComputeInvocation)
-        uses (ReferencePass<Threads<8,8,1>,Once<16,32,1>>)
+    fn restore_oracle(self, invocation: ComputeInvocation)
+        uses (ReferencePass<Threads<8, 8, 1>, Once<16, 32, 1>>)
     {
-        if self.drag_active>=0.5 || self.clock-self.last_input<60.0 { return }
-        let c:ViewCache=self.cache.load(index:0)
-        let history:ViewCache=self.cache.load(index:1)
-        if history.completed==0 || history.budget<iteration_limit(self.zoom) { return }
-        if !same_camera(history,c) { return }
-        let sx:u32=__bitcast<i32,u32>(to_i32((self.res+127.0)/128.0))
-        let sy:u32=__bitcast<i32,u32>(to_i32((self.res+255.0)/256.0))
-        let phases:u32=sx*sy
-        let rounds:u32=(iteration_limit(self.zoom)+2047)/2048
-        if c.cursor>=rounds*phases { return }
-        let phase:u32=phase_order_rect(c.cursor/rounds,invocation.global.x,invocation.global.y,sx,sy)
-        let x:u32=invocation.global.x*sx+phase%sx
-        let y:u32=invocation.global.y*sy+phase/sx
-        if from_i32(__bitcast<u32,i32>(x))>=self.res || from_i32(__bitcast<u32,i32>(y))>=self.res { return }
-        let index:u32=(y<<11)|x
-        let saved:OrbitProgress=self.progress_pixels.load(index:index)
-        if saved.epoch==c.epoch && (saved.reference_i & 536870912)!=0 { return }
-        let deep:SampleOracle=self.snapshot_oracle.load(index:index)
-        if (deep.flags & 1073741824)!=0 { return }
-        let preserved:OrbitProgress=OrbitProgress {
-            dz_re:0.0,dz_im:0.0,z_re:self.clock,z_im:0.0,
-            reference_i:deep.flags | 536870912,iteration:deep.iteration,epoch:c.epoch,magnitude:deep.magnitude,
+        let s: MandelbrotViewState = self.state
+        if s.drag_active >= 0.5 || s.clock - s.last_input < 60.0 { return }
+        let c: ViewCache = self.cache.load(index: 0)
+        let history: ViewCache = self.cache.load(index: 1)
+        if history.completed == 0 || history.budget < iteration_limit(s.zoom) { return }
+        if !same_camera(history, c) { return }
+        let sx: u32 = __bitcast<i32, u32>(to_i32((s.res + 127.0) / 128.0))
+        let sy: u32 = __bitcast<i32, u32>(to_i32((s.res + 255.0) / 256.0))
+        let phases: u32 = sx * sy
+        let rounds: u32 = (iteration_limit(s.zoom) + 2047) / 2048
+        if c.cursor >= rounds * phases { return }
+        let phase: u32 = phase_order_rect(c.cursor / rounds, invocation.global.x, invocation.global.y, sx, sy)
+        let x: u32 = invocation.global.x * sx + phase % sx
+        let y: u32 = invocation.global.y * sy + phase / sx
+        if from_i32(__bitcast<u32, i32>(x)) >= s.res || from_i32(__bitcast<u32, i32>(y)) >= s.res { return }
+        let index: u32 = (y << 11) | x
+        let saved: OrbitProgress = self.progress_pixels.load(index: index)
+        if saved.epoch == c.epoch && (saved.reference_i & 536870912) != 0 { return }
+        let deep: SampleOracle = self.snapshot_oracle.load(index: index)
+        if (deep.flags & 1073741824) != 0 { return }
+        let preserved: OrbitProgress = OrbitProgress {
+            dz_re: 0.0,
+            dz_im: 0.0,
+            z_re: s.clock,
+            z_im: 0.0,
+            reference_i: deep.flags | 536870912,
+            iteration: deep.iteration,
+            epoch: c.epoch,
+            magnitude: deep.magnitude,
         }
-        let base:u32=__bitcast<i32,u32>(progress_color(preserved))
-        self.progress_pixels.store(index:index,value:preserved)
-        self.native_pixels.store(index:index,value:base)
-        self.antialiased_pixels.store(index:index,value:if history.aa==self.antialias { self.snapshot_pixels.load(index:index) } else { base })
+        let base: u32 = __bitcast<i32, u32>(progress_color(preserved))
+        self.progress_pixels.store(index: index, value: preserved)
+        self.native_pixels.store(index: index, value: base)
+        self.antialiased_pixels.store(index: index, value: if history.aa == s.antialias {
+            self.snapshot_pixels.load(index: index)
+        } else {
+            base
+        })
     }
+
     // A sparse, full-depth lattice reveals real results while the denser
     // checkpoints are still iterating. It shares their persistent buffers.
-    fn seed_refinement(self, invocation:ComputeInvocation)
-        uses (ReferencePass<Threads<8,8,1>,Once<16,16,1>>)
+    fn seed_refinement(self, invocation: ComputeInvocation)
+        uses (ReferencePass<Threads<8, 8, 1>, Once<16, 16, 1>>)
     {
-        let ref_state:ReferenceControl=self.reference.load(index:0)
-        if ref_state.pending==1 || ref_state.active_valid==0 || self.drag_active>=0.5 || self.clock-self.last_input<60.0 { return }
-        let c:ViewCache=self.cache.load(index:0)
-        if c.cursor>=16 || c.completed==1 { return }
-        let stride:u32=__bitcast<i32,u32>(to_i32((self.res+511.0)/512.0))
-        let lane:u32=(invocation.global.y%4)*4+invocation.global.x%4
-        let rank:u32=c.cursor*16+lane
-        let order_block:ComplexQF32Bits=self.orbit.load(index:16390+(rank>>5))
-        let packed_order:u32=match (rank>>2)&7 {
-            0 => order_block.re_w0_bits, 1 => order_block.re_w1_bits,
-            2 => order_block.re_w2_bits, 3 => order_block.re_w3_bits,
-            4 => order_block.im_w0_bits, 5 => order_block.im_w1_bits,
-            6 => order_block.im_w2_bits, _ => order_block.im_w3_bits,
+        let s: MandelbrotViewState = self.state
+        let ref_state: ReferenceControl = self.reference.load(index: 0)
+        if ref_state.pending == 1 || ref_state.active_valid == 0 || s.drag_active >= 0.5 || s.clock - s.last_input < 60.0 { return }
+        let c: ViewCache = self.cache.load(index: 0)
+        if c.cursor >= 16 || c.completed == 1 { return }
+        let stride: u32 = __bitcast<i32, u32>(to_i32((s.res + 511.0) / 512.0))
+        let lane: u32 = (invocation.global.y % 4) * 4 + invocation.global.x % 4
+        let rank: u32 = c.cursor * 16 + lane
+        let order_block: ComplexQF32Bits = self.orbit.load(index: 16390 + (rank >> 5))
+        let packed_order: u32 = match (rank >> 2) & 7 {
+            0 => order_block.re_w0_bits,
+            1 => order_block.re_w1_bits,
+            2 => order_block.re_w2_bits,
+            3 => order_block.re_w3_bits,
+            4 => order_block.im_w0_bits,
+            5 => order_block.im_w1_bits,
+            6 => order_block.im_w2_bits,
+            _ => order_block.im_w3_bits,
         }
-        let position:u32=(packed_order>>((rank&3)*8))&255
-        let tile_x:u32=invocation.global.x/4
-        let tile_y:u32=invocation.global.y/4
+        let position: u32 = (packed_order >> ((rank & 3) * 8)) & 255
+        let tile_x: u32 = invocation.global.x / 4
+        let tile_y: u32 = invocation.global.y / 4
         // Stable toroidal translations break coherent repetition between tiles.
-        let sx:u32=((position&15)+tile_x*13+tile_y*7)&15
-        let sy:u32=((position>>4)+tile_x*5+tile_y*11)&15
-        let x:u32=(tile_x*16+sx)*stride
-        let y:u32=(tile_y*16+sy)*stride
-        if from_i32(__bitcast<u32,i32>(x))>=self.res || from_i32(__bitcast<u32,i32>(y))>=self.res { return }
-        let index:u32=(y<<11)|x
-        let old:OrbitProgress=self.progress_pixels.load(index:index)
-        if old.epoch==c.epoch && (old.reference_i & 536870912)!=0 { return }
-        let saved:OrbitProgress=if old.epoch==c.epoch { old } else { empty_progress(c.epoch) }
-        let limit:u32=iteration_limit(self.zoom)
-        let next:OrbitProgress=continue_pixel(self.orbit,ref_state.active*8195,
-            self.center_x_w0,self.center_x_w1,self.center_x_w2,self.center_x_w3,
-            self.center_y_w0,self.center_y_w1,self.center_y_w2,self.center_y_w3,
-            self.zoom,self.res,__bitcast<u32,i32>(x),__bitcast<u32,i32>(y),limit,limit,saved)
-        self.progress_pixels.store(index:index,value:OrbitProgress {
-            dz_re:next.dz_re,dz_im:next.dz_im,z_re:self.clock,z_im:next.z_im,
-            reference_i:next.reference_i | 536870912,iteration:next.iteration,epoch:c.epoch,magnitude:next.magnitude,
+        let sx: u32 = ((position & 15) + tile_x * 13 + tile_y * 7) & 15
+        let sy: u32 = ((position >> 4) + tile_x * 5 + tile_y * 11) & 15
+        let x: u32 = (tile_x * 16 + sx) * stride
+        let y: u32 = (tile_y * 16 + sy) * stride
+        if from_i32(__bitcast<u32, i32>(x)) >= s.res || from_i32(__bitcast<u32, i32>(y)) >= s.res { return }
+        let index: u32 = (y << 11) | x
+        let old: OrbitProgress = self.progress_pixels.load(index: index)
+        if old.epoch == c.epoch && (old.reference_i & 536870912) != 0 { return }
+        let saved: OrbitProgress = if old.epoch == c.epoch { old } else { empty_progress(c.epoch) }
+        let limit: u32 = iteration_limit(s.zoom)
+        let next: OrbitProgress = continue_pixel(
+            self.orbit,
+            ref_state.active * 8195,
+            s.camera(),
+            PixelSample::ordered_2x2(__bitcast<u32, i32>(x), __bitcast<u32, i32>(y)),
+            limit,
+            limit,
+            saved,
+        )
+        self.progress_pixels.store(index: index, value: OrbitProgress {
+            dz_re: next.dz_re,
+            dz_im: next.dz_im,
+            z_re: s.clock,
+            z_im: next.z_im,
+            reference_i: next.reference_i | 536870912,
+            iteration: next.iteration,
+            epoch: c.epoch,
+            magnitude: next.magnitude,
         })
-        let bits:u32=__bitcast<i32,u32>(progress_color(next))
-        self.native_pixels.store(index:index,value:bits)
-        self.antialiased_pixels.store(index:index,value:bits)
+        let bits: u32 = __bitcast<i32, u32>(progress_color(next))
+        self.native_pixels.store(index: index, value: bits)
+        self.antialiased_pixels.store(index: index, value: bits)
     }
-    fn refine_pixels(self, invocation:ComputeInvocation)
-        uses (ReferencePass<Threads<8,8,1>,Once<16,32,1>>)
+
+    fn refine_pixels(self, invocation: ComputeInvocation)
+        uses (ReferencePass<Threads<8, 8, 1>, Once<16, 32, 1>>)
     {
-        let ref_state:ReferenceControl=self.reference.load(index:0)
-        if ref_state.pending==1 || ref_state.active_valid==0 || self.drag_active>=0.5 || self.clock-self.last_input<60.0 { return }
-        let c:ViewCache=self.cache.load(index:0)
-        let limit:u32=iteration_limit(self.zoom)
-        let sx:u32=__bitcast<i32,u32>(to_i32((self.res+127.0)/128.0))
-        let sy:u32=__bitcast<i32,u32>(to_i32((self.res+255.0)/256.0))
-        let phases:u32=sx*sy
-        let rounds:u32=(iteration_limit(self.zoom)+2047)/2048
-        if c.cursor>=rounds*phases { return }
-        let phase:u32=phase_order_rect(c.cursor/rounds,invocation.global.x,invocation.global.y,sx,sy)
-        let x:u32=invocation.global.x*sx+phase%sx
-        let y:u32=invocation.global.y*sy+phase/sx
-        if from_i32(__bitcast<u32,i32>(x))>=self.res || from_i32(__bitcast<u32,i32>(y))>=self.res { return }
-        let index:u32=(y<<11)|x
-        let old:OrbitProgress=self.progress_pixels.load(index:index)
-        let saved:OrbitProgress=if old.epoch==c.epoch { old } else { empty_progress(c.epoch) }
-        if saved.iteration>=limit || (saved.reference_i & 3221225472)!=0 { return }
-        let next:OrbitProgress=continue_pixel(self.orbit,ref_state.active*8195,
-            self.center_x_w0,self.center_x_w1,self.center_x_w2,self.center_x_w3,
-            self.center_y_w0,self.center_y_w1,self.center_y_w2,self.center_y_w3,
-            self.zoom,self.res,__bitcast<u32,i32>(x),__bitcast<u32,i32>(y),limit,2048,saved)
-        let terminal:bool=next.iteration>=limit || (next.reference_i & 3221225472)!=0
+        let s: MandelbrotViewState = self.state
+        let ref_state: ReferenceControl = self.reference.load(index: 0)
+        if ref_state.pending == 1 || ref_state.active_valid == 0 || s.drag_active >= 0.5 || s.clock - s.last_input < 60.0 { return }
+        let c: ViewCache = self.cache.load(index: 0)
+        let limit: u32 = iteration_limit(s.zoom)
+        let sx: u32 = __bitcast<i32, u32>(to_i32((s.res + 127.0) / 128.0))
+        let sy: u32 = __bitcast<i32, u32>(to_i32((s.res + 255.0) / 256.0))
+        let phases: u32 = sx * sy
+        let rounds: u32 = (iteration_limit(s.zoom) + 2047) / 2048
+        if c.cursor >= rounds * phases { return }
+        let phase: u32 = phase_order_rect(c.cursor / rounds, invocation.global.x, invocation.global.y, sx, sy)
+        let x: u32 = invocation.global.x * sx + phase % sx
+        let y: u32 = invocation.global.y * sy + phase / sx
+        if from_i32(__bitcast<u32, i32>(x)) >= s.res || from_i32(__bitcast<u32, i32>(y)) >= s.res { return }
+        let index: u32 = (y << 11) | x
+        let old: OrbitProgress = self.progress_pixels.load(index: index)
+        let saved: OrbitProgress = if old.epoch == c.epoch { old } else { empty_progress(c.epoch) }
+        if saved.iteration >= limit || (saved.reference_i & 3221225472) != 0 { return }
+        let next: OrbitProgress = continue_pixel(
+            self.orbit,
+            ref_state.active * 8195,
+            s.camera(),
+            PixelSample::ordered_2x2(__bitcast<u32, i32>(x), __bitcast<u32, i32>(y)),
+            limit,
+            2048,
+            saved,
+        )
+        let terminal: bool = next.iteration >= limit || (next.reference_i & 3221225472) != 0
         // Once terminal, z_re is free to hold the pixel's fade start time.
-        self.progress_pixels.store(index:index,value:OrbitProgress {
-            dz_re:next.dz_re,dz_im:next.dz_im,z_re:if terminal { self.clock } else { next.z_re },z_im:next.z_im,
-            reference_i:next.reference_i | (if terminal { 536870912 } else { 0 }),iteration:next.iteration,epoch:c.epoch,magnitude:next.magnitude,
+        self.progress_pixels.store(index: index, value: OrbitProgress {
+            dz_re: next.dz_re,
+            dz_im: next.dz_im,
+            z_re: if terminal { s.clock } else { next.z_re },
+            z_im: next.z_im,
+            reference_i: next.reference_i | (if terminal { 536870912 } else { 0 }),
+            iteration: next.iteration,
+            epoch: c.epoch,
+            magnitude: next.magnitude,
         })
-        let bits:u32=__bitcast<i32,u32>(progress_color(next))
-        self.native_pixels.store(index:index,value:bits)
-        self.antialiased_pixels.store(index:index,value:bits)
+        let bits: u32 = __bitcast<i32, u32>(progress_color(next))
+        self.native_pixels.store(index: index, value: bits)
+        self.antialiased_pixels.store(index: index, value: bits)
     }
-    fn antialias_pixels(self, invocation:ComputeInvocation)
-        uses (ReferencePass<Threads<8,8,1>,Once<32,32,1>>)
+
+    fn antialias_pixels(self, invocation: ComputeInvocation)
+        uses (ReferencePass<Threads<8, 8, 1>, Once<32, 32, 1>>)
     {
-        let ref_state:ReferenceControl=self.reference.load(index:0)
-        if ref_state.pending==1 || ref_state.active_valid==0 || self.drag_active>=0.5 || self.clock-self.last_input<60.0 { return }
-        let c:ViewCache=self.cache.load(index:0)
-        let rounds:u32=(iteration_limit(self.zoom)+2047)/2048
-        let sx:u32=__bitcast<i32,u32>(to_i32((self.res+127.0)/128.0))
-        let sy:u32=__bitcast<i32,u32>(to_i32((self.res+255.0)/256.0))
-        let start:u32=rounds*sx*sy
-        let stride:u32=__bitcast<i32,u32>(to_i32((self.res+255.0)/256.0))
-        if c.cursor<start || c.cursor>=start+stride*stride { return }
-        let phase:u32=phase_order(c.cursor-start,invocation.global.x,invocation.global.y,stride)
-        let x:u32=invocation.global.x*stride+phase%stride
-        let y:u32=invocation.global.y*stride+phase/stride
-        if from_i32(__bitcast<u32,i32>(x))>=self.res || from_i32(__bitcast<u32,i32>(y))>=self.res { return }
-        let pixel:u32=(y<<11)|x
-        let bits:u32=self.native_pixels.load(index:pixel)
-        let center:Color=color(bits)
-        let xf:f32=from_i32(__bitcast<u32,i32>(x))
-        let yf:f32=from_i32(__bitcast<u32,i32>(y))
-        let left:u32=__bitcast<i32,u32>(to_i32(max(0.0,xf-1.0)))
-        let right:u32=__bitcast<i32,u32>(to_i32(min(self.res-1.0,xf+1.0)))
-        let up:u32=__bitcast<i32,u32>(to_i32(max(0.0,yf-1.0)))
-        let down:u32=__bitcast<i32,u32>(to_i32(min(self.res-1.0,yf+1.0)))
-        let edge:f32=max(max(contrast(center,color(self.native_pixels.load(index:(y<<11)|left))),
-            contrast(center,color(self.native_pixels.load(index:(y<<11)|right)))),
-            max(contrast(center,color(self.native_pixels.load(index:(up<<11)|x))),
-            contrast(center,color(self.native_pixels.load(index:(down<<11)|x)))))
-        if self.antialias>=0.5 && edge>0.12 {
-            let a:Color=color(__bitcast<i32,u32>(sample_pixel(self.orbit,ref_state.active*8195,self.center_x_w0,self.center_x_w1,self.center_x_w2,self.center_x_w3,self.center_y_w0,self.center_y_w1,self.center_y_w2,self.center_y_w3,self.zoom,self.res,__bitcast<u32,i32>(x),__bitcast<u32,i32>(y),iteration_limit(self.zoom),0.28,-0.28)))
-            let b:Color=color(__bitcast<i32,u32>(sample_pixel(self.orbit,ref_state.active*8195,self.center_x_w0,self.center_x_w1,self.center_x_w2,self.center_x_w3,self.center_y_w0,self.center_y_w1,self.center_y_w2,self.center_y_w3,self.zoom,self.res,__bitcast<u32,i32>(x),__bitcast<u32,i32>(y),iteration_limit(self.zoom),-0.28,0.28)))
-            self.antialiased_pixels.store(index:pixel,value:__bitcast<i32,u32>(packed(Color {
-                l:(center.l+a.l+b.l)/3.0,a:(center.a+a.a+b.a)/3.0,b:(center.b+a.b+b.b)/3.0 })))
-        }
-    }
-    fn finish_refinement(self) uses (ReferencePass<Threads<1,1,1>,Once<1,1,1>>) {
-        let ref_state:ReferenceControl=self.reference.load(index:0)
-        if ref_state.pending==1 || ref_state.active_valid==0 || self.drag_active>=0.5 || self.clock-self.last_input<60.0 { return }
-        let c:ViewCache=self.cache.load(index:0)
-        let sx:u32=__bitcast<i32,u32>(to_i32((self.res+127.0)/128.0))
-        let sy:u32=__bitcast<i32,u32>(to_i32((self.res+255.0)/256.0))
-        let aa_stride:u32=__bitcast<i32,u32>(to_i32((self.res+255.0)/256.0))
-        let end:u32=((iteration_limit(self.zoom)+2047)/2048)*sx*sy+aa_stride*aa_stride
-        let next_cursor:u32=c.cursor+1
-        if c.cursor>=end { return }
-        self.cache.store(index:0,value:ViewCache {
-            x0:c.x0,x1:c.x1,x2:c.x2,x3:c.x3,y0:c.y0,y1:c.y1,y2:c.y2,y3:c.y3,
-            zoom:c.zoom,res:c.res,cursor:next_cursor,aa:c.aa,
-            budget:c.budget,radius:c.radius,preview_dirty:c.preview_dirty,blur_dirty:c.blur_dirty,
-            epoch:c.epoch,completed:if next_cursor>=end { 1 } else { 0 },
-        })
-    }
-    fn cache_snapshot(self, invocation:ComputeInvocation)
-        uses (ReferencePass<Threads<8,8,1>,Once<32,32,1>>)
-    {
-        let c:ViewCache=self.cache.load(index:0)
-        let snapshot:ViewCache=self.cache.load(index:1)
-        if c.completed==0 || snapshot.epoch==c.epoch { return }
-        // Copy only on publication. Small dispatch also makes the idle guard
-        // cheap; coalesced lanes cover the fixed-stride image in 64 strips.
-        let lane:u32=(invocation.global.y<<8)|invocation.global.x
-        let mut strip:u32=0
-        while strip<64 {
-            let index:u32=lane+(strip<<16)
-            let x:u32=index & 2047
-            let y:u32=index>>11
-            if from_i32(__bitcast<u32,i32>(x))<self.res && from_i32(__bitcast<u32,i32>(y))<self.res {
-                self.snapshot_pixels.store(index:index,value:self.antialiased_pixels.load(index:index))
-                let result:OrbitProgress=self.progress_pixels.load(index:index)
-                self.snapshot_oracle.store(index:index,value:SampleOracle {
-                    iteration:result.iteration,magnitude:result.magnitude,flags:result.reference_i & 3221225472,
-                })
-            }
-            strip=strip+1
-        }
-    }
-    fn publish_snapshot(self) uses (ReferencePass<Threads<1,1,1>,Once<1,1,1>>) {
-        let c:ViewCache=self.cache.load(index:0)
-        if c.completed==1 { self.cache.store(index:1,value:c) }
-    }
-    fn display_preview(self, px:i32, py:i32) -> i32 uses (Display) {
-        let x:u32=__bitcast<i32,u32>(px)&2047
-        let y:u32=__bitcast<i32,u32>(py)&2047
-        let index:u32=(y<<11)|x
-        let c:ViewCache=self.cache.load(index:0)
-        let reference_state:ReferenceControl=self.reference.load(index:0)
-        let reveal:f32=sharpness(ingot::image::max(0.0,self.clock-ingot::image::max(self.last_input,reference_state.ready_at))
-            *(1.0-self.drag_active)*(1.0-from_i32(__bitcast<u32,i32>(reference_state.pending))))
-        let saved:OrbitProgress=self.progress_pixels.load(index:index)
-        let terminal:bool=(saved.reference_i & 536870912)!=0
-        if saved.epoch==c.epoch && terminal {
-            let bits:u32=self.antialiased_pixels.load(index:index)
-            let amount:f32=progress(self.clock-saved.z_re,0.0,350.0)*reveal
-            if amount>=1.0 { return rgba(color(bits)) }
-            let coarse:Color=sample(self.blurred,from_i32(px)*256.0/self.res,from_i32(py)*256.0/self.res)
-            return rgba(blend(coarse,color(bits),amount))
-        }
-        let coarse:Color=sample(self.blurred,from_i32(px)*256.0/self.res,from_i32(py)*256.0/self.res)
-        {
-            let stride:f32=from_i32(to_i32((self.res+511.0)/512.0))
-            let fx:f32=from_i32(px)
-            let fy:f32=from_i32(py)
-            let lx:f32=from_i32(to_i32(fx/stride))*stride
-            let ly:f32=from_i32(to_i32(fy/stride))*stride
-            let x0:u32=__bitcast<i32,u32>(to_i32(lx))&2047
-            let y0:u32=__bitcast<i32,u32>(to_i32(ly))&2047
-            let x1:u32=__bitcast<i32,u32>(to_i32(ingot::image::min(lx+stride,self.res-1.0)))&2047
-            let y1:u32=__bitcast<i32,u32>(to_i32(ingot::image::min(ly+stride,self.res-1.0)))&2047
-            let a:OrbitProgress=self.progress_pixels.load(index:((y0<<11)|x0)&4194303)
-            let b:OrbitProgress=self.progress_pixels.load(index:((y0<<11)|x1)&4194303)
-            let d:OrbitProgress=self.progress_pixels.load(index:((y1<<11)|x0)&4194303)
-            let e:OrbitProgress=self.progress_pixels.load(index:((y1<<11)|x1)&4194303)
-            let ready:bool=a.epoch==c.epoch && b.epoch==c.epoch && d.epoch==c.epoch && e.epoch==c.epoch
-                && (a.reference_i & b.reference_i & d.reference_i & e.reference_i & 536870912)!=0
-            if ready {
-                let tx:f32=(fx-lx)/stride
-                let ty:f32=(fy-ly)/stride
-                let top:Color=blend(color(self.native_pixels.load(index:((y0<<11)|x0)&4194303)),color(self.native_pixels.load(index:((y0<<11)|x1)&4194303)),tx)
-                let bottom:Color=blend(color(self.native_pixels.load(index:((y1<<11)|x0)&4194303)),color(self.native_pixels.load(index:((y1<<11)|x1)&4194303)),tx)
-                let since:f32=self.clock-ingot::image::max(ingot::image::max(a.z_re,b.z_re),ingot::image::max(d.z_re,e.z_re))
-                rgba(blend(coarse,blend(top,bottom,ty),progress(since,0.0,350.0)*reveal))
-            } else { rgba(coarse) }
+        let s: MandelbrotViewState = self.state
+        let ref_state: ReferenceControl = self.reference.load(index: 0)
+        if ref_state.pending == 1 || ref_state.active_valid == 0 || s.drag_active >= 0.5 || s.clock - s.last_input < 60.0 { return }
+        let c: ViewCache = self.cache.load(index: 0)
+        let rounds: u32 = (iteration_limit(s.zoom) + 2047) / 2048
+        let sx: u32 = __bitcast<i32, u32>(to_i32((s.res + 127.0) / 128.0))
+        let sy: u32 = __bitcast<i32, u32>(to_i32((s.res + 255.0) / 256.0))
+        let start: u32 = rounds * sx * sy
+        let stride: u32 = __bitcast<i32, u32>(to_i32((s.res + 255.0) / 256.0))
+        if c.cursor < start || c.cursor >= start + stride * stride { return }
+        let phase: u32 = phase_order(c.cursor - start, invocation.global.x, invocation.global.y, stride)
+        let x: u32 = invocation.global.x * stride + phase % stride
+        let y: u32 = invocation.global.y * stride + phase / stride
+        if from_i32(__bitcast<u32, i32>(x)) >= s.res || from_i32(__bitcast<u32, i32>(y)) >= s.res { return }
+        let pixel: u32 = (y << 11) | x
+        let bits: u32 = self.native_pixels.load(index: pixel)
+        let center: Color = color(bits)
+        let xf: f32 = from_i32(__bitcast<u32, i32>(x))
+        let yf: f32 = from_i32(__bitcast<u32, i32>(y))
+        let left: u32 = __bitcast<i32, u32>(to_i32(max(0.0, xf - 1.0)))
+        let right: u32 = __bitcast<i32, u32>(to_i32(min(s.res - 1.0, xf + 1.0)))
+        let up: u32 = __bitcast<i32, u32>(to_i32(max(0.0, yf - 1.0)))
+        let down: u32 = __bitcast<i32, u32>(to_i32(min(s.res - 1.0, yf + 1.0)))
+        let edge: f32 = max(
+            max(
+                contrast(center, color(self.native_pixels.load(index: (y << 11) | left))),
+                contrast(center, color(self.native_pixels.load(index: (y << 11) | right))),
+            ),
+            max(
+                contrast(center, color(self.native_pixels.load(index: (up << 11) | x))),
+                contrast(center, color(self.native_pixels.load(index: (down << 11) | x))),
+            ),
+        )
+        if s.antialias >= 0.5 && edge > 0.12 {
+            let camera: Camera = s.camera()
+            let px: i32 = __bitcast<u32, i32>(x)
+            let py: i32 = __bitcast<u32, i32>(y)
+            let limit: u32 = iteration_limit(s.zoom)
+            let a: Color = color(__bitcast<i32, u32>(sample_pixel(
+                self.orbit,
+                ref_state.active * 8195,
+                camera,
+                offset_sample(px, py, 0.28, -0.28),
+                limit,
+            )))
+            let b: Color = color(__bitcast<i32, u32>(sample_pixel(
+                self.orbit,
+                ref_state.active * 8195,
+                camera,
+                offset_sample(px, py, -0.28, 0.28),
+                limit,
+            )))
+            self.antialiased_pixels.store(index: pixel, value: __bitcast<i32, u32>(packed(Color {
+                l: (center.l + a.l + b.l) / 3.0,
+                a: (center.a + a.a + b.a) / 3.0,
+                b: (center.b + a.b + b.b) / 3.0,
+            })))
         }
     }
 
-    fn navigate(self, event: own SurfaceEvent) -> MandelbrotViewState
+    fn finish_refinement(self) uses (ReferencePass<Threads<1, 1, 1>, Once<1, 1, 1>>) {
+        let s: MandelbrotViewState = self.state
+        let ref_state: ReferenceControl = self.reference.load(index: 0)
+        if ref_state.pending == 1 || ref_state.active_valid == 0 || s.drag_active >= 0.5 || s.clock - s.last_input < 60.0 { return }
+        let c: ViewCache = self.cache.load(index: 0)
+        let sx: u32 = __bitcast<i32, u32>(to_i32((s.res + 127.0) / 128.0))
+        let sy: u32 = __bitcast<i32, u32>(to_i32((s.res + 255.0) / 256.0))
+        let aa_stride: u32 = __bitcast<i32, u32>(to_i32((s.res + 255.0) / 256.0))
+        let end: u32 = ((iteration_limit(s.zoom) + 2047) / 2048) * sx * sy + aa_stride * aa_stride
+        let next_cursor: u32 = c.cursor + 1
+        if c.cursor >= end { return }
+        self.cache.store(index: 0, value: ViewCache {
+            x0: c.x0, x1: c.x1, x2: c.x2, x3: c.x3,
+            y0: c.y0, y1: c.y1, y2: c.y2, y3: c.y3,
+            zoom: c.zoom, res: c.res, cursor: next_cursor, aa: c.aa,
+            budget: c.budget, radius: c.radius,
+            preview_dirty: c.preview_dirty, blur_dirty: c.blur_dirty,
+            epoch: c.epoch, completed: if next_cursor >= end { 1 } else { 0 },
+        })
+    }
+
+    fn cache_snapshot(self, invocation: ComputeInvocation)
+        uses (ReferencePass<Threads<8, 8, 1>, Once<32, 32, 1>>)
+    {
+        let s: MandelbrotViewState = self.state
+        let c: ViewCache = self.cache.load(index: 0)
+        let snapshot: ViewCache = self.cache.load(index: 1)
+        if c.completed == 0 || snapshot.epoch == c.epoch { return }
+        // Copy only on publication. Small dispatch also makes the idle guard
+        // cheap; coalesced lanes cover the fixed-stride image in 64 strips.
+        let lane: u32 = (invocation.global.y << 8) | invocation.global.x
+        let mut strip: u32 = 0
+        while strip < 64 {
+            let index: u32 = lane + (strip << 16)
+            let x: u32 = index & 2047
+            let y: u32 = index >> 11
+            if from_i32(__bitcast<u32, i32>(x)) < s.res && from_i32(__bitcast<u32, i32>(y)) < s.res {
+                self.snapshot_pixels.store(index: index, value: self.antialiased_pixels.load(index: index))
+                let result: OrbitProgress = self.progress_pixels.load(index: index)
+                self.snapshot_oracle.store(index: index, value: SampleOracle {
+                    iteration: result.iteration,
+                    magnitude: result.magnitude,
+                    flags: result.reference_i & 3221225472,
+                })
+            }
+            strip = strip + 1
+        }
+    }
+
+    fn publish_snapshot(self) uses (ReferencePass<Threads<1, 1, 1>, Once<1, 1, 1>>) {
+        let c: ViewCache = self.cache.load(index: 0)
+        if c.completed == 1 { self.cache.store(index: 1, value: c) }
+    }
+
+    fn display_preview(self, px: i32, py: i32) -> i32 uses (Display) {
+        let s: MandelbrotViewState = self.state
+        let x: u32 = __bitcast<i32, u32>(px) & 2047
+        let y: u32 = __bitcast<i32, u32>(py) & 2047
+        let index: u32 = (y << 11) | x
+        let c: ViewCache = self.cache.load(index: 0)
+        let reference_state: ReferenceControl = self.reference.load(index: 0)
+        let reveal: f32 = sharpness(
+            ingot::image::max(0.0, s.clock - ingot::image::max(s.last_input, reference_state.ready_at))
+                * (1.0 - s.drag_active)
+                * (1.0 - from_i32(__bitcast<u32, i32>(reference_state.pending))),
+        )
+        let saved: OrbitProgress = self.progress_pixels.load(index: index)
+        let terminal: bool = (saved.reference_i & 536870912) != 0
+        if saved.epoch == c.epoch && terminal {
+            let bits: u32 = self.antialiased_pixels.load(index: index)
+            let amount: f32 = progress(s.clock - saved.z_re, 0.0, 350.0) * reveal
+            if amount >= 1.0 { return rgba(color(bits)) }
+            let coarse: Color = sample(self.blurred, from_i32(px) * 256.0 / s.res, from_i32(py) * 256.0 / s.res)
+            return rgba(blend(coarse, color(bits), amount))
+        }
+        let coarse: Color = sample(self.blurred, from_i32(px) * 256.0 / s.res, from_i32(py) * 256.0 / s.res)
+        {
+            let stride: f32 = from_i32(to_i32((s.res + 511.0) / 512.0))
+            let fx: f32 = from_i32(px)
+            let fy: f32 = from_i32(py)
+            let lx: f32 = from_i32(to_i32(fx / stride)) * stride
+            let ly: f32 = from_i32(to_i32(fy / stride)) * stride
+            let x0: u32 = __bitcast<i32, u32>(to_i32(lx)) & 2047
+            let y0: u32 = __bitcast<i32, u32>(to_i32(ly)) & 2047
+            let x1: u32 = __bitcast<i32, u32>(to_i32(ingot::image::min(lx + stride, s.res - 1.0))) & 2047
+            let y1: u32 = __bitcast<i32, u32>(to_i32(ingot::image::min(ly + stride, s.res - 1.0))) & 2047
+            let a: OrbitProgress = self.progress_pixels.load(index: ((y0 << 11) | x0) & 4194303)
+            let b: OrbitProgress = self.progress_pixels.load(index: ((y0 << 11) | x1) & 4194303)
+            let d: OrbitProgress = self.progress_pixels.load(index: ((y1 << 11) | x0) & 4194303)
+            let e: OrbitProgress = self.progress_pixels.load(index: ((y1 << 11) | x1) & 4194303)
+            let ready: bool = a.epoch == c.epoch && b.epoch == c.epoch && d.epoch == c.epoch && e.epoch == c.epoch
+                && (a.reference_i & b.reference_i & d.reference_i & e.reference_i & 536870912) != 0
+            if ready {
+                let tx: f32 = (fx - lx) / stride
+                let ty: f32 = (fy - ly) / stride
+                let top: Color = blend(
+                    color(self.native_pixels.load(index: ((y0 << 11) | x0) & 4194303)),
+                    color(self.native_pixels.load(index: ((y0 << 11) | x1) & 4194303)),
+                    tx,
+                )
+                let bottom: Color = blend(
+                    color(self.native_pixels.load(index: ((y1 << 11) | x0) & 4194303)),
+                    color(self.native_pixels.load(index: ((y1 << 11) | x1) & 4194303)),
+                    tx,
+                )
+                let since: f32 = s.clock - ingot::image::max(ingot::image::max(a.z_re, b.z_re), ingot::image::max(d.z_re, e.z_re))
+                rgba(blend(coarse, blend(top, bottom, ty), progress(since, 0.0, 350.0) * reveal))
+            } else {
+                rgba(coarse)
+            }
+        }
+    }
+
+    fn navigate(self, event: own SurfaceEvent) -> SurfaceStateEnvelope
         uses (SurfaceTransition, SurfaceScheduling<ContinuousFrames>)
     {
-        if event.is_animation_frame() {
-            return MandelbrotViewState {
-                center_x_w0:self.center_x_w0,center_x_w1:self.center_x_w1,center_x_w2:self.center_x_w2,center_x_w3:self.center_x_w3,
-                center_y_w0:self.center_y_w0,center_y_w1:self.center_y_w1,center_y_w2:self.center_y_w2,center_y_w3:self.center_y_w3,
-                magnification:3.0/self.zoom,zoom:self.zoom,res:self.res,clock:event.timestamp,last_input:self.last_input,antialias:self.antialias,drag_active:self.drag_active,
-            }
-        }
-        if event.is_pointer_down() || event.is_pointer_up()
-            || (event.is_pointer_move() && (event.buttons & 1)==0) {
-            return MandelbrotViewState {
-                center_x_w0:self.center_x_w0,center_x_w1:self.center_x_w1,
-                center_x_w2:self.center_x_w2,center_x_w3:self.center_x_w3,
-                center_y_w0:self.center_y_w0,center_y_w1:self.center_y_w1,
-                center_y_w2:self.center_y_w2,center_y_w3:self.center_y_w3,
-                magnification:3.0/self.zoom,zoom:self.zoom,res:self.res,clock:event.timestamp,last_input:event.timestamp,
-                antialias:self.antialias,drag_active:if event.is_pointer_down() { 1.0 } else { 0.0 },
-            }
-        }
-        if event.is_param_edit() {
-            return MandelbrotViewState {
-                center_x_w0: self.center_x_w0,
-                center_x_w1: self.center_x_w1,
-                center_x_w2: self.center_x_w2,
-                center_x_w3: self.center_x_w3,
-                center_y_w0: self.center_y_w0,
-                center_y_w1: self.center_y_w1,
-                center_y_w2: self.center_y_w2,
-                center_y_w3: self.center_y_w3,
-                magnification:3.0/self.zoom,zoom: self.zoom,
-                res: self.res,
-                clock: event.timestamp,
-                last_input: event.timestamp,
-                antialias:self.antialias,drag_active:self.drag_active,
-            }.apply_param_bindings(mandelbrot_params(), event).refresh_readout()
-        }
-        let dx: f32 = event.delta_x
-        let dy: f32 = event.delta_y
-        let dzoom: f32 = event.wheel_delta
-        let mx: f32 = event.pointer_x
-        let my: f32 = event.pointer_y
-        let res: f32 = event.width
-        let step: f32 = 2.0 * self.zoom / res
-        let (cx0, cx1, cx2, cx3) = to_quad(add_f32<4>(
-            from_quad(self.center_x_w0, self.center_x_w1, self.center_x_w2, self.center_x_w3),
-            -dx * step,
-        ))
-        let (cy0, cy1, cy2, cy3) = to_quad(add_f32<4>(
-            from_quad(self.center_y_w0, self.center_y_w1, self.center_y_w2, self.center_y_w3),
-            dy * step,
-        ))
-        let next_zoom: f32 = clamp_f(zoom_step(self.zoom, dzoom, event.wheel_mode, event.height), ZOOM_MIN, ZOOM_MAX)
-        let u: f32 = (mx + 0.5) * 2.0 / res - 1.0
-        let v: f32 = 1.0 - (my + 0.5) * 2.0 / res
-        let (ax0, ax1, ax2, ax3) = to_quad(add_f32<4>(
-            from_quad(cx0, cx1, cx2, cx3), u * (self.zoom - next_zoom),
-        ))
-        let (ay0, ay1, ay2, ay3) = to_quad(add_f32<4>(
-            from_quad(cy0, cy1, cy2, cy3), v * (self.zoom - next_zoom),
-        ))
-        let (nx0, nx1, nx2, nx3) =
-            clamp_quad(ax0, ax1, ax2, ax3, CENTER_X_MIN, CENTER_X_MAX)
-        let (ny0, ny1, ny2, ny3) =
-            clamp_quad(ay0, ay1, ay2, ay3, CENTER_Y_MIN, CENTER_Y_MAX)
-        MandelbrotViewState {
-            center_x_w0: nx0,
-            center_x_w1: nx1,
-            center_x_w2: nx2,
-            center_x_w3: nx3,
-            center_y_w0: ny0,
-            center_y_w1: ny1,
-            center_y_w2: ny2,
-            center_y_w3: ny3,
-            magnification:3.0/next_zoom,zoom: next_zoom,
-            res,
-            clock: event.timestamp,
-            last_input: event.timestamp,
-            antialias:self.antialias,drag_active:self.drag_active,
-        }
+        SurfaceStateEnvelope { state: transition(self.state, event) }
     }
 }
 

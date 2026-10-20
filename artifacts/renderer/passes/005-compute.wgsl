@@ -9,6 +9,24 @@ struct FeLocal_fe_shader_private_layout_0_ {
     f7_: f32,
     f8_: f32,
     f9_: f32,
+    f10_: f32,
+    f11_: f32,
+    f12_: f32,
+    f13_: f32,
+    f14_: f32,
+}
+
+struct FeLocal_fe_shader_private_layout_1_ {
+    f0_: f32,
+    f1_: f32,
+    f2_: f32,
+    f3_: f32,
+    f4_: f32,
+    f5_: f32,
+    f6_: f32,
+    f7_: f32,
+    f8_: f32,
+    f9_: f32,
     f10_: u32,
     f11_: f32,
     f12_: u32,
@@ -19,7 +37,7 @@ struct FeLocal_fe_shader_private_layout_0_ {
     f17_: u32,
 }
 
-struct FeLocal_fe_shader_private_layout_1_ {
+struct FeLocal_fe_shader_private_layout_2_ {
     f0_: u32,
     f1_: u32,
     f2_: u32,

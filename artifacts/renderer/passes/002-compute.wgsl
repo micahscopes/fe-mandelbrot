@@ -148,6 +148,24 @@ struct FeLocal_fe_shader_private_layout_27_ {
     f7_: f32,
     f8_: f32,
     f9_: f32,
+    f10_: f32,
+    f11_: f32,
+    f12_: f32,
+    f13_: f32,
+    f14_: f32,
+}
+
+struct FeLocal_fe_shader_private_layout_28_ {
+    f0_: f32,
+    f1_: f32,
+    f2_: f32,
+    f3_: f32,
+    f4_: f32,
+    f5_: f32,
+    f6_: f32,
+    f7_: f32,
+    f8_: f32,
+    f9_: f32,
     f10_: u32,
     f11_: f32,
     f12_: u32,
@@ -158,7 +176,7 @@ struct FeLocal_fe_shader_private_layout_27_ {
     f17_: u32,
 }
 
-struct FeLocal_fe_shader_private_layout_28_ {
+struct FeLocal_fe_shader_private_layout_29_ {
     f0_: u32,
     f1_: u32,
     f2_: u32,
@@ -168,7 +186,7 @@ struct FeLocal_fe_shader_private_layout_28_ {
     f6_: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_29_ {
+struct FeLocal_fe_shader_private_layout_30_ {
     f0_: f32,
     f1_: f32,
     f2_: f32,
@@ -181,7 +199,7 @@ struct FeLocal_fe_shader_private_layout_29_ {
     f9_: u32,
 }
 
-struct FeLocal_fe_shader_private_layout_30_ {
+struct FeLocal_fe_shader_private_layout_31_ {
     f0_: u32,
     f1_: u32,
     f2_: u32,
@@ -2960,13 +2978,13 @@ fn main() {
     var local_33: u32 = u32();
     var loop_result: u32;
     var loop_did_return: bool = false;
-    var loop_header_carry_1098_: bool;
-    var fixed_local_1079_: array<u32, 8> = array<u32, 8>();
-    var fixed_local_1088_: array<u32, 8> = array<u32, 8>();
+    var loop_header_carry_1821_: bool;
+    var fixed_local_1802_: array<u32, 8> = array<u32, 8>();
+    var fixed_local_1811_: array<u32, 8> = array<u32, 8>();
     var local_34: u32 = u32();
     var loop_result_1: u32;
     var loop_did_return_1: bool = false;
-    var loop_header_carry_1179_: bool;
+    var loop_header_carry_1902_: bool;
     var local_35: FeLocal_fe_shader_private_layout_7_ = FeLocal_fe_shader_private_layout_7_();
     var local_36: u32 = u32();
     var local_37: FeLocal_fe_shader_private_layout_7_ = FeLocal_fe_shader_private_layout_7_();
@@ -2976,13 +2994,13 @@ fn main() {
     var local_41: u32 = u32();
     var loop_result_2: u32;
     var loop_did_return_2: bool = false;
-    var loop_header_carry_1232_: bool;
-    var fixed_local_1994_: array<u32, 8> = array<u32, 8>();
-    var fixed_local_1997_: array<u32, 8> = array<u32, 8>();
+    var loop_header_carry_1955_: bool;
+    var fixed_local_2732_: array<u32, 8> = array<u32, 8>();
+    var fixed_local_2735_: array<u32, 8> = array<u32, 8>();
     var local_42: u32 = u32();
     var loop_result_3: u32;
     var loop_did_return_3: bool = false;
-    var loop_header_carry_2013_: bool;
+    var loop_header_carry_2751_: bool;
 
     let _e9 = params.p14_;
     let _e11 = params.p15_;
@@ -3186,20 +3204,20 @@ fn main() {
                         loop {
                             let _e315 = local_33;
                             let _e317 = (_e315 < 16u);
-                            loop_header_carry_1098_ = _e317;
+                            loop_header_carry_1821_ = _e317;
                             if _e317 {
                                 reference_words[i32(_e315)] = 0u;
                                 local_33 = (_e315 + 1u);
                                 continue;
                             } else {
-                                orbit[i32(_e284)].re_w0_bits = FeLocal_fe_shader_private_layout_30_().f0_;
-                                orbit[i32(_e284)].re_w1_bits = FeLocal_fe_shader_private_layout_30_().f1_;
-                                orbit[i32(_e284)].re_w2_bits = FeLocal_fe_shader_private_layout_30_().f2_;
-                                orbit[i32(_e284)].re_w3_bits = FeLocal_fe_shader_private_layout_30_().f3_;
-                                orbit[i32(_e284)].im_w0_bits = FeLocal_fe_shader_private_layout_30_().f4_;
-                                orbit[i32(_e284)].im_w1_bits = FeLocal_fe_shader_private_layout_30_().f5_;
-                                orbit[i32(_e284)].im_w2_bits = FeLocal_fe_shader_private_layout_30_().f6_;
-                                orbit[i32(_e284)].im_w3_bits = FeLocal_fe_shader_private_layout_30_().f7_;
+                                orbit[i32(_e284)].re_w0_bits = FeLocal_fe_shader_private_layout_31_().f0_;
+                                orbit[i32(_e284)].re_w1_bits = FeLocal_fe_shader_private_layout_31_().f1_;
+                                orbit[i32(_e284)].re_w2_bits = FeLocal_fe_shader_private_layout_31_().f2_;
+                                orbit[i32(_e284)].re_w3_bits = FeLocal_fe_shader_private_layout_31_().f3_;
+                                orbit[i32(_e284)].im_w0_bits = FeLocal_fe_shader_private_layout_31_().f4_;
+                                orbit[i32(_e284)].im_w1_bits = FeLocal_fe_shader_private_layout_31_().f5_;
+                                orbit[i32(_e284)].im_w2_bits = FeLocal_fe_shader_private_layout_31_().f6_;
+                                orbit[i32(_e284)].im_w3_bits = FeLocal_fe_shader_private_layout_31_().f7_;
                                 reference[i32(0u)].active_ = _e192;
                                 reference[i32(0u)].active_valid = _e194;
                                 reference[i32(0u)].pending = 1u;
@@ -3231,20 +3249,20 @@ fn main() {
                         loop {
                             let _e401 = local_34;
                             let _e403 = (_e401 < 8u);
-                            loop_header_carry_1179_ = _e403;
+                            loop_header_carry_1902_ = _e403;
                             if _e403 {
                                 let _e406 = reference_words[i32(_e401)];
-                                fixed_local_1079_[_e401] = _e406;
+                                fixed_local_1802_[_e401] = _e406;
                                 let _e412 = reference_words[i32((_e401 + 8u))];
-                                fixed_local_1088_[_e401] = _e412;
+                                fixed_local_1811_[_e401] = _e412;
                                 local_34 = (_e401 + 1u);
                                 continue;
                             } else {
                                 break;
                             }
                         }
-                        let _e418 = fixed_magnitude_from_words((&fixed_local_1079_));
-                        let _e419 = fixed_magnitude_from_words((&fixed_local_1088_));
+                        let _e418 = fixed_magnitude_from_words((&fixed_local_1802_));
+                        let _e419 = fixed_magnitude_from_words((&fixed_local_1811_));
                         local_35 = _e419;
                         local_36 = _e202;
                         local_37 = _e418;
@@ -3261,7 +3279,7 @@ fn main() {
                             let _e448 = local_40;
                             let _e450 = local_41;
                             let _e452 = (_e450 < 64u);
-                            loop_header_carry_1232_ = _e452;
+                            loop_header_carry_1955_ = _e452;
                             if _e452 {
                                 if (_e446 < _e383) {
                                     if (_e448 == 0u) {
@@ -3314,18 +3332,18 @@ fn main() {
                         } else {
                             if (_e514 < _e383) {
                                 let _e520 = fixed_magnitude_to_words(_e510);
-                                fixed_local_1994_ = _e520;
+                                fixed_local_2732_ = _e520;
                                 let _e523 = fixed_magnitude_to_words(_e506);
-                                fixed_local_1997_ = _e523;
+                                fixed_local_2735_ = _e523;
                                 local_42 = 0u;
                                 loop {
                                     let _e531 = local_42;
                                     let _e533 = (_e531 < 8u);
-                                    loop_header_carry_2013_ = _e533;
+                                    loop_header_carry_2751_ = _e533;
                                     if _e533 {
-                                        let _e535 = fixed_local_1994_[_e531];
+                                        let _e535 = fixed_local_2732_[_e531];
                                         reference_words[i32(_e531)] = _e535;
-                                        let _e541 = fixed_local_1997_[_e531];
+                                        let _e541 = fixed_local_2735_[_e531];
                                         reference_words[i32((_e531 + 8u))] = _e541;
                                         local_42 = (_e531 + 1u);
                                         continue;

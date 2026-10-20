@@ -9,6 +9,24 @@ struct FeLocal_fe_shader_private_layout_0_ {
     f7_: f32,
     f8_: f32,
     f9_: f32,
+    f10_: f32,
+    f11_: f32,
+    f12_: f32,
+    f13_: f32,
+    f14_: f32,
+}
+
+struct FeLocal_fe_shader_private_layout_1_ {
+    f0_: f32,
+    f1_: f32,
+    f2_: f32,
+    f3_: f32,
+    f4_: f32,
+    f5_: f32,
+    f6_: f32,
+    f7_: f32,
+    f8_: f32,
+    f9_: f32,
     f10_: u32,
     f11_: f32,
     f12_: u32,
@@ -19,13 +37,13 @@ struct FeLocal_fe_shader_private_layout_0_ {
     f17_: u32,
 }
 
-struct FeLocal_fe_shader_private_layout_3_ {
+struct FeLocal_fe_shader_private_layout_4_ {
     f0_: u32,
     f1_: u32,
     f2_: u32,
 }
 
-struct FeLocal_fe_shader_private_layout_1_ {
+struct FeLocal_fe_shader_private_layout_2_ {
     f0_: f32,
     f1_: f32,
     f2_: f32,
@@ -36,7 +54,7 @@ struct FeLocal_fe_shader_private_layout_1_ {
     f7_: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_2_ {
+struct FeLocal_fe_shader_private_layout_3_ {
     f0_: u32,
     f1_: f32,
     f2_: u32,
@@ -125,7 +143,7 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
     var local_2: u32 = u32();
     var loop_result: u32;
     var loop_did_return: bool = false;
-    var loop_header_carry_262_: bool;
+    var loop_header_carry_293_: bool;
 
     let _e13 = params.p36_;
     let _e19 = cache[i32(0u)].epoch;
@@ -144,7 +162,7 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
             loop {
                 let _e40 = local_2;
                 let _e42 = (_e40 < 64u);
-                loop_header_carry_262_ = _e42;
+                loop_header_carry_293_ = _e42;
                 if _e42 {
                     let _e44 = (_e40 << 16u);
                     let _e46 = (_e34 + _e44);
