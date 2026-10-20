@@ -1,5 +1,5 @@
 {
-  "sourceHash": "2f17bb76fbc13e68d69c6ded4ee3f0448f0f9fe31b58d1700e2cc7ffe4ab43e4",
+  "sourceHash": "388aa141e7b2686fb8e571908ed33e02467d9a6859ce9f9d8637a163d14430b2",
   "toolchain": {
     "fe": {
       "repository": "https://github.com/micahscopes/fe.git",
@@ -59,13 +59,13 @@
     "renderer/passes/013-compute.wgsl": "61ff7b8ba3cf66c569d72376c3b965388735ffd74bf338d70bf43243463a3a1f",
     "renderer/passes/014-compute.wgsl": "5f123e042dc10a25aeeba40723ebef960bcd102d1773f48ab1f4f3df20a7efe1",
     "renderer/passes/015-fragment.wgsl": "dcc9297e7d56d8d80e743695f46b81a8cf69bd55bb5ee690cdcb76a16bcf8c72",
-    "viewer/assets/fe-0a188b089f2f47fe.json": "0a188b089f2f47fe69bb8a1a9b4d63c9e6c5c87ff02eda4b15042e66384ee37c",
+    "viewer/assets/fe-5d16f519f8baab04.json": "5d16f519f8baab047c9b3832414684a913d02d0b5200edff706728c3d9ffbaab",
     "viewer/assets/fe-6a526b08b927ee76.wasm": "6a526b08b927ee766f28636355375d4302e201b6995a86ec43d914fc8245d18d",
     "viewer/assets/fe-adapter-e43950be3ebce664.js": "e43950be3ebce664579e695c68b4a77a717843c469e7312ba520fecf263f49fd",
     "viewer/assets/fe-bootstrap-4cb87a78ce901629.js": "4cb87a78ce90162979a6502595fabb1adbf4cbdf4b954d72d029e34f29a1035f",
     "viewer/assets/fe-task-8f72f09cceaa47a2/host-completion.js": "54bc6871a2bf0b4bdf4dad48e8d1aa371ae920dcb418e5406d1d2253a322b8e8",
     "viewer/assets/fe-task-8f72f09cceaa47a2/materialized-task.js": "c6840564dd53aba5d599ba2861e83f38232eefac1e1534cadf9692edcacdff96",
     "viewer/assets/fe-task-8f72f09cceaa47a2/tasks.js": "18756fee659339b957b375a8564b860e2ce4b70063a26d8badbf9606d2ba2e67",
-    "viewer/index.html": "e936ff3a74be15f5476c013ec4199a3a229dfb8cca69810a008c980b8e8c8def"
+    "viewer/index.html": "5f48a16f6e435c9e5040efbf49b114d4088eaeb73226848883dd589d11f09035"
   }
 }

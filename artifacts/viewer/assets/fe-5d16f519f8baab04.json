@@ -9,7 +9,7 @@
     "build": "workspace"
   },
   "target": "wasm",
-  "source_set_sha256": "145a782190fd985a385435ad3d0b2083db335ed2bf14480fe8559583a5d3a2a2",
+  "source_set_sha256": "0ea4092c4e0c183efaba3a8fa64da2f2cd0d45fe8817545c6b54071b20b5ad8d",
   "source_dependencies": {
     "version": 1,
     "root": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/app/source_viewer/src/lib.fe",
@@ -452,7 +452,7 @@
       },
       {
         "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/lib/source_inspector/src/lib.fe",
-        "sha256": "10668334bd8897c1db921e9563ee8dfe96b59cf847e853688ca663b004c6e6ef"
+        "sha256": "2538708ff8fe69896caad69995fde8751cd309753ec8d1bce0398bcb0f324494"
       }
     ]
   },
