@@ -9,7 +9,7 @@
     "build": "workspace"
   },
   "target": "wasm",
-  "source_set_sha256": "0ea4092c4e0c183efaba3a8fa64da2f2cd0d45fe8817545c6b54071b20b5ad8d",
+  "source_set_sha256": "ec8f441258df10f8c985ebcb0a4dd0bad59722d35d9ae1f45a31b9cd83bed652",
   "source_dependencies": {
     "version": 1,
     "root": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/app/source_viewer/src/lib.fe",
@@ -440,7 +440,7 @@
       },
       {
         "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/app/source_viewer/src/lib.fe",
-        "sha256": "4e4e1f46339b3049225ebeafc81d7126869290730f2b164c55e48d4decff5e4a"
+        "sha256": "64feaf68d2ffa4be05f7aa02e5d178c2d9b8abae37a51669c3bd2555f8ffe3a7"
       },
       {
         "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/lib/browser_fetch/src/lib.fe",
@@ -452,7 +452,7 @@
       },
       {
         "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/lib/source_inspector/src/lib.fe",
-        "sha256": "2538708ff8fe69896caad69995fde8751cd309753ec8d1bce0398bcb0f324494"
+        "sha256": "fefed71a03eadcb4833c2ba14c014c6c3fcf4c53c38f5b6ffaf82acddf7f8e0a"
       }
     ]
   },
@@ -490,13 +490,6 @@
       {
         "module": "fe:host",
         "name": "select_begin",
-        "signature_complete": false,
-        "params": [],
-        "results": []
-      },
-      {
-        "module": "fe:web-fetch",
-        "name": "response_array_buffer",
         "signature_complete": false,
         "params": [],
         "results": []
@@ -575,27 +568,6 @@
       },
       {
         "module": "",
-        "name": "__fe_task_resume_load_resources_7",
-        "signature_complete": false,
-        "params": [],
-        "results": []
-      },
-      {
-        "module": "",
-        "name": "__fe_task_resume_load_resources_8",
-        "signature_complete": false,
-        "params": [],
-        "results": []
-      },
-      {
-        "module": "",
-        "name": "__fe_task_resume_load_resources_9",
-        "signature_complete": false,
-        "params": [],
-        "results": []
-      },
-      {
-        "module": "",
         "name": "__fe_task_start_load_resources",
         "signature_complete": false,
         "params": [],
@@ -665,9 +637,9 @@
       "name": "module.wasm",
       "kind": "wasm_module",
       "media_type": "application/wasm",
-      "sha256": "6a526b08b927ee766f28636355375d4302e201b6995a86ec43d914fc8245d18d",
-      "byte_len": 207415,
-      "url": "assets/fe-6a526b08b927ee76.wasm"
+      "sha256": "477da5c68c74099098e47af2195626f1149d1291846a3075bb85a062e436b35f",
+      "byte_len": 145098,
+      "url": "assets/fe-477da5c68c740990.wasm"
     }
   ]
 }

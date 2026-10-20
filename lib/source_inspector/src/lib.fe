@@ -1,11 +1,10 @@
-//! Bounded latest-request resource loader for the resident Fe source viewer.
+//! Bounded latest-text resource loader for resident Fe components.
 //!
 //! Anchors provide untouched same-origin URLs. Fe owns stale response
 //! rejection, loading/error policy, and cancellation. Generated standards
 //! bindings realize fetch; the fixed browser host only holds ABI lifetimes.
 
 use std::web::component::{
-    BrowserBytes,
     BrowserPtr,
     BrowserString,
     ComponentEvent,
@@ -38,58 +37,64 @@ use browser_fetch::{
     fetch_begin,
 }
 
-pub enum InspectorAction {
-    Unknown,
-    Source,
-    Wgsl,
-    Wasm,
-    Manifest,
-    Close,
-    SurfaceProgress,
-    SurfaceComplete,
-    SurfaceFailed,
-    ResourceComplete,
-    ResourceFailed,
-    Navigate,
+/// Narrow 4-variant action vocabulary for bounded latest-text loading.
+pub enum TextLoadAction {
+    Idle,
+    Select,
+    TextLoaded,
+    TextFailed,
 }
 
-impl Copy for InspectorAction {}
+impl Copy for TextLoadAction {}
 
-derive ComponentAction for InspectorAction using ComponentActionProvider
+derive ComponentAction for TextLoadAction using ComponentActionProvider
 
 pub const URL_CAPACITY: u32 = 2048
-pub const PATCH_CAPACITY: u32 = 1048576
 pub const CONTENT_CAPACITY: u32 = 1044480
-pub const CONTROL_CAPACITY: u32 = 20
+pub const CONTROL_CAPACITY: u32 = 16
 
 const CONTROL_REVISION: u32 = 0
 const CONTROL_REQUEST: u32 = 4
 const CONTROL_URL_LEN: u32 = 8
-const CONTROL_BINARY: u32 = 12
-const CONTROL_ACTIVE: u32 = 16
+const CONTROL_ACTIVE: u32 = 12
 
-/// Typed payload shared by every compiler-materialized SourceInspector task.
+/// Typed 4-word payload shared by compiler-materialized text-loader tasks.
 /// Browser events receive the compiler-derived zero value for these lanes;
 /// fixed JavaScript never interprets them.
-pub struct InspectorTask {
+pub struct TextLoadTask {
     pub request: u32,
     pub status: u32,
     pub byte_len: u32,
     pub content_len: u32,
-    pub surface_settled: u32,
 }
 
-impl Copy for InspectorTask {}
+impl Copy for TextLoadTask {}
 
-impl InspectorTask {
-    fn resource(_ request: u32, _ status: u32, _ byte_len: u32, _ content_len: u32) -> Self {
+impl TextLoadTask {
+    pub fn completed(_ request: u32, _ status: u32, _ content_len: u32) -> Self {
         Self {
             request: request,
             status: status,
-            byte_len: byte_len,
+            byte_len: content_len,
             content_len: content_len,
-            surface_settled: 0,
         }
+    }
+
+    pub fn failed(_ request: u32, _ status: u32, _ content_len: u32) -> Self {
+        Self {
+            request: request,
+            status: status,
+            byte_len: 0,
+            content_len: content_len,
+        }
+    }
+
+    pub fn is_http_success(self) -> bool {
+        self.status >= 200 && self.status < 300
+    }
+
+    pub fn matches_request(self, connected: bool, active_request: u32) -> bool {
+        connected && self.request == active_request
     }
 }
 
@@ -97,7 +102,6 @@ struct LoadCommand {
     revision: u32,
     request: u32,
     url_len: u32,
-    binary: bool,
     active: bool,
 }
 
@@ -112,12 +116,10 @@ pub fn publish_load_command(
     revision: u32,
     request: u32,
     url_len: u32,
-    binary: bool,
     active: bool,
 ) {
     control_word(ptr: control, offset: CONTROL_REQUEST).write(request)
     control_word(ptr: control, offset: CONTROL_URL_LEN).write(url_len)
-    control_word(ptr: control, offset: CONTROL_BINARY).write(if binary { 1 } else { 0 })
     control_word(ptr: control, offset: CONTROL_ACTIVE).write(if active { 1 } else { 0 })
     // Publish the revision last. Wasm entrypoints are single-threaded today,
     // but this ordering also gives a future atomic implementation one commit
@@ -130,7 +132,6 @@ fn read_load_command(control: u32) -> LoadCommand {
         revision: control_word(ptr: control, offset: CONTROL_REVISION).read(),
         request: control_word(ptr: control, offset: CONTROL_REQUEST).read(),
         url_len: control_word(ptr: control, offset: CONTROL_URL_LEN).read(),
-        binary: control_word(ptr: control, offset: CONTROL_BINARY).read() != 0,
         active: control_word(ptr: control, offset: CONTROL_ACTIVE).read() != 0,
     }
 }
@@ -140,18 +141,18 @@ fn failure_content<const N: usize>(destination: u32, value: own [u8; N]) -> u32 
         .replace_literal(value).buffer.len()
 }
 
-fn report_resource_state(target: InspectorAction, payload: InspectorTask) -> bool
+fn report_text_load_state(target: TextLoadAction, payload: TextLoadTask) -> bool
     uses (
-        sink: mut ActorSink<WasmBackend, ComponentEvent<InspectorAction, InspectorTask>>,
+        sink: mut ActorSink<WasmBackend, ComponentEvent<TextLoadAction, TextLoadTask>>,
         suspend: Suspend<WasmBackend, u32>,
     )
 {
-    let event: ComponentEvent<InspectorAction, InspectorTask> =
-        ComponentEvent<InspectorAction, InspectorTask>::task_payload(
+    let event: ComponentEvent<TextLoadAction, TextLoadTask> =
+        ComponentEvent<TextLoadAction, TextLoadTask>::task_payload(
             target: target,
             payload: payload,
         )
-    let message: ActorMessage<ComponentEvent<InspectorAction, InspectorTask>> =
+    let message: ActorMessage<ComponentEvent<TextLoadAction, TextLoadTask>> =
         ActorMessage::new(event)
     let outcome: TaskOutcome<u32, ()> = message.send()
     match outcome {
@@ -169,20 +170,20 @@ fn arm_notification(
     notifications.next_begin(subscription)
 }
 
-/// Interpret the latest revisioned request cell entirely in Fe.
+/// Interpret the latest revisioned text-load request cell entirely in Fe.
 ///
 /// A zero-payload actor notification wakes this task after the resident
 /// transition writes a new cell value. The notification is kept live beside
 /// fetch and body operations with heterogeneous `Select`, so a newer revision
 /// cancels stale browser work without JavaScript learning the request shape.
-/// Browser strings/bytes are copied or reduced to owned scalar state before a
-/// second suspension, and every acquired Response is released explicitly.
-pub fn load_inspector_resources(control: u32, url: u32, content: u32) -> u32
+/// Browser strings are copied into owned bounded UTF-8 memory before a second
+/// suspension, and every acquired `Response` is released explicitly.
+pub fn load_latest_text(control: u32, url: u32, content: u32) -> u32
     uses (
         notifications: mut AsyncEventSource<WasmBackend, ActorNotification>,
         select: mut Select<WasmBackend, u32>,
         cancellation: mut PendingCancellation<WasmBackend>,
-        sink: mut ActorSink<WasmBackend, ComponentEvent<InspectorAction, InspectorTask>>,
+        sink: mut ActorSink<WasmBackend, ComponentEvent<TextLoadAction, TextLoadTask>>,
         suspend: Suspend<WasmBackend, u32>,
     )
 {
@@ -228,222 +229,117 @@ pub fn load_inspector_resources(control: u32, url: u32, content: u32) -> u32
                                         let response = fetch_winner.value
                                         notification = fetch_winner.right
                                         let status = response.status()
-                                        if command.binary {
-                                            let body = response.bytes_begin()
-                                            let selected_body = select.select(body, notification)
-                                            let loaded: TaskOutcome<
+                                        let body = response.text_begin()
+                                        let selected_body = select.select(body, notification)
+                                        let loaded: TaskOutcome<
+                                            u32,
+                                            SelectOutcome<
+                                                WasmBackend,
                                                 u32,
-                                                SelectOutcome<
-                                                    WasmBackend,
-                                                    u32,
-                                                    BrowserBytes,
-                                                    ActorNotification,
-                                                >,
-                                            > = suspend.suspend(selected_body)
-                                            match loaded {
-                                                TaskOutcome::Success(body_selection) => {
-                                                    match body_selection {
-                                                        SelectOutcome::Left(body_winner) => {
-                                                            notification = body_winner.right
-                                                            let byte_len = body_winner.value.len
-                                                            response.release()
-                                                            let mut target = InspectorAction::ResourceComplete
-                                                            let mut content_len: u32 = 0
-                                                            if byte_len > PATCH_CAPACITY {
-                                                                target = InspectorAction::ResourceFailed
-                                                                content_len = failure_content(
-                                                                    destination: content,
-                                                                    value: "Resource exceeds the Fe inspector limit",
-                                                                )
-                                                            }
-                                                            if !report_resource_state(
-                                                                target: target,
-                                                                payload: InspectorTask::resource(
-                                                                    request: command.request,
-                                                                    status: status,
-                                                                    byte_len: byte_len,
-                                                                    content_len: content_len,
-                                                                ),
-                                                            ) {
-                                                                notifications.cancel(subscription)
-                                                                return handled
-                                                            }
-                                                            handled = handled + 1
-                                                        }
-                                                        SelectOutcome::Right(notification_winner) => {
-                                                            cancellation.cancel_pending(
-                                                                notification_winner.left,
-                                                            )
-                                                            response.release()
-                                                            let next = arm_notification(
-                                                                subscription: subscription,
-                                                            )
-                                                            subscription = next.0
-                                                            notification = next.1
-                                                            command_ready = true
-                                                        }
-                                                        SelectOutcome::LeftFailure(_) => {
-                                                            response.release()
-                                                            let content_len = failure_content(
+                                                BrowserString,
+                                                ActorNotification,
+                                            >,
+                                        > = suspend.suspend(selected_body)
+                                        match loaded {
+                                            TaskOutcome::Success(body_selection) => {
+                                                match body_selection {
+                                                    SelectOutcome::Left(body_winner) => {
+                                                        notification = body_winner.right
+                                                        let write = Utf8Buffer::empty(
+                                                            ptr: content,
+                                                            capacity: CONTENT_CAPACITY,
+                                                        ).replace_browser(body_winner.value)
+                                                        let mut target = TextLoadAction::TextLoaded
+                                                        let mut content_len = write.buffer.len()
+                                                        let mut payload = TextLoadTask::completed(
+                                                            command.request,
+                                                            status,
+                                                            content_len,
+                                                        )
+                                                        if write.truncated || write.valid == false {
+                                                            target = TextLoadAction::TextFailed
+                                                            content_len = failure_content(
                                                                 destination: content,
-                                                                value: "Resource body request failed",
+                                                                value: "Resource text exceeds the Fe inspector limit",
                                                             )
-                                                            let next = arm_notification(
-                                                                subscription: subscription,
+                                                            payload = TextLoadTask::failed(
+                                                                command.request,
+                                                                status,
+                                                                content_len,
                                                             )
-                                                            subscription = next.0
-                                                            notification = next.1
-                                                            if !report_resource_state(
-                                                                target: InspectorAction::ResourceFailed,
-                                                                payload: InspectorTask::resource(
-                                                                    request: command.request,
-                                                                    status: status,
-                                                                    byte_len: 0,
-                                                                    content_len: content_len,
-                                                                ),
-                                                            ) {
-                                                                notifications.cancel(subscription)
-                                                                return handled
-                                                            }
-                                                            handled = handled + 1
                                                         }
-                                                        SelectOutcome::RightFailure(_) => {
-                                                            response.release()
+                                                        response.release()
+                                                        if !report_text_load_state(
+                                                            target: target,
+                                                            payload: payload,
+                                                        ) {
                                                             notifications.cancel(subscription)
                                                             return handled
                                                         }
-                                                        SelectOutcome::LeftCancelled => {
-                                                            response.release()
-                                                            notifications.cancel(subscription)
-                                                            return handled
-                                                        }
-                                                        SelectOutcome::RightCancelled => {
-                                                            response.release()
-                                                            notifications.cancel(subscription)
-                                                            return handled
-                                                        }
+                                                        handled = handled + 1
                                                     }
-                                                }
-                                                TaskOutcome::Failure(_) => {
-                                                    response.release()
-                                                    notifications.cancel(subscription)
-                                                    return handled
-                                                }
-                                                TaskOutcome::Cancelled => {
-                                                    response.release()
-                                                    notifications.cancel(subscription)
-                                                    return handled
+                                                    SelectOutcome::Right(notification_winner) => {
+                                                        cancellation.cancel_pending(
+                                                            notification_winner.left,
+                                                        )
+                                                        response.release()
+                                                        let next = arm_notification(
+                                                            subscription: subscription,
+                                                        )
+                                                        subscription = next.0
+                                                        notification = next.1
+                                                        command_ready = true
+                                                    }
+                                                    SelectOutcome::LeftFailure(_) => {
+                                                        response.release()
+                                                        let content_len = failure_content(
+                                                            destination: content,
+                                                            value: "Resource text request failed",
+                                                        )
+                                                        let next = arm_notification(
+                                                            subscription: subscription,
+                                                        )
+                                                        subscription = next.0
+                                                        notification = next.1
+                                                        if !report_text_load_state(
+                                                            target: TextLoadAction::TextFailed,
+                                                            payload: TextLoadTask::failed(
+                                                                command.request,
+                                                                status,
+                                                                content_len,
+                                                            ),
+                                                        ) {
+                                                            notifications.cancel(subscription)
+                                                            return handled
+                                                        }
+                                                        handled = handled + 1
+                                                    }
+                                                    SelectOutcome::RightFailure(_) => {
+                                                        response.release()
+                                                        notifications.cancel(subscription)
+                                                        return handled
+                                                    }
+                                                    SelectOutcome::LeftCancelled => {
+                                                        response.release()
+                                                        notifications.cancel(subscription)
+                                                        return handled
+                                                    }
+                                                    SelectOutcome::RightCancelled => {
+                                                        response.release()
+                                                        notifications.cancel(subscription)
+                                                        return handled
+                                                    }
                                                 }
                                             }
-                                        } else {
-                                            let body = response.text_begin()
-                                            let selected_body = select.select(body, notification)
-                                            let loaded: TaskOutcome<
-                                                u32,
-                                                SelectOutcome<
-                                                    WasmBackend,
-                                                    u32,
-                                                    BrowserString,
-                                                    ActorNotification,
-                                                >,
-                                            > = suspend.suspend(selected_body)
-                                            match loaded {
-                                                TaskOutcome::Success(body_selection) => {
-                                                    match body_selection {
-                                                        SelectOutcome::Left(body_winner) => {
-                                                            notification = body_winner.right
-                                                            let write = Utf8Buffer::empty(
-                                                                ptr: content,
-                                                                capacity: CONTENT_CAPACITY,
-                                                            ).replace_browser(body_winner.value)
-                                                            let mut target = InspectorAction::ResourceComplete
-                                                            let mut content_len = write.buffer.len()
-                                                            if write.truncated || write.valid == false {
-                                                                target = InspectorAction::ResourceFailed
-                                                                content_len = failure_content(
-                                                                    destination: content,
-                                                                    value: "Resource text exceeds the Fe inspector limit",
-                                                                )
-                                                            }
-                                                            response.release()
-                                                            if !report_resource_state(
-                                                                target: target,
-                                                                payload: InspectorTask::resource(
-                                                                    request: command.request,
-                                                                    status: status,
-                                                                    byte_len: content_len,
-                                                                    content_len: content_len,
-                                                                ),
-                                                            ) {
-                                                                notifications.cancel(subscription)
-                                                                return handled
-                                                            }
-                                                            handled = handled + 1
-                                                        }
-                                                        SelectOutcome::Right(notification_winner) => {
-                                                            cancellation.cancel_pending(
-                                                                notification_winner.left,
-                                                            )
-                                                            response.release()
-                                                            let next = arm_notification(
-                                                                subscription: subscription,
-                                                            )
-                                                            subscription = next.0
-                                                            notification = next.1
-                                                            command_ready = true
-                                                        }
-                                                        SelectOutcome::LeftFailure(_) => {
-                                                            response.release()
-                                                            let content_len = failure_content(
-                                                                destination: content,
-                                                                value: "Resource text request failed",
-                                                            )
-                                                            let next = arm_notification(
-                                                                subscription: subscription,
-                                                            )
-                                                            subscription = next.0
-                                                            notification = next.1
-                                                            if !report_resource_state(
-                                                                target: InspectorAction::ResourceFailed,
-                                                                payload: InspectorTask::resource(
-                                                                    request: command.request,
-                                                                    status: status,
-                                                                    byte_len: 0,
-                                                                    content_len: content_len,
-                                                                ),
-                                                            ) {
-                                                                notifications.cancel(subscription)
-                                                                return handled
-                                                            }
-                                                            handled = handled + 1
-                                                        }
-                                                        SelectOutcome::RightFailure(_) => {
-                                                            response.release()
-                                                            notifications.cancel(subscription)
-                                                            return handled
-                                                        }
-                                                        SelectOutcome::LeftCancelled => {
-                                                            response.release()
-                                                            notifications.cancel(subscription)
-                                                            return handled
-                                                        }
-                                                        SelectOutcome::RightCancelled => {
-                                                            response.release()
-                                                            notifications.cancel(subscription)
-                                                            return handled
-                                                        }
-                                                    }
-                                                }
-                                                TaskOutcome::Failure(_) => {
-                                                    response.release()
-                                                    notifications.cancel(subscription)
-                                                    return handled
-                                                }
-                                                TaskOutcome::Cancelled => {
-                                                    response.release()
-                                                    notifications.cancel(subscription)
-                                                    return handled
-                                                }
+                                            TaskOutcome::Failure(_) => {
+                                                response.release()
+                                                notifications.cancel(subscription)
+                                                return handled
+                                            }
+                                            TaskOutcome::Cancelled => {
+                                                response.release()
+                                                notifications.cancel(subscription)
+                                                return handled
                                             }
                                         }
 
@@ -475,13 +371,12 @@ pub fn load_inspector_resources(control: u32, url: u32, content: u32) -> u32
                                         let next = arm_notification(subscription: subscription)
                                         subscription = next.0
                                         notification = next.1
-                                        if !report_resource_state(
-                                            target: InspectorAction::ResourceFailed,
-                                            payload: InspectorTask::resource(
-                                                request: command.request,
-                                                status: 0,
-                                                byte_len: 0,
-                                                content_len: content_len,
+                                        if !report_text_load_state(
+                                            target: TextLoadAction::TextFailed,
+                                            payload: TextLoadTask::failed(
+                                                command.request,
+                                                0,
+                                                content_len,
                                             ),
                                         ) {
                                             notifications.cancel(subscription)
@@ -536,4 +431,21 @@ pub fn load_inspector_resources(control: u32, url: u32, content: u32) -> u32
         }
     }
     handled
+}
+
+#[test]
+fn text_load_action_and_task_matching_laws() {
+    assert(cond: TextLoadAction::Idle.component_action_id() == 0)
+    assert(cond: TextLoadAction::Select.component_action_id() == 1)
+    assert(cond: TextLoadAction::TextLoaded.component_action_id() == 2)
+    assert(cond: TextLoadAction::TextFailed.component_action_id() == 3)
+
+    let ok = TextLoadTask::completed(7, 200, 512)
+    assert(cond: ok.is_http_success())
+    assert(cond: ok.matches_request(connected: true, active_request: 7))
+    assert(cond: !ok.matches_request(connected: true, active_request: 8))
+    assert(cond: !ok.matches_request(connected: false, active_request: 7))
+
+    let missing = TextLoadTask::completed(7, 404, 19)
+    assert(cond: !missing.is_http_success())
 }
