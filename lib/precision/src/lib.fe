@@ -104,7 +104,9 @@ pub fn two_product(_ a: f32, _ b: f32) -> (f32, f32) {
     (p, err)
 }
 
+use core::default::Default
 use core::marker::Copy
+use core::ops::{Add, Eq, Sub}
 
 /// The least-significant term of a chain: `N == 1`. Distinguished from `More`
 /// as its own constructor (see the module doc) so trait dispatch can tell
@@ -114,6 +116,57 @@ pub struct Last { value: f32 }
 pub struct More<T> { lead: f32, tail: T }
 impl Copy for Last {}
 impl<T: Copy> Copy for More<T> {}
+
+impl Default for Last {
+    fn default() -> Self {
+        Last { value: 0.0 }
+    }
+}
+
+impl<T: Default> Default for More<T> {
+    fn default() -> Self {
+        More {
+            lead: 0.0,
+            tail: T::default(),
+        }
+    }
+}
+
+impl Eq for Last {
+    fn eq(self, _ other: Self) -> bool {
+        self.value == other.value
+    }
+}
+
+impl<T: Eq> Eq for More<T> {
+    fn eq(self, _ other: Self) -> bool {
+        self.lead == other.lead && self.tail == other.tail
+    }
+}
+
+impl Add for Last {
+    fn add(own self, _ other: own Self) -> Self {
+        self.add_corr(other, 0.0)
+    }
+}
+
+impl<T: Exp + Copy> Add for More<T> {
+    fn add(own self, _ other: own Self) -> Self {
+        self.add_corr(other, 0.0)
+    }
+}
+
+impl Sub for Last {
+    fn sub(own self, _ other: own Self) -> Self {
+        self.add_corr(other.negate(), 0.0)
+    }
+}
+
+impl<T: Exp + Copy> Sub for More<T> {
+    fn sub(own self, _ other: own Self) -> Self {
+        self.add_corr(other.negate(), 0.0)
+    }
+}
 
 /// `Expansion<N>`: N=1 is `Last` (a bare f32); N>=2 is `More` over
 /// `Expansion<{N-1}>`. `Expansion<2>` normalizes to `More<Last>`, exactly

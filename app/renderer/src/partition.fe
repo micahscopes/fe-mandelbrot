@@ -3,7 +3,7 @@
 
 use core::marker::Copy
 use fmath::{from_i32, to_i32}
-use ingot::orbit::ComplexQF32Bits
+use ingot::orbit::PackedReference
 use ingot::policy::iteration_limit
 
 extern {
@@ -80,9 +80,9 @@ pub fn order_word(_ index: u32) -> u32 {
     }
 }
 
-pub fn order_block(_ block_index: u32) -> ComplexQF32Bits {
+pub fn order_block(_ block_index: u32) -> PackedReference {
     let i: u32 = block_index * 8
-    ComplexQF32Bits::from_quad_bits(
+    PackedReference::from_words(
         order_word(i),
         order_word(i + 1),
         order_word(i + 2),
@@ -94,17 +94,8 @@ pub fn order_block(_ block_index: u32) -> ComplexQF32Bits {
     )
 }
 
-pub fn unpack_order_byte(_ block: ComplexQF32Bits, _ rank: u32) -> u32 {
-    let packed_order: u32 = match (rank >> 2) & 7 {
-        0 => block.re_w0_bits,
-        1 => block.re_w1_bits,
-        2 => block.re_w2_bits,
-        3 => block.re_w3_bits,
-        4 => block.im_w0_bits,
-        5 => block.im_w1_bits,
-        6 => block.im_w2_bits,
-        _ => block.im_w3_bits,
-    }
+pub fn unpack_order_byte(_ block: PackedReference, _ rank: u32) -> u32 {
+    let packed_order: u32 = block.word((rank >> 2) & 7)
     (packed_order >> ((rank & 3) * 8)) & 255
 }
 
@@ -144,7 +135,7 @@ pub struct CohortPixel {
 impl Copy for CohortPixel {}
 
 pub fn seed_pixel(
-    _ order_block: ComplexQF32Bits,
+    _ order_block: PackedReference,
     _ rank: u32,
     _ gx: u32,
     _ gy: u32,
