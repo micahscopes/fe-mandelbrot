@@ -41,9 +41,9 @@ The exact dependency revisions live in `toolchain.lock.json`:
 
 Use Rust `nightly-2026-08-17` (the tested compiler reports 1.100.0-nightly) and
 Python 3.11+. Bootstrap fetches the exact Fe commit and checks the Sonatina pins
-in its Cargo manifest. It applies small generic runtime patches exposing CSS parts for Fe-declared controls
-matching Wasm RGBA channel order to WebGPU, bounded pipeline preparation, and
-starting live surfaces without a disposable poster. These are generic host facilities.
+in its Cargo manifest. It applies generic runtime patches for control styling, matching Wasm/WebGPU
+channel order, bounded pipeline preparation, and starting live surfaces without
+a disposable poster.
 
 ```sh
 python3 tools/bootstrap.py
@@ -63,7 +63,8 @@ pinned compiler and all three Fe applications, publishing the site as an artifac
   cohorts, numerical caches, color conversion, blur and antialiasing.
 - `app/source_viewer`: the Fe source-viewer ingot shared by both demos. It owns
   source selection, fetching, cancellation, line numbers and rendering.
-  Its catalog includes Mandelbrot, the color library, the color demo and itself.
+  Its catalog includes the renderer, algebra and precision libraries, gesture
+  policy, source loader, color library, color demo and viewer itself.
   Both demo pages link to it, and it links back to both demos.
 - `app/color_demo`: interactive OKLCH hue, OKLab blending and lightness/chroma demo.
 - `lib/gestures`: fixed-capacity contacts, centroid geometry and viewport transforms.
@@ -157,3 +158,12 @@ UTF-8 byte ranges with the unchanged source; no browser JavaScript tokenizes or
 interprets source. Raw links and copied source retain the original bytes.
 Run `node tests/source-viewer.mjs` to check both demo links, all source files,
 highlighting, exact text, stale fetches, error recovery and phone layout.
+`node tests/source-selection.mjs` exercises real selection and clipboard copying.
+Set `STAGED_SITE` to a locally assembled site and use an HTTPS `BASE_URL` to test
+unpublished assets in a remote CDP browser.
+
+`node tests/contact-state.mjs artifacts/renderer` and
+`node tests/url-state.mjs artifacts/renderer` execute the compiled Fe gesture and
+URL lanes directly. `node tests/mobile-url-browser.mjs` exercises real touch,
+restoration before the first frame, resizing and browser history in responsive
+Chrome. `node tests/startup.mjs` checks one GPU graph and stable buffer reuse.
