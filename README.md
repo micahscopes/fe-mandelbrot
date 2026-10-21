@@ -85,7 +85,10 @@ in OKLab. The final fragment converts to sRGB once, using a tested square-root
 transfer approximation. Display conversion clips out-of-gamut channels; this is not a general
 CSS Color 4 gamut-mapping implementation.
 
-The current reference uses 91 fractional bits. Persistent numerical and image
+The current reference uses 91 fractional bits. Camera and history differences use
+117 fractional bits once per frame, and perturbation offsets account for the
+reference center actually stored. This does not increase reference recurrence
+precision or establish accuracy at every accepted zoom depth. Persistent numerical and image
 buffers are reused; the finite history is not an unlimited map of visited areas.
 This explorer contains no Mandelbrot proving or protocol implementation.
 

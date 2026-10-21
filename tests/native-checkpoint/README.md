@@ -2,7 +2,7 @@
 
 This fixture uses the production Fe perturbation step and compact codec. It does not substitute a JavaScript recurrence. The old32-byte `OrbitProgress` remains an independent continuation representation and reference-exhaustion scheduler. The new16-byte `NativeCheckpoint` is compared against the old state's **prepared next-step delta**, including exact f32 bits, counters, full epoch, status, magnitude, color and fade time.
 
-The fixture is authored for the pinned compiler's Wasm and WGSL targets. **No Fe compilation or target execution is claimed by the source-only implementation checkpoint.** Root owns those gates and the production GPU comparison.
+The fixture is authored for the pinned compiler's Wasm and WGSL targets. The integrated compiler passes all ten cases on actual Wasm and WebGPU, including runtime nonfinite classification and signed-zero transport. GPU record continuation also passes with no shader errors or traps. The production differential additionally passes128×128 and512×512 image comparisons for the compact-only checkpoint; numerical camera corrections have separate final acceptance.
 
 From the repository root, using the integrated compiler with recursive POD storage:
 
@@ -38,7 +38,7 @@ PLAYWRIGHT_MODULE=/path/to/playwright-core/index.mjs CDP_URL=http://127.0.0.1:92
   /absolute/immutable-baseline-site /absolute/immutable-compact-site /absolute/scratch/production-differential
 ```
 
-This runner is authored but has not been executed at its source checkpoint. It uses the existing browser-session teardown helper and opens/closes its own sequential test tabs. Both complete staged sites must include the typed URL and resident-state contracts. It reads the baseline's actual Wasm initial camera and uses Fe's URL restore for the initial fixed backing extent. Later camera/AA changes call the actual resident Fe state replacement export through the runtime; modifying its JavaScript mirror alone is insufficient.
+This runner has passed at128×128 and512×512 for the compact-only checkpoint, with45 exact comparisons per size. It uses the existing browser-session teardown helper and opens/closes its own sequential test tabs. Both complete staged sites must include the typed URL and resident-state contracts. It reads the baseline's actual Wasm initial camera and uses Fe's URL restore for the initial fixed backing extent. Later camera/AA changes call the actual resident Fe state replacement export through the runtime; modifying its JavaScript mirror alone is insufficient.
 
 A readback latch holds the actual `_presentOn` boundary while Node captures results or supplies the next test state. Presentation requests are queued before they can submit another graph; `_flushGestureFrame` entry is separately serialized so a pre-requested RAF cannot advance resident state ahead of the held frame. Replacement rejects queued stale presentations, and capture checks that the graph-submission counter remained fixed. This prevents a short partial phase from completing before the test can replace it. Fe still performs the actual state transition, reference generation, dispatch and completion decisions. The initial Wasm path is resolved from the staged index manifest attribute and that manifest's `artifacts.wasm`, including content-addressed site namespaces. The instrumentation adds GPU readback/host delay and is not a timing benchmark.
 
