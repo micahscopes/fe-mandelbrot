@@ -49,7 +49,7 @@ try{
  assert.deepEqual(await page.evaluate(()=>gpuErrors),[]);
  await page.goto(new URL('viewer/index.html',base).href);
  await page.waitForFunction(()=>document.querySelector('fe-component')?._active,null,{timeout:30000});
- assert.equal(await page.locator('.file').count(),14);
+ assert.equal(await page.locator('.file').count(),15);
  await page.locator('.file[href$="/palette.fe.view"]').click();
  await page.waitForFunction(()=>document.querySelector('.file-heading strong')?.textContent==='palette.fe' && !document.querySelector('.source-lines')?.hidden);
  assert.ok((await page.locator('.source-code').textContent()).toLowerCase().includes('oklch'));
@@ -66,5 +66,5 @@ try{
  assert.equal(library.status(),200);assert.ok((await library.text()).includes('pub fn oklch'));
  if(process.env.COLOR_SCREENSHOT)await page.screenshot({path:process.env.COLOR_SCREENSHOT});
  assert.deepEqual(errors,[]);
- console.log(JSON.stringify({live:true,zoom:changed.zoom,magnification:changed.magnification,oracle,colorCheck,sourceFiles:14,colorLab:true,errors}));
+ console.log(JSON.stringify({live:true,zoom:changed.zoom,magnification:changed.magnification,oracle,colorCheck,sourceFiles:15,colorLab:true,errors}));
 }finally{await releaseTestPage(browser,page);}

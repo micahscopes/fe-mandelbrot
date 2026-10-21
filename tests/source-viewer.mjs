@@ -13,7 +13,7 @@ try{
  }
  await page.goto(new URL('viewer/index.html',base).href);
  await page.waitForFunction(()=>document.querySelector('fe-component')?._active,null,{timeout:30000});
- const files=['lib.fe','policy.fe','interaction.fe','gestures.fe','orbit.fe','image.fe','cache.fe','palette.fe','partition.fe','algebra.fe','color_library.fe','color_demo.fe','viewer.fe','viewer_highlight.fe'];
+ const files=['lib.fe','policy.fe','interaction.fe','url.fe','gestures.fe','orbit.fe','image.fe','cache.fe','palette.fe','partition.fe','algebra.fe','color_library.fe','color_demo.fe','viewer.fe','viewer_highlight.fe'];
  assert.equal(await page.locator('.file').count(),files.length);
  async function open(name){await page.locator(`.file[href$="/${name}.view"]`).click();await page.waitForFunction(name=>document.querySelector('.file-heading strong')?.textContent===name && !document.querySelector('.source-lines')?.hidden,name);}
  const stats={};
