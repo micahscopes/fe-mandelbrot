@@ -21,9 +21,15 @@ pub fn max(_ a: f32, _ b: f32) -> f32 {
 fn clamp(_ value: f32, _ low: f32, _ high: f32) -> f32 {
     if value < low {
         low
+    } else if value > high {
+        high
     } else {
-        if value > high { high } else { value }
+        value
     }
+}
+
+pub fn coord_index(_ value: f32) -> u32 {
+    __bitcast<i32, u32>(to_i32(value))
 }
 
 pub use perceptual_color::{
@@ -39,7 +45,10 @@ pub use perceptual_color::{
 }
 
 pub fn contrast(_ a: Color, _ b: Color) -> f32 {
-    max(2.0 * abs(a.l - b.l), max(4.0 * abs(a.a - b.a), 4.0 * abs(a.b - b.b)))
+    max(
+        2.0 * abs(a.l - b.l),
+        max(4.0 * abs(a.a - b.a), 4.0 * abs(a.b - b.b)),
+    )
 }
 
 /// Four-corner indices and fractional weights for bilinear interpolation.
@@ -60,10 +69,10 @@ pub fn bilinear_tap(_ x: f32, _ y: f32, _ max_coord: f32, _ row_shift: u32) -> B
     let v: f32 = clamp(y, 0.0, max_coord)
     let fx: f32 = floor(u)
     let fy: f32 = floor(v)
-    let x0: u32 = __bitcast<i32, u32>(to_i32(fx))
-    let y0: u32 = __bitcast<i32, u32>(to_i32(fy))
-    let x1: u32 = __bitcast<i32, u32>(to_i32(min(fx + 1.0, max_coord)))
-    let y1: u32 = __bitcast<i32, u32>(to_i32(min(fy + 1.0, max_coord)))
+    let x0: u32 = coord_index(fx)
+    let y0: u32 = coord_index(fy)
+    let x1: u32 = coord_index(min(fx + 1.0, max_coord))
+    let y1: u32 = coord_index(min(fy + 1.0, max_coord))
     BilinearTap {
         i00: (y0 << row_shift) | x0,
         i10: (y0 << row_shift) | x1,
@@ -79,10 +88,10 @@ pub fn lattice_tap(_ px: i32, _ py: i32, _ step: f32, _ max_coord: f32) -> Bilin
     let fy: f32 = from_i32(py)
     let lx: f32 = from_i32(to_i32(fx / step)) * step
     let ly: f32 = from_i32(to_i32(fy / step)) * step
-    let x0: u32 = __bitcast<i32, u32>(to_i32(lx)) & 2047
-    let y0: u32 = __bitcast<i32, u32>(to_i32(ly)) & 2047
-    let x1: u32 = __bitcast<i32, u32>(to_i32(min(lx + step, max_coord))) & 2047
-    let y1: u32 = __bitcast<i32, u32>(to_i32(min(ly + step, max_coord))) & 2047
+    let x0: u32 = coord_index(lx) & 2047
+    let y0: u32 = coord_index(ly) & 2047
+    let x1: u32 = coord_index(min(lx + step, max_coord)) & 2047
+    let y1: u32 = coord_index(min(ly + step, max_coord)) & 2047
     BilinearTap {
         i00: ((y0 << 11) | x0) & 4194303,
         i10: ((y0 << 11) | x1) & 4194303,
@@ -143,20 +152,20 @@ pub fn gaussian(
         let ax: u32 = if vertical {
             x
         } else {
-            __bitcast<i32, u32>(to_i32(max(0.0, xf - distance)))
+            coord_index(max(0.0, xf - distance))
         }
         let bx: u32 = if vertical {
             x
         } else {
-            __bitcast<i32, u32>(to_i32(min(255.0, xf + distance)))
+            coord_index(min(255.0, xf + distance))
         }
         let ay: u32 = if vertical {
-            __bitcast<i32, u32>(to_i32(max(0.0, yf - distance)))
+            coord_index(max(0.0, yf - distance))
         } else {
             y
         }
         let by: u32 = if vertical {
-            __bitcast<i32, u32>(to_i32(min(255.0, yf + distance)))
+            coord_index(min(255.0, yf + distance))
         } else {
             y
         }
@@ -168,7 +177,11 @@ pub fn gaussian(
         total = total + 2.0 * weight
         tap = tap + 1
     }
-    Color { l: lightness / total, a: axis_a / total, b: b / total }
+    Color {
+        l: lightness / total,
+        a: axis_a / total,
+        b: b / total,
+    }
 }
 
 pub fn sample(_ image: OrbitBuffer<Color, 65536>, _ x: f32, _ y: f32) -> Color {

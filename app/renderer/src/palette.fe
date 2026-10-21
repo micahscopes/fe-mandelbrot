@@ -3,8 +3,13 @@
 use fmath::{from_i32, to_i32, fract}
 use perceptual_color::{Color, Oklch, pack_lab}
 
-pub fn escape_palette(_ iterations: i32, _ magnitude_squared: f32) -> i32 {
-    let t: f32 = fract((from_i32(iterations) + 4.0 / magnitude_squared) / 256.0) * 5.0
+extern {
+    const fn __bitcast<From, To>(_: From) -> To
+}
+
+pub fn escape_palette(_ iterations: u32, _ magnitude_squared: f32) -> u32 {
+    let count: f32 = from_i32(__bitcast<u32, i32>(iterations))
+    let t: f32 = fract((count + 4.0 / magnitude_squared) / 256.0) * 5.0
     let segment: i32 = to_i32(t)
     let u: f32 = t - from_i32(segment)
     let ease: f32 = u * u * (3.0 - 2.0 * u)
@@ -15,28 +20,50 @@ pub fn escape_palette(_ iterations: i32, _ magnitude_squared: f32) -> i32 {
 
 fn anchor(_ i: i32) -> Oklch {
     if i == 0 {
-        Oklch { l: 0.58, chroma: 0.215, hue: 275.0 }
+        Oklch {
+            l: 0.58,
+            chroma: 0.215,
+            hue: 275.0,
+        }
+    } else if i == 1 {
+        Oklch {
+            l: 0.65,
+            chroma: 0.24,
+            hue: 335.0,
+        }
+    } else if i == 2 {
+        Oklch {
+            l: 0.78,
+            chroma: 0.155,
+            hue: 65.0,
+        }
+    } else if i == 3 {
+        Oklch {
+            l: 0.73,
+            chroma: 0.142,
+            hue: 165.0,
+        }
     } else {
-        if i == 1 {
-            Oklch { l: 0.65, chroma: 0.24, hue: 335.0 }
-        } else {
-            if i == 2 {
-                Oklch { l: 0.78, chroma: 0.155, hue: 65.0 }
-            } else {
-                if i == 3 {
-                    Oklch { l: 0.73, chroma: 0.142, hue: 165.0 }
-                } else {
-                    Oklch { l: 0.65, chroma: 0.127, hue: 235.0 }
-                }
-            }
+        Oklch {
+            l: 0.65,
+            chroma: 0.127,
+            hue: 235.0,
         }
     }
 }
 
-pub fn interior() -> i32 {
-    pack_lab(Color { l: 0.14, a: 0.008, b: -0.018 })
+pub fn interior() -> u32 {
+    pack_lab(Color {
+        l: 0.14,
+        a: 0.008,
+        b: -0.018,
+    })
 }
 
-pub fn glitch() -> i32 {
-    pack_lab(Color { l: 0.72, a: 0.18, b: -0.09 })
+pub fn glitch() -> u32 {
+    pack_lab(Color {
+        l: 0.72,
+        a: 0.18,
+        b: -0.09,
+    })
 }

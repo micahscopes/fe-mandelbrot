@@ -517,16 +517,11 @@ fn pixel_delta_from_reference(
     let center_reference: Complex<Expansion<4>> = orbit
         .load(index: base + ORBIT_CENTER_INDEX)
         .decode()
-    let camera_center: Complex<Expansion<4>> = Complex {
-        re: camera.center_x,
-        im: camera.center_y,
-    }
-    let center_remainder: Complex<Expansion<4>> = camera_center - center_reference
     let plane_offset: Complex<f32> = Complex {
         re: point.u * camera.zoom,
         im: point.v * camera.zoom,
     }
-    reference_with_delta(center_remainder, plane_offset)
+    reference_with_delta(camera.center - center_reference, plane_offset)
 }
 
 /// A uniform iteration budget computed once by the reference pass. The pixel
@@ -537,7 +532,7 @@ pub fn sample_pixel(
     _ camera: Camera,
     _ sample: PixelSample,
     _ budget: u32,
-) -> i32 {
+) -> u32 {
     progress_color(sample_progress(orbit, base, camera, sample, budget))
 }
 
@@ -767,11 +762,11 @@ fn advance_progress(
     }
 }
 
-pub fn progress_color(_ saved: OrbitProgress) -> i32 {
+pub fn progress_color(_ saved: OrbitProgress) -> u32 {
     if saved.is_glitched() {
         glitch()
     } else if saved.is_escaped() {
-        escape_palette(saved.iteration.downcast_truncate(), saved.magnitude)
+        escape_palette(saved.iteration, saved.magnitude)
     } else {
         interior()
     }
