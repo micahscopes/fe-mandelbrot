@@ -35,8 +35,8 @@ The exact dependency revisions live in `toolchain.lock.json`:
 
 | Dependency | Branch | Revision |
 | --- | --- | --- |
-| Fe | `feat/mb2-demo-integration-20261020` (from `mb2`) | `4e10c86393e1721d79e2df2f7502a2b672506e82` |
-| Sonatina | `mb2-task-borrows` | `f0ae3f5501cd8a51a6ba53f05ab5c43cd0091e47` |
+| Fe | `feat/mb2-demo-integration-20261020` (from `mb2`) | `552d354089021bec6c00b510467f81414689422f` |
+| Sonatina | `feat/mb2-demanded-bitcast-20261020` | `1145fe2f9c42c7e6c53bae48f6e83fac087c3709` |
 | Naga | pinned by MB2 | `854ed576fa186d19b9f7d5a5bb5a1f2fa533dde1` |
 
 Use Rust `nightly-2026-08-17` (the tested compiler reports 1.100.0-nightly) and

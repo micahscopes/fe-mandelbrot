@@ -2,12 +2,12 @@
   "fe": {
     "repository": "https://github.com/micahscopes/fe.git",
     "branch": "feat/mb2-demo-integration-20261020",
-    "revision": "4e10c86393e1721d79e2df2f7502a2b672506e82"
+    "revision": "552d354089021bec6c00b510467f81414689422f"
   },
   "sonatina": {
     "repository": "https://github.com/micahscopes/sonatina.git",
-    "revision": "f0ae3f5501cd8a51a6ba53f05ab5c43cd0091e47",
-    "branch": "mb2-task-borrows"
+    "revision": "1145fe2f9c42c7e6c53bae48f6e83fac087c3709",
+    "branch": "feat/mb2-demanded-bitcast-20261020"
   },
   "naga": {
     "repository": "https://github.com/micahscopes/wgpu",
