@@ -1,0 +1,84 @@
+//! Exact inverse-transform degree check over the supplied composition table.
+use ingot::receipt::{Receipt, DigestTree, hash_extension, ArenaWords}
+use mandelbrot_proof_profile::{TRACE, LDE, FRI_ROUNDS, proof_chunk_layout}
+use mandelbrot_proof_baby_bear_transcript::composition_row_domain_tag
+use precision::baby_bear::{BabyBear, BabyBearExt4}
+
+struct Coefficients { words: ArenaWords }
+impl core::marker::Copy for Coefficients {}
+impl Coefficients {
+    fn new() -> Self {
+        Self { words: ArenaWords::new(4096 * 4) }
+    }
+    fn load(self, _ index: u32) -> BabyBearExt4 {
+        BabyBearExt4::from_coordinate_fields(
+            BabyBear::from_montgomery_word(self.words.load(index * 4)),
+            BabyBear::from_montgomery_word(self.words.load(index * 4 + 1)),
+            BabyBear::from_montgomery_word(self.words.load(index * 4 + 2)),
+            BabyBear::from_montgomery_word(self.words.load(index * 4 + 3)),
+        )
+    }
+    fn store(self, _ index: u32, _ value: BabyBearExt4) {
+        self.words.store(index * 4, value.coefficient_0().to_montgomery_word())
+        self.words.store(index * 4 + 1, value.coefficient_1().to_montgomery_word())
+        self.words.store(index * 4 + 2, value.coefficient_2().to_montgomery_word())
+        self.words.store(index * 4 + 3, value.coefficient_3().to_montgomery_word())
+    }
+}
+fn bit_reverse_12(_ value: u32) -> u32 {
+    let mut result: u32 = 0
+    let mut x = value
+    let mut i: u32 = 0
+    while i < 12 {
+        result = (result << 1) | (x & 1)
+        x = x >> 1
+        i = i + 1
+    }
+    result
+}
+pub fn check_composition(_ proof: Receipt) -> bool {
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let table = Coefficients::new()
+    let tree = DigestTree::new(4096)
+    let mut i: u32 = 0
+    while i < 4096 {
+        let value = proof.extension(layout.composition_values + i * 4)
+        table.store(bit_reverse_12(i), value)
+        tree.store(i, hash_extension(composition_row_domain_tag(), value))
+        i = i + 1
+    }
+    if !tree.root().equals(proof.digest(layout.composition_root)) {
+        return false
+    }
+    let mut length: u32 = 2
+    let mut log: u32 = 1
+    while length <= 4096 {
+        let root = BabyBear::two_adic_root(log).inverse_or_zero()
+        let mut block: u32 = 0
+        while block < 4096 {
+            let mut power = BabyBear::one()
+            let mut lane: u32 = 0
+            while lane < length / 2 {
+                let even = table.load(block + lane)
+                let odd = table.load(block + lane + length / 2) * BabyBearExt4::from_base(power)
+                table.store(block + lane, even + odd)
+                table.store(block + lane + length / 2, even - odd)
+                power = power * root
+                lane = lane + 1
+            }
+            block = block + length
+        }
+        length = length * 2
+        log = log + 1
+    }
+    // Normalization and coset unshifting multiply by nonzero factors, so zero
+    // coefficients above3*(TRACE-1) can be checked before those operations.
+    i = 3070
+    while i < 4096 {
+        if !table.load(i).is_zero() {
+            return false
+        }
+        i = i + 1
+    }
+    true
+}

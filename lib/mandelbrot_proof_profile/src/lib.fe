@@ -1,0 +1,184 @@
+//! Shared canonical geometry of a viewer receipt. No witness generation or GPU effects.
+use core::num::IntDowncast
+pub const TRACE_LOG: usize = 10
+pub const TRACE: usize = 1024
+pub const LDE: usize = 4096
+pub const FRI_ROUNDS: usize = 12
+pub const BOUND: u32 = 1023
+pub const MAIN_COLUMN_COUNT: usize = 17
+pub const AIR_COLUMN_COUNT: usize = 428
+pub const ROW_FIELDS: usize = 7
+pub const AUXILIARY_FIELDS: usize = 14
+pub const PUBLIC_FIELDS: usize = 4
+pub const ESCAPES_BY_Q12_PUBLIC_WORDS: usize = 8
+pub const DIGEST_FIELDS: usize = 8
+pub const EXTENSION_WORDS: usize = 4
+pub const FRI_VARIANTS: usize = 2
+
+pub const fn chunk_folded_evaluations(_ lde: usize) -> usize {
+    if lde == 0 { 0 } else { lde - 1 }
+}
+
+pub const fn chunk_layer_tree_nodes(_ lde: usize, _ fri_rounds: usize) -> usize {
+    if lde <= 1 {
+        0
+    } else {
+        2 * lde - 2 - fri_rounds
+    }
+}
+
+pub const fn chunk_tree_stride_nodes(_ lde: usize) -> usize {
+    if lde == 0 { 0 } else { 2 * lde - 1 }
+}
+
+pub const fn chunk_query_evaluations(_ fri_rounds: usize) -> usize {
+    if fri_rounds == 0 {
+        0
+    } else {
+        2 * fri_rounds - 1
+    }
+}
+
+pub const fn chunk_query_path_siblings(_ fri_rounds: usize) -> usize {
+    if fri_rounds <= 2 {
+        0
+    } else {
+        (fri_rounds - 2) * (fri_rounds - 1)
+    }
+}
+
+pub struct ProofChunkLayout {
+    pub air_trace: u32,
+    pub packed_main_trace: u32,
+    pub packed_auxiliary_trace: u32,
+    pub packed_public: u32,
+    pub canonical_public: u32,
+    pub trace_valid: u32,
+    pub air_lde_valid: u32,
+    pub public_digest: u32,
+    pub main_trace_root: u32,
+    pub auxiliary_trace_root: u32,
+    pub production_trace_digest_valid: u32,
+    pub main_lde_root: u32,
+    pub auxiliary_lde_root: u32,
+    pub air_lde_root_valid: u32,
+    pub air_transcript: u32,
+    pub air_transcript_valid: u32,
+    pub composition_challenge: u32,
+    pub composition_values: u32,
+    pub composition_value_valid: u32,
+    pub composition_root: u32,
+    pub composition_transcript: u32,
+    pub composition_valid: u32,
+    pub fri_clean: u32,
+    pub fri_observed: u32,
+    pub fri_challenges: u32,
+    pub fri_roots: u32,
+    pub fri_transcripts: u32,
+    pub fri_challenge_valid: u32,
+    pub fri_root_valid: u32,
+    pub fri_transcript_valid: u32,
+    pub fri_round_valid: u32,
+    pub fri_status: u32,
+    pub fri_query_indices: u32,
+    pub fri_query_evaluations: u32,
+    pub fri_query_siblings: u32,
+    pub fri_query_index_valid: u32,
+    pub fri_query_opening_valid: u32,
+    pub fri_query_status: u32,
+    pub status: u32,
+    pub total_words: u32,
+}
+impl core::marker::Copy for ProofChunkLayout {}
+
+pub const fn proof_chunk_layout(
+    _ trace: usize,
+    _ lde: usize,
+    _ fri_rounds: usize,
+) -> ProofChunkLayout {
+    let air_trace: usize = 0
+    let packed_main_trace = air_trace + AIR_COLUMN_COUNT * trace
+    let packed_auxiliary_trace = packed_main_trace + trace * ROW_FIELDS
+    let packed_public = packed_auxiliary_trace + trace * AUXILIARY_FIELDS
+    let canonical_public = packed_public + PUBLIC_FIELDS
+    let trace_valid = canonical_public + ESCAPES_BY_Q12_PUBLIC_WORDS
+    let air_lde_valid = trace_valid + 1
+    let public_digest = air_lde_valid + AIR_COLUMN_COUNT
+    let main_trace_root = public_digest + DIGEST_FIELDS
+    let auxiliary_trace_root = main_trace_root + DIGEST_FIELDS
+    let production_trace_digest_valid = auxiliary_trace_root + DIGEST_FIELDS
+    let main_lde_root = production_trace_digest_valid + 3
+    let auxiliary_lde_root = main_lde_root + DIGEST_FIELDS
+    let air_lde_root_valid = auxiliary_lde_root + DIGEST_FIELDS
+    let air_transcript = air_lde_root_valid + 2
+    let air_transcript_valid = air_transcript + DIGEST_FIELDS
+    let composition_challenge = air_transcript_valid + 1
+    let composition_values = composition_challenge + EXTENSION_WORDS
+    let composition_value_valid = composition_values + lde * EXTENSION_WORDS
+    let composition_root = composition_value_valid + lde
+    let composition_transcript = composition_root + DIGEST_FIELDS
+    let composition_valid = composition_transcript + DIGEST_FIELDS
+    let folded_evals = chunk_folded_evaluations(lde)
+    let fri_clean = composition_valid + 3
+    let fri_observed = fri_clean + folded_evals * EXTENSION_WORDS
+    let fri_challenges = fri_observed + folded_evals * EXTENSION_WORDS
+    let fri_roots = fri_challenges + FRI_VARIANTS * fri_rounds * EXTENSION_WORDS
+    let fri_transcripts = fri_roots + FRI_VARIANTS * fri_rounds * DIGEST_FIELDS
+    let fri_challenge_valid = fri_transcripts + FRI_VARIANTS * (fri_rounds + 1) * DIGEST_FIELDS
+    let fri_root_valid = fri_challenge_valid + FRI_VARIANTS * fri_rounds
+    let fri_transcript_valid = fri_root_valid + FRI_VARIANTS * fri_rounds
+    let fri_round_valid = fri_transcript_valid + FRI_VARIANTS * (fri_rounds + 1)
+    let fri_status = fri_round_valid + FRI_VARIANTS * fri_rounds
+    let fri_query_indices = fri_status + 3
+    let query_evals = chunk_query_evaluations(fri_rounds)
+    let query_siblings = chunk_query_path_siblings(fri_rounds)
+    let fri_query_evaluations = fri_query_indices + FRI_VARIANTS
+    let fri_query_siblings = fri_query_evaluations + FRI_VARIANTS * query_evals * EXTENSION_WORDS
+    let fri_query_index_valid = fri_query_siblings + FRI_VARIANTS * query_siblings * DIGEST_FIELDS
+    let fri_query_opening_valid = fri_query_index_valid + FRI_VARIANTS
+    let fri_query_status = fri_query_opening_valid + FRI_VARIANTS
+    let status = fri_query_status + 3
+    let total_words = status + 7
+    ProofChunkLayout {
+        air_trace: air_trace.downcast_truncate(),
+        packed_main_trace: packed_main_trace.downcast_truncate(),
+        packed_auxiliary_trace: packed_auxiliary_trace.downcast_truncate(),
+        packed_public: packed_public.downcast_truncate(),
+        canonical_public: canonical_public.downcast_truncate(),
+        trace_valid: trace_valid.downcast_truncate(),
+        air_lde_valid: air_lde_valid.downcast_truncate(),
+        public_digest: public_digest.downcast_truncate(),
+        main_trace_root: main_trace_root.downcast_truncate(),
+        auxiliary_trace_root: auxiliary_trace_root.downcast_truncate(),
+        production_trace_digest_valid: production_trace_digest_valid.downcast_truncate(),
+        main_lde_root: main_lde_root.downcast_truncate(),
+        auxiliary_lde_root: auxiliary_lde_root.downcast_truncate(),
+        air_lde_root_valid: air_lde_root_valid.downcast_truncate(),
+        air_transcript: air_transcript.downcast_truncate(),
+        air_transcript_valid: air_transcript_valid.downcast_truncate(),
+        composition_challenge: composition_challenge.downcast_truncate(),
+        composition_values: composition_values.downcast_truncate(),
+        composition_value_valid: composition_value_valid.downcast_truncate(),
+        composition_root: composition_root.downcast_truncate(),
+        composition_transcript: composition_transcript.downcast_truncate(),
+        composition_valid: composition_valid.downcast_truncate(),
+        fri_clean: fri_clean.downcast_truncate(),
+        fri_observed: fri_observed.downcast_truncate(),
+        fri_challenges: fri_challenges.downcast_truncate(),
+        fri_roots: fri_roots.downcast_truncate(),
+        fri_transcripts: fri_transcripts.downcast_truncate(),
+        fri_challenge_valid: fri_challenge_valid.downcast_truncate(),
+        fri_root_valid: fri_root_valid.downcast_truncate(),
+        fri_transcript_valid: fri_transcript_valid.downcast_truncate(),
+        fri_round_valid: fri_round_valid.downcast_truncate(),
+        fri_status: fri_status.downcast_truncate(),
+        fri_query_indices: fri_query_indices.downcast_truncate(),
+        fri_query_evaluations: fri_query_evaluations.downcast_truncate(),
+        fri_query_siblings: fri_query_siblings.downcast_truncate(),
+        fri_query_index_valid: fri_query_index_valid.downcast_truncate(),
+        fri_query_opening_valid: fri_query_opening_valid.downcast_truncate(),
+        fri_query_status: fri_query_status.downcast_truncate(),
+        status: status.downcast_truncate(),
+        total_words: total_words.downcast_truncate(),
+    }
+}

@@ -1,16 +1,25 @@
-const ready=WebAssembly.instantiateStreaming(fetch('./checker.wasm'),{}).then(x=>x.instance.exports);
+// Transport only: request layout, byte ownership and arena reset are generated
+// from the Fe functions exported by app/point_prover.
+const ready=Promise.all([
+  import('./checker/interface.js'),
+  WebAssembly.instantiateStreaming(fetch('./checker/module.wasm'),{}),
+]).then(([adapter,{instance}])=>adapter.createInterfaceCaller(instance.exports));
 self.onmessage=async({data})=>{
  const {id,kind,re,im}=data;
  try{
-  const w=await ready;
   if(!Number.isInteger(re)||!Number.isInteger(im))throw Error('Point must be integral Q12');
-  if(re< -8192||re>=4096||im< -6144||im>=6144){if(kind==='preflight'){postMessage({id,terminal:0xffffffff});return;}throw Error('Point outside profile');}
-  if(kind==='preflight'){postMessage({id,terminal:w.point_escape(re,im)>>>0});return;}
-  if(kind!=='check')throw Error('Unknown checker request');
-  if(!(data.proof instanceof ArrayBuffer)||data.proof.byteLength!==4*w.proof_words())throw Error('Wrong proof size');
-  const words=new Uint32Array(data.proof),ptr=w.proof_alloc(words.length);if(!ptr)throw Error('Allocation failed');
-  const start=performance.now();let code;
-  try{new Uint32Array(w.memory.buffer,ptr,words.length).set(words);code=w.proof_check(ptr,words.length,re,im);}finally{w.proof_free(ptr,words.length);}
-  postMessage({id,code,accepted:code===0,checkMs:performance.now()-start});
+  if(re< -8192||re>=4096||im< -6144||im>=6144){
+   if(kind==='preflight'){postMessage({id,terminal:0xffffffff});return;}
+   throw Error('Point outside profile');
+  }
+  const caller=await ready,point={re,im};
+  if(kind==='preflight'){
+   const result=await caller.call('preflight',{point});
+   postMessage({id,terminal:result.terminal_step});return;
+  }
+  if(kind!=='check'||!(data.proof instanceof ArrayBuffer))throw Error('Invalid checker request');
+  const start=performance.now();
+  const result=await caller.call('check',{point,proof:new Uint8Array(data.proof)});
+  postMessage({id,code:result.code,accepted:result.code===0,checkMs:performance.now()-start});
  }catch(error){postMessage({id,error:error.message});}
 };

@@ -1,0 +1,901 @@
+//! Field-neutral FRI schedule structure.
+//!
+//! Protocol code, scalar evaluators, authenticated query builders, and GPU
+//! placements interpret these same constructors. The semantic tree fixes
+//! round order and widths. A placement may map its independent pairs onto
+//! lanes, but it does not own another round table.
+
+use core::marker::Copy
+
+/// Two authenticated leaves are opened for every binary FRI query pair.
+pub const fn fri_multi_leaf_capacity(_ query_count: usize) -> usize {
+    query_count + query_count
+}
+
+/// A conservative sibling budget for the shared multipath at one FRI layer.
+///
+/// This is field-neutral schedule geometry. Keeping it in the leaf structure
+/// ingot lets receipt schemas and field interpreters derive the same shape
+/// without making const evaluation depend on either consumer's trait graph.
+pub const fn fri_multi_sibling_capacity(
+    _ pair_depth: usize,
+    _ query_count: usize,
+) -> usize {
+    fri_multi_leaf_capacity(query_count) * pair_depth
+}
+
+/// Terminal of the field-neutral Fiat-Shamir query plan. `NEXT_QUERY` is the
+/// first unused domain identity after the plan.
+pub struct FriQueryPlanDone<const NEXT_QUERY: u32> {}
+impl<const NEXT_QUERY: u32> Copy for FriQueryPlanDone<NEXT_QUERY> {}
+
+/// One independently domain-separated query followed by the remaining plan.
+/// Runtime interpreters may sample indices, derive sparse opening masks, or
+/// schedule verifier work without maintaining a second query-number list.
+pub struct FriQueryPlanSample<const QUERY: u32, Tail> {}
+impl<const QUERY: u32, Tail: Copy> Copy for FriQueryPlanSample<QUERY, Tail> {}
+
+const fn fri_query_plan_query(
+    _ first_query: u32,
+    _ total: usize,
+    _ remaining: usize,
+) -> u32 {
+    first_query + (total - remaining).downcast_truncate()
+}
+
+const fn fri_query_plan_next(_ first_query: u32, _ total: usize) -> u32 {
+    first_query + total.downcast_truncate()
+}
+
+/// Derive a nominal query identity for each sample in a Fiat-Shamir plan.
+pub recursive type fn FriQueryPlanSteps<
+    const FIRST_QUERY: u32,
+    const TOTAL: usize,
+    const REMAINING: usize,
+>() -> (*) {
+    match REMAINING {
+        0 => FriQueryPlanDone<{fri_query_plan_next(FIRST_QUERY, TOTAL)}>
+        _ => FriQueryPlanSample<
+            {fri_query_plan_query(FIRST_QUERY, TOTAL, REMAINING)},
+            FriQueryPlanSteps<FIRST_QUERY, TOTAL, {REMAINING - 1}>,
+        >
+    }
+}
+
+pub type FriQueryPlan<const FIRST_QUERY: u32, const COUNT: usize> =
+    FriQueryPlanSteps<FIRST_QUERY, COUNT, COUNT>
+
+/// Compact denotation of a consecutive Fiat-Shamir query range.
+///
+/// Small proofs may use `FriQueryPlan` when a nominal type per sample is
+/// useful. Security-sized plans should interpret this range directly so
+/// compile time does not scale with a deeply nested query type. Both forms
+/// denote the same sequence of query identities.
+pub struct FriQueryRangePlan<
+    const FIRST_QUERY: u32,
+    const COUNT: usize,
+> {}
+impl<
+    const FIRST_QUERY: u32,
+    const COUNT: usize,
+> Copy for FriQueryRangePlan<FIRST_QUERY, COUNT> {}
+
+pub struct FriQueryPlanMetadata {
+    pub samples: u32,
+    pub first_query: u32,
+    pub next_query: u32,
+}
+impl Copy for FriQueryPlanMetadata {}
+
+/// Structural metadata interpreter used by exactness gates and diagnostics.
+pub trait FriQueryPlanShape {
+    const fn fri_query_plan_metadata() -> FriQueryPlanMetadata
+}
+
+impl<const NEXT_QUERY: u32> FriQueryPlanShape for FriQueryPlanDone<NEXT_QUERY> {
+    const fn fri_query_plan_metadata() -> FriQueryPlanMetadata {
+        FriQueryPlanMetadata {
+            samples: 0,
+            first_query: NEXT_QUERY,
+            next_query: NEXT_QUERY,
+        }
+    }
+}
+
+impl<const QUERY: u32, Tail: FriQueryPlanShape> FriQueryPlanShape
+    for FriQueryPlanSample<QUERY, Tail>
+{
+    const fn fri_query_plan_metadata() -> FriQueryPlanMetadata {
+        let tail = <Tail as FriQueryPlanShape>::fri_query_plan_metadata()
+        FriQueryPlanMetadata {
+            samples: tail.samples + 1,
+            first_query: QUERY,
+            next_query: tail.next_query,
+        }
+    }
+}
+
+impl<
+    const FIRST_QUERY: u32,
+    const COUNT: usize,
+> FriQueryPlanShape for FriQueryRangePlan<FIRST_QUERY, COUNT> {
+    const fn fri_query_plan_metadata() -> FriQueryPlanMetadata {
+        FriQueryPlanMetadata {
+            samples: COUNT.downcast_truncate(),
+            first_query: FIRST_QUERY,
+            next_query: fri_query_plan_next(FIRST_QUERY, COUNT),
+        }
+    }
+}
+
+/// Resolve one identity from a compact query range. An out-of-range offset
+/// returns zero, which is not a valid production query identity.
+pub const fn fri_query_range_identity(
+    _ first_query: u32,
+    _ count: usize,
+    _ offset: usize,
+) -> u32 {
+    if offset >= count { return 0 }
+    first_query + offset.downcast_truncate()
+}
+
+/// Indexable interpretation of a Fiat-Shamir query plan. Work-grid consumers
+/// ask the plan for its identity instead of reconstructing identities from
+/// aggregate metadata, so a future nonconsecutive plan can preserve its exact
+/// transcript denotation.
+pub trait FriQueryPlanPlacement: FriQueryPlanShape {
+    fn fri_query_identity(_ offset: u32) -> u32
+}
+
+impl<const NEXT_QUERY: u32> FriQueryPlanPlacement
+    for FriQueryPlanDone<NEXT_QUERY>
+{
+    fn fri_query_identity(_ offset: u32) -> u32 { 0 }
+}
+
+impl<
+    const QUERY: u32,
+    Tail: FriQueryPlanPlacement,
+> FriQueryPlanPlacement for FriQueryPlanSample<QUERY, Tail> {
+    fn fri_query_identity(_ offset: u32) -> u32 {
+        if offset == 0 { return QUERY }
+        <Tail as FriQueryPlanPlacement>::fri_query_identity(offset - 1)
+    }
+}
+
+impl<
+    const FIRST_QUERY: u32,
+    const COUNT: usize,
+> FriQueryPlanPlacement for FriQueryRangePlan<FIRST_QUERY, COUNT> {
+    fn fri_query_identity(_ offset: u32) -> u32 {
+        fri_query_range_identity(FIRST_QUERY, COUNT, offset as usize)
+    }
+}
+
+/// Terminal of a binary FRI fold schedule. `NEXT_ROUND` is the first round
+/// number after the schedule.
+pub struct FriScheduleDone<const NEXT_ROUND: u32> {}
+impl<const NEXT_ROUND: u32> Copy for FriScheduleDone<NEXT_ROUND> {}
+
+/// One binary fold in a FRI schedule. `INPUT_LOG` describes the codeword before
+/// this fold. `Tail` is derived recursively rather than selected by a consumer.
+pub struct FriScheduleFold<
+    const ROUND: u32,
+    const INPUT_LOG: usize,
+    const OUTPUT: usize,
+    const PAIR_WIDTH: usize,
+    const PAIR_DEPTH: usize,
+    Tail,
+> {}
+impl<
+    const ROUND: u32,
+    const INPUT_LOG: usize,
+    const OUTPUT: usize,
+    const PAIR_WIDTH: usize,
+    const PAIR_DEPTH: usize,
+    Tail,
+> Copy for FriScheduleFold<
+    ROUND,
+    INPUT_LOG,
+    OUTPUT,
+    PAIR_WIDTH,
+    PAIR_DEPTH,
+    Tail,
+> {}
+
+const fn fri_schedule_next_round(
+    _ first_round: u32,
+    _ total_log: usize,
+) -> u32 {
+    first_round + total_log.downcast_truncate()
+}
+
+const fn fri_schedule_round(
+    _ first_round: u32,
+    _ total_log: usize,
+    _ remaining_log: usize,
+) -> u32 {
+    first_round + (total_log - remaining_log).downcast_truncate()
+}
+
+const fn fri_schedule_output_width(_ input_log: usize) -> usize {
+    if input_log == 0 { 0 } else { 1 << (input_log - 1) }
+}
+
+const fn fri_schedule_pair_depth(_ input_log: usize) -> usize {
+    if input_log > 1 { input_log - 2 } else { 0 }
+}
+
+const fn fri_schedule_pair_width(_ input_log: usize) -> usize {
+    if input_log > 1 { 1 << (input_log - 2) } else { 0 }
+}
+
+/// Derive the complete fold tree from one initial round and input-domain log.
+pub recursive type fn FriScheduleSteps<
+    const FIRST_ROUND: u32,
+    const TOTAL_LOG: usize,
+    const REMAINING_LOG: usize,
+>() -> (*) {
+    match REMAINING_LOG {
+        0 => FriScheduleDone<{
+            fri_schedule_next_round(FIRST_ROUND, TOTAL_LOG)
+        }>
+        _ => FriScheduleFold<
+            {fri_schedule_round(FIRST_ROUND, TOTAL_LOG, REMAINING_LOG)},
+            REMAINING_LOG,
+            {fri_schedule_output_width(REMAINING_LOG)},
+            {fri_schedule_pair_width(REMAINING_LOG)},
+            {fri_schedule_pair_depth(REMAINING_LOG)},
+            FriScheduleSteps<FIRST_ROUND, TOTAL_LOG, {REMAINING_LOG - 1}>,
+        >
+    }
+}
+
+pub type FriSchedule<const FIRST_ROUND: u32, const INPUT_LOG: usize> =
+    FriScheduleSteps<FIRST_ROUND, INPUT_LOG, INPUT_LOG>
+
+/// Aggregate structural evidence derived from one FRI schedule.
+pub struct FriScheduleMetadata {
+    pub rounds: u32,
+    pub first_round: u32,
+    pub next_round: u32,
+    pub input_log: u32,
+    pub folded_evaluations: u32,
+    pub layer_pair_openings: u32,
+    pub layer_path_siblings_per_side: u32,
+    pub layer_tree_nodes: u32,
+    pub query_evaluations: u32,
+    pub query_path_siblings: u32,
+}
+impl Copy for FriScheduleMetadata {}
+
+pub trait FriScheduleShape {
+    const fn fri_schedule_metadata() -> FriScheduleMetadata
+}
+
+impl<const NEXT_ROUND: u32> FriScheduleShape for FriScheduleDone<NEXT_ROUND> {
+    const fn fri_schedule_metadata() -> FriScheduleMetadata {
+        FriScheduleMetadata {
+            rounds: 0,
+            first_round: NEXT_ROUND,
+            next_round: NEXT_ROUND,
+            input_log: 0,
+            folded_evaluations: 0,
+            layer_pair_openings: 0,
+            layer_path_siblings_per_side: 0,
+            layer_tree_nodes: 0,
+            query_evaluations: 0,
+            query_path_siblings: 0,
+        }
+    }
+}
+
+impl<
+    const ROUND: u32,
+    const INPUT_LOG: usize,
+    const OUTPUT: usize,
+    const PAIR_WIDTH: usize,
+    const PAIR_DEPTH: usize,
+    Tail: FriScheduleShape,
+> FriScheduleShape for FriScheduleFold<
+    ROUND,
+    INPUT_LOG,
+    OUTPUT,
+    PAIR_WIDTH,
+    PAIR_DEPTH,
+    Tail,
+> {
+    const fn fri_schedule_metadata() -> FriScheduleMetadata {
+        let tail = <Tail as FriScheduleShape>::fri_schedule_metadata()
+        let has_pair: u32 = if INPUT_LOG > 1 { 1 } else { 0 }
+        let query_evaluations: u32 = if INPUT_LOG > 1 { 2 } else { 1 }
+        FriScheduleMetadata {
+            rounds: tail.rounds + 1,
+            first_round: ROUND,
+            next_round: tail.next_round,
+            input_log: INPUT_LOG.downcast_truncate(),
+            folded_evaluations: tail.folded_evaluations
+                + OUTPUT.downcast_truncate(),
+            layer_pair_openings: tail.layer_pair_openings + has_pair,
+            layer_path_siblings_per_side: tail.layer_path_siblings_per_side
+                + PAIR_DEPTH.downcast_truncate(),
+            layer_tree_nodes: tail.layer_tree_nodes
+                + (2 * OUTPUT - 1).downcast_truncate(),
+            query_evaluations: tail.query_evaluations + query_evaluations,
+            query_path_siblings: tail.query_path_siblings
+                + (2 * PAIR_DEPTH).downcast_truncate(),
+        }
+    }
+}
+
+/// Portable Cartesian work grid derived from one Fiat-Shamir query plan and
+/// one FRI fold schedule. Query identities describe transcript domains. The
+/// sampled codeword index remains runtime data loaded by the prover or
+/// verifier that interprets a work item.
+pub struct FriQueryGridMetadata {
+    pub query_count: u32,
+    pub first_query: u32,
+    pub next_query: u32,
+    pub evaluations_per_query: u32,
+    pub siblings_per_query: u32,
+    pub evaluation_items: u32,
+    pub sibling_items: u32,
+}
+impl Copy for FriQueryGridMetadata {}
+
+/// One Fiat-Shamir sample position in the query plan.
+pub struct FriQuerySampleWorkItem {
+    pub valid: bool,
+    pub query_position: u32,
+    pub query_identity: u32,
+}
+impl Copy for FriQuerySampleWorkItem {}
+
+/// One evaluation-opening position in the query-by-opening product space.
+pub struct FriQueryEvaluationWorkItem {
+    pub valid: bool,
+    pub query_position: u32,
+    pub query_identity: u32,
+    pub opening: u32,
+}
+impl Copy for FriQueryEvaluationWorkItem {}
+
+/// One authentication-sibling position in the query-by-sibling product space.
+pub struct FriQuerySiblingWorkItem {
+    pub valid: bool,
+    pub query_position: u32,
+    pub query_identity: u32,
+    pub sibling: u32,
+}
+impl Copy for FriQuerySiblingWorkItem {}
+
+fn invalid_query_evaluation_work_item() -> FriQueryEvaluationWorkItem {
+    FriQueryEvaluationWorkItem {
+        valid: false,
+        query_position: 0,
+        query_identity: 0,
+        opening: 0,
+    }
+}
+
+fn invalid_query_sample_work_item() -> FriQuerySampleWorkItem {
+    FriQuerySampleWorkItem {
+        valid: false,
+        query_position: 0,
+        query_identity: 0,
+    }
+}
+
+fn invalid_query_sibling_work_item() -> FriQuerySiblingWorkItem {
+    FriQuerySiblingWorkItem {
+        valid: false,
+        query_position: 0,
+        query_identity: 0,
+        sibling: 0,
+    }
+}
+
+/// Derive the full portable query work shape without expanding a nominal type
+/// per security query and without maintaining an authored placement table.
+pub const fn fri_query_grid_metadata<
+    Plan: FriQueryPlanShape,
+    Schedule: FriScheduleShape,
+>() -> FriQueryGridMetadata {
+    let queries = <Plan as FriQueryPlanShape>::fri_query_plan_metadata()
+    let schedule = <Schedule as FriScheduleShape>::fri_schedule_metadata()
+    FriQueryGridMetadata {
+        query_count: queries.samples,
+        first_query: queries.first_query,
+        next_query: queries.next_query,
+        evaluations_per_query: schedule.query_evaluations,
+        siblings_per_query: schedule.query_path_siblings,
+        evaluation_items: queries.samples * schedule.query_evaluations,
+        sibling_items: queries.samples * schedule.query_path_siblings,
+    }
+}
+
+/// Number of fixed dispatch workgroups needed to cover a portable work grid.
+/// Extra invocations are rejected by the work-item interpreters below.
+pub const fn fri_query_grid_workgroups(
+    _ items: u32,
+    _ lanes_per_workgroup: u32,
+) -> u32 {
+    if lanes_per_workgroup == 0 { return 0 }
+    (items + lanes_per_workgroup - 1) / lanes_per_workgroup
+}
+
+/// Resolve one query-plan position into its transcript identity.
+pub fn fri_query_sample_work_item<Plan: FriQueryPlanPlacement>(
+    _ query_position: u32,
+) -> FriQuerySampleWorkItem {
+    let metadata = <Plan as FriQueryPlanShape>::fri_query_plan_metadata()
+    if query_position >= metadata.samples {
+        return invalid_query_sample_work_item()
+    }
+    let identity = <Plan as FriQueryPlanPlacement>::fri_query_identity(
+        query_position,
+    )
+    FriQuerySampleWorkItem {
+        valid: identity != 0,
+        query_position: query_position,
+        query_identity: identity,
+    }
+}
+
+/// Resolve one global invocation lane into a query evaluation work item.
+pub fn fri_query_evaluation_work_item<
+    Plan: FriQueryPlanPlacement,
+    Schedule: FriScheduleShape,
+>(
+    _ global_lane: u32,
+) -> FriQueryEvaluationWorkItem {
+    let grid = fri_query_grid_metadata<Plan, Schedule>()
+    if grid.evaluations_per_query == 0
+        || global_lane >= grid.evaluation_items
+    {
+        return invalid_query_evaluation_work_item()
+    }
+    let query_position = global_lane / grid.evaluations_per_query
+    FriQueryEvaluationWorkItem {
+        valid: true,
+        query_position: query_position,
+        query_identity: <Plan as FriQueryPlanPlacement>::fri_query_identity(
+            query_position,
+        ),
+        opening: global_lane % grid.evaluations_per_query,
+    }
+}
+
+/// Resolve one global invocation lane into a query sibling work item.
+pub fn fri_query_sibling_work_item<
+    Plan: FriQueryPlanPlacement,
+    Schedule: FriScheduleShape,
+>(
+    _ global_lane: u32,
+) -> FriQuerySiblingWorkItem {
+    let grid = fri_query_grid_metadata<Plan, Schedule>()
+    if grid.siblings_per_query == 0 || global_lane >= grid.sibling_items {
+        return invalid_query_sibling_work_item()
+    }
+    let query_position = global_lane / grid.siblings_per_query
+    FriQuerySiblingWorkItem {
+        valid: true,
+        query_position: query_position,
+        query_identity: <Plan as FriQueryPlanPlacement>::fri_query_identity(
+            query_position,
+        ),
+        sibling: global_lane % grid.siblings_per_query,
+    }
+}
+
+/// One indexable placement view of a semantic fold node. `output_offset`
+/// packs every folded codeword in schedule order without an authored offset
+/// table. Round zero reads the external input. Later rounds read the preceding
+/// placement's output.
+pub struct FriRoundPlacement {
+    pub valid: bool,
+    pub index: u32,
+    pub round: u32,
+    pub input_log: u32,
+    pub input_width: u32,
+    pub output_width: u32,
+    pub output_offset: u32,
+    pub tree_offset: u32,
+    pub tree_nodes: u32,
+    pub query_value_offset: u32,
+    pub query_sibling_offset: u32,
+    pub pair_width: u32,
+    pub pair_depth: u32,
+}
+impl Copy for FriRoundPlacement {}
+
+const fn invalid_round_placement() -> FriRoundPlacement {
+    FriRoundPlacement {
+        valid: false,
+        index: 0,
+        round: 0,
+        input_log: 0,
+        input_width: 0,
+        output_width: 0,
+        output_offset: 0,
+        tree_offset: 0,
+        tree_nodes: 0,
+        query_value_offset: 0,
+        query_sibling_offset: 0,
+        pair_width: 0,
+        pair_depth: 0,
+    }
+}
+
+pub trait FriSchedulePlacement {
+    const fn fri_round_placement(_ index: u32) -> FriRoundPlacement
+}
+
+impl<const NEXT_ROUND: u32> FriSchedulePlacement
+    for FriScheduleDone<NEXT_ROUND>
+{
+    const fn fri_round_placement(_ index: u32) -> FriRoundPlacement {
+        invalid_round_placement()
+    }
+}
+
+impl<
+    const ROUND: u32,
+    const INPUT_LOG: usize,
+    const OUTPUT: usize,
+    const PAIR_WIDTH: usize,
+    const PAIR_DEPTH: usize,
+    Tail: FriSchedulePlacement,
+> FriSchedulePlacement for FriScheduleFold<
+    ROUND,
+    INPUT_LOG,
+    OUTPUT,
+    PAIR_WIDTH,
+    PAIR_DEPTH,
+    Tail,
+> {
+    const fn fri_round_placement(_ index: u32) -> FriRoundPlacement {
+        if index == 0 {
+            FriRoundPlacement {
+                valid: true,
+                index: 0,
+                round: ROUND,
+                input_log: INPUT_LOG.downcast_truncate(),
+                input_width: (1 << INPUT_LOG).downcast_truncate(),
+                output_width: OUTPUT.downcast_truncate(),
+                output_offset: 0,
+                tree_offset: 0,
+                tree_nodes: (2 * OUTPUT - 1).downcast_truncate(),
+                query_value_offset: 0,
+                query_sibling_offset: 0,
+                pair_width: PAIR_WIDTH.downcast_truncate(),
+                pair_depth: PAIR_DEPTH.downcast_truncate(),
+            }
+        } else {
+            let tail = <Tail as FriSchedulePlacement>::fri_round_placement(
+                index - 1,
+            )
+            if !tail.valid {
+                invalid_round_placement()
+            } else {
+                FriRoundPlacement {
+                    valid: true,
+                    index: tail.index + 1,
+                    round: tail.round,
+                    input_log: tail.input_log,
+                    input_width: tail.input_width,
+                    output_width: tail.output_width,
+                    output_offset: tail.output_offset
+                        + OUTPUT.downcast_truncate(),
+                    tree_offset: tail.tree_offset
+                        + (2 * OUTPUT - 1).downcast_truncate(),
+                    tree_nodes: tail.tree_nodes,
+                    query_value_offset: tail.query_value_offset
+                        + (if INPUT_LOG > 1 { 2 } else { 1 }),
+                    query_sibling_offset: tail.query_sibling_offset
+                        + (2 * PAIR_DEPTH).downcast_truncate(),
+                    pair_width: tail.pair_width,
+                    pair_depth: tail.pair_depth,
+                }
+            }
+        }
+    }
+}
+
+/// One opened evaluation selected by a query from the packed schedule output.
+pub struct FriQueryEvaluationPlacement {
+    pub valid: bool,
+    pub round_index: u32,
+    pub round: u32,
+    pub evaluation_index: u32,
+}
+impl Copy for FriQueryEvaluationPlacement {}
+
+/// One authentication sibling selected from the retained schedule trees.
+pub struct FriQuerySiblingPlacement {
+    pub valid: bool,
+    pub round_index: u32,
+    pub round: u32,
+    pub tree_node: u32,
+}
+impl Copy for FriQuerySiblingPlacement {}
+
+fn invalid_query_evaluation_placement() -> FriQueryEvaluationPlacement {
+    FriQueryEvaluationPlacement {
+        valid: false,
+        round_index: 0,
+        round: 0,
+        evaluation_index: 0,
+    }
+}
+
+fn invalid_query_sibling_placement() -> FriQuerySiblingPlacement {
+    FriQuerySiblingPlacement {
+        valid: false,
+        round_index: 0,
+        round: 0,
+        tree_node: 0,
+    }
+}
+
+/// Stateful interpretation of one evaluation-opening coordinate. The cursor
+/// fixes semantic order while allowing array, storage, and future fused
+/// schedule readers to supply one round placement at a time.
+pub struct FriQueryEvaluationCursor {
+    pub valid: bool,
+    pub found: bool,
+    pub remaining: u32,
+    pub current_query: u32,
+    pub result: FriQueryEvaluationPlacement,
+}
+impl Copy for FriQueryEvaluationCursor {}
+
+pub fn begin_fri_query_evaluation_cursor(
+    _ opening: u32,
+    _ query: u32,
+) -> FriQueryEvaluationCursor {
+    FriQueryEvaluationCursor {
+        valid: true,
+        found: false,
+        remaining: opening,
+        current_query: query,
+        result: invalid_query_evaluation_placement(),
+    }
+}
+
+pub fn advance_fri_query_evaluation_cursor(
+    _ cursor: FriQueryEvaluationCursor,
+    _ placement: FriRoundPlacement,
+) -> FriQueryEvaluationCursor {
+    let mut next = cursor
+    if !next.valid || next.found { return next }
+    if !placement.valid || next.current_query >= placement.output_width {
+        next.valid = false
+        return next
+    }
+    let opened: u32 = if placement.output_width > 1 { 2 } else { 1 }
+    if next.remaining < opened {
+        let evaluation = if placement.output_width > 1 {
+            let pair = next.current_query & (placement.pair_width - 1)
+            pair + next.remaining * placement.pair_width
+        } else {
+            0
+        }
+        next.result = FriQueryEvaluationPlacement {
+            valid: true,
+            round_index: placement.index,
+            round: placement.round,
+            evaluation_index: placement.output_offset + evaluation,
+        }
+        next.found = true
+        return next
+    }
+    next.remaining = next.remaining - opened
+    next.current_query = if placement.output_width > 1 {
+        next.current_query & (placement.pair_width - 1)
+    } else {
+        0
+    }
+    next
+}
+
+pub fn finish_fri_query_evaluation_cursor(
+    _ cursor: FriQueryEvaluationCursor,
+) -> FriQueryEvaluationPlacement {
+    if cursor.valid && cursor.found { cursor.result }
+    else { invalid_query_evaluation_placement() }
+}
+
+/// Stateful interpretation of one authentication-sibling coordinate.
+pub struct FriQuerySiblingCursor {
+    pub valid: bool,
+    pub found: bool,
+    pub remaining: u32,
+    pub current_query: u32,
+    pub result: FriQuerySiblingPlacement,
+}
+impl Copy for FriQuerySiblingCursor {}
+
+pub fn begin_fri_query_sibling_cursor(
+    _ sibling: u32,
+    _ query: u32,
+) -> FriQuerySiblingCursor {
+    FriQuerySiblingCursor {
+        valid: true,
+        found: false,
+        remaining: sibling,
+        current_query: query,
+        result: invalid_query_sibling_placement(),
+    }
+}
+
+pub fn advance_fri_query_sibling_cursor(
+    _ cursor: FriQuerySiblingCursor,
+    _ placement: FriRoundPlacement,
+) -> FriQuerySiblingCursor {
+    let mut next = cursor
+    if !next.valid || next.found { return next }
+    if !placement.valid || next.current_query >= placement.output_width {
+        next.valid = false
+        return next
+    }
+    let siblings = 2 * placement.pair_depth
+    if placement.pair_depth > 0 && next.remaining < siblings {
+        let side = next.remaining / placement.pair_depth
+        let level = next.remaining % placement.pair_depth
+        let leaf = (next.current_query & (placement.pair_width - 1))
+            + side * placement.pair_width
+        let node = placement.tree_offset
+            + fri_tree_level_offset(placement.output_width, level)
+            + ((leaf >> level) ^ 1)
+        next.result = FriQuerySiblingPlacement {
+            valid: true,
+            round_index: placement.index,
+            round: placement.round,
+            tree_node: node,
+        }
+        next.found = true
+        return next
+    }
+    next.remaining = next.remaining - siblings
+    next.current_query = if placement.output_width > 1 {
+        next.current_query & (placement.pair_width - 1)
+    } else {
+        0
+    }
+    next
+}
+
+pub fn finish_fri_query_sibling_cursor(
+    _ cursor: FriQuerySiblingCursor,
+) -> FriQuerySiblingPlacement {
+    if cursor.valid && cursor.found { cursor.result }
+    else { invalid_query_sibling_placement() }
+}
+
+fn fri_tree_level_offset(_ width: u32, _ level: u32) -> u32 {
+    let mut offset: u32 = 0
+    let mut level_width = width
+    let mut current: u32 = 0
+    while current < level {
+        offset = offset + level_width
+        level_width = level_width / 2
+        current = current + 1
+    }
+    offset
+}
+
+/// Interpret one semantic schedule into canonical one-query receipt slots.
+/// The query is reduced at each fold exactly as the verifier carries its pair
+/// index into the next layer. Returned indices address the packed evaluation
+/// and retained-tree arenas derived by `FriSchedulePlacement`.
+pub trait FriScheduleQueryPlacement {
+    fn fri_query_evaluation_placement(
+        _ opening: u32,
+        _ query: u32,
+    ) -> FriQueryEvaluationPlacement
+    fn fri_query_sibling_placement(
+        _ sibling: u32,
+        _ query: u32,
+    ) -> FriQuerySiblingPlacement
+}
+
+impl<Schedule> FriScheduleQueryPlacement for Schedule
+    where Schedule: FriScheduleShape + FriSchedulePlacement
+{
+    fn fri_query_evaluation_placement(
+        _ opening: u32,
+        _ query: u32,
+    ) -> FriQueryEvaluationPlacement {
+        let metadata = <Schedule as FriScheduleShape>::fri_schedule_metadata()
+        let mut cursor = begin_fri_query_evaluation_cursor(opening, query)
+        let mut round_index: u32 = 0
+        while round_index < metadata.rounds {
+            let placement = <Schedule as FriSchedulePlacement>::fri_round_placement(
+                round_index,
+            )
+            cursor = advance_fri_query_evaluation_cursor(cursor, placement)
+            round_index = round_index + 1
+        }
+        finish_fri_query_evaluation_cursor(cursor)
+    }
+
+    fn fri_query_sibling_placement(
+        _ sibling: u32,
+        _ query: u32,
+    ) -> FriQuerySiblingPlacement {
+        let metadata = <Schedule as FriScheduleShape>::fri_schedule_metadata()
+        let mut cursor = begin_fri_query_sibling_cursor(sibling, query)
+        let mut round_index: u32 = 0
+        while round_index < metadata.rounds {
+            let placement = <Schedule as FriSchedulePlacement>::fri_round_placement(
+                round_index,
+            )
+            cursor = advance_fri_query_sibling_cursor(cursor, placement)
+            round_index = round_index + 1
+        }
+        finish_fri_query_sibling_cursor(cursor)
+    }
+}
+
+/// Query an already materialized schedule placement. GPU consumers use this
+/// view after interpreting the semantic type tree once, keeping recursive FCO
+/// normalization out of every invocation while preserving derived offsets.
+pub fn fri_query_evaluation_from_rounds<const ROUNDS: usize>(
+    _ rounds: ref [FriRoundPlacement; ROUNDS],
+    _ opening: u32,
+    _ query: u32,
+) -> FriQueryEvaluationPlacement {
+    let mut cursor = begin_fri_query_evaluation_cursor(opening, query)
+    let mut round_index: usize = 0
+    while round_index < ROUNDS {
+        cursor = advance_fri_query_evaluation_cursor(cursor, rounds[round_index])
+        round_index = round_index + 1
+    }
+    finish_fri_query_evaluation_cursor(cursor)
+}
+
+pub fn fri_query_sibling_from_rounds<const ROUNDS: usize>(
+    _ rounds: ref [FriRoundPlacement; ROUNDS],
+    _ sibling: u32,
+    _ query: u32,
+) -> FriQuerySiblingPlacement {
+    let mut cursor = begin_fri_query_sibling_cursor(sibling, query)
+    let mut round_index: usize = 0
+    while round_index < ROUNDS {
+        cursor = advance_fri_query_sibling_cursor(cursor, rounds[round_index])
+        round_index = round_index + 1
+    }
+    finish_fri_query_sibling_cursor(cursor)
+}
+
+/// Four-round physical specialization used by the first complete browser FRI
+/// checkpoint. The general interpreter above remains the semantic reference;
+/// this form avoids a known const-array normalization cost in large actors.
+pub fn fri_query_evaluation_from_four_rounds(
+    _ rounds: ref [FriRoundPlacement; 4],
+    _ opening: u32,
+    _ query: u32,
+) -> FriQueryEvaluationPlacement {
+    let mut cursor = begin_fri_query_evaluation_cursor(opening, query)
+    let mut round_index: usize = 0
+    while round_index < 4 {
+        cursor = advance_fri_query_evaluation_cursor(cursor, rounds[round_index])
+        round_index = round_index + 1
+    }
+    finish_fri_query_evaluation_cursor(cursor)
+}
+
+pub fn fri_query_sibling_from_four_rounds(
+    _ rounds: ref [FriRoundPlacement; 4],
+    _ sibling: u32,
+    _ query: u32,
+) -> FriQuerySiblingPlacement {
+    let mut cursor = begin_fri_query_sibling_cursor(sibling, query)
+    let mut round_index: usize = 0
+    while round_index < 4 {
+        cursor = advance_fri_query_sibling_cursor(cursor, rounds[round_index])
+        round_index = round_index + 1
+    }
+    finish_fri_query_sibling_cursor(cursor)
+}

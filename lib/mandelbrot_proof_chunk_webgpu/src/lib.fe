@@ -1,0 +1,3034 @@
+//! Batched multi-iteration WebGPU Mandelbrot chunk prover.
+//!
+//! Specializes the production 428-column BabyBear AIR, 708-constraint
+//! composition polynomial, Poseidon2 Merkle commitments, and degree-bounded
+//! FRI schedule to arbitrary power-of-two chunk sizes (`T in {16, 64, 256, 1024}`,
+//! `L = 4 * T in {64, 256, 1024, 4096}`, `FRI_ROUNDS = log2(L) in {6, 8, 10, 12}`).
+//!
+//! Every Poseidon2 sponge absorption and Merkle tree compression executes in
+//! per-thread registers across workgroup grids (`Threads<64, 1, 1>`) while the
+//! 4-pass FRI round cycle uses `Cycle<FriRoundCycle, ..., FRI_ROUNDS>` with
+//! `Taper`, keeping the entire chunk prover to 34 shader passes and a single
+//! WebGPU command buffer submission (83..182 dispatches total).
+
+use core::ops::WrappingAdd
+use std::webgpu::{ComputeInvocation, StorageBuffer}
+use fmath::{from_i32, to_i32}
+use fri_baby_bear::{
+    fold_fri_pair_value_at_point,
+    fri_fold_domain_tag,
+    fri_layer_row_domain_tag,
+    fri_layer_transcript_domain_tag,
+    fri_query_domain_tag,
+}
+use fri_structure::{
+    FriRoundPlacement,
+    FriSchedulePlacement,
+    advance_fri_query_evaluation_cursor,
+    advance_fri_query_sibling_cursor,
+    begin_fri_query_evaluation_cursor,
+    begin_fri_query_sibling_cursor,
+    finish_fri_query_evaluation_cursor,
+    finish_fri_query_sibling_cursor,
+}
+use fri_structure_webgpu::FRI_ROUND_PLACEMENT_FIELDS
+use mandelbrot_proof_air_core::{
+    AirColumnView,
+    CompositionValue,
+    ConstraintFoldCheckpoint,
+    ConstraintNumeratorCheckpoint,
+    FirstRowConstraintCheckpoint,
+    PairRowsConstraintCheckpoint,
+    begin_constraint_fold,
+    composition_value,
+    constraint_fold_power,
+    constraint_fold_value,
+    constraint_numerator_first_row,
+    constraint_numerator_fold,
+    constraint_numerators_from_checkpoint,
+    first_row_constraint_fold,
+    first_row_pair_rows,
+    fold_first_row_constraints,
+    fold_imaginary_quotient_constraints,
+    fold_imaginary_square_constraints,
+    fold_last_row_constraints,
+    fold_local_step_constraints,
+    fold_magnitude_terminal_constraints,
+    fold_orbit_coordinate_constraints,
+    fold_pair_rows_constraints,
+    fold_real_quotient_constraints,
+    fold_real_square_constraints,
+    pair_rows_all_rows,
+    pair_rows_constraint_fold,
+    restore_constraint_fold,
+    restore_constraint_numerator_checkpoint,
+    restore_first_row_constraint_checkpoint,
+    restore_pair_rows_constraint_checkpoint,
+    signed_air_value,
+}
+use mandelbrot_proof_baby_bear_domains::{
+    auxiliary_domain_tag,
+    auxiliary_lde_row_domain_tag,
+    auxiliary_lde_transcript_domain_tag,
+    main_lde_row_domain_tag,
+    main_lde_transcript_domain_tag,
+    proof_transcript_domain_tag,
+    public_domain_tag,
+    row_domain_tag,
+    statement_domain_tag,
+}
+use mandelbrot_proof_baby_bear_encoding::{
+    AUXILIARY_FIELDS,
+    PUBLIC_FIELDS,
+    ROW_FIELDS,
+    encoded_auxiliary_field_direct,
+    encoded_auxiliary_fields_are_valid,
+    encoded_public_field_direct,
+    encoded_public_fields_are_valid,
+    encoded_row_field_direct,
+    encoded_row_fields_are_valid,
+}
+use mandelbrot_proof_baby_bear_transcript::{
+    composition_challenge_domain_tag,
+    composition_row_domain_tag,
+    composition_transcript_domain_tag,
+}
+use mandelbrot_proof_kernel::{
+    AUXILIARY_ROW_BITS,
+    ESCAPES_BY_Q12_PUBLIC_WORDS,
+    EncodedAirRow,
+    EncodedProofRow,
+    EscapeTraceStream,
+    EscapesByQ12,
+    EscapesByQ12Public,
+    PaddedEscapeAirRow,
+    SignedWord,
+    encode_proof_row,
+    encode_signed_word,
+    encoded_auxiliary_row_bit_direct,
+    encoded_proof_row_word,
+    escapes_by_q12_public_word,
+    padded_trace_length,
+}
+pub use parallel_ntt_webgpu::{
+    forward_batched_stage_grid_lane,
+    inverse_batched_stage_grid_lane,
+    prepare_batched_coset_extension,
+    prepare_batched_stage_grid,
+    validate_batched_stage_grid,
+}
+use poseidon_baby_bear::{
+    DIGEST_FIELDS,
+    SPONGE_RATE,
+    Poseidon2Digest,
+    Poseidon2FieldSponge,
+    compress,
+}
+pub use precision::baby_bear::{BabyBear, BabyBearExt4, BABY_BEAR_MODULUS}
+
+pub use mandelbrot_proof_profile::{MAIN_COLUMN_COUNT, AIR_COLUMN_COUNT, EXTENSION_WORDS, FRI_VARIANTS}
+pub const LDE_WORKGROUP_THREADS: usize = 256
+pub const HASH_WORKGROUP_THREADS: usize = 64
+
+pub use mandelbrot_proof_profile::{
+    ProofChunkLayout, proof_chunk_layout, chunk_folded_evaluations,
+    chunk_layer_tree_nodes, chunk_tree_stride_nodes,
+    chunk_query_evaluations, chunk_query_path_siblings,
+}
+
+pub struct FriScratchChunkLayout {
+    pub tree_digests: u32,
+    pub tree_valid: u32,
+    pub tree_progress: u32,
+    pub composition_fold: u32,
+    pub composition_fold_valid: u32,
+    pub composition_all_rows: u32,
+    pub composition_pair_rows: u32,
+    pub composition_first_row: u32,
+    pub round_placements: u32,
+    pub round_cursor: u32,
+    pub row_aux_valid: u32,
+    pub query_copy_valid: u32,
+    pub total_words: u32,
+}
+impl core::marker::Copy for FriScratchChunkLayout {}
+
+pub const fn fri_scratch_chunk_layout(
+    _ trace: usize,
+    _ lde: usize,
+    _ fri_rounds: usize,
+) -> FriScratchChunkLayout {
+    let stride_nodes = chunk_tree_stride_nodes(lde)
+    let tree_nodes_total = FRI_VARIANTS * stride_nodes
+    let tree_digests: usize = 0
+    let tree_valid = tree_digests + tree_nodes_total * DIGEST_FIELDS
+    let tree_progress = tree_valid + tree_nodes_total
+    let composition_fold = tree_progress + lde
+    let composition_fold_valid = composition_fold + lde * 2 * EXTENSION_WORDS
+    let composition_all_rows = composition_fold_valid + lde
+    let composition_pair_rows = composition_all_rows + lde * EXTENSION_WORDS
+    let composition_first_row = composition_pair_rows + lde * EXTENSION_WORDS
+    let round_placements = composition_first_row + lde * EXTENSION_WORDS
+    let round_cursor = round_placements + fri_rounds * FRI_ROUND_PLACEMENT_FIELDS
+    let row_aux_valid = round_cursor + 1
+    let query_copy_valid = row_aux_valid + trace
+    let query_eval_words =
+        FRI_VARIANTS * chunk_query_evaluations(fri_rounds) * EXTENSION_WORDS
+    let query_sibling_words =
+        FRI_VARIANTS * chunk_query_path_siblings(fri_rounds) * DIGEST_FIELDS
+    let total_words = query_copy_valid + query_eval_words + query_sibling_words
+    FriScratchChunkLayout {
+        tree_digests: tree_digests.downcast_truncate(),
+        tree_valid: tree_valid.downcast_truncate(),
+        tree_progress: tree_progress.downcast_truncate(),
+        composition_fold: composition_fold.downcast_truncate(),
+        composition_fold_valid: composition_fold_valid.downcast_truncate(),
+        composition_all_rows: composition_all_rows.downcast_truncate(),
+        composition_pair_rows: composition_pair_rows.downcast_truncate(),
+        composition_first_row: composition_first_row.downcast_truncate(),
+        round_placements: round_placements.downcast_truncate(),
+        round_cursor: round_cursor.downcast_truncate(),
+        row_aux_valid: row_aux_valid.downcast_truncate(),
+        query_copy_valid: query_copy_valid.downcast_truncate(),
+        total_words: total_words.downcast_truncate(),
+    }
+}
+
+#[inline(always)]
+fn store_digest_at<const WORDS: usize>(
+    _ buffer: StorageBuffer<u32, WORDS>,
+    _ base: u32,
+    _ digest: Poseidon2Digest,
+) {
+    let mut field: u32 = 0
+    while field < DIGEST_FIELDS.downcast_truncate() {
+        buffer.store(index: base + field, value: digest.field(field).to_u32())
+        field = field + 1
+    }
+}
+
+#[inline(always)]
+fn load_digest_at<const WORDS: usize>(
+    _ buffer: StorageBuffer<u32, WORDS>,
+    _ base: u32,
+) -> Poseidon2Digest {
+    Poseidon2Digest::from_u32s([
+        buffer.load(index: base),
+        buffer.load(index: base + 1),
+        buffer.load(index: base + 2),
+        buffer.load(index: base + 3),
+        buffer.load(index: base + 4),
+        buffer.load(index: base + 5),
+        buffer.load(index: base + 6),
+        buffer.load(index: base + 7),
+    ])
+}
+
+#[inline(always)]
+fn store_ext4_at<const WORDS: usize>(
+    _ buffer: StorageBuffer<u32, WORDS>,
+    _ base: u32,
+    _ value: BabyBearExt4,
+) {
+    buffer.store(index: base, value: value.coefficient_0().to_u32())
+    buffer.store(index: base + 1, value: value.coefficient_1().to_u32())
+    buffer.store(index: base + 2, value: value.coefficient_2().to_u32())
+    buffer.store(index: base + 3, value: value.coefficient_3().to_u32())
+}
+
+#[inline(always)]
+fn load_ext4_at<const WORDS: usize>(
+    _ buffer: StorageBuffer<u32, WORDS>,
+    _ base: u32,
+) -> BabyBearExt4 {
+    BabyBearExt4::from_coordinate_words(
+        buffer.load(index: base),
+        buffer.load(index: base + 1),
+        buffer.load(index: base + 2),
+        buffer.load(index: base + 3),
+    )
+}
+
+#[inline(always)]
+fn tree_node_index(_ stride_nodes: u32, _ tree: u32, _ offset: u32, _ node: u32) -> u32 {
+    tree * stride_nodes + offset + node
+}
+
+#[inline(always)]
+fn store_tree_digest_at<const WORDS: usize>(
+    _ scratch: StorageBuffer<u32, WORDS>,
+    _ tree_digests_base: u32,
+    _ node: u32,
+    _ digest: Poseidon2Digest,
+) {
+    store_digest_at(
+        scratch,
+        tree_digests_base + node * DIGEST_FIELDS.downcast_truncate(),
+        digest,
+    )
+}
+
+#[inline(always)]
+fn load_tree_digest_at<const WORDS: usize>(
+    _ scratch: StorageBuffer<u32, WORDS>,
+    _ tree_digests_base: u32,
+    _ node: u32,
+) -> Poseidon2Digest {
+    load_digest_at(
+        scratch,
+        tree_digests_base + node * DIGEST_FIELDS.downcast_truncate(),
+    )
+}
+
+#[inline(always)]
+fn tree_level_offset(_ width: u32, _ level: u32) -> u32 {
+    let mut offset: u32 = 0
+    let mut level_width = width
+    let mut current: u32 = 0
+    while current < level {
+        offset = offset + level_width
+        level_width = level_width / 2
+        current = current + 1
+    }
+    offset
+}
+
+#[inline(always)]
+fn store_fri_round_placement_at<const WORDS: usize>(
+    _ storage: StorageBuffer<u32, WORDS>,
+    _ base_offset: u32,
+    _ index: u32,
+    _ placement: FriRoundPlacement,
+) {
+    let base = base_offset + index * FRI_ROUND_PLACEMENT_FIELDS.downcast_truncate()
+    storage.store(index: base, value: if placement.valid { 1 } else { 0 })
+    storage.store(index: base + 1, value: placement.index)
+    storage.store(index: base + 2, value: placement.round)
+    storage.store(index: base + 3, value: placement.input_log)
+    storage.store(index: base + 4, value: placement.input_width)
+    storage.store(index: base + 5, value: placement.output_width)
+    storage.store(index: base + 6, value: placement.output_offset)
+    storage.store(index: base + 7, value: placement.tree_offset)
+    storage.store(index: base + 8, value: placement.tree_nodes)
+    storage.store(index: base + 9, value: placement.query_value_offset)
+    storage.store(index: base + 10, value: placement.query_sibling_offset)
+    storage.store(index: base + 11, value: placement.pair_width)
+    storage.store(index: base + 12, value: placement.pair_depth)
+}
+
+#[inline(always)]
+fn load_fri_round_placement_at<const WORDS: usize>(
+    _ storage: StorageBuffer<u32, WORDS>,
+    _ base_offset: u32,
+    _ index: u32,
+) -> FriRoundPlacement {
+    let base = base_offset + index * FRI_ROUND_PLACEMENT_FIELDS.downcast_truncate()
+    FriRoundPlacement {
+        valid: storage.load(index: base) == 1,
+        index: storage.load(index: base + 1),
+        round: storage.load(index: base + 2),
+        input_log: storage.load(index: base + 3),
+        input_width: storage.load(index: base + 4),
+        output_width: storage.load(index: base + 5),
+        output_offset: storage.load(index: base + 6),
+        tree_offset: storage.load(index: base + 7),
+        tree_nodes: storage.load(index: base + 8),
+        query_value_offset: storage.load(index: base + 9),
+        query_sibling_offset: storage.load(index: base + 10),
+        pair_width: storage.load(index: base + 11),
+        pair_depth: storage.load(index: base + 12),
+    }
+}
+
+#[inline(always)]
+fn store_main_trace_row<const TRACE: usize, const PROOF_WORDS: usize>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ air_trace_base: u32,
+    _ row_index: u32,
+    _ row: EncodedProofRow,
+) {
+    let trace_rows: u32 = TRACE.downcast_truncate()
+    let mut column: usize = 0
+    while column < MAIN_COLUMN_COUNT {
+        let column_word: u32 = column.downcast_truncate()
+        proof.store(
+            index: air_trace_base + column_word * trace_rows + row_index,
+            value: encoded_proof_row_word(row, column),
+        )
+        column = column + 1
+    }
+}
+
+#[inline(always)]
+fn load_main_trace_row<const TRACE: usize, const PROOF_WORDS: usize>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ air_trace_base: u32,
+    _ row_index: u32,
+) -> EncodedProofRow {
+    let trace_rows: u32 = TRACE.downcast_truncate()
+    let step = proof.load(index: air_trace_base + 0 * trace_rows + row_index)
+    let zr_sign = proof.load(index: air_trace_base + 1 * trace_rows + row_index)
+    let zr_mag = proof.load(index: air_trace_base + 2 * trace_rows + row_index)
+    let zi_sign = proof.load(index: air_trace_base + 3 * trace_rows + row_index)
+    let zi_mag = proof.load(index: air_trace_base + 4 * trace_rows + row_index)
+    let rr = proof.load(index: air_trace_base + 5 * trace_rows + row_index)
+    let ii = proof.load(index: air_trace_base + 6 * trace_rows + row_index)
+    let magnitude = proof.load(index: air_trace_base + 7 * trace_rows + row_index)
+    let q_re_sign = proof.load(index: air_trace_base + 8 * trace_rows + row_index)
+    let q_re_mag = proof.load(index: air_trace_base + 9 * trace_rows + row_index)
+    let r_re = proof.load(index: air_trace_base + 10 * trace_rows + row_index)
+    let q_im_sign = proof.load(index: air_trace_base + 11 * trace_rows + row_index)
+    let q_im_mag = proof.load(index: air_trace_base + 12 * trace_rows + row_index)
+    let r_im = proof.load(index: air_trace_base + 13 * trace_rows + row_index)
+    let air_terminal = proof.load(index: air_trace_base + 14 * trace_rows + row_index)
+    let active = proof.load(index: air_trace_base + 15 * trace_rows + row_index)
+    let terminal = proof.load(index: air_trace_base + 16 * trace_rows + row_index)
+    EncodedProofRow {
+        active: active,
+        terminal: terminal,
+        air: EncodedAirRow {
+            step: step,
+            zr: SignedWord { sign: zr_sign, magnitude: zr_mag },
+            zi: SignedWord { sign: zi_sign, magnitude: zi_mag },
+            rr: rr,
+            ii: ii,
+            magnitude: magnitude,
+            q_re: SignedWord { sign: q_re_sign, magnitude: q_re_mag },
+            r_re: r_re,
+            q_im: SignedWord { sign: q_im_sign, magnitude: q_im_mag },
+            r_im: r_im,
+            terminal: air_terminal,
+        },
+    }
+}
+
+/// Pass 0: Derive the canonical Q12 Mandelbrot escape orbit and public statement.
+pub fn derive_main_orbit_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ c_re_q12: i32,
+    _ c_im_q12: i32,
+    _ bound: u32,
+) {
+    derive_main_orbit_chunk_with_padding<TRACE, LDE, FRI_ROUNDS, PROOF_WORDS>(
+        proof, c_re_q12, c_im_q12, bound, false,
+    )
+}
+
+/// Viewer capacity profile: retain a fixed power-of-two domain while allowing
+/// an earlier unique escape row followed by the existing inactive padding.
+/// The minimal-domain entry above retains its original acceptance contract.
+pub fn derive_main_orbit_chunk_capacity<
+    const TRACE: usize, const LDE: usize, const FRI_ROUNDS: usize, const PROOF_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>, _ c_re_q12: i32,
+    _ c_im_q12: i32, _ bound: u32,
+) {
+    derive_main_orbit_chunk_with_padding<TRACE, LDE, FRI_ROUNDS, PROOF_WORDS>(
+        proof, c_re_q12, c_im_q12, bound, true,
+    )
+}
+
+fn derive_main_orbit_chunk_with_padding<
+    const TRACE: usize, const LDE: usize, const FRI_ROUNDS: usize, const PROOF_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>, _ c_re_q12: i32,
+    _ c_im_q12: i32, _ bound: u32, _ allow_capacity_padding: bool,
+) {
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let claim = EscapesByQ12::new(c_re_q12, c_im_q12, bound)
+    let mut stream = EscapeTraceStream::new(claim)
+    let mut valid = stream.is_valid()
+    let mut row_index: u32 = 0
+    let trace_rows: u32 = TRACE.downcast_truncate()
+    let mut reached_terminal = false
+
+    while row_index < trace_rows {
+        let current = stream.current_proof_row()
+        let encoded = encode_proof_row(current)
+        store_main_trace_row<TRACE, PROOF_WORDS>(
+            proof,
+            layout.air_trace,
+            row_index,
+            encoded,
+        )
+        if current.terminal {
+            reached_terminal = true
+            break
+        }
+        if row_index + 1 >= trace_rows || !stream.can_advance() {
+            valid = false
+            break
+        }
+        stream.advance()
+        row_index = row_index + 1
+    }
+
+    let terminal_air = stream.current_air_row()
+    let terminal_step = terminal_air.semantic.step
+    let trace_length = row_index + 1
+    if !reached_terminal
+        || (!allow_capacity_padding && padded_trace_length(trace_length) != trace_rows)
+        || (allow_capacity_padding && (trace_rows == 0 || (trace_rows & (trace_rows - 1)) != 0))
+    {
+        valid = false
+    }
+
+    let padding = encode_proof_row(
+        PaddedEscapeAirRow {
+            valid: true,
+            active: false,
+            terminal: false,
+            air: terminal_air,
+        },
+    )
+    let mut pad_index: u32 = row_index + 1
+    while pad_index < trace_rows {
+        store_main_trace_row<TRACE, PROOF_WORDS>(
+            proof,
+            layout.air_trace,
+            pad_index,
+            padding,
+        )
+        pad_index = pad_index + 1
+    }
+
+    let public = EscapesByQ12Public {
+        c_re: encode_signed_word(claim.c.re),
+        c_im: encode_signed_word(claim.c.im),
+        bound: claim.bound,
+        terminal_step: terminal_step,
+        trace_length: trace_length,
+        padded_length: trace_rows,
+    }
+    let mut word: usize = 0
+    while word < ESCAPES_BY_Q12_PUBLIC_WORDS {
+        proof.store(
+            index: layout.canonical_public + word.downcast_truncate(),
+            value: escapes_by_q12_public_word(public, word),
+        )
+        word = word + 1
+    }
+    let mut field: u32 = 0
+    while field < PUBLIC_FIELDS.downcast_truncate() {
+        proof.store(
+            index: layout.packed_public + field,
+            value: encoded_public_field_direct(public, field),
+        )
+        field = field + 1
+    }
+    let public_valid = encoded_public_fields_are_valid(public)
+    proof.store(
+        index: layout.trace_valid,
+        value: if valid && public_valid { 1 } else { 0 },
+    )
+}
+
+/// Pass 1: Parallel per-row derivation of all 411 auxiliary range/bit-witness
+/// columns and injective 30-bit BabyBear trace packings.
+pub fn derive_auxiliary_witness_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let row_index = invocation.global.x
+    let trace_rows: u32 = TRACE.downcast_truncate()
+    if row_index >= trace_rows { return }
+
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let row = load_main_trace_row<TRACE, PROOF_WORDS>(
+        proof,
+        layout.air_trace,
+        row_index,
+    )
+
+    let mut column: usize = 0
+    while column < AUXILIARY_ROW_BITS {
+        let column_word: u32 = (MAIN_COLUMN_COUNT + column).downcast_truncate()
+        proof.store(
+            index: layout.air_trace + column_word * trace_rows + row_index,
+            value: encoded_auxiliary_row_bit_direct(row.air, column),
+        )
+        column = column + 1
+    }
+
+    let mut field: u32 = 0
+    while field < ROW_FIELDS.downcast_truncate() {
+        proof.store(
+            index: layout.packed_main_trace
+                + row_index * ROW_FIELDS.downcast_truncate() + field,
+            value: encoded_row_field_direct(row, field),
+        )
+        field = field + 1
+    }
+
+    field = 0
+    while field < AUXILIARY_FIELDS.downcast_truncate() {
+        proof.store(
+            index: layout.packed_auxiliary_trace
+                + row_index * AUXILIARY_FIELDS.downcast_truncate() + field,
+            value: encoded_auxiliary_field_direct(row, field),
+        )
+        field = field + 1
+    }
+
+    let row_valid = encoded_row_fields_are_valid(row)
+        && encoded_auxiliary_fields_are_valid(row)
+    scratch.store(
+        index: scratch_layout.row_aux_valid + row_index,
+        value: if row_valid { 1 } else { 0 },
+    )
+}
+
+/// Pass 7: Commit all `TRACE` main trace rows (`tree = 0`), all `TRACE`
+/// auxiliary trace rows (`tree = 1`), and the public claim (`task = 2 * TRACE`)
+/// using a single Poseidon2 permutation kernel loop.
+pub fn commit_trace_leaves_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let task = invocation.global.x
+    let trace_width: u32 = TRACE.downcast_truncate()
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+
+    if task < trace_width {
+        scratch.store(index: scratch_layout.tree_progress + task, value: 0)
+    }
+
+    if task > 2 * trace_width { return }
+
+    let tag = if task < trace_width {
+        row_domain_tag()
+    } else if task < 2 * trace_width {
+        auxiliary_domain_tag()
+    } else {
+        public_domain_tag()
+    }
+    let prefix: u32 = if task < trace_width {
+        210
+    } else if task < 2 * trace_width {
+        AUXILIARY_ROW_BITS.downcast_truncate()
+    } else {
+        114
+    }
+    let expected: u32 = if task < trace_width {
+        ROW_FIELDS.downcast_truncate()
+    } else if task < 2 * trace_width {
+        AUXILIARY_FIELDS.downcast_truncate()
+    } else {
+        PUBLIC_FIELDS.downcast_truncate()
+    }
+    let total_steps: u32 = if task < 2 * trace_width { 2 } else { 1 }
+
+    let mut sponge = Poseidon2FieldSponge::begin_prefixed_tag(tag, prefix, expected)
+    let mut canonical = true
+    let mut step: u32 = 0
+    while step < total_steps {
+        let start: u32 = step * 6
+        let count: u32 = if step == 0 {
+            if task < 2 * trace_width { 6 } else { 4 }
+        } else {
+            if task < trace_width { 1 } else { 8 }
+        }
+        let final_block = step + 1 == total_steps
+        let mut block = [BabyBear::zero(); SPONGE_RATE]
+        let mut i: u32 = 0
+        while i < count {
+            let word = if task < trace_width {
+                proof.load(
+                    index: layout.packed_main_trace
+                        + task * ROW_FIELDS.downcast_truncate() + start + i,
+                )
+            } else if task < 2 * trace_width {
+                let row = task - trace_width
+                proof.load(
+                    index: layout.packed_auxiliary_trace
+                        + row * AUXILIARY_FIELDS.downcast_truncate() + start + i,
+                )
+            } else {
+                proof.load(index: layout.packed_public + start + i)
+            }
+            if word >= BABY_BEAR_MODULUS { canonical = false }
+            block[i as usize] = BabyBear::from_u32(word)
+            i = i + 1
+        }
+        sponge.absorb_scheduled_block(ref block, count, final_block)
+        step = step + 1
+    }
+
+    let committed = sponge.finish_scheduled().require(canonical)
+    let valid_word: u32 = if committed.is_valid() { 1 } else { 0 }
+    let digest = committed.digest()
+    let stride_nodes = chunk_tree_stride_nodes(LDE).downcast_truncate()
+
+    if task < 2 * trace_width {
+        let tree = task / trace_width
+        let row = task % trace_width
+        let node = tree_node_index(stride_nodes, tree, 0, row)
+        store_tree_digest_at(scratch, scratch_layout.tree_digests, node, digest)
+        scratch.store(index: scratch_layout.tree_valid + node, value: valid_word)
+    } else {
+        store_digest_at(proof, layout.public_digest, digest)
+        proof.store(
+            index: layout.production_trace_digest_valid + 2,
+            value: valid_word,
+        )
+    }
+}
+
+/// Pass 8: Reduce both `main_trace_tree` (`tree = 0`) and `aux_trace_tree`
+/// (`tree = 1`) across `Repeat<..., TRACE_LOG>`.
+pub fn reduce_trace_trees_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const TRACE_LOG: usize,
+    const PROOF_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let task = invocation.global.x
+    let trace_width: u32 = TRACE.downcast_truncate()
+    if task >= trace_width { return }
+
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let level = scratch.load(index: scratch_layout.tree_progress + task)
+    if level >= TRACE_LOG.downcast_truncate() { return }
+
+    let child_width = trace_width >> level
+    let parent_width = child_width / 2
+    if task < 2 * parent_width {
+        let tree = task / parent_width
+        let parent = task % parent_width
+        let child_offset = tree_level_offset(trace_width, level)
+        let parent_offset = child_offset + child_width
+        let stride_nodes = chunk_tree_stride_nodes(LDE).downcast_truncate()
+        let left = tree_node_index(stride_nodes, tree, 0, child_offset + 2 * parent)
+        let right = left + 1
+        let node = tree_node_index(stride_nodes, tree, 0, parent_offset + parent)
+        let valid = scratch.load(index: scratch_layout.tree_valid + left) == 1
+            && scratch.load(index: scratch_layout.tree_valid + right) == 1
+        let digest = if valid {
+            compress(
+                load_tree_digest_at(scratch, scratch_layout.tree_digests, left),
+                load_tree_digest_at(scratch, scratch_layout.tree_digests, right),
+            )
+        } else {
+            Poseidon2Digest::zero()
+        }
+        let valid_word: u32 = if valid { 1 } else { 0 }
+        store_tree_digest_at(scratch, scratch_layout.tree_digests, node, digest)
+        scratch.store(index: scratch_layout.tree_valid + node, value: valid_word)
+
+        if level + 1 == TRACE_LOG.downcast_truncate() {
+            let root_base = if tree == 0 {
+                layout.main_trace_root
+            } else {
+                layout.auxiliary_trace_root
+            }
+            store_digest_at(proof, root_base, digest)
+            proof.store(
+                index: layout.production_trace_digest_valid + tree,
+                value: valid_word,
+            )
+        }
+    }
+
+    scratch.store(index: scratch_layout.tree_progress + task, value: level + 1)
+}
+
+/// Pass 9: Commit all `LDE` Main LDE rows (17 columns in 3 sponge blocks per row)
+/// into `tree = 0` leaf `row` and reset `tree_progress`.
+pub fn commit_main_lde_leaves_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const AIR_LDE_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ lde_values: StorageBuffer<u32, AIR_LDE_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let row = invocation.global.x
+    let lde_width: u32 = LDE.downcast_truncate()
+    if row >= lde_width { return }
+
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    scratch.store(index: scratch_layout.tree_progress + row, value: 0)
+
+    let mut sponge = Poseidon2FieldSponge::begin_tag(
+        main_lde_row_domain_tag(),
+        MAIN_COLUMN_COUNT.downcast_truncate(),
+    )
+    let mut canonical = true
+    let mut step: u32 = 0
+    while step < 3 {
+        let start: u32 = if step == 0 { 0 } else if step == 1 { 6 } else { 14 }
+        let count: u32 = if step == 0 { 6 } else if step == 1 { 8 } else { 3 }
+        let final_block = step == 2
+        let mut block = [BabyBear::zero(); SPONGE_RATE]
+        let mut i: u32 = 0
+        while i < count {
+            let word = lde_values.load(index: (start + i) * lde_width + row)
+            if word >= BABY_BEAR_MODULUS { canonical = false }
+            block[i as usize] = BabyBear::from_u32(word)
+            i = i + 1
+        }
+        sponge.absorb_scheduled_block(ref block, count, final_block)
+        step = step + 1
+    }
+
+    let committed = sponge.finish_scheduled().require(canonical)
+    let stride_nodes = chunk_tree_stride_nodes(LDE).downcast_truncate()
+    let node = tree_node_index(stride_nodes, 0, 0, row)
+    store_tree_digest_at(
+        scratch,
+        scratch_layout.tree_digests,
+        node,
+        committed.digest(),
+    )
+    scratch.store(
+        index: scratch_layout.tree_valid + node,
+        value: if committed.is_valid() { 1 } else { 0 },
+    )
+}
+
+/// Pass 10: Commit all `LDE` Auxiliary LDE rows (411 columns in 52 sponge blocks
+/// per row) into `tree = 1` leaf `row`.
+pub fn commit_auxiliary_lde_leaves_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const AIR_LDE_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ lde_values: StorageBuffer<u32, AIR_LDE_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let row = invocation.global.x
+    let lde_width: u32 = LDE.downcast_truncate()
+    if row >= lde_width { return }
+
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let mut sponge = Poseidon2FieldSponge::begin_tag(
+        auxiliary_lde_row_domain_tag(),
+        AUXILIARY_ROW_BITS.downcast_truncate(),
+    )
+    let mut canonical = true
+    let aux_base: u32 = MAIN_COLUMN_COUNT.downcast_truncate()
+    let mut step: u32 = 0
+    while step < 52 {
+        let start: u32 = if step == 0 {
+            0
+        } else {
+            6 + (step - 1) * SPONGE_RATE.downcast_truncate()
+        }
+        let count: u32 = if step == 0 {
+            6
+        } else if step < 51 {
+            8
+        } else {
+            5
+        }
+        let final_block = step == 51
+        let mut block = [BabyBear::zero(); SPONGE_RATE]
+        let mut i: u32 = 0
+        while i < count {
+            let word = lde_values.load(
+                index: (aux_base + start + i) * lde_width + row,
+            )
+            if word >= BABY_BEAR_MODULUS { canonical = false }
+            block[i as usize] = BabyBear::from_u32(word)
+            i = i + 1
+        }
+        sponge.absorb_scheduled_block(ref block, count, final_block)
+        step = step + 1
+    }
+
+    let committed = sponge.finish_scheduled().require(canonical)
+    let stride_nodes = chunk_tree_stride_nodes(LDE).downcast_truncate()
+    let node = tree_node_index(stride_nodes, 1, 0, row)
+    store_tree_digest_at(
+        scratch,
+        scratch_layout.tree_digests,
+        node,
+        committed.digest(),
+    )
+    scratch.store(
+        index: scratch_layout.tree_valid + node,
+        value: if committed.is_valid() { 1 } else { 0 },
+    )
+}
+
+/// Pass 11: Reduce both `main_lde_tree` (`tree = 0`) and `aux_lde_tree`
+/// (`tree = 1`) across `Repeat<..., LDE_LOG>`.
+pub fn reduce_air_lde_trees_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let task = invocation.global.x
+    let lde_width: u32 = LDE.downcast_truncate()
+    if task >= lde_width { return }
+
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let level = scratch.load(index: scratch_layout.tree_progress + task)
+    if level >= FRI_ROUNDS.downcast_truncate() { return }
+
+    let child_width = lde_width >> level
+    let parent_width = child_width / 2
+    if task < 2 * parent_width {
+        let tree = task / parent_width
+        let parent = task % parent_width
+        let child_offset = tree_level_offset(lde_width, level)
+        let parent_offset = child_offset + child_width
+        let stride_nodes = chunk_tree_stride_nodes(LDE).downcast_truncate()
+        let left = tree_node_index(stride_nodes, tree, 0, child_offset + 2 * parent)
+        let right = left + 1
+        let node = tree_node_index(stride_nodes, tree, 0, parent_offset + parent)
+        let valid = scratch.load(index: scratch_layout.tree_valid + left) == 1
+            && scratch.load(index: scratch_layout.tree_valid + right) == 1
+        let digest = if valid {
+            compress(
+                load_tree_digest_at(scratch, scratch_layout.tree_digests, left),
+                load_tree_digest_at(scratch, scratch_layout.tree_digests, right),
+            )
+        } else {
+            Poseidon2Digest::zero()
+        }
+        let valid_word: u32 = if valid { 1 } else { 0 }
+        store_tree_digest_at(scratch, scratch_layout.tree_digests, node, digest)
+        scratch.store(index: scratch_layout.tree_valid + node, value: valid_word)
+
+        if level + 1 == FRI_ROUNDS.downcast_truncate() {
+            let root_base = if tree == 0 {
+                layout.main_lde_root
+            } else {
+                layout.auxiliary_lde_root
+            }
+            store_digest_at(proof, root_base, digest)
+            proof.store(
+                index: layout.air_lde_root_valid + tree,
+                value: valid_word,
+            )
+        }
+    }
+
+    scratch.store(index: scratch_layout.tree_progress + task, value: level + 1)
+}
+
+/// Pass 12: Bind `public_digest`, `main_trace_root`, `auxiliary_trace_root`,
+/// `main_lde_root`, and `auxiliary_lde_root` into `air_transcript` and squeeze
+/// `composition_challenge` using a single Poseidon2 loop.
+pub fn derive_air_transcript_and_challenge_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+) {
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let mut op: u32 = 0
+    while op < 5 {
+        let left = if op == 0 {
+            load_digest_at(proof, layout.public_digest)
+        } else {
+            load_digest_at(proof, layout.air_transcript)
+        }
+        let right = if op == 0 {
+            load_digest_at(proof, layout.main_trace_root)
+        } else if op == 1 {
+            load_digest_at(proof, layout.auxiliary_trace_root)
+        } else if op == 2 {
+            load_digest_at(proof, layout.main_lde_root)
+        } else {
+            load_digest_at(proof, layout.auxiliary_lde_root)
+        }
+        let tag = if op == 0 {
+            statement_domain_tag()
+        } else if op == 1 {
+            proof_transcript_domain_tag()
+        } else if op == 2 {
+            main_lde_transcript_domain_tag()
+        } else if op == 3 {
+            auxiliary_lde_transcript_domain_tag()
+        } else {
+            composition_challenge_domain_tag()
+        }
+        let input_valid = if op == 0 {
+            proof.load(index: layout.production_trace_digest_valid + 2) == 1
+                && proof.load(index: layout.production_trace_digest_valid) == 1
+        } else if op == 1 {
+            proof.load(index: layout.air_transcript_valid) == 1
+                && proof.load(index: layout.production_trace_digest_valid + 1) == 1
+        } else if op == 2 {
+            proof.load(index: layout.air_transcript_valid) == 1
+                && proof.load(index: layout.air_lde_root_valid) == 1
+        } else if op == 3 {
+            proof.load(index: layout.air_transcript_valid) == 1
+                && proof.load(index: layout.air_lde_root_valid + 1) == 1
+        } else {
+            proof.load(index: layout.air_transcript_valid) == 1
+        }
+        let expected: u32 = if op < 4 { 16 } else { 8 }
+        let blocks: u32 = if op < 4 { 3 } else { 2 }
+        let mut sponge = Poseidon2FieldSponge::begin_tag(tag, expected)
+        let mut block_step: u32 = 0
+        while block_step < blocks {
+            let count: u32 = if block_step == 0 {
+                6
+            } else if op < 4 && block_step == 1 {
+                8
+            } else {
+                2
+            }
+            let final_block = block_step + 1 == blocks
+            let block = if block_step == 0 {
+                [
+                    left.field(0),
+                    left.field(1),
+                    left.field(2),
+                    left.field(3),
+                    left.field(4),
+                    left.field(5),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                ]
+            } else if op < 4 && block_step == 1 {
+                [
+                    left.field(6),
+                    left.field(7),
+                    right.field(0),
+                    right.field(1),
+                    right.field(2),
+                    right.field(3),
+                    right.field(4),
+                    right.field(5),
+                ]
+            } else if op < 4 {
+                [
+                    right.field(6),
+                    right.field(7),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                ]
+            } else {
+                [
+                    left.field(6),
+                    left.field(7),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                ]
+            }
+            sponge.absorb_scheduled_block(ref block, count, final_block)
+            block_step = block_step + 1
+        }
+        let committed = sponge.finish_scheduled().require(input_valid)
+        let digest = committed.digest()
+        let valid_word: u32 = if committed.is_valid() { 1 } else { 0 }
+        if op < 4 {
+            store_digest_at(proof, layout.air_transcript, digest)
+            proof.store(index: layout.air_transcript_valid, value: valid_word)
+        } else {
+            let mut lane: u32 = 0
+            while lane < EXTENSION_WORDS.downcast_truncate() {
+                proof.store(
+                    index: layout.composition_challenge + lane,
+                    value: digest.field(lane).to_u32(),
+                )
+                lane = lane + 1
+            }
+            proof.store(index: layout.composition_valid, value: valid_word)
+        }
+        op = op + 1
+    }
+}
+
+struct ChunkAirLdeSource<const AIR_LDE_WORDS: usize> {
+    values: StorageBuffer<u32, AIR_LDE_WORDS>,
+    row: u32,
+}
+impl<const AIR_LDE_WORDS: usize> core::marker::Copy
+    for ChunkAirLdeSource<AIR_LDE_WORDS> {}
+
+struct ChunkAirLdeRow<const LDE: usize> {}
+impl<const LDE: usize> core::marker::Copy for ChunkAirLdeRow<LDE> {}
+
+struct ChunkAirLdeNextRow<const TRACE: usize, const LDE: usize> {}
+impl<const TRACE: usize, const LDE: usize> core::marker::Copy
+    for ChunkAirLdeNextRow<TRACE, LDE> {}
+
+#[inline(always)]
+fn chunk_air_lde_main<const LDE: usize, const AIR_LDE_WORDS: usize>(
+    _ source: ChunkAirLdeSource<AIR_LDE_WORDS>,
+    _ row: u32,
+    _ column: usize,
+) -> BabyBearExt4 {
+    if column >= MAIN_COLUMN_COUNT { return BabyBearExt4::zero() }
+    let column_index: u32 = column.downcast_truncate()
+    let lde_width: u32 = LDE.downcast_truncate()
+    BabyBearExt4::from_base(BabyBear::from_u32(source.values.load(
+        index: column_index * lde_width + row,
+    )))
+}
+
+#[inline(always)]
+fn chunk_air_lde_auxiliary<const LDE: usize, const AIR_LDE_WORDS: usize>(
+    _ source: ChunkAirLdeSource<AIR_LDE_WORDS>,
+    _ row: u32,
+    _ column: usize,
+) -> BabyBearExt4 {
+    if column >= AUXILIARY_ROW_BITS { return BabyBearExt4::zero() }
+    let column_index: u32 = (MAIN_COLUMN_COUNT + column).downcast_truncate()
+    let lde_width: u32 = LDE.downcast_truncate()
+    BabyBearExt4::from_base(BabyBear::from_u32(source.values.load(
+        index: column_index * lde_width + row,
+    )))
+}
+
+impl<const LDE: usize, const AIR_LDE_WORDS: usize> AirColumnView<
+    BabyBearExt4,
+    ChunkAirLdeSource<AIR_LDE_WORDS>,
+> for ChunkAirLdeRow<LDE> {
+    fn main(
+        ref self,
+        _ source: ChunkAirLdeSource<AIR_LDE_WORDS>,
+        _ column: usize,
+    ) -> BabyBearExt4 {
+        chunk_air_lde_main<LDE, AIR_LDE_WORDS>(source, source.row, column)
+    }
+
+    fn auxiliary(
+        ref self,
+        _ source: ChunkAirLdeSource<AIR_LDE_WORDS>,
+        _ column: usize,
+    ) -> BabyBearExt4 {
+        chunk_air_lde_auxiliary<LDE, AIR_LDE_WORDS>(source, source.row, column)
+    }
+}
+
+impl<
+    const TRACE: usize,
+    const LDE: usize,
+    const AIR_LDE_WORDS: usize,
+> AirColumnView<
+    BabyBearExt4,
+    ChunkAirLdeSource<AIR_LDE_WORDS>,
+> for ChunkAirLdeNextRow<TRACE, LDE> {
+    fn main(
+        ref self,
+        _ source: ChunkAirLdeSource<AIR_LDE_WORDS>,
+        _ column: usize,
+    ) -> BabyBearExt4 {
+        let row = (source.row + (LDE / TRACE).downcast_truncate())
+            % LDE.downcast_truncate()
+        chunk_air_lde_main<LDE, AIR_LDE_WORDS>(source, row, column)
+    }
+
+    fn auxiliary(
+        ref self,
+        _ source: ChunkAirLdeSource<AIR_LDE_WORDS>,
+        _ column: usize,
+    ) -> BabyBearExt4 {
+        let row = (source.row + (LDE / TRACE).downcast_truncate())
+            % LDE.downcast_truncate()
+        chunk_air_lde_auxiliary<LDE, AIR_LDE_WORDS>(source, row, column)
+    }
+}
+
+#[inline(always)]
+fn store_composition_fold_at<const ABSORBED: usize, const WORDS: usize>(
+    _ scratch: StorageBuffer<u32, WORDS>,
+    _ fold_base: u32,
+    _ row: u32,
+    _ checkpoint: ConstraintFoldCheckpoint<BabyBearExt4, ABSORBED>,
+) {
+    let power = constraint_fold_power<BabyBearExt4, ABSORBED>(checkpoint)
+    let value = constraint_fold_value<BabyBearExt4, ABSORBED>(checkpoint)
+    let base = fold_base + row * (2 * EXTENSION_WORDS).downcast_truncate()
+    store_ext4_at(scratch, base, power)
+    store_ext4_at(scratch, base + EXTENSION_WORDS.downcast_truncate(), value)
+}
+
+#[inline(always)]
+fn load_composition_fold_at<const ABSORBED: usize, const WORDS: usize>(
+    _ scratch: StorageBuffer<u32, WORDS>,
+    _ fold_base: u32,
+    _ challenge: BabyBearExt4,
+    _ row: u32,
+) -> ConstraintFoldCheckpoint<BabyBearExt4, ABSORBED> {
+    let base = fold_base + row * (2 * EXTENSION_WORDS).downcast_truncate()
+    let power = load_ext4_at(scratch, base)
+    let value = load_ext4_at(scratch, base + EXTENSION_WORDS.downcast_truncate())
+    restore_constraint_fold<BabyBearExt4, ABSORBED>(challenge, power, value)
+}
+
+#[inline(always)]
+fn store_composition_family_at<const WORDS: usize>(
+    _ scratch: StorageBuffer<u32, WORDS>,
+    _ family_base: u32,
+    _ row: u32,
+    _ value: BabyBearExt4,
+) {
+    store_ext4_at(
+        scratch,
+        family_base + row * EXTENSION_WORDS.downcast_truncate(),
+        value,
+    )
+}
+
+#[inline(always)]
+fn load_composition_family_at<const WORDS: usize>(
+    _ scratch: StorageBuffer<u32, WORDS>,
+    _ family_base: u32,
+    _ row: u32,
+) -> BabyBearExt4 {
+    load_ext4_at(
+        scratch,
+        family_base + row * EXTENSION_WORDS.downcast_truncate(),
+    )
+}
+
+/// Pass 13: Fold local and step constraints (0 -> 78).
+pub fn evaluate_air_local_step_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const AIR_LDE_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ lde_values: StorageBuffer<u32, AIR_LDE_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let evaluation = invocation.global.x
+    if evaluation >= LDE.downcast_truncate() { return }
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let challenge = load_ext4_at(proof, layout.composition_challenge)
+    let source = ChunkAirLdeSource { values: lde_values, row: evaluation }
+    let row = ChunkAirLdeRow<LDE> {}
+    let fold0 = begin_constraint_fold<BabyBearExt4>(challenge)
+    let fold78 = fold_local_step_constraints<
+        BabyBearExt4,
+        ChunkAirLdeSource<AIR_LDE_WORDS>,
+        ChunkAirLdeRow<LDE>,
+    >(fold0, source, ref row)
+    store_composition_fold_at(
+        scratch,
+        scratch_layout.composition_fold,
+        evaluation,
+        fold78,
+    )
+    let challenge_valid = proof.load(index: layout.composition_valid) == 1
+    scratch.store(
+        index: scratch_layout.composition_fold_valid + evaluation,
+        value: if challenge_valid { 1 } else { 0 },
+    )
+}
+
+/// Pass 14: Fold orbit coordinate range constraints (78 -> 174).
+pub fn evaluate_air_orbit_coordinates_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const AIR_LDE_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ lde_values: StorageBuffer<u32, AIR_LDE_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let evaluation = invocation.global.x
+    if evaluation >= LDE.downcast_truncate() { return }
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let challenge = load_ext4_at(proof, layout.composition_challenge)
+    let source = ChunkAirLdeSource { values: lde_values, row: evaluation }
+    let row = ChunkAirLdeRow<LDE> {}
+    let fold78 = load_composition_fold_at<78, FRI_SCRATCH_WORDS>(
+        scratch,
+        scratch_layout.composition_fold,
+        challenge,
+        evaluation,
+    )
+    let fold174 = fold_orbit_coordinate_constraints<
+        BabyBearExt4,
+        ChunkAirLdeSource<AIR_LDE_WORDS>,
+        ChunkAirLdeRow<LDE>,
+    >(fold78, source, ref row)
+    store_composition_fold_at(
+        scratch,
+        scratch_layout.composition_fold,
+        evaluation,
+        fold174,
+    )
+}
+
+/// Pass 15: Fold real-square range constraints (174 -> 265).
+pub fn evaluate_air_real_square_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const AIR_LDE_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ lde_values: StorageBuffer<u32, AIR_LDE_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let evaluation = invocation.global.x
+    if evaluation >= LDE.downcast_truncate() { return }
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let challenge = load_ext4_at(proof, layout.composition_challenge)
+    let source = ChunkAirLdeSource { values: lde_values, row: evaluation }
+    let row = ChunkAirLdeRow<LDE> {}
+    let fold174 = load_composition_fold_at<174, FRI_SCRATCH_WORDS>(
+        scratch,
+        scratch_layout.composition_fold,
+        challenge,
+        evaluation,
+    )
+    let fold265 = fold_real_square_constraints<
+        BabyBearExt4,
+        ChunkAirLdeSource<AIR_LDE_WORDS>,
+        ChunkAirLdeRow<LDE>,
+    >(fold174, source, ref row)
+    store_composition_fold_at(
+        scratch,
+        scratch_layout.composition_fold,
+        evaluation,
+        fold265,
+    )
+}
+
+/// Pass 16: Fold imaginary-square range constraints (265 -> 356).
+pub fn evaluate_air_imaginary_square_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const AIR_LDE_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ lde_values: StorageBuffer<u32, AIR_LDE_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let evaluation = invocation.global.x
+    if evaluation >= LDE.downcast_truncate() { return }
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let challenge = load_ext4_at(proof, layout.composition_challenge)
+    let source = ChunkAirLdeSource { values: lde_values, row: evaluation }
+    let row = ChunkAirLdeRow<LDE> {}
+    let fold265 = load_composition_fold_at<265, FRI_SCRATCH_WORDS>(
+        scratch,
+        scratch_layout.composition_fold,
+        challenge,
+        evaluation,
+    )
+    let fold356 = fold_imaginary_square_constraints<
+        BabyBearExt4,
+        ChunkAirLdeSource<AIR_LDE_WORDS>,
+        ChunkAirLdeRow<LDE>,
+    >(fold265, source, ref row)
+    store_composition_fold_at(
+        scratch,
+        scratch_layout.composition_fold,
+        evaluation,
+        fold356,
+    )
+}
+
+/// Pass 17: Fold real-quotient and remainder range constraints (356 -> 450).
+pub fn evaluate_air_real_quotient_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const AIR_LDE_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ lde_values: StorageBuffer<u32, AIR_LDE_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let evaluation = invocation.global.x
+    if evaluation >= LDE.downcast_truncate() { return }
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let challenge = load_ext4_at(proof, layout.composition_challenge)
+    let source = ChunkAirLdeSource { values: lde_values, row: evaluation }
+    let row = ChunkAirLdeRow<LDE> {}
+    let fold356 = load_composition_fold_at<356, FRI_SCRATCH_WORDS>(
+        scratch,
+        scratch_layout.composition_fold,
+        challenge,
+        evaluation,
+    )
+    let fold450 = fold_real_quotient_constraints<
+        BabyBearExt4,
+        ChunkAirLdeSource<AIR_LDE_WORDS>,
+        ChunkAirLdeRow<LDE>,
+    >(fold356, source, ref row)
+    store_composition_fold_at(
+        scratch,
+        scratch_layout.composition_fold,
+        evaluation,
+        fold450,
+    )
+}
+
+/// Pass 18: Fold imaginary-quotient and remainder range constraints (450 -> 547).
+pub fn evaluate_air_imaginary_quotient_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const AIR_LDE_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ lde_values: StorageBuffer<u32, AIR_LDE_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let evaluation = invocation.global.x
+    if evaluation >= LDE.downcast_truncate() { return }
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let challenge = load_ext4_at(proof, layout.composition_challenge)
+    let source = ChunkAirLdeSource { values: lde_values, row: evaluation }
+    let row = ChunkAirLdeRow<LDE> {}
+    let fold450 = load_composition_fold_at<450, FRI_SCRATCH_WORDS>(
+        scratch,
+        scratch_layout.composition_fold,
+        challenge,
+        evaluation,
+    )
+    let fold547 = fold_imaginary_quotient_constraints<
+        BabyBearExt4,
+        ChunkAirLdeSource<AIR_LDE_WORDS>,
+        ChunkAirLdeRow<LDE>,
+    >(fold450, source, ref row)
+    store_composition_fold_at(
+        scratch,
+        scratch_layout.composition_fold,
+        evaluation,
+        fold547,
+    )
+}
+
+/// Pass 19: Fold magnitude and terminal threshold range constraints (547 -> 653).
+pub fn evaluate_air_magnitude_terminal_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const AIR_LDE_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ lde_values: StorageBuffer<u32, AIR_LDE_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let evaluation = invocation.global.x
+    if evaluation >= LDE.downcast_truncate() { return }
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let challenge = load_ext4_at(proof, layout.composition_challenge)
+    let source = ChunkAirLdeSource { values: lde_values, row: evaluation }
+    let row = ChunkAirLdeRow<LDE> {}
+    let fold547 = load_composition_fold_at<547, FRI_SCRATCH_WORDS>(
+        scratch,
+        scratch_layout.composition_fold,
+        challenge,
+        evaluation,
+    )
+    let fold653 = fold_magnitude_terminal_constraints<
+        BabyBearExt4,
+        ChunkAirLdeSource<AIR_LDE_WORDS>,
+        ChunkAirLdeRow<LDE>,
+    >(fold547, source, ref row)
+    store_composition_fold_at(
+        scratch,
+        scratch_layout.composition_fold,
+        evaluation,
+        fold653,
+    )
+}
+
+/// Pass 20: Fold pair-row transition constraints (653 -> 690).
+pub fn evaluate_air_pair_rows_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const AIR_LDE_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ lde_values: StorageBuffer<u32, AIR_LDE_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let evaluation = invocation.global.x
+    if evaluation >= LDE.downcast_truncate() { return }
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let challenge = load_ext4_at(proof, layout.composition_challenge)
+    let fold653 = load_composition_fold_at<653, FRI_SCRATCH_WORDS>(
+        scratch,
+        scratch_layout.composition_fold,
+        challenge,
+        evaluation,
+    )
+    let sign_re = BabyBearExt4::from_base(BabyBear::from_u32(
+        proof.load(index: layout.canonical_public),
+    ))
+    let magnitude_re = BabyBearExt4::from_base(BabyBear::from_u32(
+        proof.load(index: layout.canonical_public + 1),
+    ))
+    let sign_im = BabyBearExt4::from_base(BabyBear::from_u32(
+        proof.load(index: layout.canonical_public + 2),
+    ))
+    let magnitude_im = BabyBearExt4::from_base(BabyBear::from_u32(
+        proof.load(index: layout.canonical_public + 3),
+    ))
+    let source = ChunkAirLdeSource { values: lde_values, row: evaluation }
+    let row = ChunkAirLdeRow<LDE> {}
+    let next = ChunkAirLdeNextRow<TRACE, LDE> {}
+    let checkpoint = fold_pair_rows_constraints<
+        BabyBearExt4,
+        ChunkAirLdeSource<AIR_LDE_WORDS>,
+        ChunkAirLdeRow<LDE>,
+        ChunkAirLdeNextRow<TRACE, LDE>,
+    >(
+        fold653,
+        source,
+        signed_air_value<BabyBearExt4>(sign_re, magnitude_re),
+        signed_air_value<BabyBearExt4>(sign_im, magnitude_im),
+        ref row,
+        ref next,
+    )
+    store_composition_fold_at(
+        scratch,
+        scratch_layout.composition_fold,
+        evaluation,
+        pair_rows_constraint_fold(checkpoint),
+    )
+    store_composition_family_at(
+        scratch,
+        scratch_layout.composition_all_rows,
+        evaluation,
+        pair_rows_all_rows(checkpoint),
+    )
+}
+
+/// Pass 21: Fold first-row boundary constraints (690 -> 702).
+pub fn evaluate_air_first_row_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const AIR_LDE_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ lde_values: StorageBuffer<u32, AIR_LDE_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let evaluation = invocation.global.x
+    if evaluation >= LDE.downcast_truncate() { return }
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let challenge = load_ext4_at(proof, layout.composition_challenge)
+    let fold690 = load_composition_fold_at<690, FRI_SCRATCH_WORDS>(
+        scratch,
+        scratch_layout.composition_fold,
+        challenge,
+        evaluation,
+    )
+    let pair_checkpoint = restore_pair_rows_constraint_checkpoint(
+        fold690,
+        load_composition_family_at(
+            scratch,
+            scratch_layout.composition_all_rows,
+            evaluation,
+        ),
+    )
+    let source = ChunkAirLdeSource { values: lde_values, row: evaluation }
+    let row = ChunkAirLdeRow<LDE> {}
+    let checkpoint = fold_first_row_constraints<
+        BabyBearExt4,
+        ChunkAirLdeSource<AIR_LDE_WORDS>,
+        ChunkAirLdeRow<LDE>,
+    >(pair_checkpoint, source, ref row)
+    store_composition_fold_at(
+        scratch,
+        scratch_layout.composition_fold,
+        evaluation,
+        first_row_constraint_fold(checkpoint),
+    )
+    store_composition_family_at(
+        scratch,
+        scratch_layout.composition_pair_rows,
+        evaluation,
+        first_row_pair_rows(checkpoint),
+    )
+}
+
+/// Pass 22: Fold last-row boundary constraints (702 -> 708).
+pub fn evaluate_air_last_row_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const AIR_LDE_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ lde_values: StorageBuffer<u32, AIR_LDE_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let evaluation = invocation.global.x
+    if evaluation >= LDE.downcast_truncate() { return }
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let challenge = load_ext4_at(proof, layout.composition_challenge)
+    let fold702 = load_composition_fold_at<702, FRI_SCRATCH_WORDS>(
+        scratch,
+        scratch_layout.composition_fold,
+        challenge,
+        evaluation,
+    )
+    let first_checkpoint = restore_first_row_constraint_checkpoint(
+        fold702,
+        load_composition_family_at(
+            scratch,
+            scratch_layout.composition_all_rows,
+            evaluation,
+        ),
+        load_composition_family_at(
+            scratch,
+            scratch_layout.composition_pair_rows,
+            evaluation,
+        ),
+    )
+    let source = ChunkAirLdeSource { values: lde_values, row: evaluation }
+    let row = ChunkAirLdeRow<LDE> {}
+    let checkpoint = fold_last_row_constraints<
+        BabyBearExt4,
+        ChunkAirLdeSource<AIR_LDE_WORDS>,
+        ChunkAirLdeRow<LDE>,
+    >(first_checkpoint, source, ref row)
+    store_composition_fold_at(
+        scratch,
+        scratch_layout.composition_fold,
+        evaluation,
+        constraint_numerator_fold(checkpoint),
+    )
+    store_composition_family_at(
+        scratch,
+        scratch_layout.composition_first_row,
+        evaluation,
+        constraint_numerator_first_row(checkpoint),
+    )
+}
+
+/// Pass 23: Divide the 4 AIR constraint numerator families by their trace-domain
+/// zerofiers on the coset LDE domain.
+pub fn project_air_composition_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+)
+where TRACE > 0, TRACE > 1, { (TRACE & (TRACE - 1)) == 0 }
+{
+    let evaluation = invocation.global.x
+    if evaluation >= LDE.downcast_truncate() { return }
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let challenge = load_ext4_at(proof, layout.composition_challenge)
+    let fold708 = load_composition_fold_at<708, FRI_SCRATCH_WORDS>(
+        scratch,
+        scratch_layout.composition_fold,
+        challenge,
+        evaluation,
+    )
+    let checkpoint = restore_constraint_numerator_checkpoint(
+        fold708,
+        load_composition_family_at(
+            scratch,
+            scratch_layout.composition_all_rows,
+            evaluation,
+        ),
+        load_composition_family_at(
+            scratch,
+            scratch_layout.composition_pair_rows,
+            evaluation,
+        ),
+        load_composition_family_at(
+            scratch,
+            scratch_layout.composition_first_row,
+            evaluation,
+        ),
+    )
+    let point = BabyBear::from_u32(7)
+        * BabyBear::two_adic_root(FRI_ROUNDS.downcast_truncate()).pow_u32(evaluation)
+    let composed: CompositionValue<BabyBearExt4> =
+        composition_value<BabyBearExt4, TRACE>(
+            BabyBearExt4::from_base(point),
+            constraint_numerators_from_checkpoint(checkpoint),
+        )
+    store_ext4_at(
+        proof,
+        layout.composition_values
+            + evaluation * EXTENSION_WORDS.downcast_truncate(),
+        composed.value,
+    )
+    let fold_valid =
+        scratch.load(index: scratch_layout.composition_fold_valid + evaluation) == 1
+    proof.store(
+        index: layout.composition_value_valid + evaluation,
+        value: if composed.valid && fold_valid { 1 } else { 0 },
+    )
+}
+
+/// Pass 24: Commit all `LDE` quartic composition evaluations into `composition_tree`
+/// leaf `row` and reset `tree_progress`.
+pub fn commit_composition_leaves_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let row = invocation.global.x
+    let lde_width: u32 = LDE.downcast_truncate()
+    if row >= lde_width { return }
+
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    scratch.store(index: scratch_layout.tree_progress + row, value: 0)
+
+    let value = load_ext4_at(
+        proof,
+        layout.composition_values + row * EXTENSION_WORDS.downcast_truncate(),
+    )
+    let input_valid = proof.load(index: layout.composition_value_valid + row) == 1
+    let mut sponge = Poseidon2FieldSponge::begin_tag(composition_row_domain_tag(), 4)
+    let block = [
+        value.coefficient_0(),
+        value.coefficient_1(),
+        value.coefficient_2(),
+        value.coefficient_3(),
+        BabyBear::zero(),
+        BabyBear::zero(),
+        BabyBear::zero(),
+        BabyBear::zero(),
+    ]
+    sponge.absorb_scheduled_block(ref block, 4, true)
+    let committed = sponge.finish_scheduled().require(input_valid)
+    let stride_nodes = chunk_tree_stride_nodes(LDE).downcast_truncate()
+    let node = tree_node_index(stride_nodes, 0, 0, row)
+    store_tree_digest_at(
+        scratch,
+        scratch_layout.tree_digests,
+        node,
+        committed.digest(),
+    )
+    scratch.store(
+        index: scratch_layout.tree_valid + node,
+        value: if committed.is_valid() { 1 } else { 0 },
+    )
+}
+
+/// Pass 25: Reduce `composition_tree` across `Repeat<..., LDE_LOG>` and store
+/// `composition_root`.
+pub fn reduce_composition_tree_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let parent = invocation.global.x
+    let lde_width: u32 = LDE.downcast_truncate()
+    if parent >= lde_width / 2 { return }
+
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let level = scratch.load(index: scratch_layout.tree_progress + parent)
+    if level >= FRI_ROUNDS.downcast_truncate() { return }
+
+    let child_width = lde_width >> level
+    let parent_width = child_width / 2
+    if parent < parent_width {
+        let child_offset = tree_level_offset(lde_width, level)
+        let parent_offset = child_offset + child_width
+        let stride_nodes = chunk_tree_stride_nodes(LDE).downcast_truncate()
+        let left = tree_node_index(stride_nodes, 0, 0, child_offset + 2 * parent)
+        let right = left + 1
+        let node = tree_node_index(stride_nodes, 0, 0, parent_offset + parent)
+        let valid = scratch.load(index: scratch_layout.tree_valid + left) == 1
+            && scratch.load(index: scratch_layout.tree_valid + right) == 1
+        let digest = if valid {
+            compress(
+                load_tree_digest_at(scratch, scratch_layout.tree_digests, left),
+                load_tree_digest_at(scratch, scratch_layout.tree_digests, right),
+            )
+        } else {
+            Poseidon2Digest::zero()
+        }
+        let valid_word: u32 = if valid { 1 } else { 0 }
+        store_tree_digest_at(scratch, scratch_layout.tree_digests, node, digest)
+        scratch.store(index: scratch_layout.tree_valid + node, value: valid_word)
+
+        if level + 1 == FRI_ROUNDS.downcast_truncate() {
+            store_digest_at(proof, layout.composition_root, digest)
+            proof.store(index: layout.composition_valid + 1, value: valid_word)
+        }
+    }
+
+    scratch.store(index: scratch_layout.tree_progress + parent, value: level + 1)
+}
+
+/// Pass 26: Bind `(air_transcript, composition_root)` into `composition_transcript`,
+/// seed `fri_transcripts[variant, 0]`, reset `round_cursor = 0`, and materialize
+/// all `FRI_ROUNDS` round placements into `fri_scratch`.
+pub fn initialize_fri_schedule_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+    Schedule: FriSchedulePlacement,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let lane = invocation.global.x
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+
+    if lane < FRI_ROUNDS.downcast_truncate() {
+        store_fri_round_placement_at(
+            scratch,
+            scratch_layout.round_placements,
+            lane,
+            <Schedule as FriSchedulePlacement>::fri_round_placement(lane),
+        )
+    }
+
+    if lane != 0 { return }
+
+    let left = load_digest_at(proof, layout.air_transcript)
+    let right = load_digest_at(proof, layout.composition_root)
+    let input_valid = proof.load(index: layout.air_transcript_valid) == 1
+        && proof.load(index: layout.composition_valid + 1) == 1
+    let mut sponge = Poseidon2FieldSponge::begin_tag(
+        composition_transcript_domain_tag(),
+        16,
+    )
+    let mut block_step: u32 = 0
+    while block_step < 3 {
+        let count: u32 = if block_step == 0 { 6 } else if block_step == 1 { 8 } else { 2 }
+        let final_block = block_step == 2
+        let block = if block_step == 0 {
+            [
+                left.field(0),
+                left.field(1),
+                left.field(2),
+                left.field(3),
+                left.field(4),
+                left.field(5),
+                BabyBear::zero(),
+                BabyBear::zero(),
+            ]
+        } else if block_step == 1 {
+            [
+                left.field(6),
+                left.field(7),
+                right.field(0),
+                right.field(1),
+                right.field(2),
+                right.field(3),
+                right.field(4),
+                right.field(5),
+            ]
+        } else {
+            [
+                right.field(6),
+                right.field(7),
+                BabyBear::zero(),
+                BabyBear::zero(),
+                BabyBear::zero(),
+                BabyBear::zero(),
+                BabyBear::zero(),
+                BabyBear::zero(),
+            ]
+        }
+        sponge.absorb_scheduled_block(ref block, count, final_block)
+        block_step = block_step + 1
+    }
+    let committed = sponge.finish_scheduled().require(input_valid)
+    let digest = committed.digest()
+    let valid_word: u32 = if committed.is_valid() { 1 } else { 0 }
+    store_digest_at(proof, layout.composition_transcript, digest)
+    proof.store(index: layout.composition_valid + 2, value: valid_word)
+
+    let transcripts_per_variant: u32 = (FRI_ROUNDS + 1).downcast_truncate()
+    let mut variant: u32 = 0
+    while variant < FRI_VARIANTS.downcast_truncate() {
+        let transcript_index = variant * transcripts_per_variant
+        store_digest_at(
+            proof,
+            layout.fri_transcripts
+                + transcript_index * DIGEST_FIELDS.downcast_truncate(),
+            digest,
+        )
+        proof.store(
+            index: layout.fri_transcript_valid + transcript_index,
+            value: valid_word,
+        )
+        variant = variant + 1
+    }
+
+    scratch.store(index: scratch_layout.round_cursor, value: 0)
+}
+
+#[inline(always)]
+fn fri_shift(_ round_index: u32) -> BabyBear {
+    let mut shift = BabyBear::from_u32(7)
+    let mut index: u32 = 0
+    while index < round_index {
+        shift = shift * shift
+        index = index + 1
+    }
+    shift
+}
+
+#[inline(always)]
+fn fri_placement_is_valid(
+    _ placement: FriRoundPlacement,
+    _ round_index: u32,
+    _ lde: usize,
+    _ fri_rounds: usize,
+) -> bool {
+    placement.valid
+        && placement.index == round_index
+        && placement.round == round_index + 1
+        && placement.output_width > 0
+        && placement.input_width == 2 * placement.output_width
+        && placement.output_offset + placement.output_width
+            <= chunk_folded_evaluations(lde).downcast_truncate()
+        && placement.tree_nodes == 2 * placement.output_width - 1
+        && placement.tree_offset + placement.tree_nodes
+            <= chunk_layer_tree_nodes(lde, fri_rounds).downcast_truncate()
+}
+
+/// Pass 27 (Cycled): Squeeze `fri_challenges[variant, round_index]` from
+/// `fri_transcripts[variant, round_index]` for both variants.
+pub fn fri_squeeze_challenge_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+) {
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let round_index = scratch.load(index: scratch_layout.round_cursor)
+    if round_index >= FRI_ROUNDS.downcast_truncate() { return }
+
+    let placement = load_fri_round_placement_at(
+        scratch,
+        scratch_layout.round_placements,
+        round_index,
+    )
+    let schedule_valid = fri_placement_is_valid(
+        placement,
+        round_index,
+        LDE,
+        FRI_ROUNDS,
+    )
+    let rounds_per_variant: u32 = FRI_ROUNDS.downcast_truncate()
+    let transcripts_per_variant: u32 = (FRI_ROUNDS + 1).downcast_truncate()
+
+    let mut variant: u32 = 0
+    while variant < FRI_VARIANTS.downcast_truncate() {
+        let transcript_index = variant * transcripts_per_variant + round_index
+        let transcript = load_digest_at(
+            proof,
+            layout.fri_transcripts
+                + transcript_index * DIGEST_FIELDS.downcast_truncate(),
+        )
+        let input_valid = schedule_valid
+            && proof.load(index: layout.fri_transcript_valid + transcript_index) == 1
+        let mut sponge = Poseidon2FieldSponge::begin_tag(
+            fri_fold_domain_tag(placement.round),
+            DIGEST_FIELDS.downcast_truncate(),
+        )
+        let mut block_step: u32 = 0
+        while block_step < 2 {
+            let count: u32 = if block_step == 0 { 6 } else { 2 }
+            let final_block = block_step == 1
+            let block = if block_step == 0 {
+                [
+                    transcript.field(0),
+                    transcript.field(1),
+                    transcript.field(2),
+                    transcript.field(3),
+                    transcript.field(4),
+                    transcript.field(5),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                ]
+            } else {
+                [
+                    transcript.field(6),
+                    transcript.field(7),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                ]
+            }
+            sponge.absorb_scheduled_block(ref block, count, final_block)
+            block_step = block_step + 1
+        }
+        let committed = sponge.finish_scheduled().require(input_valid)
+        let digest = committed.digest()
+        let round_value_index = variant * rounds_per_variant + round_index
+        let challenge_base = layout.fri_challenges
+            + round_value_index * EXTENSION_WORDS.downcast_truncate()
+        let mut c: u32 = 0
+        while c < EXTENSION_WORDS.downcast_truncate() {
+            proof.store(
+                index: challenge_base + c,
+                value: digest.field(c).to_u32(),
+            )
+            c = c + 1
+        }
+        proof.store(
+            index: layout.fri_challenge_valid + round_value_index,
+            value: if committed.is_valid() { 1 } else { 0 },
+        )
+        variant = variant + 1
+    }
+}
+
+/// Pass 28 (Cycled + Tapered): Fold `(positive, negative)` pairs for both
+/// variants in parallel, commit each folded quartic value into its layer Merkle
+/// tree leaf, and reset `tree_progress`.
+pub fn fri_fold_and_commit_leaves_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ tamper: f32,
+    _ invocation: ComputeInvocation,
+) {
+    fri_fold_and_commit_leaves_at_layout(
+        proof, scratch, tamper, invocation,
+        LDE, FRI_ROUNDS,
+        proof_chunk_layout(TRACE, LDE, FRI_ROUNDS),
+        fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS),
+    )
+}
+
+// Canonical layouts are shape data. Compute them once during Fe compilation,
+// then select values without re-running checked layout arithmetic on every lane.
+const SHARED_FRI_PROOF_LAYOUT_16: ProofChunkLayout = proof_chunk_layout(16, 64, 6)
+const SHARED_FRI_PROOF_LAYOUT_64: ProofChunkLayout = proof_chunk_layout(64, 256, 8)
+const SHARED_FRI_SCRATCH_LAYOUT_16: FriScratchChunkLayout = fri_scratch_chunk_layout(16, 64, 6)
+const SHARED_FRI_SCRATCH_LAYOUT_64: FriScratchChunkLayout = fri_scratch_chunk_layout(64, 256, 8)
+
+/// Experimental cross-shape entry seam. Only the two validated experiment
+/// shapes are accepted; canonical offsets are derived by Fe, never supplied by
+/// the host. Both shapes use the same physical buffer capacities and grid.
+/// Unsupported shapes/capacities produce no writes and return false.
+/// True means shape/capacity accepted; schedule/challenge validity remains in
+/// the existing per-value channels. Scratch placements must be Fe-produced.
+pub fn fri_fold_and_commit_leaves_shared_shape<
+    const PROOF_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ trace: u32,
+    _ tamper: f32,
+    _ invocation: ComputeInvocation,
+) -> bool {
+    if trace != 16 && trace != 64 { return false }
+    let lde: usize = if trace == 16 { 64 } else { 256 }
+    let fri_rounds: usize = if trace == 16 { 6 } else { 8 }
+    let layout = if trace == 16 { SHARED_FRI_PROOF_LAYOUT_16 } else { SHARED_FRI_PROOF_LAYOUT_64 }
+    let scratch_layout = if trace == 16 { SHARED_FRI_SCRATCH_LAYOUT_16 } else { SHARED_FRI_SCRATCH_LAYOUT_64 }
+    if layout.total_words > PROOF_WORDS.downcast_truncate()
+        || scratch_layout.total_words > FRI_SCRATCH_WORDS.downcast_truncate() {
+        return false
+    }
+    fri_fold_and_commit_leaves_at_layout(
+        proof, scratch, tamper, invocation, lde, fri_rounds, layout, scratch_layout,
+    )
+    true
+}
+
+fn fri_fold_and_commit_leaves_at_layout<
+    const PROOF_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ tamper: f32,
+    _ invocation: ComputeInvocation,
+    _ lde: usize,
+    _ fri_rounds: usize,
+    _ layout: ProofChunkLayout,
+    _ scratch_layout: FriScratchChunkLayout,
+) {
+    let global_lane = invocation.global.x
+    let round_index = scratch.load(index: scratch_layout.round_cursor)
+    if round_index >= fri_rounds.downcast_truncate() { return }
+
+    let placement = load_fri_round_placement_at(
+        scratch,
+        scratch_layout.round_placements,
+        round_index,
+    )
+    let output_width = placement.output_width
+    if global_lane >= 2 * output_width { return }
+
+    scratch.store(index: scratch_layout.tree_progress + global_lane, value: 0)
+
+    let schedule_valid = fri_placement_is_valid(
+        placement,
+        round_index,
+        lde,
+        fri_rounds,
+    )
+    let variant = global_lane / output_width
+    let pair = global_lane % output_width
+    let dest_base = if variant == 0 {
+        layout.fri_clean
+    } else {
+        layout.fri_observed
+    }
+    let mut positive = BabyBearExt4::zero()
+    let mut negative = BabyBearExt4::zero()
+    if round_index == 0 {
+        positive = load_ext4_at(
+            proof,
+            layout.composition_values
+                + pair * EXTENSION_WORDS.downcast_truncate(),
+        )
+        negative = load_ext4_at(
+            proof,
+            layout.composition_values
+                + (pair + output_width) * EXTENSION_WORDS.downcast_truncate(),
+        )
+        if variant == 1 && tamper >= 0.5 && pair == 1 {
+            positive = BabyBearExt4::from_coordinate_fields(
+                positive.coefficient_0(),
+                positive.coefficient_1() + BabyBear::one(),
+                positive.coefficient_2(),
+                positive.coefficient_3(),
+            )
+        }
+    } else {
+        let previous = placement.output_offset - placement.input_width
+        positive = load_ext4_at(
+            proof,
+            dest_base + (previous + pair) * EXTENSION_WORDS.downcast_truncate(),
+        )
+        negative = load_ext4_at(
+            proof,
+            dest_base
+                + (previous + pair + output_width)
+                    * EXTENSION_WORDS.downcast_truncate(),
+        )
+    }
+
+    let rounds_per_variant: u32 = fri_rounds.downcast_truncate()
+    let round_value_index = variant * rounds_per_variant + round_index
+    let challenge = load_ext4_at(
+        proof,
+        layout.fri_challenges
+            + round_value_index * EXTENSION_WORDS.downcast_truncate(),
+    )
+    let value_valid = schedule_valid
+        && proof.load(index: layout.fri_challenge_valid + round_value_index) == 1
+    let folded = if value_valid {
+        let root = BabyBear::two_adic_root(placement.input_log)
+        fold_fri_pair_value_at_point(
+            positive,
+            negative,
+            challenge,
+            fri_shift(round_index) * root.pow_u32(pair),
+        )
+    } else {
+        BabyBearExt4::zero()
+    }
+    store_ext4_at(
+        proof,
+        dest_base
+            + (placement.output_offset + pair)
+                * EXTENSION_WORDS.downcast_truncate(),
+        folded,
+    )
+
+    let mut sponge = Poseidon2FieldSponge::begin_tag(
+        fri_layer_row_domain_tag(placement.round),
+        4,
+    )
+    let block = [
+        folded.coefficient_0(),
+        folded.coefficient_1(),
+        folded.coefficient_2(),
+        folded.coefficient_3(),
+        BabyBear::zero(),
+        BabyBear::zero(),
+        BabyBear::zero(),
+        BabyBear::zero(),
+    ]
+    sponge.absorb_scheduled_block(ref block, 4, true)
+    let committed = sponge.finish_scheduled().require(value_valid)
+    let stride_nodes = chunk_tree_stride_nodes(lde).downcast_truncate()
+    let node = tree_node_index(stride_nodes, variant, placement.tree_offset, pair)
+    store_tree_digest_at(
+        scratch,
+        scratch_layout.tree_digests,
+        node,
+        committed.digest(),
+    )
+    scratch.store(
+        index: scratch_layout.tree_valid + node,
+        value: if committed.is_valid() { 1 } else { 0 },
+    )
+}
+
+/// Pass 29 (Cycled + Tapered Repeat): Reduce the current FRI round's Merkle
+/// trees for both variants across `placement.pair_depth + 1` levels.
+pub fn fri_reduce_layer_tree_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let task = invocation.global.x
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let round_index = scratch.load(index: scratch_layout.round_cursor)
+    if round_index >= FRI_ROUNDS.downcast_truncate() { return }
+
+    let placement = load_fri_round_placement_at(
+        scratch,
+        scratch_layout.round_placements,
+        round_index,
+    )
+    let output_width = placement.output_width
+    if output_width <= 1 || task >= output_width { return }
+
+    let tree_depth = placement.pair_depth + 1
+    let level = scratch.load(index: scratch_layout.tree_progress + task)
+    if level >= tree_depth { return }
+
+    let child_width = output_width >> level
+    let parent_width = child_width / 2
+    if task < 2 * parent_width {
+        let variant = task / parent_width
+        let parent = task % parent_width
+        let child_offset = tree_level_offset(output_width, level)
+        let parent_offset = child_offset + child_width
+        let stride_nodes = chunk_tree_stride_nodes(LDE).downcast_truncate()
+        let left = tree_node_index(
+            stride_nodes,
+            variant,
+            placement.tree_offset,
+            child_offset + 2 * parent,
+        )
+        let right = left + 1
+        let node = tree_node_index(
+            stride_nodes,
+            variant,
+            placement.tree_offset,
+            parent_offset + parent,
+        )
+        let valid = scratch.load(index: scratch_layout.tree_valid + left) == 1
+            && scratch.load(index: scratch_layout.tree_valid + right) == 1
+        let digest = if valid {
+            compress(
+                load_tree_digest_at(scratch, scratch_layout.tree_digests, left),
+                load_tree_digest_at(scratch, scratch_layout.tree_digests, right),
+            )
+        } else {
+            Poseidon2Digest::zero()
+        }
+        store_tree_digest_at(scratch, scratch_layout.tree_digests, node, digest)
+        scratch.store(
+            index: scratch_layout.tree_valid + node,
+            value: if valid { 1 } else { 0 },
+        )
+    }
+
+    scratch.store(index: scratch_layout.tree_progress + task, value: level + 1)
+}
+
+/// Pass 30 (Cycled): Record the current FRI round's Merkle root from the top
+/// tree node, bind `(fri_transcripts[variant, round_index], root)` into
+/// `fri_transcripts[variant, round_index + 1]`, and advance `round_cursor`.
+pub fn fri_bind_round_transcript_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+) {
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let round_index = scratch.load(index: scratch_layout.round_cursor)
+    if round_index >= FRI_ROUNDS.downcast_truncate() { return }
+
+    let placement = load_fri_round_placement_at(
+        scratch,
+        scratch_layout.round_placements,
+        round_index,
+    )
+    let schedule_valid = fri_placement_is_valid(
+        placement,
+        round_index,
+        LDE,
+        FRI_ROUNDS,
+    )
+    let stride_nodes = chunk_tree_stride_nodes(LDE).downcast_truncate()
+    let rounds_per_variant: u32 = FRI_ROUNDS.downcast_truncate()
+    let transcripts_per_variant: u32 = (FRI_ROUNDS + 1).downcast_truncate()
+
+    let mut variant: u32 = 0
+    while variant < FRI_VARIANTS.downcast_truncate() {
+        let root_node = tree_node_index(
+            stride_nodes,
+            variant,
+            placement.tree_offset,
+            placement.tree_nodes - 1,
+        )
+        let root = load_tree_digest_at(
+            scratch,
+            scratch_layout.tree_digests,
+            root_node,
+        )
+        let root_valid = schedule_valid
+            && scratch.load(index: scratch_layout.tree_valid + root_node) == 1
+        let round_value_index = variant * rounds_per_variant + round_index
+        store_digest_at(
+            proof,
+            layout.fri_roots
+                + round_value_index * DIGEST_FIELDS.downcast_truncate(),
+            root,
+        )
+        proof.store(
+            index: layout.fri_root_valid + round_value_index,
+            value: if root_valid { 1 } else { 0 },
+        )
+
+        let transcript_index = variant * transcripts_per_variant + round_index
+        let transcript = load_digest_at(
+            proof,
+            layout.fri_transcripts
+                + transcript_index * DIGEST_FIELDS.downcast_truncate(),
+        )
+        let input_valid = root_valid
+            && proof.load(index: layout.fri_transcript_valid + transcript_index) == 1
+        let mut sponge = Poseidon2FieldSponge::begin_tag(
+            fri_layer_transcript_domain_tag(placement.round),
+            16,
+        )
+        let mut block_step: u32 = 0
+        while block_step < 3 {
+            let count: u32 = if block_step == 0 {
+                6
+            } else if block_step == 1 {
+                8
+            } else {
+                2
+            }
+            let final_block = block_step == 2
+            let block = if block_step == 0 {
+                [
+                    transcript.field(0),
+                    transcript.field(1),
+                    transcript.field(2),
+                    transcript.field(3),
+                    transcript.field(4),
+                    transcript.field(5),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                ]
+            } else if block_step == 1 {
+                [
+                    transcript.field(6),
+                    transcript.field(7),
+                    root.field(0),
+                    root.field(1),
+                    root.field(2),
+                    root.field(3),
+                    root.field(4),
+                    root.field(5),
+                ]
+            } else {
+                [
+                    root.field(6),
+                    root.field(7),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                ]
+            }
+            sponge.absorb_scheduled_block(ref block, count, final_block)
+            block_step = block_step + 1
+        }
+        let committed = sponge.finish_scheduled().require(input_valid)
+        let next_transcript = transcript_index + 1
+        let valid_word: u32 = if committed.is_valid() { 1 } else { 0 }
+        store_digest_at(
+            proof,
+            layout.fri_transcripts
+                + next_transcript * DIGEST_FIELDS.downcast_truncate(),
+            committed.digest(),
+        )
+        proof.store(
+            index: layout.fri_transcript_valid + next_transcript,
+            value: valid_word,
+        )
+        proof.store(
+            index: layout.fri_round_valid + round_value_index,
+            value: valid_word,
+        )
+        variant = variant + 1
+    }
+
+    scratch.store(index: scratch_layout.round_cursor, value: round_index + 1)
+}
+
+/// Pass 31: Sample the Fiat-Shamir query index (`query_identity = 1`) from the
+/// final FRI transcript for both variants.
+pub fn sample_fri_queries_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+) {
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let transcripts_per_variant: u32 = (FRI_ROUNDS + 1).downcast_truncate()
+    let half_mask: u32 = (LDE / 2 - 1).downcast_truncate()
+
+    let mut variant: u32 = 0
+    while variant < FRI_VARIANTS.downcast_truncate() {
+        let transcript_index =
+            variant * transcripts_per_variant + FRI_ROUNDS.downcast_truncate()
+        let transcript = load_digest_at(
+            proof,
+            layout.fri_transcripts
+                + transcript_index * DIGEST_FIELDS.downcast_truncate(),
+        )
+        let input_valid =
+            proof.load(index: layout.fri_transcript_valid + transcript_index) == 1
+        let mut sponge = Poseidon2FieldSponge::begin_tag(
+            fri_query_domain_tag(),
+            (DIGEST_FIELDS + 1).downcast_truncate(),
+        )
+        let mut block_step: u32 = 0
+        while block_step < 2 {
+            let count: u32 = if block_step == 0 { 6 } else { 3 }
+            let final_block = block_step == 1
+            let block = if block_step == 0 {
+                [
+                    transcript.field(0),
+                    transcript.field(1),
+                    transcript.field(2),
+                    transcript.field(3),
+                    transcript.field(4),
+                    transcript.field(5),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                ]
+            } else {
+                [
+                    transcript.field(6),
+                    transcript.field(7),
+                    BabyBear::from_u32(1),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                    BabyBear::zero(),
+                ]
+            }
+            sponge.absorb_scheduled_block(ref block, count, final_block)
+            block_step = block_step + 1
+        }
+        let committed = sponge.finish_scheduled().require(input_valid)
+        let query_index = committed.digest().field(0).to_u32() & half_mask
+        proof.store(index: layout.fri_query_indices + variant, value: query_index)
+        proof.store(
+            index: layout.fri_query_index_valid + variant,
+            value: if committed.is_valid() { 1 } else { 0 },
+        )
+        variant = variant + 1
+    }
+}
+
+/// Pass 32: Extract all opened evaluations (`2 * FRI_ROUNDS - 1` per variant)
+/// and authentication siblings (`(FRI_ROUNDS - 2) * (FRI_ROUNDS - 1)` per variant)
+/// across all `FRI_ROUNDS` layers.
+pub fn extract_fri_queries_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ invocation: ComputeInvocation,
+) {
+    let lane = invocation.global.x
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let query_evals: u32 = chunk_query_evaluations(FRI_ROUNDS).downcast_truncate()
+    let query_siblings: u32 = chunk_query_path_siblings(FRI_ROUNDS).downcast_truncate()
+    let eval_words_per_variant: u32 = query_evals * EXTENSION_WORDS.downcast_truncate()
+    let sibling_words_per_variant: u32 = query_siblings * DIGEST_FIELDS.downcast_truncate()
+    let variants: u32 = FRI_VARIANTS.downcast_truncate()
+    let evaluation_words: u32 = variants * eval_words_per_variant
+    let sibling_words: u32 = variants * sibling_words_per_variant
+
+    if lane < evaluation_words {
+        let variant = lane / eval_words_per_variant
+        let local = lane % eval_words_per_variant
+        let opening = local / EXTENSION_WORDS.downcast_truncate()
+        let coefficient = local % EXTENSION_WORDS.downcast_truncate()
+        let query = proof.load(index: layout.fri_query_indices + variant)
+        let mut cursor = begin_fri_query_evaluation_cursor(opening, query)
+        let mut r: u32 = 0
+        while r < FRI_ROUNDS.downcast_truncate() {
+            cursor = advance_fri_query_evaluation_cursor(
+                cursor,
+                load_fri_round_placement_at(
+                    scratch,
+                    scratch_layout.round_placements,
+                    r,
+                ),
+            )
+            r = r + 1
+        }
+        let placement = finish_fri_query_evaluation_cursor(cursor)
+        let source_base = if variant == 0 {
+            layout.fri_clean
+        } else {
+            layout.fri_observed
+        }
+        let folded_evals: u32 = chunk_folded_evaluations(LDE).downcast_truncate()
+        let placement_valid =
+            placement.valid && placement.evaluation_index < folded_evals
+        let value = if placement_valid {
+            proof.load(
+                index: source_base
+                    + placement.evaluation_index * EXTENSION_WORDS.downcast_truncate()
+                    + coefficient,
+            )
+        } else {
+            0
+        }
+        proof.store(index: layout.fri_query_evaluations + lane, value: value)
+        scratch.store(
+            index: scratch_layout.query_copy_valid + lane,
+            value: if placement_valid && value < BABY_BEAR_MODULUS { 1 } else { 0 },
+        )
+    } else if lane < evaluation_words + sibling_words {
+        let sibling_lane = lane - evaluation_words
+        let variant = sibling_lane / sibling_words_per_variant
+        let local = sibling_lane % sibling_words_per_variant
+        let sibling = local / DIGEST_FIELDS.downcast_truncate()
+        let field = local % DIGEST_FIELDS.downcast_truncate()
+        let query = proof.load(index: layout.fri_query_indices + variant)
+        let mut cursor = begin_fri_query_sibling_cursor(sibling, query)
+        let mut r: u32 = 0
+        while r < FRI_ROUNDS.downcast_truncate() {
+            cursor = advance_fri_query_sibling_cursor(
+                cursor,
+                load_fri_round_placement_at(
+                    scratch,
+                    scratch_layout.round_placements,
+                    r,
+                ),
+            )
+            r = r + 1
+        }
+        let placement = finish_fri_query_sibling_cursor(cursor)
+        let layer_nodes: u32 =
+            chunk_layer_tree_nodes(LDE, FRI_ROUNDS).downcast_truncate()
+        let stride_nodes = chunk_tree_stride_nodes(LDE).downcast_truncate()
+        let node = tree_node_index(stride_nodes, variant, 0, placement.tree_node)
+        let placement_valid = placement.valid
+            && placement.tree_node < layer_nodes
+            && scratch.load(index: scratch_layout.tree_valid + node) == 1
+        let value = if placement_valid {
+            scratch.load(
+                index: scratch_layout.tree_digests
+                    + node * DIGEST_FIELDS.downcast_truncate() + field,
+            )
+        } else {
+            0
+        }
+        proof.store(index: layout.fri_query_siblings + sibling_lane, value: value)
+        scratch.store(
+            index: scratch_layout.query_copy_valid + lane,
+            value: if placement_valid && value < BABY_BEAR_MODULUS { 1 } else { 0 },
+        )
+    }
+}
+
+#[inline(always)]
+fn packed_rgba(_ red: u32, _ green: u32, _ blue: u32) -> i32 {
+    (4278190080 | (blue << 16) | (green << 8) | red).downcast_truncate()
+}
+
+#[inline(always)]
+fn status_word(_ ok: bool, _ tampered: bool) -> u32 {
+    if !ok {
+        packed_rgba(236, 92, 112).downcast_truncate()
+    } else if tampered {
+        packed_rgba(255, 176, 222).downcast_truncate()
+    } else {
+        packed_rgba(87, 117, 226).downcast_truncate()
+    }
+}
+
+/// Pass 33: Validate all stage flags and write status/display words.
+pub fn finalize_proof_status_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+    const FRI_SCRATCH_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ scratch: StorageBuffer<u32, FRI_SCRATCH_WORDS>,
+    _ tamper: f32,
+) {
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let scratch_layout = fri_scratch_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let tampered = tamper >= 0.5
+
+    let mut trace_valid = proof.load(index: layout.trace_valid) == 1
+    let mut row: u32 = 0
+    while row < TRACE.downcast_truncate() {
+        if scratch.load(index: scratch_layout.row_aux_valid + row) != 1 {
+            trace_valid = false
+        }
+        row = row + 1
+    }
+
+    let mut lde_valid = true
+    let mut col: u32 = 0
+    while col < AIR_COLUMN_COUNT.downcast_truncate() {
+        if proof.load(index: layout.air_lde_valid + col) != 1 {
+            lde_valid = false
+        }
+        col = col + 1
+    }
+
+    let public_digest = load_digest_at(proof, layout.public_digest)
+    let main_trace_root = load_digest_at(proof, layout.main_trace_root)
+    let aux_trace_root = load_digest_at(proof, layout.auxiliary_trace_root)
+    let main_lde_root = load_digest_at(proof, layout.main_lde_root)
+    let aux_lde_root = load_digest_at(proof, layout.auxiliary_lde_root)
+    let air_transcript = load_digest_at(proof, layout.air_transcript)
+    let composition_root = load_digest_at(proof, layout.composition_root)
+    let composition_transcript = load_digest_at(proof, layout.composition_transcript)
+
+    let production_trace_valid =
+        proof.load(index: layout.production_trace_digest_valid) == 1
+            && proof.load(index: layout.production_trace_digest_valid + 1) == 1
+            && proof.load(index: layout.production_trace_digest_valid + 2) == 1
+            && !public_digest.equals(Poseidon2Digest::zero())
+            && !main_trace_root.equals(Poseidon2Digest::zero())
+            && !aux_trace_root.equals(Poseidon2Digest::zero())
+
+    let air_roots_valid =
+        proof.load(index: layout.air_lde_root_valid) == 1
+            && proof.load(index: layout.air_lde_root_valid + 1) == 1
+            && !main_lde_root.equals(Poseidon2Digest::zero())
+            && !aux_lde_root.equals(Poseidon2Digest::zero())
+
+    let production_transcript_valid =
+        proof.load(index: layout.air_transcript_valid) == 1
+            && !air_transcript.equals(Poseidon2Digest::zero())
+
+    let mut composition_valid =
+        proof.load(index: layout.composition_valid) == 1
+            && proof.load(index: layout.composition_valid + 1) == 1
+            && proof.load(index: layout.composition_valid + 2) == 1
+            && !composition_root.equals(Poseidon2Digest::zero())
+            && !composition_transcript.equals(Poseidon2Digest::zero())
+    let mut eval_idx: u32 = 0
+    while eval_idx < LDE.downcast_truncate() {
+        if proof.load(index: layout.composition_value_valid + eval_idx) != 1 {
+            composition_valid = false
+        }
+        eval_idx = eval_idx + 1
+    }
+
+    let root_nonzero = production_trace_valid
+        && air_roots_valid
+        && production_transcript_valid
+        && composition_valid
+
+    let mut fri_valid = scratch.load(index: scratch_layout.round_cursor)
+        == FRI_ROUNDS.downcast_truncate()
+    let total_valid_rounds: u32 = (FRI_VARIANTS * FRI_ROUNDS).downcast_truncate()
+    let mut r_idx: u32 = 0
+    while r_idx < total_valid_rounds {
+        if proof.load(index: layout.fri_challenge_valid + r_idx) != 1
+            || proof.load(index: layout.fri_root_valid + r_idx) != 1
+            || proof.load(index: layout.fri_round_valid + r_idx) != 1
+        {
+            fri_valid = false
+        }
+        r_idx = r_idx + 1
+    }
+    let total_valid_transcripts: u32 =
+        (FRI_VARIANTS * (FRI_ROUNDS + 1)).downcast_truncate()
+    let mut t_idx: u32 = 0
+    while t_idx < total_valid_transcripts {
+        if proof.load(index: layout.fri_transcript_valid + t_idx) != 1 {
+            fri_valid = false
+        }
+        t_idx = t_idx + 1
+    }
+    let layer_nodes: u32 =
+        chunk_layer_tree_nodes(LDE, FRI_ROUNDS).downcast_truncate()
+    let stride_nodes = chunk_tree_stride_nodes(LDE).downcast_truncate()
+    let mut variant: u32 = 0
+    while variant < FRI_VARIANTS.downcast_truncate() {
+        let mut n_idx: u32 = 0
+        while n_idx < layer_nodes {
+            let node = tree_node_index(stride_nodes, variant, 0, n_idx)
+            if scratch.load(index: scratch_layout.tree_valid + node) != 1 {
+                fri_valid = false
+            }
+            n_idx = n_idx + 1
+        }
+        variant = variant + 1
+    }
+
+    let folded_eval_words: u32 =
+        (chunk_folded_evaluations(LDE) * EXTENSION_WORDS).downcast_truncate()
+    let mut fri_equal = true
+    let mut f_word: u32 = 0
+    while f_word < folded_eval_words {
+        if proof.load(index: layout.fri_clean + f_word)
+            != proof.load(index: layout.fri_observed + f_word)
+        {
+            fri_equal = false
+        }
+        f_word = f_word + 1
+    }
+    let fri_correct = fri_valid && (if tampered { !fri_equal } else { fri_equal })
+
+    let eval_words_per_variant: u32 =
+        (chunk_query_evaluations(FRI_ROUNDS) * EXTENSION_WORDS).downcast_truncate()
+    let sibling_words_per_variant: u32 =
+        (chunk_query_path_siblings(FRI_ROUNDS) * DIGEST_FIELDS).downcast_truncate()
+    let variants: u32 = FRI_VARIANTS.downcast_truncate()
+    let evaluation_words_total: u32 = variants * eval_words_per_variant
+    let half_lde: u32 = (LDE / 2).downcast_truncate()
+
+    let mut clean_query_valid =
+        proof.load(index: layout.fri_query_index_valid) == 1
+            && (proof.load(index: layout.fri_query_indices) < half_lde)
+    let mut observed_query_valid =
+        proof.load(index: layout.fri_query_index_valid + 1) == 1
+            && (proof.load(index: layout.fri_query_indices + 1) < half_lde)
+
+    let mut q_word: u32 = 0
+    while q_word < eval_words_per_variant {
+        if scratch.load(index: scratch_layout.query_copy_valid + q_word) != 1 {
+            clean_query_valid = false
+        }
+        if scratch.load(
+            index: scratch_layout.query_copy_valid
+                + eval_words_per_variant + q_word,
+        ) != 1 {
+            observed_query_valid = false
+        }
+        q_word = q_word + 1
+    }
+    q_word = 0
+    while q_word < sibling_words_per_variant {
+        if scratch.load(
+            index: scratch_layout.query_copy_valid
+                + evaluation_words_total + q_word,
+        ) != 1 {
+            clean_query_valid = false
+        }
+        if scratch.load(
+            index: scratch_layout.query_copy_valid
+                + evaluation_words_total + sibling_words_per_variant + q_word,
+        ) != 1 {
+            observed_query_valid = false
+        }
+        q_word = q_word + 1
+    }
+
+    let mut query_equal =
+        proof.load(index: layout.fri_query_indices)
+            == proof.load(index: layout.fri_query_indices + 1)
+    q_word = 0
+    while q_word < eval_words_per_variant {
+        if proof.load(index: layout.fri_query_evaluations + q_word)
+            != proof.load(
+                index: layout.fri_query_evaluations
+                    + eval_words_per_variant + q_word,
+            )
+        {
+            query_equal = false
+        }
+        q_word = q_word + 1
+    }
+    q_word = 0
+    while q_word < sibling_words_per_variant {
+        if proof.load(index: layout.fri_query_siblings + q_word)
+            != proof.load(
+                index: layout.fri_query_siblings
+                    + sibling_words_per_variant + q_word,
+            )
+        {
+            query_equal = false
+        }
+        q_word = q_word + 1
+    }
+
+    let query_valid = clean_query_valid && observed_query_valid
+    let query_correct = query_valid
+        && (if tampered { !query_equal } else { query_equal })
+    let overall = trace_valid
+        && lde_valid
+        && root_nonzero
+        && fri_correct
+        && query_correct
+
+    proof.store(
+        index: layout.fri_status,
+        value: if fri_equal { 1 } else { 0 },
+    )
+    proof.store(
+        index: layout.fri_status + 1,
+        value: if fri_correct { 1 } else { 0 },
+    )
+    proof.store(
+        index: layout.fri_status + 2,
+        value: status_word(fri_correct, tampered),
+    )
+
+    proof.store(
+        index: layout.fri_query_opening_valid,
+        value: if clean_query_valid { 1 } else { 0 },
+    )
+    proof.store(
+        index: layout.fri_query_opening_valid + 1,
+        value: if observed_query_valid { 1 } else { 0 },
+    )
+    proof.store(
+        index: layout.fri_query_status,
+        value: if query_equal { 1 } else { 0 },
+    )
+    proof.store(
+        index: layout.fri_query_status + 1,
+        value: if query_correct { 1 } else { 0 },
+    )
+    proof.store(
+        index: layout.fri_query_status + 2,
+        value: status_word(query_correct, tampered),
+    )
+
+    proof.store(
+        index: layout.status,
+        value: if trace_valid { 1 } else { 0 },
+    )
+    proof.store(
+        index: layout.status + 1,
+        value: if fri_equal { 1 } else { 0 },
+    )
+    proof.store(
+        index: layout.status + 2,
+        value: if overall { 1 } else { 0 },
+    )
+    proof.store(
+        index: layout.status + 3,
+        value: status_word(trace_valid, false),
+    )
+    proof.store(
+        index: layout.status + 4,
+        value: status_word(lde_valid, false),
+    )
+    proof.store(
+        index: layout.status + 5,
+        value: status_word(root_nonzero, false),
+    )
+    proof.store(
+        index: layout.status + 6,
+        value: status_word(overall, tampered),
+    )
+}
+
+/// Pass 34: Render status bands and folded FRI evaluation words.
+pub fn display_chunk<
+    const TRACE: usize,
+    const LDE: usize,
+    const FRI_ROUNDS: usize,
+    const PROOF_WORDS: usize,
+>(
+    _ proof: StorageBuffer<u32, PROOF_WORDS>,
+    _ tamper: f32,
+    _ res: f32,
+    _ px: i32,
+    _ py: i32,
+) -> i32 {
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let u = from_i32(px) / res
+    let v = from_i32(py) / res
+    let tampered = tamper >= 0.5
+
+    if v < 0.18 {
+        if u < 0.2 {
+            return proof.load(index: layout.status.wrapping_add(3)).downcast_truncate()
+        }
+        if u < 0.4 {
+            return proof.load(index: layout.status.wrapping_add(4)).downcast_truncate()
+        }
+        if u < 0.6 {
+            return proof.load(index: layout.status.wrapping_add(5)).downcast_truncate()
+        }
+        if u < 0.8 {
+            return proof.load(index: layout.fri_status.wrapping_add(2)).downcast_truncate()
+        }
+        return proof.load(index: layout.status.wrapping_add(6)).downcast_truncate()
+    }
+    if v > 0.82 {
+        return proof.load(index: layout.status.wrapping_add(6)).downcast_truncate()
+    }
+
+    let folded_eval_words: i32 =
+        (chunk_folded_evaluations(LDE) * EXTENSION_WORDS).downcast_truncate()
+    let sample_i: u32 = to_i32(
+        u * from_i32(folded_eval_words),
+    ).downcast_unchecked()
+    let folded_base = if tampered {
+        layout.fri_observed
+    } else {
+        layout.fri_clean
+    }
+    let sample = proof.load(index: folded_base.wrapping_add(sample_i))
+    let red = (54 as u32).wrapping_add(sample & 127)
+    let green = (42 as u32).wrapping_add((sample >> 8) & 95)
+    let blue = (96 as u32).wrapping_add((sample >> 16) & 127)
+    let stripe: u32 = if u + v > 1.0 { 18 } else { 0 }
+    let reject_glow: u32 = if tampered { 26 } else { 0 }
+    packed_rgba(
+        red.wrapping_add(reject_glow),
+        green.wrapping_add(stripe),
+        blue,
+    )
+}

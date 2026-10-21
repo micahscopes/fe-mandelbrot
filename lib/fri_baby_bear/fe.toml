@@ -1,0 +1,10 @@
+[ingot]
+name = "fri_baby_bear"
+version = "0.1.0"
+
+[dependencies]
+core = "../../.cache/fe/ingots/core"
+fri_structure = "../fri_structure"
+poseidon_baby_bear = "../poseidon_baby_bear"
+precision = "../precision"
+quadratic_plan = "../quadratic_plan"

@@ -1,0 +1,49 @@
+//! Independent Wasm checker for the viewer's fixed-capacity Q12 receipt.
+use core::BrowserBytes
+
+pub struct PointQ12 { pub re: i32, pub im: i32 }
+impl core::marker::Copy for PointQ12 {}
+pub struct CheckRequest { pub point: PointQ12, pub proof: BrowserBytes }
+pub struct CheckResult { pub code: u32, pub terminal_step: u32 }
+pub struct PointRequest { pub point: PointQ12 }
+
+pub fn preflight(_ request: own PointRequest) -> CheckResult {
+    let terminal = ingot::witness::escape_step(request.point)
+    CheckResult { code: if terminal <= 1023 { 0 } else { 1 }, terminal_step: terminal }
+}
+pub fn check(_ request: own CheckRequest) -> CheckResult {
+    let proof = ingot::receipt::Receipt { bytes: request.proof }
+    let terminal = ingot::witness::escape_step(request.point)
+    if terminal > 1023 {
+        return CheckResult { code: 1, terminal_step: terminal }
+    }
+    if !proof.has_exact_size() {
+        return CheckResult { code: 2, terminal_step: terminal }
+    }
+    let code = ingot::witness::check_witness(proof, request.point, terminal)
+    if code != 0 {
+        return CheckResult { code: code, terminal_step: terminal }
+    }
+    let layout = mandelbrot_proof_profile::proof_chunk_layout(1024, 4096, 12)
+    let mut index = layout.packed_main_trace
+    while index < layout.fri_query_status {
+        if index != layout.fri_status + 2 && proof.word(index) >= 2013265921 {
+            return CheckResult { code: 6, terminal_step: terminal }
+        }
+        index = index + 1
+    }
+    if !ingot::fri::check_fri(proof) {
+        return CheckResult { code: 6, terminal_step: terminal }
+    }
+    if !ingot::composition::check_composition(proof) {
+        return CheckResult { code: 7, terminal_step: terminal }
+    }
+    CheckResult { code: 0, terminal_step: terminal }
+}
+
+/// The current web compiler roots standalone Wasm lanes through a scalar
+/// render entry. The worker loads only Wasm/interface artifacts; this unused
+/// transparent pixel requires no WebGPU device and is not verification logic.
+pub fn wasm_anchor(_ x: i32, _ y: i32, _ res: f32) -> u32 {
+    0
+}

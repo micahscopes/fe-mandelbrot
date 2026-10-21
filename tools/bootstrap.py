@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch the exact MB2 toolchain and apply the generic control-parts patch."""
+"""Fetch the pinned MB2 compiler and apply the recorded generic toolchain patches."""
 import argparse,json,os,subprocess,tomllib
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
@@ -21,7 +21,7 @@ def prepare():
         if reverse.returncode:
             run('git','-C',str(source),'apply','--check',str(patch));run('git','-C',str(source),'apply',str(patch))
     changed=output('git','-C',str(source),'diff','--name-only').splitlines()
-    assert changed==['crates/codegen/assets/render-runtime/fe-render-runtime.js'],'Unexpected toolchain edits'
+    assert set(changed)=={'crates/codegen/assets/render-runtime/fe-render-runtime.js','crates/codegen/src/sonatina/portable_lower.rs'},'Unexpected toolchain edits'
     return source,lock
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--prepare-only',action='store_true');args=parser.parse_args()

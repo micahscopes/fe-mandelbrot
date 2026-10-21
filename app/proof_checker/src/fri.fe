@@ -1,0 +1,208 @@
+//! Transcript, ordered Merkle openings, and extension-field fold equations.
+use ingot::receipt::{
+    Receipt,
+    hash_digest,
+    hash_extension,
+    bind_digest,
+    digest_challenge,
+    sampled_query,
+}
+use mandelbrot_proof_profile::{
+    TRACE,
+    LDE,
+    FRI_ROUNDS,
+    proof_chunk_layout,
+    chunk_query_evaluations,
+    chunk_query_path_siblings,
+}
+use mandelbrot_proof_baby_bear_domains::{
+    statement_domain_tag,
+    proof_transcript_domain_tag,
+    main_lde_transcript_domain_tag,
+    auxiliary_lde_transcript_domain_tag,
+}
+use mandelbrot_proof_baby_bear_transcript::{
+    composition_challenge_domain_tag,
+    composition_transcript_domain_tag,
+}
+use fri_baby_bear::{
+    fri_fold_domain_tag,
+    fri_layer_row_domain_tag,
+    fri_layer_transcript_domain_tag,
+    fri_query_domain_tag,
+    fold_fri_pair_value_at_point,
+}
+use poseidon_baby_bear::{Poseidon2Digest, compress}
+use precision::baby_bear::{BabyBear, BabyBearExt4}
+
+fn evaluation(_ proof: Receipt, _ variant: u32, _ slot: u32) -> BabyBearExt4 {
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    proof.extension(layout.fri_query_evaluations + (variant * 23 + slot) * 4)
+}
+fn tree_depth(_ width: u32) -> u32 {
+    let mut n = width
+    let mut depth: u32 = 0
+    while n > 1 {
+        n = n / 2
+        depth = depth + 1
+    }
+    depth
+}
+
+pub fn check_fri(_ proof: Receipt) -> bool {
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let public = proof.digest(layout.public_digest)
+    let main_trace = proof.digest(layout.main_trace_root)
+    let aux_trace = proof.digest(layout.auxiliary_trace_root)
+    let main_lde = proof.digest(layout.main_lde_root)
+    let aux_lde = proof.digest(layout.auxiliary_lde_root)
+    let statement = bind_digest(statement_domain_tag(), public, main_trace)
+    let trace = bind_digest(proof_transcript_domain_tag(), statement, aux_trace)
+    let main = bind_digest(main_lde_transcript_domain_tag(), trace, main_lde)
+    let air = bind_digest(auxiliary_lde_transcript_domain_tag(), main, aux_lde)
+    if !air.equals(proof.digest(layout.air_transcript)) {
+        return false
+    }
+    let composition_challenge = digest_challenge(
+        hash_digest(composition_challenge_domain_tag(), air),
+    )
+    if !composition_challenge.equals(proof.extension(layout.composition_challenge)) {
+        return false
+    }
+    let composition = bind_digest(
+        composition_transcript_domain_tag(),
+        air,
+        proof.digest(layout.composition_root),
+    )
+    if !composition.equals(proof.digest(layout.composition_transcript)) {
+        return false
+    }
+
+    let mut variant: u32 = 0
+    while variant < 2 {
+        let transcript_base = layout.fri_transcripts + variant * 13 * 8
+        if !proof.digest(transcript_base).equals(composition) {
+            return false
+        }
+        let mut round: u32 = 0
+        while round < 12 {
+            let current = proof.digest(transcript_base + round * 8)
+            let challenge = digest_challenge(hash_digest(fri_fold_domain_tag(round + 1), current))
+            if !challenge
+                .equals(
+                    proof.extension(layout.fri_challenges + (variant * 12 + round) * 4),
+                ) {
+                return false
+            }
+            let root = proof.digest(layout.fri_roots + (variant * 12 + round) * 8)
+            let next = bind_digest(fri_layer_transcript_domain_tag(round + 1), current, root)
+            if !next.equals(proof.digest(transcript_base + (round + 1) * 8)) {
+                return false
+            }
+            round = round + 1
+        }
+        let final_transcript = proof.digest(transcript_base + 12 * 8)
+        let sampled = sampled_query(fri_query_domain_tag(), final_transcript)
+        if proof.word(layout.fri_query_indices + variant) != sampled {
+            return false
+        }
+        let mut query = sampled
+        let mut sibling_cursor = variant * 110
+        round = 0
+        while round < 12 {
+            let width: u32 = 4096 >> (round + 1)
+            let slot = round * 2
+            let tag = fri_layer_row_domain_tag(round + 1)
+            let mut reconstructed = hash_extension(tag, evaluation(proof, variant, slot))
+            if width > 1 {
+                let half = width / 2
+                let depth = tree_depth(width) - 1
+                let pair = query & (half - 1)
+                let mut sides = [Poseidon2Digest::zero(); 2]
+                let mut side: u32 = 0
+                while side < 2 {
+                    let leaf = pair + side * half
+                    let mut digest = hash_extension(tag, evaluation(proof, variant, slot + side))
+                    let mut level: u32 = 0
+                    while level < depth {
+                        let sibling = proof.digest(layout.fri_query_siblings + sibling_cursor * 8)
+                        digest = if ((leaf >> level) & 1) == 0 {
+                            compress(digest, sibling)
+                        } else {
+                            compress(sibling, digest)
+                        }
+                        sibling_cursor = sibling_cursor + 1
+                        level = level + 1
+                    }
+                    sides[side as usize] = digest
+                    side = side + 1
+                }
+                reconstructed = compress(sides[0], sides[1])
+                query = pair
+            }
+            if !reconstructed.equals(
+                    proof.digest(layout.fri_roots + (variant * 12 + round) * 8),
+                ) {
+                return false
+            }
+            round = round + 1
+        }
+        if sibling_cursor != (variant + 1) * 110 {
+            return false
+        }
+
+        query = sampled
+        let mut transition: u32 = 0
+        let mut shift = BabyBear::from_u32(7)
+        while transition < 11 {
+            shift = shift * shift
+            let input_width: u32 = 4096 >> (transition + 1)
+            let pair = query & (input_width / 2 - 1)
+            let challenge = proof
+                .extension(
+                    layout.fri_challenges + (variant * 12 + transition + 1) * 4,
+                )
+            let root = BabyBear::two_adic_root(12 - transition - 1)
+            let point = shift * root.pow_u32(pair)
+            let folded = fold_fri_pair_value_at_point(
+                evaluation(proof, variant, 2 * transition),
+                evaluation(proof, variant, 2 * transition + 1),
+                challenge,
+                point,
+            )
+            let next_width = input_width / 2
+            let next_slot = 2 * (transition + 1)
+                + if next_width == 1 || pair < next_width / 2 {
+                    0
+                } else {
+                    1
+                }
+            if !folded.equals(evaluation(proof, variant, next_slot)) {
+                return false
+            }
+            query = pair
+            transition = transition + 1
+        }
+        let pair = sampled & 1023
+        let challenge = proof.extension(layout.fri_challenges + variant * 12 * 4)
+        let mut side: u32 = 0
+        while side < 2 {
+            let leaf = pair + side * 1024
+            let positive = proof.extension(layout.composition_values + leaf * 4)
+            let negative = proof.extension(layout.composition_values + (leaf + 2048) * 4)
+            let point = BabyBear::from_u32(7) * BabyBear::two_adic_root(12).pow_u32(leaf)
+            let folded = fold_fri_pair_value_at_point(positive, negative, challenge, point)
+            if !folded.equals(evaluation(proof, variant, side)) {
+                return false
+            }
+            side = side + 1
+        }
+        variant = variant + 1
+    }
+    // Producer flags are required diagnostics, never the arithmetic evidence.
+    proof.word(layout.status) == 1
+        && proof.word(layout.status + 1) == 1
+        && proof.word(layout.status + 2) == 1
+        && proof.word(layout.fri_query_status) == 1
+        && proof.word(layout.fri_query_status + 1) == 1
+}

@@ -1,0 +1,22 @@
+name: Validate Fe workspace artifacts
+on:
+  push:
+    branches: [feat/viewer-prover-workspace]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Verify sources and complete compiled site
+        run: python3 tools/site.py --out dist
+      - name: Check exact point selection
+        run: node tests/proof-selection.mjs
+      - name: Check Fe/Wasm verifier against captured proofs and mutations
+        run: node tests/fe-verifier.mjs

@@ -55,7 +55,7 @@ Every compile uses a new output directory; unsuccessful builds can be inspected.
 Set `CARGO_TARGET_DIR` and `--out` to your preferred local build/cache locations.
 The Fe workspace maps the pinned standard library at `.cache/fe`; the app has no
 absolute machine paths. A manual GitHub Actions workflow also rebuilds this
-pinned compiler and all three Fe applications, publishing the site as an artifact.
+pinned compiler and the workspace applications, publishing the site as an artifact.
 
 ## Layout
 
@@ -191,43 +191,61 @@ visible region. The marker follows the snapped point and is hidden offscreen.
 
 The fixed profile `viewer-capacity-q12-v1` accepts real coordinates in [-2,1),
 imaginary coordinates in [-1.5,1.5), and escape steps at most1023, with a1024-row
-padded domain. It uses the existing integer Q12 recurrence and radius4 escape
-threshold. No escape within the bound is reported without generating a proof;
+padded domain. It uses the existing integer Q12 recurrence and escape
+threshold |z|² ≥ 4 (radius2). No escape within the bound is reported without generating a proof;
 it does not establish membership in the exact real-number Mandelbrot set.
 
-The independent Rust/Wasm worker replays every main/auxiliary witness column,
-checks the expected point/public packing/digest and trace commitments, and checks
-experimental transcript, FRI openings/folds and composition degree/root consistency.
-It is a full-witness replay plus selected receipt checks. It does not reconstruct
-LDE roots from the trace or derive the AIR composition, and is not a complete
-succinct cryptographic verifier. Producer flags alone cannot establish acceptance.
-Selections and receipts are frozen by request generation, so changing the selected
-point cannot relabel an earlier check.
+The independent **Fe verifier compiled to Wasm** replays every main/auxiliary
+witness column, checks the expected point/public packing/digest and trace
+commitments, and checks transcript, FRI openings/folds and composition degree/root
+consistency. It is full-witness replay plus selected experimental receipt checks.
+It does not reconstruct LDE roots from the trace or derive the AIR composition;
+it is not a complete succinct cryptographic verifier. Producer flags alone cannot
+establish acceptance. Selections and receipts are frozen by request generation.
 
-The renderer keeps its existing toolchain. The separate proof engine requires Fe
-source commit `4b669c920` (branch `local/mb2-viewer-prover-integration-20261021`),
-which adds a named capacity-padding entry while preserving the old minimal-padding
-API. Build the proof engine/checker separately, then assemble a new site:
+The viewer, GPU prover and Wasm verifier are members of **one Fe workspace**:
+
+| Ingot | Responsibility |
+| --- | --- |
+| `app/renderer` | High-precision interactive explorer |
+| `app/point_prover` | WebGPU witness generation and proof passes |
+| `app/proof_checker` | Independent integer replay and receipt checks in Wasm |
+| `lib/mandelbrot_proof_profile` | Shared receipt geometry and fixed profile |
+| `lib/mandelbrot_proof_*` | AIR, encodings, domains and GPU placement |
+| `lib/precision`, `lib/poseidon_*`, `lib/fri_*`, `lib/parallel_*` | Shared field, hashing, folding and transform vocabulary |
+
+All application Fe sources live here. Only the pinned compiler/core/standard
+library are fetched by bootstrap; no second application checkout is required.
+The existing precision, complex algebra, gestures and perceptual color libraries
+remain shared with the cleaned-up renderer. Migrated proof sources are recorded in
+`toolchain/proof-source-provenance.json`. The bounded arithmetic/profile contract
+is separate from the viewer's higher-precision rendering contract.
+
+Both targets use the compiler revision in `toolchain.lock.json`, with the recorded
+generic patches in `toolchain/patches`. `tools/build.py` builds viewer, colors,
+source browser, prover and verifier together. The compiler currently packages
+standalone Wasm interfaces through a tiny scalar render anchor; the checker worker
+loads only its Wasm and generated interface, and requires no GPU device. The
+browser adapter handles byte ownership and arena lifetime from the Fe schemas.
+There is no hand-written verifier allocator or protocol arithmetic in JavaScript.
 
 ```sh
-python3 tools/proof-build.py --fe-source /path/to/fe-checkout \
-  --fe /path/to/compatible/fe --target-dir /local/build/checker \
-  --out /local/build/proof-1
-python3 tools/site.py --proof-artifacts /local/build/proof-1 --out /local/build/site-1
-python3 -m http.server --directory /local/build/site-1 8000
+python3 tools/bootstrap.py
+python3 tools/build.py --fe .cache/target/release/fe --out .cache/build-1 --record
+python3 tools/site.py --out dist
+python3 -m http.server --directory dist 8000
 ```
 
-Rust must include `wasm32-unknown-unknown`. The proof build records the exact Fe
-source revision, compiler binary hash, checker source hashes and artifact hashes.
-The publisher verifies these and namespaces the full engine/checker/frontend by
-content identity. Without `--proof-artifacts`, the normal viewer has proof
-integration disabled and does not load its worker.
+The checked-in artifacts make local viewing possible with Python alone. Site
+assembly verifies source/artifact hashes and namespaces the complete renderer and
+proof/frontend bundles by content identity. Rebuilding needs Rust only to build
+the Fe compiler; the browser prover and verifier themselves are written in Fe.
 
-Run `node tests/proof-selection.mjs` for coordinate/tie/deep-tail checks and
-`cargo test --manifest-path proof-checker/Cargo.toml --release` for profile tests.
-Set `MB2_POINT_PROOF` to the browser test's `proof-early.bin` to additionally run
-captured-receipt mutations (witness, public words, openings, noncanonical LDE-root
-aliases, and a different expected point). With the staged site served securely:
+Run `node tests/proof-selection.mjs` for coordinate/tie/deep-tail checks. The optional
+independent Rust reference checker lives under `tests/oracle-rust` and is not an
+application or browser dependency. Set `MB2_POINT_PROOF` to a browser test's
+`proof-early.bin` to check that reference implementation and its captured-receipt
+mutations. With the staged site served securely:
 
 ```sh
 PLAYWRIGHT_MODULE=/path/to/playwright-core/index.mjs \
@@ -235,7 +253,7 @@ BASE_URL=https://approved-host/ CDP_URL=http://127.0.0.1:9222 \
 PROOF_OUT=/local/receipts node tests/point-proof-browser.mjs
 ```
 
-The browser test owns a background target and closes only that target. It tests
-actual point clicks, early/late escape, generation, independent checking,
-corrupted-copy rejection, bounded nonescape, range rejection and stale-check
-suppression. Timings include readback; driver cache state is uncontrolled.
+The test owns a background browser target and closes only that target. It checks
+actual point clicks, early/late escape, generation, Fe/Wasm verification,
+corrupted-copy rejection, bounded nonescape, range rejection and stale checks.
+Timings include readback; GPU driver cache state is uncontrolled.

@@ -1,0 +1,26 @@
+{
+  "profile": "viewer-capacity-q12-v1",
+  "origin": "Captured AMD rdna-3 WebGPU proofs; independently checked against the Rust/Plonky3 reference before the Fe verifier migration.",
+  "cases": [
+    {
+      "name": "early",
+      "point": {
+        "re": 3500,
+        "im": 3000
+      },
+      "terminal_step": 2,
+      "bytes": 2064364,
+      "sha256": "09eaa29ec4a1eff0d84c591178cf20ff96349a977a5051b26fa57a9a9e01e3dd"
+    },
+    {
+      "name": "late",
+      "point": {
+        "re": 1076,
+        "im": 12
+      },
+      "terminal_step": 1001,
+      "bytes": 2064364,
+      "sha256": "f52627d3bb0eaac2cc5f88ab903f1763a357b51356bb2219f1bd883db09e053a"
+    }
+  ]
+}

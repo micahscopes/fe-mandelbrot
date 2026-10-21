@@ -1,0 +1,37 @@
+<!doctype html>
+<!--
+  fe web render runtime page (compiler-emitted, protocol fe-web-bundle v4).
+
+  This page is NOT hand-written per demo: `fe web build --mode render` emits
+  it verbatim next to the bundle it describes, alongside its sibling
+  `fe-render-runtime.js`. All render logic (fetch manifest.json, drive
+  WebGPU via ./shader.wgsl, fall back to a per-pixel ./module.wasm kernel,
+  generate uniform controls) lives in that ONE shipped module, not this page:
+  it is the same module the standards `fe web dev` gallery path imports via
+  its `data-fe-render` handoff (crates/html-precompile/assets/bootstrap.js),
+  so the legacy bundle and the gallery share one render kernel driver.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>fe web · render</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+         background: #0d0f13; color: #cfd6e4; display: grid; place-items: center;
+         min-height: 100vh; gap: 18px; padding: 24px; }
+  h1 { font-size: 15px; font-weight: 600; margin: 0; color: #e6ecf7; letter-spacing: .02em; }
+</style>
+</head>
+<body>
+  <h1>fe web · render</h1>
+  <script type="module">
+    import { mountRenderSurface } from "./fe-render-runtime.js";
+    await mountRenderSurface({
+      manifestUrl: "./manifest.json",
+      container: document.body,
+      
+    });
+  </script>
+</body>
+</html>

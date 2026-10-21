@@ -1,0 +1,13 @@
+[ingot]
+name = "mandelbrot_proof_checker"
+version = "0.1.0"
+
+[dependencies]
+core = "../../.cache/fe/ingots/core"
+std = "../../.cache/fe/ingots/std"
+mandelbrot_proof_profile = "../../lib/mandelbrot_proof_profile"
+mandelbrot_proof_baby_bear_domains = "../../lib/mandelbrot_proof_baby_bear_domains"
+mandelbrot_proof_baby_bear_transcript = "../../lib/mandelbrot_proof_baby_bear_transcript"
+poseidon_baby_bear = "../../lib/poseidon_baby_bear"
+precision = "../../lib/precision"
+fri_baby_bear = "../../lib/fri_baby_bear"

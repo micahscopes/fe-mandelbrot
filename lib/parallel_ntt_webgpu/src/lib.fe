@@ -1,0 +1,877 @@
+//! Portable WebGPU placement for a type-derived radix-two stage grid.
+//!
+//! A caller supplies one `FactorTree` plan and compiler-derived dispatch
+//! dimensions. Each physical butterfly lane owns one progress word. Repeated
+//! dispatches therefore advance the exact ordered stages without a host stage
+//! table, a contended global cursor, or an intra-dispatch storage race. Every
+//! stage is a disjoint matching; the queue boundary between repeated dispatches
+//! provides the dependency boundary before the next matching runs.
+
+use parallel_ntt::{
+    Radix2Stage,
+    StageGrid,
+    bit_reversed_index,
+    portable_stage,
+}
+use precision::polynomial::{Radix2Field, radix2_field_domain_supported, radix2_log}
+use precision::word_field::{WordField, WordTwoAdicPrime}
+use std::webgpu::{ComputeInvocation, StorageBuffer}
+
+/// A u32-resident radix-two field usable through WebGPU storage resources.
+/// The blanket implementation keeps BabyBear a parameter instance rather than
+/// a distinct shader algorithm.
+pub trait StorageRadix2Field: Radix2Field {
+    fn from_storage(_ word: u32) -> Self
+    fn to_storage(self) -> u32
+}
+
+impl<M: WordTwoAdicPrime> StorageRadix2Field for WordField<M> {
+    fn from_storage(_ word: u32) -> Self { Self::from_u32(word) }
+    fn to_storage(self) -> u32 { self.to_u32() }
+}
+
+/// Observable result of one physical lane in one repeated stage dispatch.
+/// Tests and higher-level proof actors may retain this receipt without making
+/// it part of the transform's semantic state.
+pub struct StageGridStep {
+    pub active: bool,
+    pub valid: bool,
+    pub stage: Radix2Stage,
+}
+
+impl core::marker::Copy for StageGridStep {}
+
+/// Preparation receipt for one lane of one transform in a contiguous batch.
+/// The caller decides where semantic validity belongs. Keeping that word out
+/// of the arithmetic scratch buffers permits CTFE-derived storage reuse.
+pub struct BatchCosetPreparation {
+    pub active: bool,
+    pub valid: bool,
+    pub batch: u32,
+    pub lane: u32,
+}
+
+impl core::marker::Copy for BatchCosetPreparation {}
+
+/// Completion receipt for one lane of one transform in a contiguous batch.
+/// `batch` and `lane` are derived from the invocation grid, while `valid`
+/// records the exact stage completion count. The caller composes it with the
+/// earlier [`BatchCosetPreparation`] predicate at its semantic storage site.
+pub struct BatchStageGridFinish {
+    pub active: bool,
+    pub valid: bool,
+    pub batch: u32,
+    pub lane: u32,
+}
+
+impl core::marker::Copy for BatchStageGridFinish {}
+
+/// A batch-level receipt produced after every private butterfly cursor has
+/// reached the exact factor-tree depth. Validation is a distinct dispatch:
+/// one invocation scans one batch, then replaces its first retired cursor
+/// with a plan-derived marker. Later phases can therefore check the whole
+/// batch in constant work per lane instead of rescanning every cursor from
+/// every lane.
+pub struct BatchStageGridValidation {
+    pub active: bool,
+    pub valid: bool,
+    pub batch: u32,
+}
+
+impl core::marker::Copy for BatchStageGridValidation {}
+
+fn stage_grid_validation_marker<Plan: StageGrid>() -> u32 {
+    // The high bit distinguishes a validated batch from an ordinary stage
+    // cursor. The remaining fields bind the receipt to its point count and
+    // factor depth. WebGPU dispatch dimensions are already u32-bounded.
+    let factors: u32 = Plan::FACTORS.downcast_truncate()
+    let points: u32 = Plan::POINTS.downcast_truncate()
+    2147483648
+        | (factors << 24)
+        | points
+}
+
+fn inactive_stage() -> Radix2Stage {
+    Radix2Stage {
+        index: 0,
+        width: 0,
+        half: 0,
+        blocks: 0,
+        butterflies: 0,
+        valid: false,
+    }
+}
+
+fn inactive_step() -> StageGridStep {
+    StageGridStep {
+        active: false,
+        valid: true,
+        stage: inactive_stage(),
+    }
+}
+
+/// Copy one source domain into bit-reversed working storage and reset every
+/// butterfly lane's private stage cursor. Two values per lane cover the whole
+/// transform while retaining one invocation per later butterfly.
+pub fn prepare_stage_grid<
+    const N: usize,
+    const LANES: usize,
+>(
+    _ source: StorageBuffer<u32, N>,
+    _ values: StorageBuffer<u32, N>,
+    _ progress: StorageBuffer<u32, LANES>,
+    _ invocation: ComputeInvocation,
+) where
+    N > 0,
+    N > 1,
+    { (N & (N - 1)) == 0 },
+    { LANES * 2 == N },
+{
+    let lane = invocation.global.x
+    if lane >= LANES.downcast_truncate() { return }
+
+    let second = lane + LANES.downcast_truncate()
+    values.store(
+        index: bit_reversed_index<N>(lane),
+        value: source.load(index: lane),
+    )
+    values.store(
+        index: bit_reversed_index<N>(second),
+        value: source.load(index: second),
+    )
+    progress.store(index: lane, value: 0)
+}
+
+fn apply_stage_grid_lane<
+    const N: usize,
+    const LANES: usize,
+    F: StorageRadix2Field,
+    Plan: StageGrid,
+>(
+    _ values: StorageBuffer<u32, N>,
+    _ progress: StorageBuffer<u32, LANES>,
+    _ invocation: ComputeInvocation,
+    _ inverse: bool,
+) -> StageGridStep
+where
+    N > 0,
+    N > 1,
+    { (N & (N - 1)) == 0 },
+    { LANES * 2 == N },
+    { radix2_field_domain_supported<N, F>() },
+    { Plan::POINTS == N },
+{
+    let lane = invocation.global.x
+    if lane >= LANES.downcast_truncate() { return inactive_step() }
+
+    let cursor = progress.load(index: lane)
+    let stage = portable_stage<N, Plan>(cursor)
+    if !stage.valid || stage.butterflies != LANES.downcast_truncate() {
+        return StageGridStep { active: true, valid: false, stage: stage }
+    }
+
+    let block = lane / stage.half
+    let offset = lane % stage.half
+    let left_index = block * stage.width + offset
+    let right_index = left_index + stage.half
+
+    let mut root = F::radix2_root(radix2_log<N>())
+    if inverse { root = root.radix2_inverse_or_zero() }
+    let points: u32 = N.downcast_truncate()
+    let twiddle_step = points / stage.width
+    let twiddle = root.radix2_pow(twiddle_step).radix2_pow(offset)
+    let left = F::from_storage(values.load(index: left_index))
+    let right = F::from_storage(values.load(index: right_index))
+        .radix2_mul(twiddle)
+    values.store(
+        index: left_index,
+        value: left.radix2_add(right).to_storage(),
+    )
+    values.store(
+        index: right_index,
+        value: left.radix2_sub(right).to_storage(),
+    )
+    progress.store(index: lane, value: cursor + 1)
+    StageGridStep { active: true, valid: true, stage: stage }
+}
+
+/// Copy a contiguous batch of source domains into bit-reversed working
+/// storage. Each invocation owns two values and one private progress word.
+/// The source may be a larger application resource; `source_start` selects the
+/// first domain without introducing a host-authored stage or twiddle table.
+pub fn prepare_batched_stage_grid<
+    const BATCHES: usize,
+    const N: usize,
+    const LANES: usize,
+    const SOURCE_WORDS: usize,
+    const VALUE_WORDS: usize,
+    const PROGRESS_WORDS: usize,
+>(
+    _ source: StorageBuffer<u32, SOURCE_WORDS>,
+    _ source_start: u32,
+    _ values: StorageBuffer<u32, VALUE_WORDS>,
+    _ progress: StorageBuffer<u32, PROGRESS_WORDS>,
+    _ invocation: ComputeInvocation,
+) where
+    BATCHES > 0,
+    N > 0,
+    N > 1,
+    { (N & (N - 1)) == 0 },
+    { LANES * 2 == N },
+    { VALUE_WORDS >= BATCHES * N },
+    { PROGRESS_WORDS >= BATCHES * LANES },
+{
+    let global_lane = invocation.global.x
+    let total_lanes: u32 = (BATCHES * LANES).downcast_truncate()
+    if global_lane >= total_lanes { return }
+
+    let lanes: u32 = LANES.downcast_truncate()
+    let points: u32 = N.downcast_truncate()
+    let batch = global_lane / lanes
+    let lane = global_lane % lanes
+    let source_base = source_start + batch * points
+    let value_base = batch * points
+    let second = lane + lanes
+    values.store(
+        index: value_base + bit_reversed_index<N>(lane),
+        value: source.load(index: source_base + lane),
+    )
+    values.store(
+        index: value_base + bit_reversed_index<N>(second),
+        value: source.load(index: source_base + second),
+    )
+    progress.store(index: global_lane, value: 0)
+}
+
+fn apply_batched_stage_grid_lane<
+    const BATCHES: usize,
+    const N: usize,
+    const LANES: usize,
+    const VALUE_WORDS: usize,
+    const PROGRESS_WORDS: usize,
+    F: StorageRadix2Field,
+    Plan: StageGrid,
+>(
+    _ values: StorageBuffer<u32, VALUE_WORDS>,
+    _ progress: StorageBuffer<u32, PROGRESS_WORDS>,
+    _ invocation: ComputeInvocation,
+    _ inverse: bool,
+) -> StageGridStep
+where
+    BATCHES > 0,
+    N > 0,
+    N > 1,
+    { (N & (N - 1)) == 0 },
+    { LANES * 2 == N },
+    { VALUE_WORDS >= BATCHES * N },
+    { PROGRESS_WORDS >= BATCHES * LANES },
+    { radix2_field_domain_supported<N, F>() },
+    { Plan::POINTS == N },
+{
+    let global_lane = invocation.global.x
+    let total_lanes: u32 = (BATCHES * LANES).downcast_truncate()
+    if global_lane >= total_lanes { return inactive_step() }
+
+    let lanes: u32 = LANES.downcast_truncate()
+    let points: u32 = N.downcast_truncate()
+    let batch = global_lane / lanes
+    let lane = global_lane % lanes
+    let value_base = batch * points
+    let cursor = progress.load(index: global_lane)
+    let stage = portable_stage<N, Plan>(cursor)
+    if !stage.valid || stage.butterflies != lanes {
+        return StageGridStep { active: true, valid: false, stage: stage }
+    }
+
+    let block = lane / stage.half
+    let offset = lane % stage.half
+    let left_index = value_base + block * stage.width + offset
+    let right_index = left_index + stage.half
+    let mut root = F::radix2_root(radix2_log<N>())
+    if inverse { root = root.radix2_inverse_or_zero() }
+    let twiddle_step = points / stage.width
+    let twiddle = root.radix2_pow(twiddle_step).radix2_pow(offset)
+    let left = F::from_storage(values.load(index: left_index))
+    let right = F::from_storage(values.load(index: right_index))
+        .radix2_mul(twiddle)
+    values.store(
+        index: left_index,
+        value: left.radix2_add(right).to_storage(),
+    )
+    values.store(
+        index: right_index,
+        value: left.radix2_sub(right).to_storage(),
+    )
+    progress.store(index: global_lane, value: cursor + 1)
+    StageGridStep { active: true, valid: true, stage: stage }
+}
+
+/// Execute one forward stage for every transform in a contiguous batch.
+pub fn forward_batched_stage_grid_lane<
+    const BATCHES: usize,
+    const N: usize,
+    const LANES: usize,
+    const VALUE_WORDS: usize,
+    const PROGRESS_WORDS: usize,
+    F: StorageRadix2Field,
+    Plan: StageGrid,
+>(
+    _ values: StorageBuffer<u32, VALUE_WORDS>,
+    _ progress: StorageBuffer<u32, PROGRESS_WORDS>,
+    _ invocation: ComputeInvocation,
+) -> StageGridStep
+where
+    BATCHES > 0,
+    N > 0,
+    N > 1,
+    { (N & (N - 1)) == 0 },
+    { LANES * 2 == N },
+    { VALUE_WORDS >= BATCHES * N },
+    { PROGRESS_WORDS >= BATCHES * LANES },
+    { radix2_field_domain_supported<N, F>() },
+    { Plan::POINTS == N },
+{
+    apply_batched_stage_grid_lane<
+        BATCHES, N, LANES, VALUE_WORDS, PROGRESS_WORDS, F, Plan,
+    >(
+        values,
+        progress,
+        invocation,
+        false,
+    )
+}
+
+/// Execute one inverse stage for every transform in a contiguous batch.
+pub fn inverse_batched_stage_grid_lane<
+    const BATCHES: usize,
+    const N: usize,
+    const LANES: usize,
+    const VALUE_WORDS: usize,
+    const PROGRESS_WORDS: usize,
+    F: StorageRadix2Field,
+    Plan: StageGrid,
+>(
+    _ values: StorageBuffer<u32, VALUE_WORDS>,
+    _ progress: StorageBuffer<u32, PROGRESS_WORDS>,
+    _ invocation: ComputeInvocation,
+) -> StageGridStep
+where
+    BATCHES > 0,
+    N > 0,
+    N > 1,
+    { (N & (N - 1)) == 0 },
+    { LANES * 2 == N },
+    { VALUE_WORDS >= BATCHES * N },
+    { PROGRESS_WORDS >= BATCHES * LANES },
+    { radix2_field_domain_supported<N, F>() },
+    { Plan::POINTS == N },
+{
+    apply_batched_stage_grid_lane<
+        BATCHES, N, LANES, VALUE_WORDS, PROGRESS_WORDS, F, Plan,
+    >(
+        values,
+        progress,
+        invocation,
+        true,
+    )
+}
+
+/// Validate every private cursor in each transform exactly once.
+///
+/// The dispatch must expose at least `BATCHES` global x invocations. A queue
+/// boundary after the repeated stage grid makes every cursor visible. One
+/// invocation owns one disjoint batch and publishes a plan-derived marker in
+/// that batch's retired first cursor. This preserves the full exactness check
+/// while reducing validation from `BATCHES * LANES * LANES` reads to
+/// `BATCHES * LANES` reads.
+pub fn validate_batched_stage_grid<
+    const BATCHES: usize,
+    const N: usize,
+    const LANES: usize,
+    const PROGRESS_WORDS: usize,
+    Plan: StageGrid,
+>(
+    _ progress: StorageBuffer<u32, PROGRESS_WORDS>,
+    _ invocation: ComputeInvocation,
+) -> BatchStageGridValidation
+where
+    BATCHES > 0,
+    N > 0,
+    N > 1,
+    { (N & (N - 1)) == 0 },
+    { LANES * 2 == N },
+    { PROGRESS_WORDS >= BATCHES * LANES },
+    { Plan::POINTS == N },
+{
+    let batch = invocation.global.x
+    if batch >= BATCHES.downcast_truncate() {
+        return BatchStageGridValidation {
+            active: false,
+            valid: true,
+            batch: 0,
+        }
+    }
+
+    let lanes: u32 = LANES.downcast_truncate()
+    let progress_base = batch * lanes
+    let expected: u32 = Plan::FACTORS.downcast_truncate()
+    let mut valid = true
+    let mut lane: u32 = 0
+    while lane < lanes {
+        valid = valid && progress.load(index: progress_base + lane) == expected
+        lane = lane + 1
+    }
+    progress.store(
+        index: progress_base,
+        value: if valid { stage_grid_validation_marker<Plan>() } else { 0 },
+    )
+    BatchStageGridValidation {
+        active: true,
+        valid: valid,
+        batch: batch,
+    }
+}
+
+fn batch_stage_grid_is_validated<
+    const BATCHES: usize,
+    const N: usize,
+    const LANES: usize,
+    const PROGRESS_WORDS: usize,
+    Plan: StageGrid,
+>(
+    _ progress: StorageBuffer<u32, PROGRESS_WORDS>,
+    _ batch: u32,
+) -> bool
+where
+    BATCHES > 0,
+    N > 0,
+    N > 1,
+    { LANES * 2 == N },
+    { PROGRESS_WORDS >= BATCHES * LANES },
+    { Plan::POINTS == N },
+{
+    batch < BATCHES.downcast_truncate()
+        && progress.load(index: batch * LANES.downcast_truncate())
+            == stage_grid_validation_marker<Plan>()
+}
+
+/// Prepare a coset extension from an explicitly validated inverse stage grid.
+/// The validation marker is shared by every output lane, so preparation is
+/// constant work per lane while retaining the exact all-cursor predicate.
+pub fn prepare_validated_batched_coset_extension<
+    const BATCHES: usize,
+    const N: usize,
+    const OUT: usize,
+    const INPUT_LANES: usize,
+    const OUTPUT_LANES: usize,
+    const COEFFICIENT_WORDS: usize,
+    const INVERSE_PROGRESS_WORDS: usize,
+    const VALUE_WORDS: usize,
+    const PROGRESS_WORDS: usize,
+    F: StorageRadix2Field,
+    InputPlan: StageGrid,
+    OutputPlan: StageGrid,
+>(
+    _ coefficients: StorageBuffer<u32, COEFFICIENT_WORDS>,
+    _ inverse_progress: StorageBuffer<u32, INVERSE_PROGRESS_WORDS>,
+    _ values: StorageBuffer<u32, VALUE_WORDS>,
+    _ progress: StorageBuffer<u32, PROGRESS_WORDS>,
+    _ shift: F,
+    _ invocation: ComputeInvocation,
+) -> BatchCosetPreparation where
+    BATCHES > 0,
+    N > 0,
+    N > 1,
+    { (N & (N - 1)) == 0 },
+    { INPUT_LANES * 2 == N },
+    OUT > 0,
+    OUT > N,
+    { (OUT & (OUT - 1)) == 0 },
+    { (OUT % N) == 0 },
+    { OUTPUT_LANES * 2 == OUT },
+    { COEFFICIENT_WORDS >= BATCHES * N },
+    { INVERSE_PROGRESS_WORDS >= BATCHES * INPUT_LANES },
+    { VALUE_WORDS >= BATCHES * OUT },
+    { PROGRESS_WORDS >= BATCHES * OUTPUT_LANES },
+    { radix2_field_domain_supported<N, F>() },
+    { radix2_field_domain_supported<OUT, F>() },
+    { InputPlan::POINTS == N },
+    { OutputPlan::POINTS == OUT },
+{
+    let global_lane = invocation.global.x
+    let total_lanes: u32 = (BATCHES * OUTPUT_LANES).downcast_truncate()
+    if global_lane >= total_lanes {
+        return BatchCosetPreparation {
+            active: false,
+            valid: true,
+            batch: 0,
+            lane: 0,
+        }
+    }
+
+    let input_points: u32 = N.downcast_truncate()
+    let output_lanes: u32 = OUTPUT_LANES.downcast_truncate()
+    let output_points: u32 = OUT.downcast_truncate()
+    let batch = global_lane / output_lanes
+    let lane = global_lane % output_lanes
+    let completed = batch_stage_grid_is_validated<
+        BATCHES,
+        N,
+        INPUT_LANES,
+        INVERSE_PROGRESS_WORDS,
+        InputPlan,
+    >(inverse_progress, batch)
+    let one = F::radix2_root(0)
+    let shift_valid = !shift.radix2_is_zero()
+        && !shift.radix2_pow(output_points).radix2_sub(one).radix2_is_zero()
+    let batch_valid = completed && shift_valid
+    let scale = F::from_storage(input_points).radix2_inverse_or_zero()
+    let input_base = batch * input_points
+    let output_base = batch * output_points
+    let second = lane + output_lanes
+
+    let mut first_value = F::radix2_zero()
+    if batch_valid && lane < input_points {
+        first_value = F::from_storage(
+            coefficients.load(index: input_base + lane),
+        ).radix2_mul(scale).radix2_mul(shift.radix2_pow(lane))
+    }
+    values.store(
+        index: output_base + bit_reversed_index<OUT>(lane),
+        value: first_value.to_storage(),
+    )
+
+    let mut second_value = F::radix2_zero()
+    if batch_valid && second < input_points {
+        second_value = F::from_storage(
+            coefficients.load(index: input_base + second),
+        ).radix2_mul(scale).radix2_mul(shift.radix2_pow(second))
+    }
+    values.store(
+        index: output_base + bit_reversed_index<OUT>(second),
+        value: second_value.to_storage(),
+    )
+    progress.store(index: global_lane, value: 0)
+    BatchCosetPreparation {
+        active: true,
+        valid: batch_valid,
+        batch: batch,
+        lane: lane,
+    }
+}
+
+/// Turn completed inverse transforms into bit-reversed coset-extension inputs.
+/// The operation applies `N^-1`, weights coefficient `i` by `shift^i`, pads to
+/// `OUT`, and resets the forward progress grid. Each output lane owns two
+/// values, while only lane zero publishes the identical per-batch predicate.
+pub fn prepare_batched_coset_extension<
+    const BATCHES: usize,
+    const N: usize,
+    const OUT: usize,
+    const INPUT_LANES: usize,
+    const OUTPUT_LANES: usize,
+    const COEFFICIENT_WORDS: usize,
+    const INVERSE_PROGRESS_WORDS: usize,
+    const VALUE_WORDS: usize,
+    const PROGRESS_WORDS: usize,
+    F: StorageRadix2Field,
+    InputPlan: StageGrid,
+    OutputPlan: StageGrid,
+>(
+    _ coefficients: StorageBuffer<u32, COEFFICIENT_WORDS>,
+    _ inverse_progress: StorageBuffer<u32, INVERSE_PROGRESS_WORDS>,
+    _ values: StorageBuffer<u32, VALUE_WORDS>,
+    _ progress: StorageBuffer<u32, PROGRESS_WORDS>,
+    _ shift: F,
+    _ invocation: ComputeInvocation,
+) -> BatchCosetPreparation where
+    BATCHES > 0,
+    N > 0,
+    N > 1,
+    { (N & (N - 1)) == 0 },
+    { INPUT_LANES * 2 == N },
+    OUT > 0,
+    OUT > N,
+    { (OUT & (OUT - 1)) == 0 },
+    { (OUT % N) == 0 },
+    { OUTPUT_LANES * 2 == OUT },
+    { COEFFICIENT_WORDS >= BATCHES * N },
+    { INVERSE_PROGRESS_WORDS >= BATCHES * INPUT_LANES },
+    { VALUE_WORDS >= BATCHES * OUT },
+    { PROGRESS_WORDS >= BATCHES * OUTPUT_LANES },
+    { radix2_field_domain_supported<N, F>() },
+    { radix2_field_domain_supported<OUT, F>() },
+    { InputPlan::POINTS == N },
+    { OutputPlan::POINTS == OUT },
+{
+    let global_lane = invocation.global.x
+    let total_lanes: u32 = (BATCHES * OUTPUT_LANES).downcast_truncate()
+    if global_lane >= total_lanes {
+        return BatchCosetPreparation {
+            active: false,
+            valid: true,
+            batch: 0,
+            lane: 0,
+        }
+    }
+
+    let input_lanes: u32 = INPUT_LANES.downcast_truncate()
+    let output_lanes: u32 = OUTPUT_LANES.downcast_truncate()
+    let input_points: u32 = N.downcast_truncate()
+    let output_points: u32 = OUT.downcast_truncate()
+    let batch = global_lane / output_lanes
+    let lane = global_lane % output_lanes
+    let input_progress_base = batch * input_lanes
+    let mut completed = true
+    let mut input_lane: u32 = 0
+    while input_lane < input_lanes {
+        if inverse_progress.load(index: input_progress_base + input_lane)
+            != InputPlan::FACTORS.downcast_truncate()
+        {
+            completed = false
+        }
+        input_lane = input_lane + 1
+    }
+
+    let one = F::radix2_root(0)
+    let shift_valid = !shift.radix2_is_zero()
+        && !shift.radix2_pow(output_points).radix2_sub(one).radix2_is_zero()
+    let batch_valid = completed && shift_valid
+    let scale = F::from_storage(input_points).radix2_inverse_or_zero()
+    let input_base = batch * input_points
+    let output_base = batch * output_points
+    let second = lane + output_lanes
+
+    let mut first_value = F::radix2_zero()
+    if batch_valid && lane < input_points {
+        first_value = F::from_storage(
+            coefficients.load(index: input_base + lane),
+        ).radix2_mul(scale).radix2_mul(shift.radix2_pow(lane))
+    }
+    values.store(
+        index: output_base + bit_reversed_index<OUT>(lane),
+        value: first_value.to_storage(),
+    )
+
+    let mut second_value = F::radix2_zero()
+    if batch_valid && second < input_points {
+        second_value = F::from_storage(
+            coefficients.load(index: input_base + second),
+        ).radix2_mul(scale).radix2_mul(shift.radix2_pow(second))
+    }
+    values.store(
+        index: output_base + bit_reversed_index<OUT>(second),
+        value: second_value.to_storage(),
+    )
+    progress.store(index: global_lane, value: 0)
+    BatchCosetPreparation {
+        active: true,
+        valid: batch_valid,
+        batch: batch,
+        lane: lane,
+    }
+}
+
+/// Check one completed batch without imposing a destination buffer.
+///
+/// This is the zero-copy finish interpretation used when the transform's
+/// working storage is itself the retained codeword. It shares the exact
+/// progress predicate with the copying interpretation below.
+#[inline(always)]
+pub fn finish_batched_stage_grid<
+    const BATCHES: usize,
+    const N: usize,
+    const LANES: usize,
+    const VALUE_WORDS: usize,
+    const PROGRESS_WORDS: usize,
+    Plan: StageGrid,
+>(
+    _ progress: StorageBuffer<u32, PROGRESS_WORDS>,
+    _ invocation: ComputeInvocation,
+) -> BatchStageGridFinish
+where
+    BATCHES > 0,
+    N > 0,
+    N > 1,
+    { (N & (N - 1)) == 0 },
+    { LANES * 2 == N },
+    { VALUE_WORDS >= BATCHES * N },
+    { PROGRESS_WORDS >= BATCHES * LANES },
+    { Plan::POINTS == N },
+{
+    let global_lane = invocation.global.x
+    let total_lanes: u32 = (BATCHES * LANES).downcast_truncate()
+    if global_lane >= total_lanes {
+        return BatchStageGridFinish {
+            active: false,
+            valid: true,
+            batch: 0,
+            lane: 0,
+        }
+    }
+
+    let lanes: u32 = LANES.downcast_truncate()
+    let batch = global_lane / lanes
+    let lane = global_lane % lanes
+
+    let progress_base = batch * lanes
+    let mut complete = true
+    let mut checked: u32 = 0
+    while checked < lanes {
+        if progress.load(index: progress_base + checked)
+            != Plan::FACTORS.downcast_truncate()
+        {
+            complete = false
+        }
+        checked = checked + 1
+    }
+    BatchStageGridFinish {
+        active: true,
+        valid: complete,
+        batch: batch,
+        lane: lane,
+    }
+}
+
+/// Copy one completed batch into a larger application storage resource.
+/// The returned receipt lets the actor decide where semantic validity belongs
+/// without teaching the arithmetic library an application tape layout.
+pub fn finish_batched_stage_grid_into<
+    const BATCHES: usize,
+    const N: usize,
+    const LANES: usize,
+    const VALUE_WORDS: usize,
+    const PROGRESS_WORDS: usize,
+    const DESTINATION_WORDS: usize,
+    Plan: StageGrid,
+>(
+    _ values: StorageBuffer<u32, VALUE_WORDS>,
+    _ progress: StorageBuffer<u32, PROGRESS_WORDS>,
+    _ destination: StorageBuffer<u32, DESTINATION_WORDS>,
+    _ destination_start: u32,
+    _ invocation: ComputeInvocation,
+) -> BatchStageGridFinish
+where
+    BATCHES > 0,
+    N > 0,
+    N > 1,
+    { (N & (N - 1)) == 0 },
+    { LANES * 2 == N },
+    { VALUE_WORDS >= BATCHES * N },
+    { PROGRESS_WORDS >= BATCHES * LANES },
+    { Plan::POINTS == N },
+{
+    let finish = finish_batched_stage_grid<
+        BATCHES,
+        N,
+        LANES,
+        VALUE_WORDS,
+        PROGRESS_WORDS,
+        Plan,
+    >(progress, invocation)
+    if !finish.active {
+        return finish
+    }
+
+    let points: u32 = N.downcast_truncate()
+    let lanes: u32 = LANES.downcast_truncate()
+    let value_base = finish.batch * points
+    let destination_base = destination_start + finish.batch * points
+    destination.store(
+        index: destination_base + finish.lane,
+        value: values.load(index: value_base + finish.lane),
+    )
+    destination.store(
+        index: destination_base + finish.lane + lanes,
+        value: values.load(index: value_base + finish.lane + lanes),
+    )
+    finish
+}
+
+/// Execute one forward NTT stage for every active physical butterfly lane.
+/// The enclosing `RepeatedDispatch` count must be `Plan::FACTORS`.
+pub fn forward_stage_grid_lane<
+    const N: usize,
+    const LANES: usize,
+    F: StorageRadix2Field,
+    Plan: StageGrid,
+>(
+    _ values: StorageBuffer<u32, N>,
+    _ progress: StorageBuffer<u32, LANES>,
+    _ invocation: ComputeInvocation,
+) -> StageGridStep
+where
+    N > 0,
+    N > 1,
+    { (N & (N - 1)) == 0 },
+    { LANES * 2 == N },
+    { radix2_field_domain_supported<N, F>() },
+    { Plan::POINTS == N },
+{
+    apply_stage_grid_lane<N, LANES, F, Plan>(
+        values,
+        progress,
+        invocation,
+        false,
+    )
+}
+
+/// Execute one inverse NTT butterfly stage. A subsequent call to
+/// `finish_inverse_stage_grid` applies the required domain-size inverse.
+pub fn inverse_stage_grid_lane<
+    const N: usize,
+    const LANES: usize,
+    F: StorageRadix2Field,
+    Plan: StageGrid,
+>(
+    _ values: StorageBuffer<u32, N>,
+    _ progress: StorageBuffer<u32, LANES>,
+    _ invocation: ComputeInvocation,
+) -> StageGridStep
+where
+    N > 0,
+    N > 1,
+    { (N & (N - 1)) == 0 },
+    { LANES * 2 == N },
+    { radix2_field_domain_supported<N, F>() },
+    { Plan::POINTS == N },
+{
+    apply_stage_grid_lane<N, LANES, F, Plan>(
+        values,
+        progress,
+        invocation,
+        true,
+    )
+}
+
+/// Apply `N^-1` after the inverse stage grid. Each lane owns two values, so no
+/// storage location is shared within the dispatch.
+pub fn finish_inverse_stage_grid<
+    const N: usize,
+    const LANES: usize,
+    F: StorageRadix2Field,
+>(
+    _ values: StorageBuffer<u32, N>,
+    _ invocation: ComputeInvocation,
+) where
+    N > 0,
+    N > 1,
+    { (N & (N - 1)) == 0 },
+    { LANES * 2 == N },
+{
+    let lane = invocation.global.x
+    if lane >= LANES.downcast_truncate() { return }
+    let scale = F::from_storage(N.downcast_truncate())
+        .radix2_inverse_or_zero()
+    let second = lane + LANES.downcast_truncate()
+    values.store(
+        index: lane,
+        value: F::from_storage(values.load(index: lane))
+            .radix2_mul(scale).to_storage(),
+    )
+    values.store(
+        index: second,
+        value: F::from_storage(values.load(index: second))
+            .radix2_mul(scale).to_storage(),
+    )
+}

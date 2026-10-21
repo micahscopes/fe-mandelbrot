@@ -1,0 +1,52 @@
+//! Small, table-free bit-packing operations for the Hades Grain
+//! self-shrinker.
+
+/// Apply the canonical self-shrinking rule to nine chronological pairs.
+/// Returns `(admitted_bits, admitted_count)`, with the earliest admitted bit
+/// at the most-significant occupied position of `admitted_bits`.
+pub const fn self_shrink_9(_ raw: u32) -> (u32, u32) {
+    let mut selectors = raw & 0x55555
+    selectors = (selectors | (selectors >> 1)) & 0x33333
+    selectors = (selectors | (selectors >> 2)) & 0x0f0f0f
+    selectors = (selectors | (selectors >> 4)) & 0x00ff00ff
+    selectors = (selectors | (selectors >> 8)) & 0x0000ffff
+    let mut data = (raw >> 1) & 0x55555
+    data = (data | (data >> 1)) & 0x33333
+    data = (data | (data >> 2)) & 0x0f0f0f
+    data = (data | (data >> 4)) & 0x00ff00ff
+    data = (data | (data >> 8)) & 0x0000ffff
+
+    let mut selected = data & selectors
+    let mut moving_mask = ((!selectors) << 1) & 511
+    let mut packed_mask = selectors
+    let mut distance: u32 = 1
+    let mut stage: u32 = 0
+    while stage < 4 {
+        let mut prefix = moving_mask ^ (moving_mask << 1)
+        prefix = prefix ^ (prefix << 2)
+        prefix = prefix ^ (prefix << 4)
+        prefix = prefix ^ (prefix << 8)
+        let moving = prefix & packed_mask
+        packed_mask = (packed_mask ^ moving) | (moving >> distance)
+        let payload = selected & moving
+        selected = (selected ^ payload) | (payload >> distance)
+        moving_mask = moving_mask & (!prefix)
+        distance = distance << 1
+        stage = stage + 1
+    }
+
+    let mut population = selectors - ((selectors >> 1) & 0x55555555)
+    population = (population & 0x33333333) + ((population >> 2) & 0x33333333)
+    population = (population + (population >> 4)) & 0x0f0f0f0f
+    population = population + (population >> 8)
+    let available = population & 0x1f
+
+    let mut reversed = selected
+    reversed = ((reversed >> 1) & 0x55555555) | ((reversed & 0x55555555) << 1)
+    reversed = ((reversed >> 2) & 0x33333333) | ((reversed & 0x33333333) << 2)
+    reversed = ((reversed >> 4) & 0x0f0f0f0f) | ((reversed & 0x0f0f0f0f) << 4)
+    reversed = ((reversed >> 8) & 0x00ff00ff) | ((reversed & 0x00ff00ff) << 8)
+    reversed = (reversed >> 16) | (reversed << 16)
+    let outputs = if available == 0 { 0 } else { reversed >> (32 - available) }
+    (outputs, available)
+}

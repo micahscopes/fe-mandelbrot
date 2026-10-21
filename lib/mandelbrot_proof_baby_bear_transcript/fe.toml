@@ -1,0 +1,11 @@
+[ingot]
+name = "mandelbrot_proof_baby_bear_transcript"
+version = "0.1.0"
+
+[dependencies]
+canonical_words = "../canonical_words"
+core = "../../.cache/fe/ingots/core"
+mandelbrot_proof_baby_bear_domains = "../mandelbrot_proof_baby_bear_domains"
+poseidon_baby_bear = "../poseidon_baby_bear"
+precision = "../precision"
+quadratic_plan = "../quadratic_plan"

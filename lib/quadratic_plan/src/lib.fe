@@ -1,0 +1,1324 @@
+//! One arithmetic dependency plan interpreted as witnesses or constraints.
+//!
+//! A consumer authors its straight-line additions and multiplication calls
+//! once. `QuadraticWitnessInterpreter` evaluates each multiplication and stores
+//! its node. `QuadraticConstraintInterpreter` reads those committed nodes and
+//! emits `node - left * right` residuals. Every emitted relation is therefore
+//! quadratic even when the denoted expression has high algebraic degree.
+//!
+//! The fixed node capacity is checked by both interpreters. It is placement,
+//! not a second expression description: adding or removing a multiplication
+//! from the authored plan makes an old capacity fail closed.
+
+use canonical_words::{
+    CanonicalWords,
+    CanonicalWordsProvider,
+    WordSource,
+    WordSink,
+    decode_canonical_words,
+    encode_canonical_words,
+}
+use core::{BrowserPtr, alloc_browser_object}
+use precision::polynomial::Radix2Field
+
+pub struct QuadraticPlanWitness<F, const N: usize> {
+    pub nodes: [F; N],
+}
+impl<F: Radix2Field, const N: usize> core::marker::Copy
+    for QuadraticPlanWitness<F, N> {}
+derive CanonicalWords for QuadraticPlanWitness<F, N> using CanonicalWordsProvider
+
+pub struct QuadraticPlanResiduals<F, const N: usize> {
+    pub valid: bool,
+    pub values: [F; N],
+}
+impl<F: Radix2Field, const N: usize> core::marker::Copy
+    for QuadraticPlanResiduals<F, N> {}
+
+pub struct QuadraticPlanStep<I: core::marker::Copy, F: Radix2Field> {
+    pub interpreter: I,
+    pub value: F,
+}
+impl<I: core::marker::Copy, F: Radix2Field> core::marker::Copy
+    for QuadraticPlanStep<I, F> {}
+
+/// One interpretation of an authored multiplication node. Additions and
+/// constant scaling remain ordinary field operations in the shared plan.
+pub trait QuadraticPlanInterpreter<F: Radix2Field>: core::marker::Copy {
+    fn multiply(self, _ left: F, _ right: F) -> QuadraticPlanStep<Self, F>
+}
+
+/// Streaming witness interpretation for storage-oriented targets. Each
+/// multiplication result is encoded immediately through the supplied word
+/// sink, so a GPU kernel does not materialize and repeatedly copy an in-memory
+/// `[F; N]` plan. The authored dependency plan remains unchanged, only its
+/// physical placement differs from `QuadraticWitnessInterpreter`.
+pub struct QuadraticWordWitnessInterpreter<
+    W: WordSink,
+    const N: usize,
+> {
+    writer: W,
+    cursor: u32,
+    valid: bool,
+}
+impl<W: WordSink, const N: usize> core::marker::Copy
+    for QuadraticWordWitnessInterpreter<W, N> {}
+
+impl<W: WordSink, const N: usize>
+    QuadraticWordWitnessInterpreter<W, N> {
+    pub fn new(_ writer: W) -> Self {
+        Self { writer: writer, cursor: 0, valid: true }
+    }
+
+    pub fn finish(self) -> W {
+        if self.valid && self.cursor == N.downcast_truncate() {
+            self.writer
+        } else {
+            self.writer.reject()
+        }
+    }
+}
+
+impl<
+    F: Radix2Field + CanonicalWords,
+    W: WordSink,
+    const N: usize,
+> QuadraticPlanInterpreter<F>
+    for QuadraticWordWitnessInterpreter<W, N> {
+    fn multiply(self, _ left: F, _ right: F) -> QuadraticPlanStep<Self, F> {
+        let value = left.radix2_mul(right)
+        if !self.valid || self.cursor >= N.downcast_truncate() {
+            return QuadraticPlanStep {
+                interpreter: Self {
+                    writer: self.writer.reject(),
+                    cursor: self.cursor,
+                    valid: false,
+                },
+                value: F::radix2_zero(),
+            }
+        }
+        QuadraticPlanStep {
+            interpreter: Self {
+                writer: encode_canonical_words(ref value, self.writer),
+                cursor: self.cursor + 1,
+                valid: true,
+            },
+            value: value,
+        }
+    }
+}
+
+/// Result of checking a caller-owned word stream against one authored plan.
+/// The reader remains available so its concrete placement can independently
+/// verify exact width and bounds.
+pub struct QuadraticWordConstraintResult<R: WordSource> {
+    pub reader: R,
+    pub valid: bool,
+}
+impl<R: WordSource> core::marker::Copy for QuadraticWordConstraintResult<R> {}
+
+/// Storage-oriented constraint interpretation. Each multiplication reads one
+/// committed node, checks `node = left * right`, and immediately forgets the
+/// residual. This preserves the same authored dependency plan without either
+/// a private witness array or a private residual array.
+pub struct QuadraticWordConstraintInterpreter<
+    R: WordSource,
+    const N: usize,
+> {
+    reader: R,
+    cursor: u32,
+    valid: bool,
+}
+impl<R: WordSource, const N: usize> core::marker::Copy
+    for QuadraticWordConstraintInterpreter<R, N> {}
+
+impl<R: WordSource, const N: usize>
+    QuadraticWordConstraintInterpreter<R, N> {
+    pub fn new(_ reader: R) -> Self {
+        Self { reader: reader, cursor: 0, valid: true }
+    }
+
+    pub fn finish(self) -> QuadraticWordConstraintResult<R> {
+        QuadraticWordConstraintResult {
+            reader: self.reader,
+            valid: self.valid && self.cursor == N.downcast_truncate(),
+        }
+    }
+}
+
+impl<
+    F: Radix2Field + CanonicalWords,
+    R: WordSource,
+    const N: usize,
+> QuadraticPlanInterpreter<F>
+    for QuadraticWordConstraintInterpreter<R, N> {
+    fn multiply(self, _ left: F, _ right: F) -> QuadraticPlanStep<Self, F> {
+        if !self.valid || self.cursor >= N.downcast_truncate() {
+            return QuadraticPlanStep {
+                interpreter: Self {
+                    reader: self.reader.reject(),
+                    cursor: self.cursor,
+                    valid: false,
+                },
+                value: F::radix2_zero(),
+            }
+        }
+        let mut value = F::radix2_zero()
+        let reader = decode_canonical_words(mut value, self.reader)
+        QuadraticPlanStep {
+            interpreter: Self {
+                reader: reader,
+                cursor: self.cursor + 1,
+                valid: value
+                    .radix2_sub(left.radix2_mul(right))
+                    .radix2_is_zero(),
+            },
+            value: value,
+        }
+    }
+}
+
+/// A relation interpreter extends the arithmetic plan with ordered zero
+/// assertions. This is the common denotation needed by proof relations: the
+/// value interpreter evaluates it directly, the witness interpreter records
+/// every multiplication node, and the constraint interpreter emits both the
+/// multiplication equations and the authored assertions.
+pub struct QuadraticRelationStep<I: core::marker::Copy> {
+    pub interpreter: I,
+}
+impl<I: core::marker::Copy> core::marker::Copy for QuadraticRelationStep<I> {}
+
+pub trait QuadraticRelationInterpreter<F: Radix2Field>:
+    QuadraticPlanInterpreter<F> {
+    fn constrain_zero(self, _ value: F) -> QuadraticRelationStep<Self>
+}
+
+/// One multiplication row in a memory-backed quadratic relation witness.
+///
+/// These values prove only the local equation `output = left * right`.
+/// Semantic task identities and copy interactions must separately bind the
+/// operands to the exact authored dependency graph before a proof system may
+/// treat the stream as an authenticated program.
+pub struct QuadraticProductRow<F: Radix2Field> {
+    pub left: F,
+    pub right: F,
+    pub output: F,
+}
+impl<F: Radix2Field> core::marker::Copy for QuadraticProductRow<F> {}
+
+pub struct QuadraticRelationStreamAudit {
+    pub shape_valid: bool,
+    pub nonzero_products: u32,
+    pub nonzero_assertions: u32,
+}
+impl core::marker::Copy for QuadraticRelationStreamAudit {}
+
+/// Result of re-interpreting an authored relation against an untrusted stream.
+/// Operand copies bind each stored product row to the exact dependency DAG;
+/// local products bind its output; assertion copies bind the stored assertion
+/// row; and live assertions bind the resulting claim.
+pub struct QuadraticRelationStreamConstraintAudit {
+    pub shape_valid: bool,
+    pub operand_copy_mismatches: u32,
+    pub nonzero_products: u32,
+    pub assertion_copy_mismatches: u32,
+    pub nonzero_assertions: u32,
+}
+impl core::marker::Copy for QuadraticRelationStreamConstraintAudit {}
+
+struct QuadraticRelationStreamArena<
+    F: Radix2Field,
+    const PRODUCTS: usize,
+    const ASSERTIONS: usize,
+> {
+    products: [QuadraticProductRow<F>; PRODUCTS],
+    assertions: [F; ASSERTIONS],
+    product_count: u32,
+    assertion_count: u32,
+    exact_capacity: bool,
+    shape_valid: bool,
+}
+
+fn initialize_relation_stream<
+    F: Radix2Field,
+    const PRODUCTS: usize,
+    const ASSERTIONS: usize,
+>()
+uses (arena: mut QuadraticRelationStreamArena<F, PRODUCTS, ASSERTIONS>)
+{
+    arena.product_count = 0
+    arena.assertion_count = 0
+    arena.exact_capacity = true
+    arena.shape_valid = false
+}
+
+fn write_relation_product<
+    F: Radix2Field,
+    const PRODUCTS: usize,
+    const ASSERTIONS: usize,
+>(
+    _ index: u32,
+    _ row: QuadraticProductRow<F>,
+) -> bool
+uses (arena: mut QuadraticRelationStreamArena<F, PRODUCTS, ASSERTIONS>)
+{
+    if index >= PRODUCTS.downcast_truncate() || index != arena.product_count {
+        arena.shape_valid = false
+        return false
+    }
+    arena.products[index as usize] = row
+    arena.product_count = index + 1
+    true
+}
+
+fn write_relation_assertion<
+    F: Radix2Field,
+    const PRODUCTS: usize,
+    const ASSERTIONS: usize,
+>(
+    _ index: u32,
+    _ value: F,
+) -> bool
+uses (arena: mut QuadraticRelationStreamArena<F, PRODUCTS, ASSERTIONS>)
+{
+    if index >= ASSERTIONS.downcast_truncate()
+        || index != arena.assertion_count
+    {
+        arena.shape_valid = false
+        return false
+    }
+    arena.assertions[index as usize] = value
+    arena.assertion_count = index + 1
+    true
+}
+
+fn finish_relation_stream<
+    F: Radix2Field,
+    const PRODUCTS: usize,
+    const ASSERTIONS: usize,
+>(
+    _ valid: bool,
+    _ exact_capacity: bool,
+)
+uses (arena: mut QuadraticRelationStreamArena<F, PRODUCTS, ASSERTIONS>)
+{
+    arena.exact_capacity = exact_capacity
+    arena.shape_valid = valid
+        && (!exact_capacity
+            || (arena.product_count == PRODUCTS.downcast_truncate()
+                && arena.assertion_count == ASSERTIONS.downcast_truncate()))
+}
+
+fn relation_product_at<
+    F: Radix2Field,
+    const PRODUCTS: usize,
+    const ASSERTIONS: usize,
+>(
+    _ index: u32,
+) -> QuadraticProductRow<F>
+uses (arena: mut QuadraticRelationStreamArena<F, PRODUCTS, ASSERTIONS>)
+{
+    if index >= arena.product_count {
+        let zero = F::radix2_zero()
+        return QuadraticProductRow { left: zero, right: zero, output: zero }
+    }
+    arena.products[index as usize]
+}
+
+fn relation_assertion_at<
+    F: Radix2Field,
+    const PRODUCTS: usize,
+    const ASSERTIONS: usize,
+>(
+    _ index: u32,
+) -> F
+uses (arena: mut QuadraticRelationStreamArena<F, PRODUCTS, ASSERTIONS>)
+{
+    if index >= arena.assertion_count { return F::radix2_zero() }
+    arena.assertions[index as usize]
+}
+
+fn relation_stream_shape_valid<
+    F: Radix2Field,
+    const PRODUCTS: usize,
+    const ASSERTIONS: usize,
+>() -> bool
+uses (arena: mut QuadraticRelationStreamArena<F, PRODUCTS, ASSERTIONS>)
+{
+    arena.shape_valid
+        && (!arena.exact_capacity
+            || (arena.product_count == PRODUCTS.downcast_truncate()
+                && arena.assertion_count == ASSERTIONS.downcast_truncate()))
+}
+
+fn relation_stream_product_count<
+    F: Radix2Field,
+    const PRODUCTS: usize,
+    const ASSERTIONS: usize,
+>() -> u32
+uses (arena: mut QuadraticRelationStreamArena<F, PRODUCTS, ASSERTIONS>)
+{
+    arena.product_count
+}
+
+fn relation_stream_assertion_count<
+    F: Radix2Field,
+    const PRODUCTS: usize,
+    const ASSERTIONS: usize,
+>() -> u32
+uses (arena: mut QuadraticRelationStreamArena<F, PRODUCTS, ASSERTIONS>)
+{
+    arena.assertion_count
+}
+
+fn replace_relation_product<
+    F: Radix2Field,
+    const PRODUCTS: usize,
+    const ASSERTIONS: usize,
+>(
+    _ index: u32,
+    _ row: QuadraticProductRow<F>,
+) -> bool
+uses (arena: mut QuadraticRelationStreamArena<F, PRODUCTS, ASSERTIONS>)
+{
+    if !arena.shape_valid || index >= arena.product_count { return false }
+    arena.products[index as usize] = row
+    true
+}
+
+fn replace_relation_assertion<
+    F: Radix2Field,
+    const PRODUCTS: usize,
+    const ASSERTIONS: usize,
+>(
+    _ index: u32,
+    _ value: F,
+) -> bool
+uses (arena: mut QuadraticRelationStreamArena<F, PRODUCTS, ASSERTIONS>)
+{
+    if !arena.shape_valid || index >= arena.assertion_count { return false }
+    arena.assertions[index as usize] = value
+    true
+}
+
+fn audit_relation_stream<
+    F: Radix2Field,
+    const PRODUCTS: usize,
+    const ASSERTIONS: usize,
+>() -> QuadraticRelationStreamAudit
+uses (arena: mut QuadraticRelationStreamArena<F, PRODUCTS, ASSERTIONS>)
+{
+    let shape_valid = arena.shape_valid
+        && (!arena.exact_capacity
+            || (arena.product_count == PRODUCTS.downcast_truncate()
+                && arena.assertion_count == ASSERTIONS.downcast_truncate()))
+    if !shape_valid {
+        return QuadraticRelationStreamAudit {
+            shape_valid: false,
+            nonzero_products: 0,
+            nonzero_assertions: 0,
+        }
+    }
+    let mut nonzero_products: u32 = 0
+    let mut product: usize = 0
+    while product < arena.product_count as usize {
+        let row = arena.products[product]
+        let residual = row.output.radix2_sub(
+            row.left.radix2_mul(row.right),
+        )
+        if !residual.radix2_is_zero() {
+            nonzero_products = nonzero_products + 1
+        }
+        product = product + 1
+    }
+    let mut nonzero_assertions: u32 = 0
+    let mut assertion: usize = 0
+    while assertion < arena.assertion_count as usize {
+        if !arena.assertions[assertion].radix2_is_zero() {
+            nonzero_assertions = nonzero_assertions + 1
+        }
+        assertion = assertion + 1
+    }
+    QuadraticRelationStreamAudit {
+        shape_valid: shape_valid,
+        nonzero_products: nonzero_products,
+        nonzero_assertions: nonzero_assertions,
+    }
+}
+
+/// Opaque typed handle to a relation witness retained in browser linear
+/// memory. The buffer is intentionally mutable because proof witnesses are
+/// untrusted inputs. `audit` checks local arithmetic and assertion residuals;
+/// a consumer must additionally authenticate semantic tasks and copy wiring.
+pub struct QuadraticRelationStream<
+    F: Radix2Field,
+    const PRODUCTS: usize,
+    const ASSERTIONS: usize,
+> {
+    arena: BrowserPtr<QuadraticRelationStreamArena<F, PRODUCTS, ASSERTIONS>>,
+    available: bool,
+}
+impl<F: Radix2Field, const PRODUCTS: usize, const ASSERTIONS: usize>
+    core::marker::Copy
+    for QuadraticRelationStream<F, PRODUCTS, ASSERTIONS> {}
+
+impl<F: Radix2Field, const PRODUCTS: usize, const ASSERTIONS: usize>
+    QuadraticRelationStream<F, PRODUCTS, ASSERTIONS> {
+    pub fn product(self, _ index: u32) -> QuadraticProductRow<F> {
+        if !self.available {
+            let zero = F::radix2_zero()
+            return QuadraticProductRow { left: zero, right: zero, output: zero }
+        }
+        with (self.arena) {
+            relation_product_at<F, PRODUCTS, ASSERTIONS>(index)
+        }
+    }
+
+    pub fn assertion(self, _ index: u32) -> F {
+        if !self.available { return F::radix2_zero() }
+        with (self.arena) {
+            relation_assertion_at<F, PRODUCTS, ASSERTIONS>(index)
+        }
+    }
+
+    pub fn shape_valid(self) -> bool {
+        self.available && with (self.arena) {
+            relation_stream_shape_valid<F, PRODUCTS, ASSERTIONS>()
+        }
+    }
+
+    pub fn product_count(self) -> u32 {
+        if !self.available { return 0 }
+        with (self.arena) {
+            relation_stream_product_count<F, PRODUCTS, ASSERTIONS>()
+        }
+    }
+
+    pub fn assertion_count(self) -> u32 {
+        if !self.available { return 0 }
+        with (self.arena) {
+            relation_stream_assertion_count<F, PRODUCTS, ASSERTIONS>()
+        }
+    }
+
+    pub fn replace_product(
+        self,
+        _ index: u32,
+        _ row: QuadraticProductRow<F>,
+    ) -> bool {
+        if !self.available { return false }
+        with (self.arena) {
+            replace_relation_product<F, PRODUCTS, ASSERTIONS>(index, row)
+        }
+    }
+
+    pub fn replace_assertion(self, _ index: u32, _ value: F) -> bool {
+        if !self.available { return false }
+        with (self.arena) {
+            replace_relation_assertion<F, PRODUCTS, ASSERTIONS>(index, value)
+        }
+    }
+
+    pub fn audit(self) -> QuadraticRelationStreamAudit {
+        if !self.available {
+            return QuadraticRelationStreamAudit {
+                shape_valid: false,
+                nonzero_products: 0,
+                nonzero_assertions: 0,
+            }
+        }
+        with (self.arena) {
+            audit_relation_stream<F, PRODUCTS, ASSERTIONS>()
+        }
+    }
+}
+
+/// Streaming interpretation of one authored relation. Only this small handle
+/// and its cursors remain live in Wasm; product and assertion rows are written
+/// directly into typed arena storage as the shared Fe relation executes.
+pub struct QuadraticRelationStreamInterpreter<
+    F: Radix2Field,
+    const PRODUCTS: usize,
+    const ASSERTIONS: usize,
+> {
+    stream: QuadraticRelationStream<F, PRODUCTS, ASSERTIONS>,
+    product_cursor: u32,
+    assertion_cursor: u32,
+    valid: bool,
+}
+impl<F: Radix2Field, const PRODUCTS: usize, const ASSERTIONS: usize>
+    core::marker::Copy
+    for QuadraticRelationStreamInterpreter<F, PRODUCTS, ASSERTIONS> {}
+
+impl<F: Radix2Field, const PRODUCTS: usize, const ASSERTIONS: usize>
+    QuadraticRelationStreamInterpreter<F, PRODUCTS, ASSERTIONS> {
+    pub fn new() -> Self {
+        let arena = alloc_browser_object<
+            QuadraticRelationStreamArena<F, PRODUCTS, ASSERTIONS>,
+        >()
+        let available = arena.address() != 0
+        let stream = QuadraticRelationStream {
+            arena: arena,
+            available: available,
+        }
+        let valid = available && with (arena) {
+            initialize_relation_stream<F, PRODUCTS, ASSERTIONS>()
+            true
+        }
+        Self {
+            stream: stream,
+            product_cursor: 0,
+            assertion_cursor: 0,
+            valid: valid,
+        }
+    }
+
+    pub fn finish(self) -> QuadraticRelationStream<F, PRODUCTS, ASSERTIONS> {
+        let valid = self.valid
+            && self.product_cursor == PRODUCTS.downcast_truncate()
+            && self.assertion_cursor == ASSERTIONS.downcast_truncate()
+        if self.stream.available {
+            with (self.stream.arena) {
+                finish_relation_stream<F, PRODUCTS, ASSERTIONS>(valid, true)
+            }
+        }
+        self.stream
+    }
+
+    /// Finish a value-dependent relation whose exact row counts are replayed
+    /// from the same authored plan. Capacities remain hard upper bounds, while
+    /// truncation still fails when the constraint interpreter consumes the
+    /// stream again.
+    pub fn finish_bounded(
+        self,
+    ) -> QuadraticRelationStream<F, PRODUCTS, ASSERTIONS> {
+        if self.stream.available {
+            with (self.stream.arena) {
+                finish_relation_stream<F, PRODUCTS, ASSERTIONS>(
+                    self.valid,
+                    false,
+                )
+            }
+        }
+        self.stream
+    }
+}
+
+impl<F: Radix2Field, const PRODUCTS: usize, const ASSERTIONS: usize>
+    QuadraticPlanInterpreter<F>
+    for QuadraticRelationStreamInterpreter<F, PRODUCTS, ASSERTIONS> {
+    fn multiply(self, _ left: F, _ right: F) -> QuadraticPlanStep<Self, F> {
+        let value = left.radix2_mul(right)
+        let wrote = self.valid && self.stream.available
+            && with (self.stream.arena) {
+                write_relation_product<F, PRODUCTS, ASSERTIONS>(
+                    self.product_cursor,
+                    QuadraticProductRow {
+                        left: left,
+                        right: right,
+                        output: value,
+                    },
+                )
+            }
+        QuadraticPlanStep {
+            interpreter: Self {
+                stream: self.stream,
+                product_cursor: if wrote {
+                    self.product_cursor + 1
+                } else {
+                    self.product_cursor
+                },
+                assertion_cursor: self.assertion_cursor,
+                valid: wrote,
+            },
+            value: if wrote { value } else { F::radix2_zero() },
+        }
+    }
+}
+
+impl<F: Radix2Field, const PRODUCTS: usize, const ASSERTIONS: usize>
+    QuadraticRelationInterpreter<F>
+    for QuadraticRelationStreamInterpreter<F, PRODUCTS, ASSERTIONS> {
+    fn constrain_zero(self, _ value: F) -> QuadraticRelationStep<Self> {
+        let wrote = self.valid && self.stream.available
+            && with (self.stream.arena) {
+                write_relation_assertion<F, PRODUCTS, ASSERTIONS>(
+                    self.assertion_cursor,
+                    value,
+                )
+            }
+        QuadraticRelationStep {
+            interpreter: Self {
+                stream: self.stream,
+                product_cursor: self.product_cursor,
+                assertion_cursor: if wrote {
+                    self.assertion_cursor + 1
+                } else {
+                    self.assertion_cursor
+                },
+                valid: wrote,
+            },
+        }
+    }
+}
+
+/// Constraint interpretation of a memory-backed relation witness. The same
+/// authored function that generated the stream is executed again, but every
+/// multiplication consumes the untrusted row output and checks its stored
+/// operands against the authored dependencies. This authenticates arbitrary
+/// fixed DAG topology without a second hand-written wiring program.
+pub struct QuadraticRelationStreamConstraintInterpreter<
+    F: Radix2Field,
+    const PRODUCTS: usize,
+    const ASSERTIONS: usize,
+> {
+    stream: QuadraticRelationStream<F, PRODUCTS, ASSERTIONS>,
+    product_cursor: u32,
+    assertion_cursor: u32,
+    operand_copy_mismatches: u32,
+    nonzero_products: u32,
+    assertion_copy_mismatches: u32,
+    nonzero_assertions: u32,
+    valid: bool,
+}
+impl<F: Radix2Field, const PRODUCTS: usize, const ASSERTIONS: usize>
+    core::marker::Copy
+    for QuadraticRelationStreamConstraintInterpreter<F, PRODUCTS, ASSERTIONS> {}
+
+impl<F: Radix2Field, const PRODUCTS: usize, const ASSERTIONS: usize>
+    QuadraticRelationStreamConstraintInterpreter<F, PRODUCTS, ASSERTIONS> {
+    pub fn new(
+        _ stream: QuadraticRelationStream<F, PRODUCTS, ASSERTIONS>,
+    ) -> Self {
+        Self {
+            stream: stream,
+            product_cursor: 0,
+            assertion_cursor: 0,
+            operand_copy_mismatches: 0,
+            nonzero_products: 0,
+            assertion_copy_mismatches: 0,
+            nonzero_assertions: 0,
+            valid: stream.shape_valid(),
+        }
+    }
+
+    pub fn finish(self) -> QuadraticRelationStreamConstraintAudit {
+        QuadraticRelationStreamConstraintAudit {
+            shape_valid: self.valid
+                && self.product_cursor == PRODUCTS.downcast_truncate()
+                && self.assertion_cursor == ASSERTIONS.downcast_truncate(),
+            operand_copy_mismatches: self.operand_copy_mismatches,
+            nonzero_products: self.nonzero_products,
+            assertion_copy_mismatches: self.assertion_copy_mismatches,
+            nonzero_assertions: self.nonzero_assertions,
+        }
+    }
+
+    /// Complete replay of a bounded stream. The producer's runtime counts are
+    /// authority only for shape, never for values: every stored row has still
+    /// been consumed through the authored relation and checked above.
+    pub fn finish_bounded(self) -> QuadraticRelationStreamConstraintAudit {
+        QuadraticRelationStreamConstraintAudit {
+            shape_valid: self.valid
+                && self.product_cursor == self.stream.product_count()
+                && self.assertion_cursor == self.stream.assertion_count(),
+            operand_copy_mismatches: self.operand_copy_mismatches,
+            nonzero_products: self.nonzero_products,
+            assertion_copy_mismatches: self.assertion_copy_mismatches,
+            nonzero_assertions: self.nonzero_assertions,
+        }
+    }
+}
+
+impl<F: Radix2Field, const PRODUCTS: usize, const ASSERTIONS: usize>
+    QuadraticPlanInterpreter<F>
+    for QuadraticRelationStreamConstraintInterpreter<F, PRODUCTS, ASSERTIONS> {
+    fn multiply(self, _ left: F, _ right: F) -> QuadraticPlanStep<Self, F> {
+        let mut next = self
+        if !next.valid || next.product_cursor >= PRODUCTS.downcast_truncate() {
+            next.valid = false
+            return QuadraticPlanStep {
+                interpreter: next,
+                value: F::radix2_zero(),
+            }
+        }
+        let row = next.stream.product(next.product_cursor)
+        if !row.left.radix2_sub(left).radix2_is_zero() {
+            next.operand_copy_mismatches = next.operand_copy_mismatches + 1
+        }
+        if !row.right.radix2_sub(right).radix2_is_zero() {
+            next.operand_copy_mismatches = next.operand_copy_mismatches + 1
+        }
+        if !row.output.radix2_sub(
+            row.left.radix2_mul(row.right),
+        ).radix2_is_zero() {
+            next.nonzero_products = next.nonzero_products + 1
+        }
+        next.product_cursor = next.product_cursor + 1
+        QuadraticPlanStep { interpreter: next, value: row.output }
+    }
+}
+
+impl<F: Radix2Field, const PRODUCTS: usize, const ASSERTIONS: usize>
+    QuadraticRelationInterpreter<F>
+    for QuadraticRelationStreamConstraintInterpreter<F, PRODUCTS, ASSERTIONS> {
+    fn constrain_zero(self, _ value: F) -> QuadraticRelationStep<Self> {
+        let mut next = self
+        if !next.valid || next.assertion_cursor >= ASSERTIONS.downcast_truncate() {
+            next.valid = false
+            return QuadraticRelationStep { interpreter: next }
+        }
+        let stored = next.stream.assertion(next.assertion_cursor)
+        if !stored.radix2_sub(value).radix2_is_zero() {
+            next.assertion_copy_mismatches = next.assertion_copy_mismatches + 1
+        }
+        if !value.radix2_is_zero() {
+            next.nonzero_assertions = next.nonzero_assertions + 1
+        }
+        next.assertion_cursor = next.assertion_cursor + 1
+        QuadraticRelationStep { interpreter: next }
+    }
+}
+
+pub struct QuadraticRelationWitness<
+    F: Radix2Field,
+    const PRODUCTS: usize,
+    const ASSERTIONS: usize,
+> {
+    pub nodes: [F; PRODUCTS],
+    shape_valid: bool,
+}
+impl<F: Radix2Field, const PRODUCTS: usize, const ASSERTIONS: usize>
+    core::marker::Copy
+    for QuadraticRelationWitness<F, PRODUCTS, ASSERTIONS> {}
+
+pub struct QuadraticRelationResiduals<
+    F: Radix2Field,
+    const PRODUCTS: usize,
+    const ASSERTIONS: usize,
+> {
+    pub valid: bool,
+    pub products: [F; PRODUCTS],
+    pub assertions: [F; ASSERTIONS],
+}
+impl<F: Radix2Field, const PRODUCTS: usize, const ASSERTIONS: usize>
+    core::marker::Copy
+    for QuadraticRelationResiduals<F, PRODUCTS, ASSERTIONS> {}
+
+/// Direct value interpretation of an authored plan. This lets callers expose
+/// the same typed expression as an ordinary value without maintaining a
+/// second unplanned implementation beside the witness and constraint forms.
+pub struct QuadraticValueInterpreter {
+    marker: u32,
+}
+impl core::marker::Copy for QuadraticValueInterpreter {}
+
+impl QuadraticValueInterpreter {
+    pub fn new() -> Self { Self { marker: 0 } }
+}
+
+impl<F: Radix2Field> QuadraticPlanInterpreter<F>
+    for QuadraticValueInterpreter {
+    fn multiply(self, _ left: F, _ right: F) -> QuadraticPlanStep<Self, F> {
+        QuadraticPlanStep {
+            interpreter: self,
+            value: left.radix2_mul(right),
+        }
+    }
+}
+
+pub struct QuadraticWitnessInterpreter<F: Radix2Field, const N: usize> {
+    nodes: [F; N],
+    cursor: u32,
+    valid: bool,
+}
+impl<F: Radix2Field, const N: usize> core::marker::Copy
+    for QuadraticWitnessInterpreter<F, N> {}
+
+impl<F: Radix2Field, const N: usize> QuadraticWitnessInterpreter<F, N> {
+    pub fn new() -> Self {
+        Self { nodes: [F::radix2_zero(); N], cursor: 0, valid: true }
+    }
+
+    pub fn finish(self) -> QuadraticPlanWitness<F, N> {
+        let valid = self.valid && self.cursor == N.downcast_truncate()
+        QuadraticPlanWitness {
+            nodes: if valid { self.nodes } else { [F::radix2_zero(); N] },
+        }
+    }
+}
+
+impl<F: Radix2Field, const N: usize> QuadraticPlanInterpreter<F>
+    for QuadraticWitnessInterpreter<F, N> {
+    fn multiply(self, _ left: F, _ right: F) -> QuadraticPlanStep<Self, F> {
+        let value = left.radix2_mul(right)
+        if !self.valid || self.cursor >= N.downcast_truncate() {
+            return QuadraticPlanStep {
+                interpreter: Self {
+                    nodes: self.nodes,
+                    cursor: self.cursor,
+                    valid: false,
+                },
+                value: F::radix2_zero(),
+            }
+        }
+        let mut nodes = self.nodes
+        nodes[self.cursor as usize] = value
+        QuadraticPlanStep {
+            interpreter: Self {
+                nodes: nodes,
+                cursor: self.cursor + 1,
+                valid: true,
+            },
+            value: value,
+        }
+    }
+}
+
+pub struct QuadraticConstraintInterpreter<F: Radix2Field, const N: usize> {
+    witness: QuadraticPlanWitness<F, N>,
+    residuals: [F; N],
+    cursor: u32,
+    valid: bool,
+}
+impl<F: Radix2Field, const N: usize> core::marker::Copy
+    for QuadraticConstraintInterpreter<F, N> {}
+
+impl<F: Radix2Field, const N: usize> QuadraticConstraintInterpreter<F, N> {
+    pub fn new(_ witness: QuadraticPlanWitness<F, N>) -> Self {
+        Self {
+            witness: witness,
+            residuals: [F::radix2_zero(); N],
+            cursor: 0,
+            valid: true,
+        }
+    }
+
+    pub fn finish(self) -> QuadraticPlanResiduals<F, N> {
+        let valid = self.valid && self.cursor == N.downcast_truncate()
+        QuadraticPlanResiduals {
+            valid: valid,
+            values: if valid {
+                self.residuals
+            } else {
+                [F::radix2_zero(); N]
+            },
+        }
+    }
+}
+
+impl<F: Radix2Field, const N: usize> QuadraticPlanInterpreter<F>
+    for QuadraticConstraintInterpreter<F, N> {
+    fn multiply(self, _ left: F, _ right: F) -> QuadraticPlanStep<Self, F> {
+        if !self.valid || self.cursor >= N.downcast_truncate() {
+            return QuadraticPlanStep {
+                interpreter: Self {
+                    witness: self.witness,
+                    residuals: self.residuals,
+                    cursor: self.cursor,
+                    valid: false,
+                },
+                value: F::radix2_zero(),
+            }
+        }
+        let value = self.witness.nodes[self.cursor as usize]
+        let mut residuals = self.residuals
+        residuals[self.cursor as usize] = value.radix2_sub(
+            left.radix2_mul(right),
+        )
+        QuadraticPlanStep {
+            interpreter: Self {
+                witness: self.witness,
+                residuals: residuals,
+                cursor: self.cursor + 1,
+                valid: true,
+            },
+            value: value,
+        }
+    }
+}
+
+/// Constraint interpretation of one contiguous window of an authored plan.
+///
+/// Every multiplication still advances through the same plan and projects the
+/// same committed witness value. Only nodes in `[START, END)` evaluate their
+/// quadratic residual. Multiple ordered windows can therefore place one large
+/// relation across GPU passes without copying or re-authoring its expression
+/// graph.
+pub struct QuadraticPlanFold<F: Radix2Field> {
+    pub valid: bool,
+    pub constraints: u32,
+    pub folded: F,
+}
+impl<F: Radix2Field> core::marker::Copy for QuadraticPlanFold<F> {}
+
+pub struct QuadraticConstraintWindowFoldInterpreter<
+    F: Radix2Field,
+    const N: usize,
+    const START: usize,
+    const END: usize,
+> {
+    witness: QuadraticPlanWitness<F, N>,
+    challenge: F,
+    power: F,
+    folded: F,
+    constraints: u32,
+    cursor: u32,
+    valid: bool,
+}
+impl<
+    F: Radix2Field,
+    const N: usize,
+    const START: usize,
+    const END: usize,
+> core::marker::Copy for QuadraticConstraintWindowFoldInterpreter<F, N, START, END> {}
+
+impl<
+    F: Radix2Field,
+    const N: usize,
+    const START: usize,
+    const END: usize,
+> QuadraticConstraintWindowFoldInterpreter<F, N, START, END> {
+    pub fn new(_ witness: QuadraticPlanWitness<F, N>, _ challenge: F) -> Self {
+        Self {
+            witness: witness,
+            challenge: challenge,
+            power: challenge.radix2_pow(0),
+            folded: F::radix2_zero(),
+            constraints: 0,
+            cursor: 0,
+            valid: START <= END && END <= N,
+        }
+    }
+    pub fn finish(self) -> QuadraticPlanFold<F> {
+        let valid = self.valid && self.cursor == N.downcast_truncate()
+        QuadraticPlanFold {
+            valid: valid,
+            constraints: self.constraints,
+            folded: if valid { self.folded } else { F::radix2_zero() },
+        }
+    }
+}
+
+impl<F: Radix2Field, const N: usize, const START: usize, const END: usize> QuadraticPlanInterpreter<
+    F,
+> for QuadraticConstraintWindowFoldInterpreter<F, N, START, END> {
+    fn multiply(self, _ left: F, _ right: F) -> QuadraticPlanStep<Self, F> {
+        if !self.valid || self.cursor >= N.downcast_truncate() {
+            return QuadraticPlanStep {
+                interpreter: Self {
+                    witness: self.witness,
+                    challenge: self.challenge,
+                    power: self.power,
+                    folded: self.folded,
+                    constraints: self.constraints,
+                    cursor: self.cursor,
+                    valid: false,
+                },
+                value: F::radix2_zero(),
+            }
+        }
+        let value = self.witness.nodes[self.cursor as usize]
+        let mut power = self.power
+        let mut folded = self.folded
+        let mut constraints = self.constraints
+        if self.cursor >= START.downcast_truncate() && self.cursor < END.downcast_truncate() {
+            let residual = value.radix2_sub(left.radix2_mul(right))
+            folded = folded.radix2_add(power.radix2_mul(residual))
+            power = power.radix2_mul(self.challenge)
+            constraints = constraints + 1
+        }
+        QuadraticPlanStep {
+            interpreter: Self {
+                witness: self.witness,
+                challenge: self.challenge,
+                power: power,
+                folded: folded,
+                constraints: constraints,
+                cursor: self.cursor + 1,
+                valid: true,
+            },
+            value: value,
+        }
+    }
+}
+
+/// Read-only projection of committed multiplication nodes through the same
+/// authored plan. A preceding constraint interpretation proves the nodes;
+/// replay then derives dependent values, ports, and addresses without paying
+/// for those multiplications again in each physical consumer pass.
+pub struct QuadraticPlanReplayInterpreter<F: Radix2Field, const N: usize> {
+    witness: QuadraticPlanWitness<F, N>,
+    cursor: u32,
+    valid: bool,
+}
+impl<F: Radix2Field, const N: usize> core::marker::Copy for QuadraticPlanReplayInterpreter<F, N> {}
+
+impl<F: Radix2Field, const N: usize> QuadraticPlanReplayInterpreter<F, N> {
+    pub fn new(_ witness: QuadraticPlanWitness<F, N>) -> Self {
+        Self { witness: witness, cursor: 0, valid: true }
+    }
+    pub fn finish(self) -> bool {
+        self.valid && self.cursor == N.downcast_truncate()
+    }
+}
+
+impl<F: Radix2Field, const N: usize> QuadraticPlanInterpreter<F> for QuadraticPlanReplayInterpreter<
+    F,
+    N,
+> {
+    fn multiply(self, _ left: F, _ right: F) -> QuadraticPlanStep<Self, F> {
+        if !self.valid || self.cursor >= N.downcast_truncate() {
+            return QuadraticPlanStep {
+                interpreter: Self { witness: self.witness, cursor: self.cursor, valid: false },
+                value: F::radix2_zero(),
+            }
+        }
+        QuadraticPlanStep {
+            interpreter: Self { witness: self.witness, cursor: self.cursor + 1, valid: true },
+            value: self.witness.nodes[self.cursor as usize],
+        }
+    }
+}
+
+/// Direct interpretation of a complete quadratic relation.
+pub struct QuadraticRelationValueInterpreter {
+    valid: bool,
+}
+impl core::marker::Copy for QuadraticRelationValueInterpreter {}
+
+impl QuadraticRelationValueInterpreter {
+    pub fn new() -> Self { Self { valid: true } }
+
+    pub fn finish(self) -> bool { self.valid }
+}
+
+impl<F: Radix2Field> QuadraticPlanInterpreter<F>
+    for QuadraticRelationValueInterpreter {
+    fn multiply(self, _ left: F, _ right: F) -> QuadraticPlanStep<Self, F> {
+        QuadraticPlanStep {
+            interpreter: self,
+            value: left.radix2_mul(right),
+        }
+    }
+}
+
+impl<F: Radix2Field> QuadraticRelationInterpreter<F>
+    for QuadraticRelationValueInterpreter {
+    fn constrain_zero(self, _ value: F) -> QuadraticRelationStep<Self> {
+        QuadraticRelationStep {
+            interpreter: Self {
+                valid: self.valid && value.radix2_is_zero(),
+            },
+        }
+    }
+}
+
+pub struct QuadraticRelationWitnessInterpreter<
+    F: Radix2Field,
+    const PRODUCTS: usize,
+    const ASSERTIONS: usize,
+> {
+    nodes: [F; PRODUCTS],
+    product_cursor: u32,
+    assertion_cursor: u32,
+    valid: bool,
+}
+impl<F: Radix2Field, const PRODUCTS: usize, const ASSERTIONS: usize>
+    core::marker::Copy
+    for QuadraticRelationWitnessInterpreter<F, PRODUCTS, ASSERTIONS> {}
+
+impl<F: Radix2Field, const PRODUCTS: usize, const ASSERTIONS: usize>
+    QuadraticRelationWitnessInterpreter<F, PRODUCTS, ASSERTIONS> {
+    pub fn new() -> Self {
+        Self {
+            nodes: [F::radix2_zero(); PRODUCTS],
+            product_cursor: 0,
+            assertion_cursor: 0,
+            valid: true,
+        }
+    }
+
+    pub fn finish(self) -> QuadraticRelationWitness<F, PRODUCTS, ASSERTIONS> {
+        let valid = self.valid
+            && self.product_cursor == PRODUCTS.downcast_truncate()
+            && self.assertion_cursor == ASSERTIONS.downcast_truncate()
+        QuadraticRelationWitness {
+            nodes: if valid { self.nodes } else { [F::radix2_zero(); PRODUCTS] },
+            shape_valid: valid,
+        }
+    }
+}
+
+impl<F: Radix2Field, const PRODUCTS: usize, const ASSERTIONS: usize>
+    QuadraticPlanInterpreter<F>
+    for QuadraticRelationWitnessInterpreter<F, PRODUCTS, ASSERTIONS> {
+    fn multiply(self, _ left: F, _ right: F) -> QuadraticPlanStep<Self, F> {
+        let value = left.radix2_mul(right)
+        if !self.valid || self.product_cursor >= PRODUCTS.downcast_truncate() {
+            return QuadraticPlanStep {
+                interpreter: Self {
+                    nodes: self.nodes,
+                    product_cursor: self.product_cursor,
+                    assertion_cursor: self.assertion_cursor,
+                    valid: false,
+                },
+                value: F::radix2_zero(),
+            }
+        }
+        let mut nodes = self.nodes
+        nodes[self.product_cursor as usize] = value
+        QuadraticPlanStep {
+            interpreter: Self {
+                nodes: nodes,
+                product_cursor: self.product_cursor + 1,
+                assertion_cursor: self.assertion_cursor,
+                valid: true,
+            },
+            value: value,
+        }
+    }
+}
+
+impl<F: Radix2Field, const PRODUCTS: usize, const ASSERTIONS: usize>
+    QuadraticRelationInterpreter<F>
+    for QuadraticRelationWitnessInterpreter<F, PRODUCTS, ASSERTIONS> {
+    fn constrain_zero(self, _ value: F) -> QuadraticRelationStep<Self> {
+        if !self.valid || self.assertion_cursor >= ASSERTIONS.downcast_truncate() {
+            return QuadraticRelationStep {
+                interpreter: Self {
+                    nodes: self.nodes,
+                    product_cursor: self.product_cursor,
+                    assertion_cursor: self.assertion_cursor,
+                    valid: false,
+                },
+            }
+        }
+        QuadraticRelationStep {
+            interpreter: Self {
+                nodes: self.nodes,
+                product_cursor: self.product_cursor,
+                assertion_cursor: self.assertion_cursor + 1,
+                valid: true,
+            },
+        }
+    }
+}
+
+pub struct QuadraticRelationConstraintInterpreter<
+    F: Radix2Field,
+    const PRODUCTS: usize,
+    const ASSERTIONS: usize,
+> {
+    witness: QuadraticRelationWitness<F, PRODUCTS, ASSERTIONS>,
+    product_residuals: [F; PRODUCTS],
+    assertion_residuals: [F; ASSERTIONS],
+    product_cursor: u32,
+    assertion_cursor: u32,
+    valid: bool,
+}
+impl<F: Radix2Field, const PRODUCTS: usize, const ASSERTIONS: usize>
+    core::marker::Copy
+    for QuadraticRelationConstraintInterpreter<F, PRODUCTS, ASSERTIONS> {}
+
+impl<F: Radix2Field, const PRODUCTS: usize, const ASSERTIONS: usize>
+    QuadraticRelationConstraintInterpreter<F, PRODUCTS, ASSERTIONS> {
+    pub fn new(_ witness: QuadraticRelationWitness<F, PRODUCTS, ASSERTIONS>) -> Self {
+        Self {
+            witness: witness,
+            product_residuals: [F::radix2_zero(); PRODUCTS],
+            assertion_residuals: [F::radix2_zero(); ASSERTIONS],
+            product_cursor: 0,
+            assertion_cursor: 0,
+            valid: witness.shape_valid,
+        }
+    }
+
+    pub fn finish(
+        self,
+    ) -> QuadraticRelationResiduals<F, PRODUCTS, ASSERTIONS> {
+        let valid = self.valid
+            && self.product_cursor == PRODUCTS.downcast_truncate()
+            && self.assertion_cursor == ASSERTIONS.downcast_truncate()
+        QuadraticRelationResiduals {
+            valid: valid,
+            products: if valid {
+                self.product_residuals
+            } else {
+                [F::radix2_zero(); PRODUCTS]
+            },
+            assertions: if valid {
+                self.assertion_residuals
+            } else {
+                [F::radix2_zero(); ASSERTIONS]
+            },
+        }
+    }
+}
+
+impl<F: Radix2Field, const PRODUCTS: usize, const ASSERTIONS: usize>
+    QuadraticPlanInterpreter<F>
+    for QuadraticRelationConstraintInterpreter<F, PRODUCTS, ASSERTIONS> {
+    fn multiply(self, _ left: F, _ right: F) -> QuadraticPlanStep<Self, F> {
+        if !self.valid || self.product_cursor >= PRODUCTS.downcast_truncate() {
+            return QuadraticPlanStep {
+                interpreter: Self {
+                    witness: self.witness,
+                    product_residuals: self.product_residuals,
+                    assertion_residuals: self.assertion_residuals,
+                    product_cursor: self.product_cursor,
+                    assertion_cursor: self.assertion_cursor,
+                    valid: false,
+                },
+                value: F::radix2_zero(),
+            }
+        }
+        let value = self.witness.nodes[self.product_cursor as usize]
+        let mut residuals = self.product_residuals
+        residuals[self.product_cursor as usize] = value.radix2_sub(
+            left.radix2_mul(right),
+        )
+        QuadraticPlanStep {
+            interpreter: Self {
+                witness: self.witness,
+                product_residuals: residuals,
+                assertion_residuals: self.assertion_residuals,
+                product_cursor: self.product_cursor + 1,
+                assertion_cursor: self.assertion_cursor,
+                valid: true,
+            },
+            value: value,
+        }
+    }
+}
+
+impl<F: Radix2Field, const PRODUCTS: usize, const ASSERTIONS: usize>
+    QuadraticRelationInterpreter<F>
+    for QuadraticRelationConstraintInterpreter<F, PRODUCTS, ASSERTIONS> {
+    fn constrain_zero(self, _ value: F) -> QuadraticRelationStep<Self> {
+        if !self.valid || self.assertion_cursor >= ASSERTIONS.downcast_truncate() {
+            return QuadraticRelationStep {
+                interpreter: Self {
+                    witness: self.witness,
+                    product_residuals: self.product_residuals,
+                    assertion_residuals: self.assertion_residuals,
+                    product_cursor: self.product_cursor,
+                    assertion_cursor: self.assertion_cursor,
+                    valid: false,
+                },
+            }
+        }
+        let mut residuals = self.assertion_residuals
+        residuals[self.assertion_cursor as usize] = value
+        QuadraticRelationStep {
+            interpreter: Self {
+                witness: self.witness,
+                product_residuals: self.product_residuals,
+                assertion_residuals: residuals,
+                product_cursor: self.product_cursor,
+                assertion_cursor: self.assertion_cursor + 1,
+                valid: true,
+            },
+        }
+    }
+}

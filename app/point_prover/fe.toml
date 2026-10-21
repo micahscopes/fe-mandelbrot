@@ -1,0 +1,12 @@
+[ingot]
+name = "mandelbrot_point_prover"
+version = "0.1.0"
+
+[dependencies]
+core = "../../.cache/fe/ingots/core"
+fri_structure = "../../lib/fri_structure"
+mandelbrot_proof_chunk_webgpu = "../../lib/mandelbrot_proof_chunk_webgpu"
+poseidon_baby_bear = "../../lib/poseidon_baby_bear"
+std = "../../.cache/fe/ingots/std"
+fmath = "../../lib/fmath"
+mandelbrot_proof_profile = "../../lib/mandelbrot_proof_profile"

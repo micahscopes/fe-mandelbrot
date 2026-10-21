@@ -1,0 +1,159 @@
+//! Bounded receipt views and owned scratch tables. All indices are word offsets.
+use core::{BrowserBytes, BrowserPtr, alloc_browser_bytes}
+use mandelbrot_proof_profile::{TRACE, LDE, FRI_ROUNDS, proof_chunk_layout}
+use poseidon_baby_bear::{Poseidon2Digest, Poseidon2FieldSponge, compress}
+use precision::baby_bear::{BabyBear, BabyBearExt4}
+
+pub struct Receipt { pub bytes: BrowserBytes }
+impl core::marker::Copy for Receipt {}
+impl Receipt {
+    pub fn has_exact_size(self) -> bool {
+        self.bytes.len == proof_chunk_layout(TRACE, LDE, FRI_ROUNDS).total_words * 4
+    }
+    pub fn word(self, _ index: u32) -> u32 {
+        if index >= self.bytes.len / 4 {
+            return 0
+        }
+        let p: BrowserPtr<u32> = BrowserPtr::from_u32(self.bytes.ptr + index * 4)
+        p.read()
+    }
+    pub fn extension(self, _ index: u32) -> BabyBearExt4 {
+        BabyBearExt4::from_coordinate_words(
+            self.word(index),
+            self.word(index + 1),
+            self.word(index + 2),
+            self.word(index + 3),
+        )
+    }
+    pub fn digest(self, _ index: u32) -> Poseidon2Digest {
+        let mut fields = [BabyBear::zero(); 8]
+        let mut i: u32 = 0
+        while i < 8 {
+            fields[i as usize] = BabyBear::from_u32(self.word(index + i))
+            i = i + 1
+        }
+        Poseidon2Digest::from_fields(fields)
+    }
+}
+
+pub fn hash_fields<const N: usize>(
+    _ tag: u32,
+    _ prefix: u32,
+    _ fields: ref [BabyBear; N],
+) -> Poseidon2Digest {
+    let mut sponge = Poseidon2FieldSponge::begin_prefixed_tag(tag, prefix, N.downcast_truncate())
+    let mut i: u32 = 0
+    while i < N.downcast_truncate() {
+        let field = [fields[i as usize]]
+        sponge.absorb<1>(ref field)
+        i = i + 1
+    }
+    sponge.finish().digest()
+}
+pub fn hash_extension(_ tag: u32, _ value: BabyBearExt4) -> Poseidon2Digest {
+    let fields = [
+        value.coefficient_0(),
+        value.coefficient_1(),
+        value.coefficient_2(),
+        value.coefficient_3(),
+    ]
+    hash_fields<4>(tag, 4, ref fields)
+}
+pub fn hash_digest(_ tag: u32, _ value: Poseidon2Digest) -> Poseidon2Digest {
+    let mut fields = [BabyBear::zero(); 8]
+    let mut i: u32 = 0
+    while i < 8 {
+        fields[i as usize] = value.field(i)
+        i = i + 1
+    }
+    hash_fields<8>(tag, 8, ref fields)
+}
+pub fn bind_digest(
+    _ tag: u32,
+    _ left: Poseidon2Digest,
+    _ right: Poseidon2Digest,
+) -> Poseidon2Digest {
+    let mut fields = [BabyBear::zero(); 16]
+    let mut i: u32 = 0
+    while i < 8 {
+        fields[i as usize] = left.field(i)
+        fields[(i + 8) as usize] = right.field(i)
+        i = i + 1
+    }
+    hash_fields<16>(tag, 16, ref fields)
+}
+pub fn sampled_query(_ tag: u32, _ transcript: Poseidon2Digest) -> u32 {
+    let mut fields = [BabyBear::zero(); 9]
+    let mut i: u32 = 0
+    while i < 8 {
+        fields[i as usize] = transcript.field(i)
+        i = i + 1
+    }
+    fields[8] = BabyBear::one()
+    hash_fields<9>(tag, 9, ref fields).field(0).to_u32() & 2047
+}
+pub fn digest_challenge(_ digest: Poseidon2Digest) -> BabyBearExt4 {
+    BabyBearExt4::from_coordinate_fields(
+        digest.field(0),
+        digest.field(1),
+        digest.field(2),
+        digest.field(3),
+    )
+}
+
+/// Arena scratch is explicitly a tape of u32 words. Its stride is part of
+/// this format, independent of the compiler's private aggregate layout.
+pub struct ArenaWords { ptr: BrowserPtr<u32> }
+impl core::marker::Copy for ArenaWords {}
+impl ArenaWords {
+    pub fn new(_ words: u32) -> Self {
+        Self { ptr: BrowserPtr::from_u32(alloc_browser_bytes(words * 4).address()) }
+    }
+    pub fn load(self, _ index: u32) -> u32 {
+        let p: BrowserPtr<u32> = BrowserPtr::from_u32(self.ptr.address() + index * 4)
+        p.read()
+    }
+    pub fn store(self, _ index: u32, _ value: u32) {
+        let p: BrowserPtr<u32> = BrowserPtr::from_u32(self.ptr.address() + index * 4)
+        p.write(value)
+    }
+}
+
+pub struct DigestTree { words: ArenaWords, pub leaves: u32 }
+impl core::marker::Copy for DigestTree {}
+impl DigestTree {
+    pub fn new(_ leaves: u32) -> Self {
+        Self { words: ArenaWords::new(leaves * 8), leaves: leaves }
+    }
+    pub fn load(self, _ index: u32) -> Poseidon2Digest {
+        let mut fields = [BabyBear::zero(); 8]
+        let mut i: u32 = 0
+        while i < 8 {
+            fields[i as usize] = BabyBear::from_montgomery_word(self.words.load(index * 8 + i))
+            i = i + 1
+        }
+        Poseidon2Digest::from_fields(fields)
+    }
+    pub fn store(self, _ index: u32, _ digest: Poseidon2Digest) {
+        let mut i: u32 = 0
+        while i < 8 {
+            self.words.store(index * 8 + i, digest.field(i).to_montgomery_word())
+            i = i + 1
+        }
+    }
+    pub fn root(self) -> Poseidon2Digest {
+        let mut width = self.leaves
+        while width > 1 {
+            let mut i: u32 = 0
+            while i < width / 2 {
+                let left = self.load(i * 2)
+                let right = self.load(i * 2 + 1)
+                let parent = compress(left, right)
+                self.store(i, parent)
+                i = i + 1
+            }
+            width = width / 2
+        }
+        self.load(0)
+    }
+}

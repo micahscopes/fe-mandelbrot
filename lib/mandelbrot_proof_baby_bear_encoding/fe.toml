@@ -1,0 +1,8 @@
+[ingot]
+name = "mandelbrot_proof_baby_bear_encoding"
+version = "0.1.0"
+
+[dependencies]
+core = "../../.cache/fe/ingots/core"
+mandelbrot_proof_kernel = "../mandelbrot_proof_kernel"
+precision = "../precision"

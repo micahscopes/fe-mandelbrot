@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 def source_hash():
     files=[ROOT/'tools/build.py',ROOT/'tools/bootstrap.py',ROOT/'tools/source_catalog.py',ROOT/'fe.toml',ROOT/'toolchain.lock.json',ROOT/'web/source.html',*sorted((ROOT/'toolchain/patches').glob('*.patch'))]
+    files+=sorted(p for p in (ROOT/'web/proof').rglob('*') if p.is_file())
     files+=sorted(p for base in ['app','lib'] for p in (ROOT/base).rglob('*') if p.is_file() and p.suffix in ['.fe','.toml'])
     digest=hashlib.sha256()
     for p in files:digest.update(p.relative_to(ROOT).as_posix().encode()+b'\0'+p.read_bytes()+b'\0')
@@ -26,9 +27,17 @@ if __name__=='__main__':
     subprocess.run([args.fe,'web','build',str(ROOT/'app/renderer'),'--out',str(out/'renderer')],cwd=ROOT,check=True)
     subprocess.run([args.fe,'web','build',str(ROOT/'app/color_demo'),'--out',str(out/'colors')],cwd=ROOT,check=True)
     subprocess.run([args.fe,'web','precompile',str(ROOT/'web/source.html'),'--out',str(out/'viewer')],cwd=ROOT,check=True)
+    proof=out/'proof'
+    shutil.copytree(ROOT/'web/proof',proof)
+    subprocess.run([args.fe,'web','build',str(ROOT/'app/point_prover'),'--out',str(proof/'engine')],cwd=ROOT,check=True)
+    subprocess.run([args.fe,'web','build',str(ROOT/'app/proof_checker'),'--entry','wasm_anchor','--mode','render','--canonical','required','--canonical-entry','preflight','--canonical-entry','check','--out',str(proof/'checker')],cwd=ROOT,check=True)
+    proof_manifest=proof/'engine/manifest.json'
+    manifest=json.loads(proof_manifest.read_text())
+    next(resource for resource in manifest['resources'] if resource['name']=='proof')['buffer_usage']=['storage','copy_src']
+    proof_manifest.write_text(json.dumps(manifest,indent=2)+'\n')
     from source_catalog import generate
     generate(Path(args.fe).resolve(),ROOT,out)
-    for name in ['renderer','colors']:patch_runtime(out/name)
+    for name in ['renderer','colors','proof/engine']:patch_runtime(out/name)
     runtime=(out/'renderer/fe-render-runtime.js').read_text()
     assert 'control-${param.name}' in runtime,'Runtime lacks generic control styling parts'
     manifest={'sourceHash':source_hash(),'toolchain':json.loads((ROOT/'toolchain.lock.json').read_text()),'files':artifact_hashes(out)}

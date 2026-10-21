@@ -1,0 +1,9 @@
+[ingot]
+name = "mandelbrot_proof_air_core"
+version = "0.1.0"
+
+[dependencies]
+core = "../../.cache/fe/ingots/core"
+fri_structure = "../fri_structure"
+mandelbrot_proof_kernel = "../mandelbrot_proof_kernel"
+precision = "../precision"

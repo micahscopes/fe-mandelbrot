@@ -1,0 +1,236 @@
+//! Independent integer replay: this module never calls the prover's witness stream.
+use ingot::{PointQ12}
+use ingot::receipt::{Receipt, DigestTree, hash_fields}
+use mandelbrot_proof_profile::{TRACE, LDE, FRI_ROUNDS, BOUND, proof_chunk_layout}
+use precision::baby_bear::BabyBear
+use mandelbrot_proof_baby_bear_domains::{row_domain_tag, auxiliary_domain_tag, public_domain_tag}
+
+pub fn point_is_valid(_ point: PointQ12) -> bool {
+    point.re >= -8192 && point.re < 4096 && point.im >= -6144 && point.im < 6144
+}
+/// Sentinel values distinguish invalid input from bounded nonescape.
+pub fn escape_step(_ point: PointQ12) -> u32 {
+    if !point_is_valid(point) {
+        return 4294967295
+    }
+    let mut re: i64 = 0
+    let mut im: i64 = 0
+    let mut step: u32 = 0
+    while step <= BOUND {
+        if re * re + im * im >= 67108864 {
+            return step
+        }
+        let next_re = ((re * re - im * im) >> 12) + point.re as i64
+        im = ((2 * re * im) >> 12) + point.im as i64
+        re = next_re
+        step = step + 1
+    }
+    4294967294
+}
+fn sign(_ n: i64) -> u32 {
+    if n < 0 { 1 } else { 0 }
+}
+fn magnitude(_ n: i64) -> u32 {
+    if n < 0 {
+        (-n).downcast_truncate()
+    } else {
+        n.downcast_truncate()
+    }
+}
+fn pack<const N: usize, const F: usize>(
+    _ words: ref [u32; N],
+    _ widths: ref [u32; N],
+) -> [BabyBear; F] {
+    let mut result = [BabyBear::zero(); F]
+    let mut field: u32 = 0
+    let mut used: u32 = 0
+    let mut current: u32 = 0
+    let mut i: u32 = 0
+    while i < N.downcast_truncate() {
+        let mut bit: u32 = 0
+        while bit < widths[i as usize] {
+            current = current | (((words[i as usize] >> bit) & 1) << used)
+            used = used + 1
+            if used == 30 {
+                result[field as usize] = BabyBear::from_u32(current)
+                field = field + 1
+                used = 0
+                current = 0
+            }
+            bit = bit + 1
+        }
+        i = i + 1
+    }
+    if used != 0 {
+        result[field as usize] = BabyBear::from_u32(current)
+    }
+    result
+}
+fn fields_equal<const N: usize>(
+    _ proof: Receipt,
+    _ offset: u32,
+    _ fields: ref [BabyBear; N],
+) -> bool {
+    let mut i: u32 = 0
+    while i < N.downcast_truncate() {
+        if proof.word(offset + i.downcast_truncate()) != fields[i as usize].to_u32() {
+            return false
+        }
+        i = i + 1
+    }
+    true
+}
+fn auxiliary(_ row: ref [u32; 17]) -> [u32; 411] {
+    let columns: [u32; 10] = [0, 2, 4, 5, 6, 7, 9, 10, 12, 13]
+    let widths: [u32; 10] = [21, 15, 15, 30, 30, 31, 18, 12, 19, 12]
+    let mut result = [0; 411]
+    let mut cursor: u32 = 0
+    let mut c: u32 = 0
+    while c < 10 {
+        let width = widths[c as usize]
+        let mut bit: u32 = 0
+        let mut seen: u32 = 0
+        while bit < width {
+            let value = (row[columns[c as usize] as usize] >> bit) & 1
+            seen = seen | value
+            result[(cursor + bit) as usize] = value
+            result[(cursor + width + bit) as usize] = seen
+            bit = bit + 1
+        }
+        cursor = cursor + 2 * width
+        c = c + 1
+    }
+    let mut high: u32 = 0
+    let mut bit: u32 = 26
+    while bit < 31 {
+        high = high | ((row[7] >> bit) & 1)
+        result[cursor as usize] = high
+        cursor = cursor + 1
+        bit = bit + 1
+    }
+    result
+}
+/// Reason codes3–5 cover witness, public statement and commitments respectively.
+pub fn check_witness(_ proof: Receipt, _ point: PointQ12, _ terminal: u32) -> u32 {
+    let layout = proof_chunk_layout(TRACE, LDE, FRI_ROUNDS)
+    let public = [
+        if point.re < 0 { 1 } else { 0 },
+        point.re.unsigned_abs(),
+        if point.im < 0 { 1 } else { 0 },
+        point.im.unsigned_abs(),
+        BOUND,
+        terminal,
+        terminal + 1,
+        TRACE.downcast_truncate(),
+    ]
+    let widths = [1, 14, 1, 13, 21, 21, 21, 22]
+    let packed = pack<8, 4>(ref public, ref widths)
+    let mut i: u32 = 0
+    while i < 8 {
+        if proof.word(layout.canonical_public + i) != public[i as usize] {
+            return 4
+        }
+        i = i + 1
+    }
+    if !fields_equal<4>(proof, layout.packed_public, ref packed)
+        || !proof
+            .digest(layout.public_digest)
+            .equals(hash_fields<4>(public_domain_tag(), 114, ref packed)) {
+        return 4
+    }
+
+    let main_tree = DigestTree::new(1024)
+    let aux_tree = DigestTree::new(1024)
+    let row_widths = [21, 1, 15, 1, 15, 30, 30, 31, 1, 18, 12, 1, 19, 12, 1, 1, 1]
+    let aux_widths = [1; 411]
+    let mut re: i64 = 0
+    let mut im: i64 = 0
+    let mut row_index: u32 = 0
+    let mut step: u32 = 0
+    while row_index < 1024 {
+        let rr = re * re
+        let ii = im * im
+        let mag = rr + ii
+        let real_numerator = rr - ii
+        let imaginary_numerator = 2 * re * im
+        let qr = real_numerator >> 12
+        let qi = imaginary_numerator >> 12
+        let active = row_index <= terminal
+        let terminal_flag: u32 = if active && row_index == terminal {
+            1
+        } else {
+            0
+        }
+        let row = [
+            step,
+            sign(re),
+            magnitude(re),
+            sign(im),
+            magnitude(im),
+            rr.downcast_truncate(),
+            ii.downcast_truncate(),
+            mag.downcast_truncate(),
+            sign(qr),
+            magnitude(qr),
+            (real_numerator - qr * 4096).downcast_truncate(),
+            sign(qi),
+            magnitude(qi),
+            (imaginary_numerator - qi * 4096).downcast_truncate(),
+            if mag >= 67108864 { 1 } else { 0 },
+            if active { 1 } else { 0 },
+            terminal_flag,
+        ]
+        let aux = auxiliary(ref row)
+        let mut col: u32 = 0
+        while col < 17 {
+            if proof.word(col * 1024 + row_index) != row[col as usize] {
+                return 3
+            }
+            col = col + 1
+        }
+        col = 0
+        while col < 411 {
+            if proof.word((col + 17) * 1024 + row_index) != aux[col as usize] {
+                return 3
+            }
+            col = col + 1
+        }
+        let main_fields = pack<17, 7>(ref row, ref row_widths)
+        let aux_fields = pack<411, 14>(ref aux, ref aux_widths)
+        if !fields_equal<7>(
+            proof,
+            layout.packed_main_trace + row_index * 7,
+            ref main_fields,
+        ) {
+            return 5
+        }
+        if !fields_equal<14>(
+            proof,
+            layout.packed_auxiliary_trace + row_index * 14,
+            ref aux_fields,
+        ) {
+            return 5
+        }
+        main_tree.store(
+                row_index,
+                hash_fields<7>(row_domain_tag(), 210, ref main_fields),
+            )
+        aux_tree.store(
+                row_index,
+                hash_fields<14>(auxiliary_domain_tag(), 411, ref aux_fields),
+            )
+        if row_index < terminal {
+            re = qr + point.re as i64
+            im = qi + point.im as i64
+            step = step + 1
+        }
+        row_index = row_index + 1
+    }
+    if !main_tree.root().equals(proof.digest(layout.main_trace_root)) {
+        return 5
+    }
+    if !aux_tree.root().equals(proof.digest(layout.auxiliary_trace_root)) {
+        return 5
+    }
+    0
+}

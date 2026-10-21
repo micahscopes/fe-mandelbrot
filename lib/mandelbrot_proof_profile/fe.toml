@@ -1,0 +1,6 @@
+[ingot]
+name = "mandelbrot_proof_profile"
+version = "0.1.0"
+
+[dependencies]
+core = "../../.cache/fe/ingots/core"

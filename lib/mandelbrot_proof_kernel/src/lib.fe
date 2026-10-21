@@ -1,0 +1,1496 @@
+//! Reusable Fe witness semantics for the bounded Mandelbrot escape claim.
+//!
+//! This is not yet a succinct proof system. It is the single authored numeric
+//! transition that a prover will arithmetize and that independent tests replay.
+//! The public tuple exports are scalar Wasm lanes for oracle work; the authored
+//! model remains nominal and typed.
+
+pub use mandelbrot_q12_words::{
+    ESCAPE_RADIUS_SQUARED_Q24,
+    EscapeAirWords,
+    MAX_CLAIM_BOUND,
+    Q12_SCALE,
+}
+use mandelbrot_q12_words::{
+    Q12EscapeAirWordStream,
+    derive_air_words as derive_q12_air_words,
+    escape_claim_is_valid,
+}
+
+pub const NO_ESCAPE_STEP: u32 = 4294967295
+pub const MAX_PADDED_TRACE_LENGTH: usize = 2097152
+pub const MAX_TRACE_COORDINATE_MAGNITUDE: u32 = 24576
+
+pub struct ComplexQ12 { pub re: i32, pub im: i32 }
+
+impl core::marker::Copy for ComplexQ12 {}
+
+pub struct EscapesByQ12 { pub c: ComplexQ12, pub bound: u32 }
+
+impl core::marker::Copy for EscapesByQ12 {}
+
+pub struct EscapeTraceRow {
+    pub step: u32,
+    pub z: ComplexQ12,
+    pub magnitude_squared_q24: i32,
+    pub terminal: bool,
+}
+
+impl core::marker::Copy for EscapeTraceRow {}
+
+/// Canonical quotient and Euclidean remainder for one arithmetic Q12 shift.
+/// `numerator = quotient * 4096 + remainder`, with `0 <= remainder < 4096`.
+pub struct ShiftQ12 { pub quotient: i32, pub remainder: i32 }
+
+impl core::marker::Copy for ShiftQ12 {}
+
+/// Integer columns from which the first AIR will be formed. Keeping these
+/// nominal makes the authored witness readable while the scalar export below
+/// exposes the exact flattened column order to independent gates.
+pub struct EscapeAirRow {
+    pub semantic: EscapeTraceRow,
+    pub rr: i32,
+    pub ii: i32,
+    pub real_shift: ShiftQ12,
+    pub imaginary_shift: ShiftQ12,
+}
+
+impl core::marker::Copy for EscapeAirRow {}
+
+/// Canonical encoding of one signed i32 for later field absorption. Zero has
+/// sign bit zero, so every integer has exactly one encoding.
+pub struct SignedMagnitude32 { pub negative: bool, pub magnitude: u32 }
+
+impl core::marker::Copy for SignedMagnitude32 {}
+
+/// Row-local polynomial residuals, evaluated over widened integers before the
+/// same relations are lifted into a proof field. A valid row makes all five
+/// values zero. Range and boolean relations remain separate checks.
+pub struct EscapeAirResiduals {
+    pub real_square: i64,
+    pub imaginary_square: i64,
+    pub magnitude_sum: i64,
+    pub real_shift: i64,
+    pub imaginary_shift: i64,
+}
+
+impl core::marker::Copy for EscapeAirResiduals {}
+
+pub struct EscapeWitness { pub valid_claim: bool, pub escaped: bool, pub row: EscapeTraceRow }
+
+impl core::marker::Copy for EscapeWitness {}
+
+/// Shape of a proof-producing trace. A valid shape exists only for a valid
+/// claim that actually escapes by its bound.
+pub struct EscapeProofShape {
+    pub valid: bool,
+    pub terminal_step: u32,
+    pub trace_length: u32,
+    pub padded_length: u32,
+}
+
+impl core::marker::Copy for EscapeProofShape {}
+
+/// One row in the power-of-two proof trace. Padding repeats the terminal AIR
+/// values while clearing both activity and the unique terminal marker.
+pub struct PaddedEscapeAirRow {
+    pub valid: bool,
+    pub active: bool,
+    pub terminal: bool,
+    pub air: EscapeAirRow,
+}
+
+impl core::marker::Copy for PaddedEscapeAirRow {}
+
+/// Canonical signed word used by the proof-field and commitment layers.
+/// Zero is always encoded with `sign = 0`.
+pub struct SignedWord { pub sign: u32, pub magnitude: u32 }
+
+impl core::marker::Copy for SignedWord {}
+
+pub const ESCAPES_BY_Q12_PUBLIC_WORDS: usize = 8
+
+/// Audited width for one field-independent public claim word. The indexed
+/// accessor is the semantic source for both scalar arrays and direct GPU
+/// projection, so dynamic placement never materializes a constant array.
+pub const fn escapes_by_q12_public_width(_ index: usize) -> u32 {
+    match index {
+        0 => 1
+        1 => 14
+        2 => 1
+        3 => 13
+        4 => 21
+        5 => 21
+        6 => 21
+        7 => 22
+        _ => 0
+    }
+}
+
+pub const ESCAPES_BY_Q12_PUBLIC_WIDTHS: [u32; ESCAPES_BY_Q12_PUBLIC_WORDS] = [
+    escapes_by_q12_public_width(0),
+    escapes_by_q12_public_width(1),
+    escapes_by_q12_public_width(2),
+    escapes_by_q12_public_width(3),
+    escapes_by_q12_public_width(4),
+    escapes_by_q12_public_width(5),
+    escapes_by_q12_public_width(6),
+    escapes_by_q12_public_width(7),
+]
+
+/// Public statement already validated by the cheap proof-domain boundary.
+/// The field-specific transcript layer interprets this one nominal schema.
+pub struct EscapesByQ12Public {
+    pub c_re: SignedWord,
+    pub c_im: SignedWord,
+    pub bound: u32,
+    pub terminal_step: u32,
+    pub trace_length: u32,
+    pub padded_length: u32,
+}
+
+impl core::marker::Copy for EscapesByQ12Public {}
+
+/// The canonical 15-word AIR encoding. Keeping the signed columns nominal
+/// prevents proof consumers from swapping signs and magnitudes accidentally.
+pub struct EncodedAirRow {
+    pub step: u32,
+    pub zr: SignedWord,
+    pub zi: SignedWord,
+    pub rr: u32,
+    pub ii: u32,
+    pub magnitude: u32,
+    pub q_re: SignedWord,
+    pub r_re: u32,
+    pub q_im: SignedWord,
+    pub r_im: u32,
+    pub terminal: u32,
+}
+
+impl core::marker::Copy for EncodedAirRow {}
+
+/// One canonical padded trace row. `terminal` is the unique proof marker,
+/// while `air.terminal` records the escape predicate on repeated padding.
+pub struct EncodedProofRow { pub active: u32, pub terminal: u32, pub air: EncodedAirRow }
+
+impl core::marker::Copy for EncodedProofRow {}
+
+/// Low-degree range witness. `bits` reconstruct the value, while `any` is the
+/// inclusive prefix OR used by canonical-zero and threshold constraints.
+pub struct BitRangeWitness<const N: usize> { pub bits: [u32; N], pub any: [u32; N] }
+
+impl<const N: usize> core::marker::Copy for BitRangeWitness<N> {}
+
+pub struct OrWitness<const N: usize> { pub any: [u32; N] }
+
+impl<const N: usize> core::marker::Copy for OrWitness<N> {}
+
+pub struct RangedUnsigned<const N: usize> { pub value: u32, pub witness: BitRangeWitness<N> }
+
+impl<const N: usize> core::marker::Copy for RangedUnsigned<N> {}
+
+pub struct RangedSigned<const N: usize> { pub value: SignedWord, pub witness: BitRangeWitness<N> }
+
+impl<const N: usize> core::marker::Copy for RangedSigned<N> {}
+
+/// Every non-boolean AIR column paired with its protocol width and canonical
+/// Fe-derived bit witness. The terminal threshold prefix is retained because
+/// it is an auxiliary low-degree trace column in its own right.
+pub struct RangedAirRow {
+    pub step: RangedUnsigned<21>,
+    pub zr: RangedSigned<15>,
+    pub zi: RangedSigned<15>,
+    pub rr: RangedUnsigned<30>,
+    pub ii: RangedUnsigned<30>,
+    pub magnitude: RangedUnsigned<31>,
+    pub q_re: RangedSigned<18>,
+    pub r_re: RangedUnsigned<12>,
+    pub q_im: RangedSigned<19>,
+    pub r_im: RangedUnsigned<12>,
+    pub terminal: u32,
+    pub terminal_high_any: OrWitness<5>,
+}
+
+impl core::marker::Copy for RangedAirRow {}
+
+pub const AUXILIARY_RANGE_BITS: usize = 21 + 15 + 15 + 30 + 30 + 31 + 18 + 12 + 19 + 12
+pub const AUXILIARY_ROW_BITS: usize = 2 * AUXILIARY_RANGE_BITS + 5
+
+/// Audited width for one canonical commitment word. Their sum is 210, so
+/// every range-valid row has an injective representation. The accessor is the
+/// single source for aggregate and direct placement interpreters.
+pub const fn encoded_proof_row_width(_ index: usize) -> u32 {
+    match index {
+        0 => 21
+        1 => 1
+        2 => 15
+        3 => 1
+        4 => 15
+        5 => 30
+        6 => 30
+        7 => 31
+        8 => 1
+        9 => 18
+        10 => 12
+        11 => 1
+        12 => 19
+        13 => 12
+        14 => 1
+        15 => 1
+        16 => 1
+        _ => 0
+    }
+}
+
+pub const ENCODED_PROOF_ROW_WIDTHS: [u32; 17] = [
+    encoded_proof_row_width(0),
+    encoded_proof_row_width(1),
+    encoded_proof_row_width(2),
+    encoded_proof_row_width(3),
+    encoded_proof_row_width(4),
+    encoded_proof_row_width(5),
+    encoded_proof_row_width(6),
+    encoded_proof_row_width(7),
+    encoded_proof_row_width(8),
+    encoded_proof_row_width(9),
+    encoded_proof_row_width(10),
+    encoded_proof_row_width(11),
+    encoded_proof_row_width(12),
+    encoded_proof_row_width(13),
+    encoded_proof_row_width(14),
+    encoded_proof_row_width(15),
+    encoded_proof_row_width(16),
+]
+
+/// Stateful one-pass traversal of the canonical orbit. The current expanded
+/// AIR row is retained, so advancing reuses its exact Q12 quotients rather
+/// than recomputing or restating the transition in a proof consumer.
+pub struct EscapeTraceStream { claim: EscapesByQ12, current: EscapeAirRow }
+
+impl core::marker::Copy for EscapeTraceStream {}
+
+/// Canonical Fe-materialized proof trace for a statically selected domain.
+/// This is used after the streaming trace commitments have fixed the
+/// Fiat-Shamir challenge. It accepts no host-authored witness rows.
+pub struct EncodedProofTrace<const N: usize> {
+    pub valid: bool,
+    pub terminal_step: u32,
+    pub trace_length: u32,
+    pub rows: [EncodedProofRow; N],
+}
+
+impl<const N: usize> core::marker::Copy for EncodedProofTrace<N> {}
+
+/// Canonical numeric traversal for proof backends. Boolean trace facts are
+/// retained as their audited `u32` field words, so GPU and field consumers do
+/// not need to round-trip through a target's in-memory `bool` representation.
+/// The ordinary typed stream and this word stream share `derived_air_words`,
+/// which remains the single authored Q12 recurrence.
+pub struct EscapeAirWordStream {
+    stream: Q12EscapeAirWordStream,
+}
+
+impl core::marker::Copy for EscapeAirWordStream {}
+
+fn square(_ value: i32) -> i32 {
+    value * value
+}
+
+fn decompose_q12(_ numerator: i32) -> ShiftQ12 {
+    let quotient = numerator >> 12
+    ShiftQ12 { quotient: quotient, remainder: numerator - quotient * Q12_SCALE }
+}
+
+fn signed_magnitude(_ value: i32) -> SignedMagnitude32 {
+    SignedMagnitude32 { negative: value < 0, magnitude: value.unsigned_abs() }
+}
+
+pub fn encode_signed_word(_ value: i32) -> SignedWord {
+    let signed = signed_magnitude(value)
+    SignedWord { sign: if signed.negative { 1 } else { 0 }, magnitude: signed.magnitude }
+}
+
+fn encode_air_words(_ words: EscapeAirWords) -> EncodedAirRow {
+    let (step, zr, zi, rr, ii, magnitude, q_re, r_re, q_im, r_im, terminal) = words
+    EncodedAirRow {
+        step: step,
+        zr: encode_signed_word(zr),
+        zi: encode_signed_word(zi),
+        rr: rr.downcast_unchecked(),
+        ii: ii.downcast_unchecked(),
+        magnitude: magnitude.downcast_unchecked(),
+        q_re: encode_signed_word(q_re),
+        r_re: r_re.downcast_unchecked(),
+        q_im: encode_signed_word(q_im),
+        r_im: r_im.downcast_unchecked(),
+        terminal: terminal,
+    }
+}
+
+pub fn encode_air_row(_ row: EscapeAirRow) -> EncodedAirRow {
+    encode_air_words(
+        (
+            row.semantic.step,
+            row.semantic.z.re,
+            row.semantic.z.im,
+            row.rr,
+            row.ii,
+            row.semantic.magnitude_squared_q24,
+            row.real_shift.quotient,
+            row.real_shift.remainder,
+            row.imaginary_shift.quotient,
+            row.imaginary_shift.remainder,
+            if row.semantic.terminal { 1 } else { 0 },
+        ),
+    )
+}
+
+pub fn encode_proof_row(_ row: PaddedEscapeAirRow) -> EncodedProofRow {
+    EncodedProofRow {
+        active: if row.active { 1 } else { 0 },
+        terminal: if row.terminal { 1 } else { 0 },
+        air: encode_air_row(row.air),
+    }
+}
+
+/// Canonical commitment words for one padded proof row. The order is the 15
+/// AIR words followed by `(active, unique_terminal)`.
+#[inline(always)]
+pub fn encoded_proof_row_word(_ row: EncodedProofRow, _ index: usize) -> u32 {
+    match index {
+        0 => row.air.step
+        1 => row.air.zr.sign
+        2 => row.air.zr.magnitude
+        3 => row.air.zi.sign
+        4 => row.air.zi.magnitude
+        5 => row.air.rr
+        6 => row.air.ii
+        7 => row.air.magnitude
+        8 => row.air.q_re.sign
+        9 => row.air.q_re.magnitude
+        10 => row.air.r_re
+        11 => row.air.q_im.sign
+        12 => row.air.q_im.magnitude
+        13 => row.air.r_im
+        14 => row.air.terminal
+        15 => row.active
+        16 => row.terminal
+        _ => 0
+    }
+}
+
+pub fn encoded_proof_row_words(_ row: own EncodedProofRow) -> [u32; 17] {
+    let mut words: [u32; 17] = [0; 17]
+    let mut index: usize = 0
+    while index < 17 {
+        words[index] = encoded_proof_row_word(row, index)
+        index = index + 1
+    }
+    words
+}
+
+pub fn escapes_by_q12_public_words(
+    _ public: own EscapesByQ12Public,
+) -> [u32; ESCAPES_BY_Q12_PUBLIC_WORDS] {
+    [
+        escapes_by_q12_public_word(public, 0),
+        escapes_by_q12_public_word(public, 1),
+        escapes_by_q12_public_word(public, 2),
+        escapes_by_q12_public_word(public, 3),
+        escapes_by_q12_public_word(public, 4),
+        escapes_by_q12_public_word(public, 5),
+        escapes_by_q12_public_word(public, 6),
+        escapes_by_q12_public_word(public, 7),
+    ]
+}
+
+pub fn escapes_by_q12_public_word(
+    _ public: EscapesByQ12Public,
+    _ index: usize,
+) -> u32 {
+    match index {
+        0 => public.c_re.sign
+        1 => public.c_re.magnitude
+        2 => public.c_im.sign
+        3 => public.c_im.magnitude
+        4 => public.bound
+        5 => public.terminal_step
+        6 => public.trace_length
+        7 => public.padded_length
+        _ => 0
+    }
+}
+
+pub fn derive_bit_range_witness<const N: usize>(_ value: u32) -> BitRangeWitness<N>
+where N <= 32
+{
+    let mut bits: [u32; N] = [0; N]
+    let mut any: [u32; N] = [0; N]
+    let mut seen: u32 = 0
+    let count: u32 = N.downcast_truncate()
+    let mut i: u32 = 0
+    while i < count {
+        let bit = (value >> i) & 1
+        seen = seen | bit
+        bits[i as usize] = bit
+        any[i as usize] = seen
+        i = i + 1
+    }
+    BitRangeWitness { bits: bits, any: any }
+}
+
+fn derive_terminal_high_any(_ magnitude: BitRangeWitness<31>) -> OrWitness<5> {
+    let mut any: [u32; 5] = [0; 5]
+    let mut seen: u32 = 0
+    let mut i: u32 = 0
+    while i < 5 {
+        seen = seen | magnitude.bits[(26 + i) as usize]
+        any[i as usize] = seen
+        i = i + 1
+    }
+    OrWitness { any: any }
+}
+
+/// Derive every auxiliary range column from the canonical main-trace row.
+/// This is prover work in Fe, not data supplied through a host manifest.
+pub fn derive_ranged_air_row(_ row: EncodedAirRow) -> RangedAirRow {
+    let magnitude = derive_bit_range_witness<31>(row.magnitude)
+    RangedAirRow {
+        step: RangedUnsigned { value: row.step, witness: derive_bit_range_witness<21>(row.step) },
+        zr: RangedSigned { value: row.zr, witness: derive_bit_range_witness<15>(row.zr.magnitude) },
+        zi: RangedSigned { value: row.zi, witness: derive_bit_range_witness<15>(row.zi.magnitude) },
+        rr: RangedUnsigned { value: row.rr, witness: derive_bit_range_witness<30>(row.rr) },
+        ii: RangedUnsigned { value: row.ii, witness: derive_bit_range_witness<30>(row.ii) },
+        magnitude: RangedUnsigned { value: row.magnitude, witness: magnitude },
+        q_re: RangedSigned {
+            value: row.q_re,
+            witness: derive_bit_range_witness<18>(row.q_re.magnitude),
+        },
+        r_re: RangedUnsigned { value: row.r_re, witness: derive_bit_range_witness<12>(row.r_re) },
+        q_im: RangedSigned {
+            value: row.q_im,
+            witness: derive_bit_range_witness<19>(row.q_im.magnitude),
+        },
+        r_im: RangedUnsigned { value: row.r_im, witness: derive_bit_range_witness<12>(row.r_im) },
+        terminal: row.terminal,
+        terminal_high_any: derive_terminal_high_any(magnitude),
+    }
+}
+
+fn serialized_range_bit<const N: usize>(_ witness: BitRangeWitness<N>, _ index: usize) -> u32 {
+    if index < N {
+        witness.bits[index]
+    } else {
+        witness.any[index - N]
+    }
+}
+
+/// Canonical semantic auxiliary-row accessor shared by commitment and
+/// composition. The cursor advances through nominal witness widths, so there
+/// is no second author-maintained offset table.
+#[inline(always)]
+pub fn encoded_ranged_auxiliary_row_bit(_ ranged: RangedAirRow, _ index: usize) -> u32 {
+    if index >= AUXILIARY_ROW_BITS {
+        return 0
+    }
+    let mut cursor = index
+    if cursor < 2 * 21 {
+        return serialized_range_bit<21>(ranged.step.witness, cursor)
+    }
+    cursor = cursor - 2 * 21
+    if cursor < 2 * 15 {
+        return serialized_range_bit<15>(ranged.zr.witness, cursor)
+    }
+    cursor = cursor - 2 * 15
+    if cursor < 2 * 15 {
+        return serialized_range_bit<15>(ranged.zi.witness, cursor)
+    }
+    cursor = cursor - 2 * 15
+    if cursor < 2 * 30 {
+        return serialized_range_bit<30>(ranged.rr.witness, cursor)
+    }
+    cursor = cursor - 2 * 30
+    if cursor < 2 * 30 {
+        return serialized_range_bit<30>(ranged.ii.witness, cursor)
+    }
+    cursor = cursor - 2 * 30
+    if cursor < 2 * 31 {
+        return serialized_range_bit<31>(ranged.magnitude.witness, cursor)
+    }
+    cursor = cursor - 2 * 31
+    if cursor < 2 * 18 {
+        return serialized_range_bit<18>(ranged.q_re.witness, cursor)
+    }
+    cursor = cursor - 2 * 18
+    if cursor < 2 * 12 {
+        return serialized_range_bit<12>(ranged.r_re.witness, cursor)
+    }
+    cursor = cursor - 2 * 12
+    if cursor < 2 * 19 {
+        return serialized_range_bit<19>(ranged.q_im.witness, cursor)
+    }
+    cursor = cursor - 2 * 19
+    if cursor < 2 * 12 {
+        return serialized_range_bit<12>(ranged.r_im.witness, cursor)
+    }
+    cursor = cursor - 2 * 12
+    ranged.terminal_high_any.any[cursor]
+}
+
+/// Direct indexed interpretation of the same canonical range-witness schema.
+///
+/// GPU placement needs one scalar word per invocation and must not first
+/// materialize a 411-word aggregate in private memory. This accessor preserves
+/// the exact ordered schema above while deriving a bit or inclusive prefix OR
+/// directly from the canonical main row. `encoded_ranged_auxiliary_row_bit`
+/// remains the aggregate semantic interpreter and independent gates compare
+/// this placement interpreter against it.
+#[inline(always)]
+fn serialized_value_range_bit(
+    _ value: u32,
+    _ width: usize,
+    _ index: usize,
+) -> u32 {
+    if index < width {
+        return (value >> index.downcast_truncate()) & 1
+    }
+    let prefix_index: u32 = (index - width).downcast_truncate()
+    // Every production width is at most 31. Shifting the requested prefix to
+    // the top bit avoids a runtime `(1 << 32)` edge while computing the same
+    // inclusive OR as `derive_bit_range_witness`.
+    let shift: u32 = 31 - prefix_index
+    if (value << shift) != 0 { 1 } else { 0 }
+}
+
+#[inline(always)]
+pub fn encoded_auxiliary_row_bit_direct(
+    _ row: EncodedAirRow,
+    _ index: usize,
+) -> u32 {
+    if index >= AUXILIARY_ROW_BITS {
+        return 0
+    }
+    let mut cursor = index
+    if cursor < 2 * 21 {
+        return serialized_value_range_bit(row.step, 21, cursor)
+    }
+    cursor = cursor - 2 * 21
+    if cursor < 2 * 15 {
+        return serialized_value_range_bit(row.zr.magnitude, 15, cursor)
+    }
+    cursor = cursor - 2 * 15
+    if cursor < 2 * 15 {
+        return serialized_value_range_bit(row.zi.magnitude, 15, cursor)
+    }
+    cursor = cursor - 2 * 15
+    if cursor < 2 * 30 {
+        return serialized_value_range_bit(row.rr, 30, cursor)
+    }
+    cursor = cursor - 2 * 30
+    if cursor < 2 * 30 {
+        return serialized_value_range_bit(row.ii, 30, cursor)
+    }
+    cursor = cursor - 2 * 30
+    if cursor < 2 * 31 {
+        return serialized_value_range_bit(row.magnitude, 31, cursor)
+    }
+    cursor = cursor - 2 * 31
+    if cursor < 2 * 18 {
+        return serialized_value_range_bit(row.q_re.magnitude, 18, cursor)
+    }
+    cursor = cursor - 2 * 18
+    if cursor < 2 * 12 {
+        return serialized_value_range_bit(row.r_re, 12, cursor)
+    }
+    cursor = cursor - 2 * 12
+    if cursor < 2 * 19 {
+        return serialized_value_range_bit(row.q_im.magnitude, 19, cursor)
+    }
+    cursor = cursor - 2 * 19
+    if cursor < 2 * 12 {
+        return serialized_value_range_bit(row.r_im, 12, cursor)
+    }
+    cursor = cursor - 2 * 12
+    serialized_value_range_bit(row.magnitude >> 26, 5, 5 + cursor)
+}
+
+pub fn encoded_auxiliary_row_bit(_ row: EncodedAirRow, _ index: usize) -> u32 {
+    encoded_auxiliary_row_bit_direct(row, index)
+}
+
+fn air_encoding(_ row: EscapeAirRow) -> [u32; 15] {
+    let encoded = encode_air_row(row)
+    [
+        encoded.step,
+        encoded.zr.sign,
+        encoded.zr.magnitude,
+        encoded.zi.sign,
+        encoded.zi.magnitude,
+        encoded.rr,
+        encoded.ii,
+        encoded.magnitude,
+        encoded.q_re.sign,
+        encoded.q_re.magnitude,
+        encoded.r_re,
+        encoded.q_im.sign,
+        encoded.q_im.magnitude,
+        encoded.r_im,
+        encoded.terminal,
+    ]
+}
+
+pub fn padded_trace_length(_ value: u32) -> u32 {
+    let mut result: u32 = 1
+    while result < value {
+        result = result * 2
+    }
+    result
+}
+
+fn public_proof_domain_holds(
+    _ claim: EscapesByQ12,
+    _ terminal_step: u32,
+    _ trace_length: u32,
+    _ padded_length: u32,
+) -> bool {
+    if !claim.is_valid() || terminal_step > claim.bound {
+        return false
+    }
+    let expected_trace_length = terminal_step + 1
+    trace_length == expected_trace_length
+        && padded_length == padded_trace_length(expected_trace_length)
+}
+
+fn air_residuals(_ row: EscapeAirRow) -> EscapeAirResiduals {
+    let x: i64 = row.semantic.z.re.downcast_truncate()
+    let y: i64 = row.semantic.z.im.downcast_truncate()
+    let rr: i64 = row.rr.downcast_truncate()
+    let ii: i64 = row.ii.downcast_truncate()
+    let magnitude: i64 = row.semantic.magnitude_squared_q24.downcast_truncate()
+    let q_re: i64 = row.real_shift.quotient.downcast_truncate()
+    let r_re: i64 = row.real_shift.remainder.downcast_truncate()
+    let q_im: i64 = row.imaginary_shift.quotient.downcast_truncate()
+    let r_im: i64 = row.imaginary_shift.remainder.downcast_truncate()
+    let scale: i64 = Q12_SCALE.downcast_truncate()
+    EscapeAirResiduals {
+        real_square: rr - x * x,
+        imaginary_square: ii - y * y,
+        magnitude_sum: magnitude - rr - ii,
+        real_shift: rr - ii - scale * q_re - r_re,
+        imaginary_shift: 2 * x * y - scale * q_im - r_im,
+    }
+}
+
+fn residuals_are_zero(_ residuals: EscapeAirResiduals) -> bool {
+    residuals.real_square == 0
+        && residuals.imaginary_square == 0
+        && residuals.magnitude_sum == 0
+        && residuals.real_shift == 0
+        && residuals.imaginary_shift == 0
+}
+
+fn coordinates_are_arithmetic_safe(_ row: EscapeAirRow) -> bool {
+    row.semantic.z.re.unsigned_abs() <= MAX_TRACE_COORDINATE_MAGNITUDE
+        && row.semantic.z.im.unsigned_abs() <= MAX_TRACE_COORDINATE_MAGNITUDE
+}
+
+fn air_row_holds(_ row: EscapeAirRow) -> bool {
+    if !coordinates_are_arithmetic_safe(row) {
+        return false
+    }
+    let remainders_are_canonical = row.real_shift.remainder >= 0
+        && row.real_shift.remainder < Q12_SCALE
+        && row.imaginary_shift.remainder >= 0
+        && row.imaginary_shift.remainder < Q12_SCALE
+    let derived_values_are_nonnegative = row.rr >= 0
+        && row.ii >= 0
+        && row.semantic.magnitude_squared_q24 >= 0
+    residuals_are_zero(air_residuals(row))
+        && remainders_are_canonical
+        && derived_values_are_nonnegative
+        && row.semantic.terminal
+            == (row.semantic.magnitude_squared_q24 >= ESCAPE_RADIUS_SQUARED_Q24)
+}
+
+fn air_transition_holds(_ claim: EscapesByQ12, _ row: EscapeAirRow, _ next: EscapeAirRow) -> bool {
+    claim.is_valid()
+        && row.semantic.step < claim.bound
+        && !row.semantic.terminal
+        && air_row_holds(row)
+        && air_row_holds(next)
+        && next.semantic.step == row.semantic.step + 1
+        && next.semantic.z.re == row.real_shift.quotient + claim.c.re
+        && next.semantic.z.im == row.imaginary_shift.quotient + claim.c.im
+}
+
+fn projected_air_row(
+    _ step: u32,
+    _ zr: i32,
+    _ zi: i32,
+    _ rr: i32,
+    _ ii: i32,
+    _ magnitude: i32,
+    _ q_re: i32,
+    _ r_re: i32,
+    _ q_im: i32,
+    _ r_im: i32,
+    _ terminal: bool,
+) -> EscapeAirRow {
+    EscapeAirRow {
+        semantic: EscapeTraceRow {
+            step: step,
+            z: ComplexQ12 { re: zr, im: zi },
+            magnitude_squared_q24: magnitude,
+            terminal: terminal,
+        },
+        rr: rr,
+        ii: ii,
+        real_shift: ShiftQ12 { quotient: q_re, remainder: r_re },
+        imaginary_shift: ShiftQ12 { quotient: q_im, remainder: r_im },
+    }
+}
+
+fn air_row_from_words(_ words: EscapeAirWords) -> EscapeAirRow {
+    let (step, zr, zi, rr, ii, magnitude, q_re, r_re, q_im, r_im, terminal) = words
+    projected_air_row(
+        step: step,
+        zr: zr,
+        zi: zi,
+        rr: rr,
+        ii: ii,
+        magnitude: magnitude,
+        q_re: q_re,
+        r_re: r_re,
+        q_im: q_im,
+        r_im: r_im,
+        terminal: terminal == 1,
+    )
+}
+
+fn air_words_have_canonical_terminal(_ words: EscapeAirWords) -> bool {
+    let (_, _, _, _, _, _, _, _, _, _, terminal) = words
+    terminal <= 1
+}
+
+fn air_rows_equal(_ left: EscapeAirRow, _ right: EscapeAirRow) -> bool {
+    left.semantic.step == right.semantic.step
+        && left.semantic.z.re == right.semantic.z.re
+        && left.semantic.z.im == right.semantic.z.im
+        && left.rr == right.rr
+        && left.ii == right.ii
+        && left.semantic.magnitude_squared_q24 == right.semantic.magnitude_squared_q24
+        && left.real_shift.quotient == right.real_shift.quotient
+        && left.real_shift.remainder == right.real_shift.remainder
+        && left.imaginary_shift.quotient == right.imaginary_shift.quotient
+        && left.imaginary_shift.remainder == right.imaginary_shift.remainder
+        && left.semantic.terminal == right.semantic.terminal
+}
+
+fn padded_air_row_holds(_ row: PaddedEscapeAirRow) -> bool {
+    if !row.valid || !air_row_holds(row.air) {
+        return false
+    }
+    if row.terminal && !row.active {
+        return false
+    }
+    if row.active {
+        row.terminal == row.air.semantic.terminal
+    } else {
+        !row.terminal && row.air.semantic.terminal
+    }
+}
+
+fn padded_air_transition_holds(
+    _ claim: EscapesByQ12,
+    _ row: PaddedEscapeAirRow,
+    _ next: PaddedEscapeAirRow,
+) -> bool {
+    if !claim.is_valid() || !padded_air_row_holds(row) || !padded_air_row_holds(next) {
+        return false
+    }
+    if row.active {
+        if row.terminal {
+            !next.active && !next.terminal && air_rows_equal(row.air, next.air)
+        } else {
+            next.active && air_transition_holds(claim, row.air, next.air)
+        }
+    } else {
+        !next.active && !next.terminal && air_rows_equal(row.air, next.air)
+    }
+}
+
+fn padded_air_first_row_holds(_ claim: EscapesByQ12, _ row: PaddedEscapeAirRow) -> bool {
+    claim.is_valid()
+        && padded_air_row_holds(row)
+        && row.active
+        && !row.terminal
+        && row.air.semantic.step == 0
+        && row.air.semantic.z.re == 0
+        && row.air.semantic.z.im == 0
+}
+
+fn padded_air_last_row_holds(_ row: PaddedEscapeAirRow) -> bool {
+    padded_air_row_holds(row) && (row.terminal || !row.active)
+}
+
+fn derived_air_words(_ step: u32, _ z: ComplexQ12) -> EscapeAirWords {
+    derive_q12_air_words(step, z.re, z.im)
+}
+
+fn air_row(_ step: u32, _ z: ComplexQ12) -> EscapeAirRow {
+    air_row_from_words(derived_air_words(step, z))
+}
+
+impl EscapeAirWordStream {
+    pub fn new(_ claim: EscapesByQ12) -> Self {
+        Self {
+            stream: Q12EscapeAirWordStream::new(
+                claim.c.re,
+                claim.c.im,
+                claim.bound,
+            ),
+        }
+    }
+    pub fn is_valid(self) -> bool {
+        self.stream.is_valid()
+    }
+    pub fn current_proof_row(self) -> EncodedProofRow {
+        let words = self.stream.current_air_words()
+        let terminal = words.10
+        let valid: u32 = if self.is_valid() { 1 } else { 0 }
+        EncodedProofRow {
+            active: valid,
+            terminal: valid * terminal,
+            air: encode_air_words(words),
+        }
+    }
+    pub fn is_terminal(self) -> bool {
+        self.stream.is_terminal()
+    }
+    pub fn can_advance(self) -> bool {
+        self.stream.can_advance()
+    }
+
+    #[inline(always)]
+    pub fn advance(mut self) {
+        self.stream.advance()
+    }
+}
+
+impl EscapeTraceStream {
+    pub fn new(_ claim: EscapesByQ12) -> Self {
+        Self { claim: claim, current: air_row(0, ComplexQ12 { re: 0, im: 0 }) }
+    }
+    pub fn is_valid(self) -> bool {
+        self.claim.is_valid()
+    }
+    pub fn current_air_row(self) -> EscapeAirRow {
+        self.current
+    }
+    pub fn current_proof_row(self) -> PaddedEscapeAirRow {
+        PaddedEscapeAirRow {
+            valid: self.is_valid(),
+            active: self.is_valid(),
+            terminal: self.is_valid() && self.current.semantic.terminal,
+            air: self.current,
+        }
+    }
+    pub fn can_advance(self) -> bool {
+        self.is_valid()
+            && !self.current.semantic.terminal
+            && self.current.semantic.step < self.claim.bound
+    }
+
+    #[inline(always)]
+    pub fn advance(mut self) {
+        if !self.can_advance() {
+            return
+        }
+        let z = ComplexQ12 {
+            re: self.current.real_shift.quotient + self.claim.c.re,
+            im: self.current.imaginary_shift.quotient + self.claim.c.im,
+        }
+        self.current = air_row(self.current.semantic.step + 1, z)
+    }
+}
+
+pub fn encoded_proof_trace_exact<const N: usize>(_ claim: EscapesByQ12) -> EncodedProofTrace<N>
+where N > 0, N <= MAX_PADDED_TRACE_LENGTH, { (N & (N - 1)) == 0 }
+{
+    let mut stream = EscapeTraceStream::new(claim)
+    let seed = encode_proof_row(stream.current_proof_row())
+    let mut rows: [EncodedProofRow; N] = [seed; N]
+    if !stream.is_valid() {
+        return EncodedProofTrace { valid: false, terminal_step: 0, trace_length: 0, rows: rows }
+    }
+
+    let mut index: usize = 0
+    while true {
+        let current = stream.current_proof_row()
+        rows[index] = encode_proof_row(current)
+        if current.terminal { break }
+        if index + 1 >= N || !stream.can_advance() {
+            return EncodedProofTrace { valid: false, terminal_step: 0, trace_length: 0, rows: rows }
+        }
+        stream.advance()
+        index = index + 1
+    }
+
+    let terminal_air = stream.current_air_row()
+    let terminal_index: u32 = index.downcast_truncate()
+    let trace_length: u32 = terminal_index + 1
+    if padded_trace_length(trace_length) != N.downcast_truncate() {
+        return EncodedProofTrace { valid: false, terminal_step: 0, trace_length: 0, rows: rows }
+    }
+    let padding = encode_proof_row(
+        PaddedEscapeAirRow { valid: true, active: false, terminal: false, air: terminal_air },
+    )
+    index = index + 1
+    while index < N {
+        rows[index] = padding
+        index = index + 1
+    }
+    EncodedProofTrace {
+        valid: true,
+        terminal_step: terminal_air.semantic.step,
+        trace_length: trace_length,
+        rows: rows,
+    }
+}
+
+impl EscapesByQ12 {
+    pub fn new(_ c_re_q12: i32, _ c_im_q12: i32, _ bound: u32) -> Self {
+        Self { c: ComplexQ12 { re: c_re_q12, im: c_im_q12 }, bound: bound }
+    }
+
+    /// The first proof profile is exactly the canonical 512 by 512 Q12 view.
+    /// These bounds, together with the radius check before every transition,
+    /// keep every authored i32 product and sum in range.
+    pub fn is_valid(self) -> bool {
+        escape_claim_is_valid(self.c.re, self.c.im, self.bound)
+    }
+
+    /// Materialize the least escape row at or before `bound`. A non-escaping
+    /// claim returns its final checked row and keeps `escaped` false.
+    pub fn witness(self) -> EscapeWitness {
+        let mut stream = EscapeTraceStream::new(self)
+        if !stream.is_valid() {
+            return EscapeWitness {
+                valid_claim: false,
+                escaped: false,
+                row: stream.current_air_row().semantic,
+            }
+        }
+
+        while true {
+            let row = stream.current_air_row().semantic
+            if row.terminal {
+                return EscapeWitness { valid_claim: true, escaped: true, row: row }
+            }
+            if !stream.can_advance() {
+                return EscapeWitness { valid_claim: true, escaped: false, row: row }
+            }
+            stream.advance()
+        }
+
+        // The loop returns at the least terminal row or the inclusive bound.
+        // Keep a total fallback explicit for backends that do not infer that.
+        EscapeWitness { valid_claim: false, escaped: false, row: stream.current_air_row().semantic }
+    }
+
+    /// Produce one row of the same witness sequence. Requests after the first
+    /// escape clamp to that terminal row, so no caller can manufacture a trace
+    /// suffix after termination.
+    pub fn row_at(self, _ target: u32) -> EscapeTraceRow {
+        let mut stream = EscapeTraceStream::new(self)
+        while stream.current_air_row().semantic.step < target && stream.can_advance() {
+            stream.advance()
+        }
+        stream.current_air_row().semantic
+    }
+
+    /// Return the expanded integer columns for the same clamped trace row.
+    /// These values are deterministic even at the terminal row; only an active
+    /// nonterminal row is constrained to transition to its successor.
+    pub fn air_row_at(self, _ target: u32) -> EscapeAirRow {
+        let mut stream = EscapeTraceStream::new(self)
+        while stream.current_air_row().semantic.step < target && stream.can_advance() {
+            stream.advance()
+        }
+        stream.current_air_row()
+    }
+
+    /// Derive the semantic and padded lengths for a proof-producing trace.
+    /// This is prover-side witness work. A succinct verifier consumes the
+    /// committed shape and constraints rather than replaying this search.
+    pub fn proof_shape(self) -> EscapeProofShape {
+        let witness = self.witness()
+        if !witness.valid_claim || !witness.escaped {
+            return EscapeProofShape {
+                valid: false,
+                terminal_step: NO_ESCAPE_STEP,
+                trace_length: 0,
+                padded_length: 0,
+            }
+        }
+        let trace_length = witness.row.step + 1
+        EscapeProofShape {
+            valid: true,
+            terminal_step: witness.row.step,
+            trace_length: trace_length,
+            padded_length: padded_trace_length(trace_length),
+        }
+    }
+
+    /// Produce one row of the padded proof trace. Requests outside the padded
+    /// domain fail closed. Inactive rows repeat the terminal AIR values so the
+    /// padding transition is algebraically simple and uniquely determined.
+    /// This random-access oracle helper replays the prefix; the production
+    /// prover will stream the trace once rather than call it for every row.
+    pub fn proof_row_at(self, _ target: u32) -> PaddedEscapeAirRow {
+        let shape = self.proof_shape()
+        if !shape.valid || target >= shape.padded_length {
+            return PaddedEscapeAirRow {
+                valid: false,
+                active: false,
+                terminal: false,
+                air: air_row(0, ComplexQ12 { re: 0, im: 0 }),
+            }
+        }
+        let active = target < shape.trace_length
+        let terminal = target == shape.terminal_step
+        let semantic_step = if active { target } else { shape.terminal_step }
+        PaddedEscapeAirRow {
+            valid: true,
+            active: active,
+            terminal: terminal,
+            air: self.air_row_at(semantic_step),
+        }
+    }
+}
+
+/// Compact scalar boundary for Wasm/native oracle gates. Fields are ordered as
+/// `(valid, escaped, step, zr, zi, magnitude_squared_q24)`.
+pub fn escape_witness_q12(_ c_re_q12: i32, _ c_im_q12: i32, _ bound: u32) -> (
+    u32,
+    u32,
+    u32,
+    i32,
+    i32,
+    i32,
+) {
+    let witness = EscapesByQ12::new(c_re_q12, c_im_q12, bound).witness()
+    (
+        if witness.valid_claim { 1 } else { 0 },
+        if witness.escaped { 1 } else { 0 },
+        witness.row.step,
+        witness.row.z.re,
+        witness.row.z.im,
+        witness.row.magnitude_squared_q24,
+    )
+}
+
+/// Compact row projection ordered as `(step, zr, zi, magnitude, terminal)`.
+pub fn escape_trace_row_q12(_ c_re_q12: i32, _ c_im_q12: i32, _ target: u32) -> (
+    u32,
+    i32,
+    i32,
+    i32,
+    u32,
+) {
+    let row = EscapesByQ12::new(c_re_q12, c_im_q12, target).row_at(target)
+    (row.step, row.z.re, row.z.im, row.magnitude_squared_q24, if row.terminal { 1 } else { 0 })
+}
+
+/// Expanded row projection ordered as
+/// `(step, zr, zi, rr, ii, magnitude, q_re, r_re, q_im, r_im, terminal)`.
+pub fn escape_air_row_q12(_ c_re_q12: i32, _ c_im_q12: i32, _ target: u32) -> (
+    u32,
+    i32,
+    i32,
+    i32,
+    i32,
+    i32,
+    i32,
+    i32,
+    i32,
+    i32,
+    u32,
+) {
+    let row = EscapesByQ12::new(c_re_q12, c_im_q12, target).air_row_at(target)
+    (
+        row.semantic.step,
+        row.semantic.z.re,
+        row.semantic.z.im,
+        row.rr,
+        row.ii,
+        row.semantic.magnitude_squared_q24,
+        row.real_shift.quotient,
+        row.real_shift.remainder,
+        row.imaginary_shift.quotient,
+        row.imaginary_shift.remainder,
+        if row.semantic.terminal { 1 } else { 0 },
+    )
+}
+
+/// Canonical row encoding for commitment leaves. Signed columns are encoded
+/// as `(negative, magnitude)` and zero always has `negative = 0`. The order is
+/// `(step, zr_sign, zr_mag, zi_sign, zi_mag, rr, ii, magnitude, q_re_sign,
+/// q_re_mag, r_re, q_im_sign, q_im_mag, r_im, terminal)`.
+pub fn escape_air_row_encoding_q12(_ c_re_q12: i32, _ c_im_q12: i32, _ target: u32) -> (
+    u32,
+    u32,
+    u32,
+    u32,
+    u32,
+    u32,
+    u32,
+    u32,
+    u32,
+    u32,
+    u32,
+    u32,
+    u32,
+    u32,
+    u32,
+) {
+    let row = EscapesByQ12::new(c_re_q12, c_im_q12, target).air_row_at(target)
+    let words = air_encoding(row)
+    (
+        words[0],
+        words[1],
+        words[2],
+        words[3],
+        words[4],
+        words[5],
+        words[6],
+        words[7],
+        words[8],
+        words[9],
+        words[10],
+        words[11],
+        words[12],
+        words[13],
+        words[14],
+    )
+}
+
+/// Proof trace shape ordered as
+/// `(valid, terminal_step, semantic_length, padded_length)`.
+pub fn escape_proof_shape_q12(_ c_re_q12: i32, _ c_im_q12: i32, _ bound: u32) -> (
+    u32,
+    u32,
+    u32,
+    u32,
+) {
+    let shape = EscapesByQ12::new(c_re_q12, c_im_q12, bound).proof_shape()
+    (if shape.valid { 1 } else { 0 }, shape.terminal_step, shape.trace_length, shape.padded_length)
+}
+
+/// Cheap verifier boundary for public claim and trace-domain metadata. This
+/// validates shape without replaying the orbit; AIR first/pair/last constraints
+/// establish that the committed trace actually reaches the alleged terminal
+/// step.
+pub fn escape_public_proof_domain_holds_q12(
+    _ c_re_q12: i32,
+    _ c_im_q12: i32,
+    _ bound: u32,
+    _ terminal_step: u32,
+    _ trace_length: u32,
+    _ padded_length: u32,
+) -> u32 {
+    let claim = EscapesByQ12::new(c_re_q12, c_im_q12, bound)
+    if public_proof_domain_holds(claim, terminal_step, trace_length, padded_length) {
+        1
+    } else {
+        0
+    }
+}
+
+/// Padded row projection ordered as `(valid, active, terminal)` followed by
+/// the 11 integer AIR columns.
+pub fn escape_proof_row_q12(_ c_re_q12: i32, _ c_im_q12: i32, _ bound: u32, _ target: u32) -> (
+    u32,
+    u32,
+    u32,
+    u32,
+    i32,
+    i32,
+    i32,
+    i32,
+    i32,
+    i32,
+    i32,
+    i32,
+    i32,
+    u32,
+) {
+    let row = EscapesByQ12::new(c_re_q12, c_im_q12, bound).proof_row_at(target)
+    (
+        if row.valid { 1 } else { 0 },
+        if row.active { 1 } else { 0 },
+        if row.terminal { 1 } else { 0 },
+        row.air.semantic.step,
+        row.air.semantic.z.re,
+        row.air.semantic.z.im,
+        row.air.rr,
+        row.air.ii,
+        row.air.semantic.magnitude_squared_q24,
+        row.air.real_shift.quotient,
+        row.air.real_shift.remainder,
+        row.air.imaginary_shift.quotient,
+        row.air.imaginary_shift.remainder,
+        if row.air.semantic.terminal { 1 } else { 0 },
+    )
+}
+
+/// Padded commitment-row encoding. The first word is a boundary-validity bit;
+/// the remaining 17 words are the 15 canonical AIR words followed by
+/// `(active, unique_terminal)`.
+pub fn escape_proof_row_encoding_q12(
+    _ c_re_q12: i32,
+    _ c_im_q12: i32,
+    _ bound: u32,
+    _ target: u32,
+) -> (u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) {
+    let row = EscapesByQ12::new(c_re_q12, c_im_q12, bound).proof_row_at(target)
+    let words = air_encoding(row.air)
+    (
+        if row.valid { 1 } else { 0 },
+        words[0],
+        words[1],
+        words[2],
+        words[3],
+        words[4],
+        words[5],
+        words[6],
+        words[7],
+        words[8],
+        words[9],
+        words[10],
+        words[11],
+        words[12],
+        words[13],
+        words[14],
+        if row.active { 1 } else { 0 },
+        if row.terminal { 1 } else { 0 },
+    )
+}
+
+/// Inspect the five row-local polynomial residuals plus the four non-
+/// polynomial validity relations. The scalar boundary exists for independent
+/// Wasm gates; the constraint implementation consumes nominal Fe values.
+pub fn escape_air_residuals_q12(
+    _ step: u32,
+    _ zr: i32,
+    _ zi: i32,
+    _ rr: i32,
+    _ ii: i32,
+    _ magnitude: i32,
+    _ q_re: i32,
+    _ r_re: i32,
+    _ q_im: i32,
+    _ r_im: i32,
+    _ terminal: u32,
+) -> (i64, i64, i64, i64, i64, u32, u32, u32, u32) {
+    let row = projected_air_row(
+        step: step,
+        zr: zr,
+        zi: zi,
+        rr: rr,
+        ii: ii,
+        magnitude: magnitude,
+        q_re: q_re,
+        r_re: r_re,
+        q_im: q_im,
+        r_im: r_im,
+        terminal: terminal == 1,
+    )
+    let safe_coordinates = coordinates_are_arithmetic_safe(row)
+    let residuals = if safe_coordinates {
+        air_residuals(row)
+    } else {
+        EscapeAirResiduals {
+            real_square: 1,
+            imaginary_square: 1,
+            magnitude_sum: 1,
+            real_shift: 1,
+            imaginary_shift: 1,
+        }
+    }
+    let canonical_remainders = row.real_shift.remainder >= 0
+        && row.real_shift.remainder < Q12_SCALE
+        && row.imaginary_shift.remainder >= 0
+        && row.imaginary_shift.remainder < Q12_SCALE
+    let nonnegative_derived = row.rr >= 0 && row.ii >= 0 && row.semantic.magnitude_squared_q24 >= 0
+    let canonical_terminal = terminal <= 1
+        && row.semantic.terminal
+            == (row.semantic.magnitude_squared_q24 >= ESCAPE_RADIUS_SQUARED_Q24)
+    (
+        residuals.real_square,
+        residuals.imaginary_square,
+        residuals.magnitude_sum,
+        residuals.real_shift,
+        residuals.imaginary_shift,
+        if canonical_remainders { 1 } else { 0 },
+        if nonnegative_derived { 1 } else { 0 },
+        if canonical_terminal { 1 } else { 0 },
+        if safe_coordinates { 1 } else { 0 },
+    )
+}
+
+/// Verify one directed pair of alleged AIR rows using the Fe-authored
+/// constraints. The independent gate mutates every scalar lane and requires
+/// rejection. This is constraint evidence, not yet a field AIR or a proof.
+pub fn escape_air_pair_holds_q12(
+    _ c_re_q12: i32,
+    _ c_im_q12: i32,
+    _ bound: u32,
+    _ row_step: u32,
+    _ row_zr: i32,
+    _ row_zi: i32,
+    _ row_rr: i32,
+    _ row_ii: i32,
+    _ row_magnitude: i32,
+    _ row_q_re: i32,
+    _ row_r_re: i32,
+    _ row_q_im: i32,
+    _ row_r_im: i32,
+    _ row_terminal: u32,
+    _ next_step: u32,
+    _ next_zr: i32,
+    _ next_zi: i32,
+    _ next_rr: i32,
+    _ next_ii: i32,
+    _ next_magnitude: i32,
+    _ next_q_re: i32,
+    _ next_r_re: i32,
+    _ next_q_im: i32,
+    _ next_r_im: i32,
+    _ next_terminal: u32,
+) -> u32 {
+    if row_terminal > 1 || next_terminal > 1 {
+        return 0
+    }
+    let claim = EscapesByQ12::new(c_re_q12, c_im_q12, bound)
+    let row = projected_air_row(
+        step: row_step,
+        zr: row_zr,
+        zi: row_zi,
+        rr: row_rr,
+        ii: row_ii,
+        magnitude: row_magnitude,
+        q_re: row_q_re,
+        r_re: row_r_re,
+        q_im: row_q_im,
+        r_im: row_r_im,
+        terminal: row_terminal == 1,
+    )
+    let next = projected_air_row(
+        step: next_step,
+        zr: next_zr,
+        zi: next_zi,
+        rr: next_rr,
+        ii: next_ii,
+        magnitude: next_magnitude,
+        q_re: next_q_re,
+        r_re: next_r_re,
+        q_im: next_q_im,
+        r_im: next_r_im,
+        terminal: next_terminal == 1,
+    )
+    if air_transition_holds(claim, row, next) {
+        1
+    } else {
+        0
+    }
+}
+
+/// Verify one pair in the active/terminal/padding state machine. The flattened
+/// tuples are a Wasm oracle boundary; all constraint logic consumes nominal
+/// Fe rows. Pair constraints make activity monotone, terminal unique, and
+/// padding a fixed point of the terminal AIR values.
+pub fn escape_padded_air_pair_holds_q12(
+    _ c_re_q12: i32,
+    _ c_im_q12: i32,
+    _ bound: u32,
+    _ row_active: u32,
+    _ row_terminal: u32,
+    _ row_words: EscapeAirWords,
+    _ next_active: u32,
+    _ next_terminal: u32,
+    _ next_words: EscapeAirWords,
+) -> u32 {
+    if row_active > 1
+        || row_terminal > 1
+        || next_active > 1
+        || next_terminal > 1
+        || !air_words_have_canonical_terminal(row_words)
+        || !air_words_have_canonical_terminal(next_words) {
+        return 0
+    }
+    let row = PaddedEscapeAirRow {
+        valid: true,
+        active: row_active == 1,
+        terminal: row_terminal == 1,
+        air: air_row_from_words(row_words),
+    }
+    let next = PaddedEscapeAirRow {
+        valid: true,
+        active: next_active == 1,
+        terminal: next_terminal == 1,
+        air: air_row_from_words(next_words),
+    }
+    let claim = EscapesByQ12::new(c_re_q12, c_im_q12, bound)
+    if padded_air_transition_holds(claim, row, next) {
+        1
+    } else {
+        0
+    }
+}
+
+/// Constrain the first padded row to the canonical active `z_0 = 0` boundary.
+pub fn escape_padded_air_first_holds_q12(
+    _ c_re_q12: i32,
+    _ c_im_q12: i32,
+    _ bound: u32,
+    _ active: u32,
+    _ terminal: u32,
+    _ words: EscapeAirWords,
+) -> u32 {
+    if active > 1 || terminal > 1 || !air_words_have_canonical_terminal(words) {
+        return 0
+    }
+    let row = PaddedEscapeAirRow {
+        valid: true,
+        active: active == 1,
+        terminal: terminal == 1,
+        air: air_row_from_words(words),
+    }
+    let claim = EscapesByQ12::new(c_re_q12, c_im_q12, bound)
+    if padded_air_first_row_holds(claim, row) {
+        1
+    } else {
+        0
+    }
+}
+
+/// Constrain the final padded-domain row to be either the active terminal row
+/// or inactive terminal-state padding. Together with pair constraints this
+/// proves that the trace reaches exactly one terminal marker.
+pub fn escape_padded_air_last_holds_q12(
+    _ active: u32,
+    _ terminal: u32,
+    _ words: EscapeAirWords,
+) -> u32 {
+    if active > 1 || terminal > 1 || !air_words_have_canonical_terminal(words) {
+        return 0
+    }
+    let row = PaddedEscapeAirRow {
+        valid: true,
+        active: active == 1,
+        terminal: terminal == 1,
+        air: air_row_from_words(words),
+    }
+    if padded_air_last_row_holds(row) { 1 } else { 0 }
+}

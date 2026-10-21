@@ -1,0 +1,203 @@
+diff --git a/crates/codegen/src/sonatina/portable_lower.rs b/crates/codegen/src/sonatina/portable_lower.rs
+index ce6922f73..e1b6a7933 100644
+--- a/crates/codegen/src/sonatina/portable_lower.rs
++++ b/crates/codegen/src/sonatina/portable_lower.rs
+@@ -9936,7 +9936,9 @@ where
+                 Ok(())
+             }
+             RuntimeClass::AggregateValue { layout } => {
+-                if self.is_address_carried_aggregate_value(source) {
++                if self.is_address_carried_aggregate_value(source)
++                    && !self.typed_private_locals.contains_key(&source)
++                {
+                     let source = self.local_value(source)?;
+                     return self.lower_copy_object_bytes_into(source, destination, *layout);
+                 }
+@@ -10163,7 +10165,11 @@ where
+             let shape = self.local_flat_shape(local)?;
+             let pointer = self.local_value(local)?;
+             let mut values = Vec::with_capacity(shape.leaf_count());
+-            self.load_materialized_leaves(pointer, &class, &shape, &mut values)?;
++            if self.typed_private_locals.contains_key(&local) {
++                self.load_typed_private_leaves(pointer, &class, &mut values)?;
++            } else {
++                self.load_materialized_leaves(pointer, &class, &shape, &mut values)?;
++            }
+             return Ok(values);
+         }
+         if self.materialized_scalar_slots.contains(&local) {
+@@ -10452,19 +10458,7 @@ where
+                 let dst_vars = self.tuple_vars.get(&dst).cloned().ok_or_else(|| {
+                     LowerError::Internal(format!("R2.1 tuple dst {dst:?} has no element vars"))
+                 })?;
+-                let values = if self.is_address_carried_aggregate_value(*src) {
+-                    let pointer = self.local_value(*src)?;
+-                    let source_class = self.body.value_class(*src).cloned().ok_or_else(|| {
+-                        LowerError::Internal(format!(
+-                            "materialized parameter {src:?} has no runtime class"
+-                        ))
+-                    })?;
+-                    let mut values = Vec::with_capacity(src_shape.leaf_count());
+-                    self.load_materialized_leaves(pointer, &source_class, &src_shape, &mut values)?;
+-                    values
+-                } else {
+-                    self.local_flat_values(*src)?
+-                };
++                let values = self.local_flat_values(*src)?;
+                 if values.len() != dst_vars.len() {
+                     return Err(LowerError::Internal(format!(
+                         "R2.1 scalar-tree copy has {} source values but {} destination vars",
+@@ -11800,15 +11794,7 @@ where
+                 self.fb.insert_inst_no_result(Mstore::new(self.inst_set(), pointer, value, ty));
+                 return Ok(());
+             }
+-            let leaves = if self.is_address_carried_aggregate_value(source) {
+-                let shape = self.local_flat_shape(source)?;
+-                let mut leaves = Vec::with_capacity(shape.leaf_count());
+-                let source_pointer = self.local_value(source)?;
+-                self.load_materialized_leaves(source_pointer, &source_class, &shape, &mut leaves)?;
+-                leaves
+-            } else {
+-                self.local_flat_values(source)?
+-            };
++            let leaves = self.local_flat_values(source)?;
+             let mut cursor = 0usize;
+             self.store_typed_private_leaves(pointer, &destination_class, &leaves, &mut cursor)?;
+             if cursor != leaves.len() {
+@@ -11835,7 +11821,9 @@ where
+                 "wasm target: aggregate copy source {source:?} has non-memory-lowerable leaves"
+             )));
+         }
+-        if self.is_address_carried_aggregate_value(source) {
++        if self.is_address_carried_aggregate_value(source)
++            && !self.typed_private_locals.contains_key(&source)
++        {
+             let RuntimeClass::AggregateValue { layout } = source_class else {
+                 return Err(LowerError::Internal(format!(
+                     "address-carried aggregate copy source {source:?} lost its value layout"
+@@ -12121,15 +12109,7 @@ where
+             self.fb.insert_inst_no_result(Mstore::new(self.inst_set(), pointer, value, local.pointee_ty));
+             return Ok(pointer);
+         }
+-        let leaves = if self.is_address_carried_aggregate_value(src) {
+-            let shape = self.local_flat_shape(src)?;
+-            let mut leaves = Vec::with_capacity(shape.leaf_count());
+-            let source = self.local_value(src)?;
+-            self.load_materialized_leaves(source, &class, &shape, &mut leaves)?;
+-            leaves
+-        } else {
+-            self.local_flat_values(src)?
+-        };
++        let leaves = self.local_flat_values(src)?;
+         // Read every source leaf before a reused slot is overwritten. The
+         // interval proof guarantees that the former component is dead here;
+         // this ordering also preserves a final by-value copy from that slot.
+@@ -12178,7 +12158,9 @@ where
+                 "wasm target: materialization source {src:?} has non-scalar memory leaves"
+             )));
+         }
+-        if self.is_address_carried_aggregate_value(src) {
++        if self.is_address_carried_aggregate_value(src)
++            && !self.typed_private_locals.contains_key(&src)
++        {
+             // The prologue has already reconstructed this by-value aggregate
+             // parameter in canonical-arena storage so dynamic indexing and
+             // mutation can address it. A later `MaterializeToObject` still
+@@ -12413,7 +12395,8 @@ where
+                 (value, class, true)
+             }
+             mir::ResolvedPlaceRootKind::Slot { local, class }
+-                if self.is_address_carried_aggregate_value(local) =>
++                if self.is_address_carried_aggregate_value(local)
++                    && !self.typed_private_locals.contains_key(&local) =>
+             {
+                 (local, class, true)
+             }
+@@ -13683,7 +13666,9 @@ where
+                             "indirect aggregate return value {value:?} is not memory-lowerable"
+                         )));
+                     }
+-                    let pointer = if self.is_address_carried_aggregate_value(*value) {
++                    let pointer = if self.is_address_carried_aggregate_value(*value)
++                        && !self.typed_private_locals.contains_key(value)
++                    {
+                         self.local_value(*value)?
+                     } else {
+                         self.lower_materialize_to_object(*value)?
+@@ -15474,4 +15459,76 @@ pub fn kernel(k: u32) -> u32 {
+             "the unobserved compiler materialization local should be erased"
+         );
+     }
++
++    #[test]
++    fn shader_typed_private_materialized_param_lowers_without_compound_range_panic() {
++        let source = r#"
++struct Wrapper {
++    lanes: [u32; 4],
++    valid: bool,
++}
++
++fn restore(mut _ lanes: own [u32; 4], _ index: usize, _ value: u32) -> Wrapper {
++    if index < 4 {
++        lanes[index] = value
++    }
++    Wrapper { lanes: lanes, valid: index < 4 }
++}
++
++pub fn kernel(k: u32) -> u32 {
++    let wrapped = restore([1, 2, 3, 4], (k & 3) as usize, k)
++    if wrapped.valid {
++        wrapped.lanes[(k & 3) as usize]
++    } else {
++        0
++    }
++}
++"#;
++        let mut db = DriverDataBase::default();
++        let url = Url::parse("file:///shader_typed_private_materialized_param.fe").unwrap();
++        db.workspace()
++            .touch(&mut db, url.clone(), Some(source.to_string()));
++        let file = db.workspace().get(&db, &url).unwrap();
++        let top_mod = db.top_mod(file);
++        let diagnostics = db.run_on_top_mod(top_mod).format_diags(&db);
++        assert!(diagnostics.is_empty(), "diags:\n{diagnostics}");
++        let package = mir::build_wasm_runtime_package_for_entry(&db, top_mod, "kernel")
++            .expect("shader materialized-param fixture should lower to Runtime MIR");
++        let (module, entries) = compile_runtime_package_shader_ir(&db, &package)
++            .expect("shader IR lowering should succeed for typed-private materialized params");
++        assert_eq!(entries.len(), 1);
++        let funcs = module.funcs();
++        for &func_ref in &funcs {
++            module.func_store.view(func_ref, |function| {
++                for inst_id in function
++                    .layout
++                    .iter_block()
++                    .flat_map(|b| function.layout.iter_inst(b))
++                {
++                    if sonatina_ir::inst::downcast::<&Add>(
++                        function.inst_set(),
++                        function.dfg.inst(inst_id),
++                    )
++                    .is_some()
++                    {
++                        for value_id in function.dfg.inst_results(inst_id) {
++                            let ty = function.dfg.value_ty(*value_id);
++                            assert!(
++                                !ty.is_compound(),
++                                "Add result {value_id:?} in shader function {func_ref:?} has compound type {ty:?}",
++                            );
++                        }
++                    }
++                }
++            });
++        }
++        sonatina_codegen::optim::run_function_passes_on(
++            &module,
++            &funcs,
++            &[
++                sonatina_codegen::optim::Pass::CfgCleanup,
++                sonatina_codegen::optim::Pass::RangeBranchSimplify,
++            ],
++        );
++    }
+ }

@@ -1,0 +1,175 @@
+{
+  "repository": "https://github.com/micahscopes/fe",
+  "revision": "4b669c920",
+  "ingots": {
+    "mandelbrot_point_prover": {
+      "dest": "app/point_prover",
+      "source": "demos/sketches/mandelbrot_point_prover",
+      "dependencies": [
+        "core",
+        "fri_structure",
+        "mandelbrot_proof_chunk_webgpu",
+        "poseidon_baby_bear",
+        "std",
+        "fmath"
+      ]
+    },
+    "fri_structure": {
+      "dest": "lib/fri_structure",
+      "source": "ingots/fri_structure",
+      "dependencies": [
+        "core"
+      ]
+    },
+    "mandelbrot_proof_chunk_webgpu": {
+      "dest": "lib/mandelbrot_proof_chunk_webgpu",
+      "source": "ingots/mandelbrot_proof_chunk_webgpu",
+      "dependencies": [
+        "canonical_words",
+        "core",
+        "fmath",
+        "fri_baby_bear",
+        "fri_structure",
+        "fri_structure_webgpu",
+        "mandelbrot_proof_air_core",
+        "mandelbrot_proof_baby_bear_domains",
+        "mandelbrot_proof_baby_bear_encoding",
+        "mandelbrot_proof_baby_bear_transcript",
+        "mandelbrot_proof_kernel",
+        "parallel_ntt",
+        "parallel_ntt_webgpu",
+        "parallel_structure",
+        "poseidon_baby_bear",
+        "precision"
+      ]
+    },
+    "fri_baby_bear": {
+      "dest": "lib/fri_baby_bear",
+      "source": "ingots/fri_baby_bear",
+      "dependencies": [
+        "core",
+        "fri_structure",
+        "poseidon_baby_bear",
+        "precision",
+        "quadratic_plan"
+      ]
+    },
+    "poseidon_baby_bear": {
+      "dest": "lib/poseidon_baby_bear",
+      "source": "ingots/poseidon_baby_bear",
+      "dependencies": [
+        "canonical_words",
+        "core",
+        "precision",
+        "poseidon_grain",
+        "quadratic_plan"
+      ]
+    },
+    "poseidon_grain": {
+      "dest": "lib/poseidon_grain",
+      "source": "ingots/poseidon_grain",
+      "dependencies": [
+        "core"
+      ]
+    },
+    "quadratic_plan": {
+      "dest": "lib/quadratic_plan",
+      "source": "ingots/quadratic_plan",
+      "dependencies": [
+        "canonical_words",
+        "core",
+        "precision"
+      ]
+    },
+    "fri_structure_webgpu": {
+      "dest": "lib/fri_structure_webgpu",
+      "source": "ingots/fri_structure_webgpu",
+      "dependencies": [
+        "core",
+        "fri_structure",
+        "std"
+      ]
+    },
+    "mandelbrot_proof_air_core": {
+      "dest": "lib/mandelbrot_proof_air_core",
+      "source": "demos/capstones/mandelbrot-proof/air-core",
+      "dependencies": [
+        "core",
+        "fri_structure",
+        "mandelbrot_proof_kernel",
+        "precision"
+      ]
+    },
+    "mandelbrot_proof_kernel": {
+      "dest": "lib/mandelbrot_proof_kernel",
+      "source": "demos/capstones/mandelbrot-proof/kernel",
+      "dependencies": [
+        "core",
+        "mandelbrot_q12_words"
+      ]
+    },
+    "mandelbrot_q12_words": {
+      "dest": "lib/mandelbrot_q12_words",
+      "source": "ingots/mandelbrot_q12_words",
+      "dependencies": [
+        "core"
+      ]
+    },
+    "mandelbrot_proof_baby_bear_domains": {
+      "dest": "lib/mandelbrot_proof_baby_bear_domains",
+      "source": "demos/capstones/mandelbrot-proof/baby-bear-domains",
+      "dependencies": [
+        "core",
+        "poseidon_baby_bear"
+      ]
+    },
+    "mandelbrot_proof_baby_bear_encoding": {
+      "dest": "lib/mandelbrot_proof_baby_bear_encoding",
+      "source": "demos/capstones/mandelbrot-proof/baby-bear-encoding",
+      "dependencies": [
+        "core",
+        "mandelbrot_proof_kernel",
+        "precision"
+      ]
+    },
+    "mandelbrot_proof_baby_bear_transcript": {
+      "dest": "lib/mandelbrot_proof_baby_bear_transcript",
+      "source": "demos/capstones/mandelbrot-proof/baby-bear-transcript",
+      "dependencies": [
+        "canonical_words",
+        "core",
+        "mandelbrot_proof_baby_bear_domains",
+        "poseidon_baby_bear",
+        "precision",
+        "quadratic_plan"
+      ]
+    },
+    "parallel_ntt": {
+      "dest": "lib/parallel_ntt",
+      "source": "ingots/parallel_ntt",
+      "dependencies": [
+        "core",
+        "parallel_structure",
+        "precision"
+      ]
+    },
+    "parallel_structure": {
+      "dest": "lib/parallel_structure",
+      "source": "ingots/parallel_structure",
+      "dependencies": [
+        "core",
+        "std"
+      ]
+    },
+    "parallel_ntt_webgpu": {
+      "dest": "lib/parallel_ntt_webgpu",
+      "source": "ingots/parallel_ntt_webgpu",
+      "dependencies": [
+        "core",
+        "parallel_ntt",
+        "parallel_structure",
+        "precision"
+      ]
+    }
+  }
+}
