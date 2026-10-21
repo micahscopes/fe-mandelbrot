@@ -2100,7 +2100,7 @@ export function realizePassPipeline(device, record) {
   return pending;
 }
 
-/** Compile independent active pipelines concurrently, with bounded host work.
+/** Prepare active pipelines serially to bound driver compilation pressure.
  * Pass execution remains ordered by the Fe graph. On failure, stop starting
  * new work and join all in-flight compilations before releasing the graph. */
 export async function realizePassPipelines(device, records) {
@@ -2118,7 +2118,7 @@ export async function realizePassPipelines(device, records) {
       }
     }
   };
-  await Promise.all(Array.from({ length: Math.min(4, records.length) }, worker));
+  await Promise.all(Array.from({ length: Math.min(1, records.length) }, worker));
   if (failed) throw failure;
 }
 

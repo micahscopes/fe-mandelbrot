@@ -20,12 +20,16 @@ if(process.env.STAGED_SITE){
 try{
  if(process.env.BLOCK_GPU)await page.addInitScript(()=>Object.defineProperty(navigator,'gpu',{value:undefined,configurable:true}));
  await page.addInitScript(()=>{
-  window.startupAllocations=[];window.startupPipelines=0;
+  window.startupAllocations=[];window.startupPipelines=0;window.startupInFlight=0;window.startupPeak=0;
   if(typeof GPUDevice==='undefined')return;
   const create=GPUDevice.prototype.createBuffer;
   GPUDevice.prototype.createBuffer=function(options){startupAllocations.push(options.size);return create.call(this,options);};
   for(const method of ['createComputePipelineAsync','createRenderPipelineAsync']){
-   const original=GPUDevice.prototype[method];GPUDevice.prototype[method]=function(...args){startupPipelines++;return original.apply(this,args);};
+   const original=GPUDevice.prototype[method];GPUDevice.prototype[method]=function(...args){
+    startupPipelines++;startupInFlight++;startupPeak=Math.max(startupPeak,startupInFlight);
+    try{return original.apply(this,args).finally(()=>{startupInFlight--;});}
+    catch(error){startupInFlight--;throw error;}
+   };
   }
  });
  await page.goto(new URL('index.html',base).href);
@@ -37,9 +41,9 @@ try{
  }else{
   const before=await page.evaluate(()=>{
    const s=document.querySelector('fe-surface');window.startupResources=new Map(s._gpu.resourceBuffers);
-   return{state:s.state,pipelines:startupPipelines,passes:s._manifest.passes.length,allocatedBytes:startupAllocations.reduce((a,b)=>a+b,0),largeBuffers:startupAllocations.filter(n=>n>=1048576).length};
+   return{state:s.state,pipelines:startupPipelines,maximumPipelineCallsInFlight:startupPeak,passes:s._manifest.passes.length,allocatedBytes:startupAllocations.reduce((a,b)=>a+b,0),largeBuffers:startupAllocations.filter(n=>n>=1048576).length};
   });
-  assert.equal(before.state,'live');assert.equal(before.pipelines,before.passes,'One pipeline realization per pass');
+  assert.equal(before.state,'live');assert.equal(before.maximumPipelineCallsInFlight,1,'Bound startup compiler pressure');assert.equal(before.pipelines,before.passes,'One pipeline realization per pass');
   await page.waitForTimeout(1200);
   const after=await page.evaluate(()=>{const s=document.querySelector('fe-surface');return{state:s.state,pipelines:startupPipelines,largeBuffers:startupAllocations.filter(n=>n>=1048576).length,reused:[...startupResources].every(([name,buffer])=>s._gpu.resourceBuffers.get(name)===buffer)};});
   assert.equal(after.state,'live');assert.equal(after.pipelines,before.pipelines);assert.equal(after.largeBuffers,before.largeBuffers);assert.equal(after.reused,true);

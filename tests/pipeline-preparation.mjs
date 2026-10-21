@@ -36,8 +36,8 @@ try{
   try{await realizePassPipelines(broken,failing);}catch(error){failed=error.message==='expected pipeline failure';}
   return {calls:once,maximum:limit,ordered,reused,failurePropagated:failed,failureStarts:started,failureCompletions:completed,inFlightAtRejection:inFlight};
  });
- assert.equal(receipt.calls,10);assert.equal(receipt.maximum,4);assert.equal(receipt.ordered,true);assert.equal(receipt.reused,true);
- assert.equal(receipt.failurePropagated,true);assert.equal(receipt.failureStarts,4);assert.equal(receipt.failureCompletions,4);assert.equal(receipt.inFlightAtRejection,0);
+ assert.equal(receipt.calls,10);assert.equal(receipt.maximum,1);assert.equal(receipt.ordered,true);assert.equal(receipt.reused,true);
+ assert.equal(receipt.failurePropagated,true);assert.equal(receipt.failureStarts,1);assert.equal(receipt.failureCompletions,1);assert.equal(receipt.inFlightAtRejection,0);
  if(process.env.RECEIPT)await fs.writeFile(process.env.RECEIPT,JSON.stringify(receipt,null,2)+'\n');
  console.log(JSON.stringify(receipt));
 }finally{await releaseTestPage(browser,page);}
