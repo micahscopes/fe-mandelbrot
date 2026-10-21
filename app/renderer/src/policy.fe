@@ -113,7 +113,13 @@ impl ParamValue for Coordinate {
     }
 
     fn with_param_value(self, _ value: f32) -> Self {
-        Self { value: self.value.with_head(value) }
+        // Unchanged projections preserve the complete high-precision value.
+        // An explicit scalar edit replaces it, including its hidden coefficients.
+        if value == self.leading() {
+            self
+        } else {
+            Self { value: from_f32<4>(value) }
+        }
     }
 }
 

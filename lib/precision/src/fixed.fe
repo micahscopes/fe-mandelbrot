@@ -501,15 +501,12 @@ pub fn from_f32<const L: usize>(_ v: f32) -> (u32, Limbs<L>)
 /// base `(w0, w1, w2, w3)` (an `Expansion<4>` / qf128-territory center,
 /// most-significant word first) plus a small `off` offset, all f32 sources:
 /// `from_f32(w0) + from_f32(w1) + from_f32(w2) + from_f32(w3) + from_f32(off)`.
-/// Each source drops its ~24 real bits at its own magnitude (bit-exact, since
-/// `from_f32` is exact for a float's mantissa) and the exact Fixed add stitches
-/// them, so a four-word center + f32 pixel offset lands ~120 real bits across
-/// the limbs (past the two-word / df64 floor of ~48 bits that mushes deep zoom
-/// at ~1e-11). The words need NOT be non-overlapping: the Fixed add is exact
-/// for any inputs, so ordinary (possibly overlapping) f32 words stitch
-/// correctly. Lets a renderer keep an f32 gesture-plumbing surface while the
-/// iteration runs in reassociation-immune integer `Fixed<L>`. General over
-/// `const L`; a two-word (df64) center is the `w2 = w3 = 0.0` case.
+/// Each source is quantized to the fixed-point lattice with `13 * (L - 1)`
+/// fractional bits. Its mantissa is retained exactly only when it fits that
+/// lattice. In particular, `L = 8` provides 91 fractional bits; adding more
+/// source words does not increase this precision. Fixed additions combine the
+/// quantized words exactly, including overlapping words. A two-word center is
+/// the `w2 = w3 = 0.0` case.
 pub fn from_qf_offset<const L: usize>(_ w0: f32, _ w1: f32, _ w2: f32, _ w3: f32, _ off: f32) -> (u32, Limbs<L>)
     where Limbs<L>: FromReal + Mac + SubBorrow + Select + Copy,
 {
