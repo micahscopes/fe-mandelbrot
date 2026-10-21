@@ -39,11 +39,20 @@ try {
         const info = await module.getCompilationInfo();
         diagnostics.push(...info.messages.filter(message => message.type === 'error').map(message => message.message));
         if (diagnostics.length) throw Error(JSON.stringify(diagnostics));
-        const pipeline = await device.createComputePipelineAsync({layout: 'auto', compute: {module, entryPoint: pass.layout.entry_point}});
-        // Naga may omit an unused trap binding. Bind only declarations in
-        // the actual shader, preserving manifest slots and emitted code.
+        // An explicit layout retains declared but unused input slots. Auto
+        // layout may omit them even when their WGSL declarations remain.
         const declared = new Set([...pass.code.matchAll(/@group\(0\)\s*@binding\((\d+)\)/g)].map(match => Number(match[1])));
-        const entries = pass.layout.bindings.filter(binding => binding.group === 0 && declared.has(binding.binding)).map(binding => {
+        const bindings = pass.layout.bindings.filter(binding => binding.group === 0 && declared.has(binding.binding));
+        const groupLayout = device.createBindGroupLayout({entries: bindings.map(binding => ({
+          binding: binding.binding,
+          visibility: GPUShaderStage.COMPUTE,
+          buffer: {type: binding.access === 'read' ? 'read-only-storage' : 'storage', minBindingSize: binding.span},
+        }))});
+        const pipeline = await device.createComputePipelineAsync({
+          layout: device.createPipelineLayout({bindGroupLayouts: [groupLayout]}),
+          compute: {module, entryPoint: pass.layout.entry_point},
+        });
+        const entries = bindings.map(binding => {
           let buffer;
           if (binding.role === 'resource') {
             buffer = buffers.get(binding.name);
