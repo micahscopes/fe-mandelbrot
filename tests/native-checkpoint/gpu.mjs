@@ -59,6 +59,9 @@ try {
             if (!buffer) throw Error(`Unknown resource ${binding.name}`);
           } else if (binding.role === 'input') {
             buffer = allocate(Math.max(16, binding.span), GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.UNIFORM);
+            // Transport negative zero as runtime bits; constant folding may
+            // canonicalize a shader literal before the codec is exercised.
+            device.queue.writeBuffer(buffer, 0, new Uint32Array([0x80000000]));
           } else if (binding.name === 'trap') {
             buffer = allocate(Math.max(4, binding.span), storageUsage);
             trapBuffers.push({buffer, size: Math.max(4, binding.span)});

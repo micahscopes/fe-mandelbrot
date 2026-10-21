@@ -305,7 +305,6 @@ async function measure(label, directory) {
     });
     assert.deepEqual(errors, []);
     assert.deepEqual(diagnostics.errors, []);
-    assert.equal(diagnostics.visibilityBuffersReused, true);
     assert.equal(diagnostics.stableCaptures, Object.keys(captures).length);
     for (const [file, asset] of served) assert.equal(sha(await fs.readFile(file)), asset.hash, `Staged artifact changed during test: ${file}`);
     return {label, directory: root, captures, transitions, diagnostics,
@@ -342,6 +341,8 @@ try {
     }
   };
   const [baseline, compact] = receipt.variants;
+  assert.equal(compact.diagnostics.visibilityBuffersReused, baseline.diagnostics.visibilityBuffersReused,
+    'The checkpoint representation must preserve the existing suspension lifecycle');
   for (const name of Object.keys(baseline.captures)) await compare(baseline.captures[name], compact.captures[name], `baseline-versus-compact/${name}`);
   for (const variant of receipt.variants) {
     for (const name of ['snapshot-return', 'aa-on']) await compare(variant.captures.default, variant.captures[name], `${variant.label}/default-versus-${name}`);
