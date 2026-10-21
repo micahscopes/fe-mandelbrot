@@ -3,6 +3,7 @@
 //! `FEH1` packs one semantic class byte per UTF-8 source byte, followed by the
 //! exact source bytes.
 use std::text::Utf8View
+use core::ops::Eq
 
 pub enum TokenKind {
     Plain,
@@ -17,6 +18,7 @@ pub enum TokenKind {
 }
 
 impl Copy for TokenKind {}
+derive Eq for TokenKind
 
 impl TokenKind {
     pub fn from_scip_tag(_ tag: u8) -> Self {
@@ -34,100 +36,25 @@ impl TokenKind {
         }
         Self::Plain
     }
-
-    pub fn is_plain(self) -> bool {
-        match self {
-            Self::Plain => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_type_name(self) -> bool {
-        match self {
-            Self::TypeName => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_function(self) -> bool {
-        match self {
-            Self::Function => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_property(self) -> bool {
-        match self {
-            Self::Property => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_variable(self) -> bool {
-        match self {
-            Self::Variable => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_keyword(self) -> bool {
-        match self {
-            Self::Keyword => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_comment(self) -> bool {
-        match self {
-            Self::Comment => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_string(self) -> bool {
-        match self {
-            Self::StringLit => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_number(self) -> bool {
-        match self {
-            Self::Number => true,
-            _ => false,
-        }
-    }
 }
 
-pub struct Document {
-    pub text: Utf8View,
-    pub kinds: Utf8View,
-}
+pub struct Document { pub text: Utf8View, pub kinds: Utf8View }
 
 impl Copy for Document {}
 
-pub struct Token {
-    pub end: u32,
-    pub kind: TokenKind,
-}
+pub struct Token { pub end: u32, pub kind: TokenKind }
 
 impl Copy for Token {}
 
 impl Token {
     pub fn plain_tail(_ end: u32) -> Self {
-        Self {
-            end: end,
-            kind: TokenKind::Plain,
-        }
+        Self { end: end, kind: TokenKind::Plain }
     }
 }
 
 pub fn document(_ raw: Utf8View) -> Document {
     if raw.len() < 8 || !raw.slice(start: 0, end: 5).view.equals_literal([70, 69, 72, 49, 10]) {
-        return Document {
-            text: raw,
-            kinds: Utf8View::empty(),
-        }
+        return Document { text: raw, kinds: Utf8View::empty() }
     }
     let mut at: u32 = 5
     let mut count: u32 = 0
@@ -138,11 +65,12 @@ pub fn document(_ raw: Utf8View) -> Document {
         at = at + 1
     }
     let start: u32 = at + 1
-    if at >= raw.len() || raw.byte(index: at) != 10 || count > 500000 || start + count * 2 + 1 != raw.len() {
-        return Document {
-            text: raw,
-            kinds: Utf8View::empty(),
-        }
+    if at >= raw.len()
+        || raw.byte(index: at) != 10
+        || count > 500000
+        || start + count * 2 + 1 != raw.len()
+        || raw.byte(index: start + count) != 10 {
+        return Document { text: raw, kinds: Utf8View::empty() }
     }
     Document {
         kinds: raw.slice(start: start, end: start + count).view,
@@ -178,12 +106,16 @@ pub fn next(_ doc: Document, _ start: u32) -> Token {
             kind = TokenKind::Comment
             end = end + 1
             let mut depth: u32 = 1
-            while end < source.len() && depth >0 {
-                if end + 1 < source.len() && source.byte(index: end) == 47 && source.byte(index: end + 1) == 42 {
+            while end < source.len() && depth > 0 {
+                if end + 1 < source.len()
+                    && source.byte(index: end) == 47
+                    && source.byte(index: end + 1) == 42 {
                     depth = depth + 1
                     end = end + 2
                 } else {
-                    if end + 1 < source.len() && source.byte(index: end) == 42 && source.byte(index: end + 1) == 47 {
+                    if end + 1 < source.len()
+                        && source.byte(index: end) == 42
+                        && source.byte(index: end + 1) == 47 {
                         depth = depth - 1
                         end = end + 2
                     } else {
@@ -201,15 +133,14 @@ pub fn next(_ doc: Document, _ start: u32) -> Token {
                     if value == 92 && end < source.len() {
                         end = end + 1
                     } else {
-                        if value == 34 {
-                            done = true
-                        }
+                        if value == 34 { done = true }
                     }
                 }
             } else {
                 if digit(c) {
                     kind = TokenKind::Number
-                    while end < source.len() && (name(source.byte(index: end)) || source.byte(index: end) == 46) {
+                    while end < source.len()
+                        && (name(source.byte(index: end)) || source.byte(index: end) == 46) {
                         end = end + 1
                     }
                 } else {
@@ -233,8 +164,7 @@ pub fn next(_ doc: Document, _ start: u32) -> Token {
                         while end < source.len()
                             && !name(source.byte(index: end))
                             && source.byte(index: end) != 34
-                            && source.byte(index: end) != 47
-                        {
+                            && source.byte(index: end) != 47 {
                             end = end + 1
                         }
                     }
@@ -243,10 +173,7 @@ pub fn next(_ doc: Document, _ start: u32) -> Token {
         }
     }
 
-    Token {
-        end: end,
-        kind: kind,
-    }
+    Token { end: end, kind: kind }
 }
 
 fn keyword(_ word: Utf8View) -> bool {
@@ -309,18 +236,20 @@ fn primitive(_ word: Utf8View) -> bool {
 
 #[test]
 fn token_kind_scip_tag_and_lexical_classes() {
-    assert(cond: TokenKind::from_scip_tag(48).is_plain())
-    assert(cond: TokenKind::from_scip_tag(49).is_type_name())
-    assert(cond: TokenKind::from_scip_tag(50).is_function())
-    assert(cond: TokenKind::from_scip_tag(51).is_property())
-    assert(cond: TokenKind::from_scip_tag(52).is_variable())
-    assert(cond: TokenKind::from_scip_tag(53).is_plain())
+    assert(cond: TokenKind::from_scip_tag(48) == TokenKind::Plain)
+    assert(cond: TokenKind::from_scip_tag(49) == TokenKind::TypeName)
+    assert(cond: TokenKind::from_scip_tag(50) == TokenKind::Function)
+    assert(cond: TokenKind::from_scip_tag(51) == TokenKind::Property)
+    assert(cond: TokenKind::from_scip_tag(52) == TokenKind::Variable)
+    assert(cond: TokenKind::from_scip_tag(53) == TokenKind::Plain)
 
     let tail = Token::plain_tail(4096)
     assert(cond: tail.end == 4096)
-    assert(cond: tail.kind.is_plain())
-    assert(cond: !tail.kind.is_keyword())
+    assert(cond: tail.kind == TokenKind::Plain)
+    assert(cond: tail.kind != TokenKind::Keyword)
 
-    assert(cond: letter(65) && letter(122) && letter(95) && letter(200))
+    assert(
+        cond: letter(65) && letter(122) && letter(95) && letter(200),
+    )
     assert(cond: !letter(48) && digit(48) && digit(57) && name(57))
 }

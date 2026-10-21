@@ -1,3 +1,4 @@
+use core::ops::Eq
 //! Readable source browsing as a resident Fe component.
 //!
 //! The existing inspector task owns fetch/cancellation and stale responses.
@@ -35,24 +36,10 @@ use std::web::page::{
     PageElement,
     PageText,
 }
-use std::text::{
-    Utf8Buffer,
-    Utf8View,
-}
-use core::actor::{
-    ActorSink,
-    ScopedTask,
-}
-use core::pending::{
-    PendingCancellation,
-    Select,
-    Suspend,
-}
-use std::actor::{
-    ActorNotification,
-    BrowserActorNotifications,
-    BrowserActorSink,
-}
+use std::text::{Utf8Buffer, Utf8View}
+use core::actor::{ActorSink, ScopedTask}
+use core::pending::{PendingCancellation, Select, Suspend}
+use std::actor::{ActorNotification, BrowserActorNotifications, BrowserActorSink}
 use std::reactive::AsyncEventSource
 use std::host::Resumable
 use std::wasm::WasmBackend
@@ -65,13 +52,7 @@ use source_inspector::{
     CONTENT_CAPACITY,
     CONTROL_CAPACITY,
 }
-use ingot::highlight::{
-    Document,
-    Token,
-    TokenKind,
-    document,
-    next,
-}
+use ingot::highlight::{Document, Token, TokenKind, document, next}
 
 const VIEW_CAPACITY: usize = 384
 const PATCH_CAPACITY: u32 = 2097152
@@ -103,7 +84,6 @@ struct SourceParts {
     comment: Part<Class<Comment>>,
     string: Part<Class<StringToken>>,
     number: Part<Class<Number>>,
-
     gutter: Part<Text>,
     title: Part<Text>,
     error_text: Part<Text>,
@@ -120,36 +100,7 @@ enum SourceStatus {
 }
 
 impl Copy for SourceStatus {}
-
-impl SourceStatus {
-    fn is_empty(self) -> bool {
-        match self {
-            Self::Empty => true,
-            _ => false,
-        }
-    }
-
-    fn is_loading(self) -> bool {
-        match self {
-            Self::Loading => true,
-            _ => false,
-        }
-    }
-
-    fn is_ready(self) -> bool {
-        match self {
-            Self::Ready => true,
-            _ => false,
-        }
-    }
-
-    fn is_error(self) -> bool {
-        match self {
-            Self::Error => true,
-            _ => false,
-        }
-    }
-}
+derive Eq for SourceStatus
 
 pub struct SourceState {
     patch_ptr: u32,
@@ -168,9 +119,7 @@ pub struct SourceState {
 
 impl Copy for SourceState {}
 
-pub struct SourceStateEnvelope {
-    state: SourceState,
-}
+pub struct SourceStateEnvelope { state: SourceState }
 
 impl Copy for SourceStateEnvelope {}
 
@@ -239,7 +188,9 @@ const fn file_link(
     page.open(element: PageElement::Anchor)
         .attribute(value: PageAttribute::class(value: "file"))
         .attribute(
-            value: PageAttribute::href(value: PageText::three(first: "source/", second: file, third: ".view")),
+            value: PageAttribute::href(
+                value: PageText::three(first: "source/", second: file, third: ".view"),
+            ),
         )
         .attribute(
             value: PageAttribute::action(value: TextLoadAction::Select),
@@ -310,14 +261,46 @@ fn write_run(
     writer
         .repeat_item(key: key)
         .set_text(target: ui.token, value: text)
-        .set_class(target: ui.token, token: ui.ty, enabled: kind.is_type_name())
-        .set_class(target: ui.token, token: ui.function, enabled: kind.is_function())
-        .set_class(target: ui.token, token: ui.property, enabled: kind.is_property())
-        .set_class(target: ui.token, token: ui.variable, enabled: kind.is_variable())
-        .set_class(target: ui.token, token: ui.keyword, enabled: kind.is_keyword())
-        .set_class(target: ui.token, token: ui.comment, enabled: kind.is_comment())
-        .set_class(target: ui.token, token: ui.string, enabled: kind.is_string())
-        .set_class(target: ui.token, token: ui.number, enabled: kind.is_number())
+        .set_class(
+            target: ui.token,
+            token: ui.ty,
+            enabled: kind == TokenKind::TypeName,
+        )
+        .set_class(
+            target: ui.token,
+            token: ui.function,
+            enabled: kind == TokenKind::Function,
+        )
+        .set_class(
+            target: ui.token,
+            token: ui.property,
+            enabled: kind == TokenKind::Property,
+        )
+        .set_class(
+            target: ui.token,
+            token: ui.variable,
+            enabled: kind == TokenKind::Variable,
+        )
+        .set_class(
+            target: ui.token,
+            token: ui.keyword,
+            enabled: kind == TokenKind::Keyword,
+        )
+        .set_class(
+            target: ui.token,
+            token: ui.comment,
+            enabled: kind == TokenKind::Comment,
+        )
+        .set_class(
+            target: ui.token,
+            token: ui.string,
+            enabled: kind == TokenKind::StringLit,
+        )
+        .set_class(
+            target: ui.token,
+            token: ui.number,
+            enabled: kind == TokenKind::Number,
+        )
 }
 
 actor FeSourceViewer {
@@ -503,12 +486,12 @@ actor FeSourceViewer {
     fn project(self) -> ComponentPatch uses (ProjectState) {
         let state = self.state
         let ui = <SourceParts as ComponentSchema>::component_parts()
-        let ready = state.status.is_ready()
+        let ready = state.status == SourceStatus::Ready
         let visible = VisibleParts::none()
             .show_if(target: ui.ready, visible: ready)
-            .show_if(target: ui.empty, visible: state.status.is_empty())
-            .show_if(target: ui.loading, visible: state.status.is_loading())
-            .show_if(target: ui.error, visible: state.status.is_error())
+            .show_if(target: ui.empty, visible: state.status == SourceStatus::Empty)
+            .show_if(target: ui.loading, visible: state.status == SourceStatus::Loading)
+            .show_if(target: ui.error, visible: state.status == SourceStatus::Error)
         let requested = Utf8Buffer::with_len(
             ptr: state.url_ptr,
             len: state.url_len,

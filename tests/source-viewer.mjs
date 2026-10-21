@@ -39,6 +39,11 @@ try{
  await open('cache.fe');assert.equal(await page.locator('.source-code').textContent(),plain);
  assert.equal(await page.locator('.source-code script').count(),0);assert.equal(await page.evaluate(()=>window.injected),undefined);
  assert.ok(await page.locator('.hl-string').count()>0);assert.ok(await page.locator('.hl-number').count()>0);
+ await page.unroute('**/source/cache.fe.view');
+ // A missing FEH1 separator must preserve the entire response as raw source.
+ const malformed='FEH1\n1\n1Xx';
+ await page.route('**/source/cache.fe.view',r=>r.fulfill({status:200,contentType:'text/plain',body:malformed}));
+ await open('cache.fe');assert.equal(await page.locator('.source-code').textContent(),malformed);
  await page.unroute('**/source/cache.fe.view');await open('color_library.fe');
  if(process.env.SCREENSHOT)await page.screenshot({path:process.env.SCREENSHOT});
  await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
