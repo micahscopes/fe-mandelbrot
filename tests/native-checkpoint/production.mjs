@@ -26,7 +26,20 @@ const deep = [
   2.325737538549943e-16, side,
 ].map(Math.fround);
 await fs.mkdir(output, {recursive: true});
-const initialWasm = await fs.readFile(path.join(baselineSite, 'renderer/module.wasm'));
+const baselineRoot = path.resolve(baselineSite);
+const initialHtml = await fs.readFile(path.join(baselineRoot, 'index.html'), 'utf8');
+const manifestAttribute = initialHtml.match(/<fe-surface\b[^>]*\bmanifest\s*=\s*(["'])(.*?)\1/i)?.[2];
+assert.ok(manifestAttribute, 'Staged index.html must name the renderer manifest');
+const manifestUrl = new URL(manifestAttribute, new URL('index.html', base));
+assert.ok(manifestUrl.origin === base.origin && manifestUrl.pathname.startsWith(base.pathname));
+const manifestFile = path.resolve(baselineRoot, decodeURIComponent(manifestUrl.pathname.slice(base.pathname.length)));
+assert.ok(manifestFile.startsWith(baselineRoot + path.sep));
+const initialManifest = JSON.parse(await fs.readFile(manifestFile, 'utf8'));
+const wasmUrl = new URL(initialManifest.artifacts.wasm, manifestUrl);
+assert.ok(wasmUrl.origin === base.origin && wasmUrl.pathname.startsWith(base.pathname));
+const wasmFile = path.resolve(baselineRoot, decodeURIComponent(wasmUrl.pathname.slice(base.pathname.length)));
+assert.ok(wasmFile.startsWith(baselineRoot + path.sep));
+const initialWasm = await fs.readFile(wasmFile);
 const {instance} = await WebAssembly.instantiate(initialWasm, {});
 const initial = [...instance.exports.fe_surface_initialize_v1()].slice(0, 10);
 initial[9] = side;
@@ -59,7 +72,7 @@ async function measure(label, directory) {
   });
   try {
     await page.addInitScript(() => {
-      const h = window.checkpointProbe = {errors: [], frames: 0, watch: null, release: null, last: null};
+      const h = window.checkpointProbe = {errors: [], frames: 0, watch: null, release: null, last: null, pendingPresent: 0, graphSubmissions: 0, stableCaptures: 0};
       const devices = new WeakSet();
       const create = GPUDevice.prototype.createBuffer;
       GPUDevice.prototype.createBuffer = function(options) {
@@ -141,26 +154,48 @@ async function measure(label, directory) {
       const define = customElements.define.bind(customElements);
       customElements.define = function(name, Constructor, ...rest) {
         if (name === 'fe-surface') {
-          const render = Constructor.prototype._render;
-          Constructor.prototype._render = async function(...args) {
-            await render.apply(this, args);
-            if (!this._gpu || !h.watch) return;
-            const metadata = h.last = await h.read(this);
-            const watch = h.watch;
-            if (watch && h.matches(metadata, watch.criteria)) {
-              h.watch = null;
-              // Hold completion of this real rendered frame, not the Fe
-              // state machine. Node observes/replaces state before resuming.
-              await new Promise(release => { h.release = release; watch.resolve(metadata); });
-            }
+          // RAF can be requested before the current render promise settles.
+          // Serialize scheduler entry before it can advance resident Fe state.
+          const flush = Constructor.prototype._flushGestureFrame;
+          if (typeof flush !== 'function') throw Error('Missing scheduled Fe frame boundary');
+          let frameTail = Promise.resolve();
+          Constructor.prototype._flushGestureFrame = function(...args) {
+            const frame = frameTail.then(() => flush.apply(this, args));
+            frameTail = frame.catch(() => {});
+            return frame;
+          };
+          // All production graph submissions pass through _presentOn,
+          // including resize and lifecycle presentation outside _render.
+          // Queue them before calling the original, not merely after submit.
+          const present = Constructor.prototype._presentOn;
+          if (typeof present !== 'function') throw Error('Missing GPU presentation boundary');
+          let presentTail = Promise.resolve();
+          Constructor.prototype._presentOn = function(...args) {
+            h.pendingPresent++;
+            const task = presentTail.then(async () => {
+              h.graphSubmissions++;
+              const result = await present.apply(this, args);
+              if (this._gpu && h.watch) {
+                const metadata = h.last = await h.read(this);
+                const watch = h.watch;
+                if (watch && h.matches(metadata, watch.criteria)) {
+                  h.watch = null;
+                  h.heldSubmissions = h.graphSubmissions;
+                  await new Promise(release => { h.release = release; watch.resolve(metadata); });
+                }
+              }
+              return result;
+            }).finally(() => { h.pendingPresent--; });
+            presentTail = task.catch(() => {});
+            return task;
           };
         }
         return define(name, Constructor, ...rest);
       };
       h.replace = (camera, aa) => {
         const surface = document.querySelector('fe-surface');
-        if (!h.release || typeof surface._surfaceStateReplaceKernel !== 'function') {
-          throw Error('Replacement requires a held frame and actual resident Fe state export');
+        if (!h.release || h.pendingPresent !== 1 || typeof surface._surfaceStateReplaceKernel !== 'function') {
+          throw Error('Replacement requires one held presentation, no queued stale presentations, and actual resident Fe state export');
         }
         const next = [...surface._uniforms];
         camera.forEach((value, index) => { next[index] = value; });
@@ -195,6 +230,8 @@ async function measure(label, directory) {
             buffer.unmap();
           } finally { buffer.destroy(); }
         }
+        if (h.graphSubmissions !== h.heldSubmissions) throw Error('A graph submitted during the capture latch');
+        h.stableCaptures++;
         return result;
       };
     });
@@ -262,13 +299,14 @@ async function measure(label, directory) {
     await capture('deep-after-visibility', await settled(deep, 1, false));
     const diagnostics = await page.evaluate(() => {
       const h = window.checkpointProbe, s = document.querySelector('fe-surface');
-      return {errors: h.errors, state: s.state, observedFrames: h.frames,
+      return {errors: h.errors, state: s.state, observedFrames: h.frames, stableCaptures: h.stableCaptures, graphSubmissions: h.graphSubmissions,
         visibilityBuffersReused: [...h.resourcesBeforeSuspend].every(([name, buffer]) => s._gpu.resourceBuffers.get(name) === buffer),
         camera: s._uniforms.slice(0, 10), actualAdapter: s._gpu.adapter?.info || null};
     });
     assert.deepEqual(errors, []);
     assert.deepEqual(diagnostics.errors, []);
     assert.equal(diagnostics.visibilityBuffersReused, true);
+    assert.equal(diagnostics.stableCaptures, Object.keys(captures).length);
     for (const [file, asset] of served) assert.equal(sha(await fs.readFile(file)), asset.hash, `Staged artifact changed during test: ${file}`);
     return {label, directory: root, captures, transitions, diagnostics,
       servedArtifacts: [...served].map(([file, asset]) => ({file: path.relative(root, file), sha256: asset.hash}))};
