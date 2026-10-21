@@ -111,6 +111,7 @@ use ingot::image::{
 }
 use ingot::cache::{
     PreviewCache,
+    HistoryOffsets,
     ReprojectionTap,
     ViewCache,
     ReferenceControl,
@@ -259,13 +260,15 @@ actor SmoothPerturbationalMandelbrot uses (
             let mut escaped: bool = false
             while step < 64 && i < pending_anchor.limit && !escaped {
                 let result: ReferenceStep = reference_step(z, center)
-                z = result.value
                 escaped = result.escaped
-                self.orbit.store(
-                    index: base + i + 1,
-                    value: PackedReference::from_fixed(z),
-                )
-                i = i + 1
+                if !escaped {
+                    z = result.value
+                    self.orbit.store(
+                        index: base + i + 1,
+                        value: PackedReference::from_fixed(z),
+                    )
+                    i = i + 1
+                }
                 step = step + 1
             }
             self.orbit.store(
@@ -309,6 +312,27 @@ actor SmoothPerturbationalMandelbrot uses (
             }
             self.cache.store(index: 0, value: next_view)
         }
+        // Integer center differences are camera work, not per-pixel work.
+        // Refresh both live banks after building/publishing the reference.
+        let current = self.reference.load(index: 0)
+        let full = self.cache.load(index: 1)
+        let initial = self.cache.load(index: 2)
+        let history = HistoryOffsets::for_view(s, full, initial)
+        let mut preview = self.preview_cache.load(index: 0)
+        preview.history = history
+        self.preview_cache.store(index: 0, value: preview)
+        let mut bank: u32 = 0
+        while bank < 2 {
+            let active = current.active_valid == 1 && bank == current.active
+            let pending = current.pending == 1 && bank == 1 - current.active
+            if active || pending {
+                let offset = self.anchor.load(index: bank).delta_from(s)
+                let index = bank * 8195 + ORBIT_META_INDEX
+                let metadata = self.orbit.load(index: index)
+                self.orbit.store(index: index, value: metadata.with_center_offset(offset))
+            }
+            bank = bank + 1
+        }
     }
 
     fn advance_preview(self, invocation: ComputeInvocation)
@@ -331,6 +355,7 @@ actor SmoothPerturbationalMandelbrot uses (
                 s,
                 self.cache.load(index: 1),
                 self.cache.load(index: 2),
+                preview.history,
                 px,
                 py,
             )
@@ -389,6 +414,7 @@ actor SmoothPerturbationalMandelbrot uses (
             s,
             self.cache.load(index: 1),
             self.cache.load(index: 2),
+            preview.history,
             px,
             py,
         )
