@@ -1,3 +1,4 @@
+import { releaseTestPage } from './browser-session.mjs';
 import assert from 'node:assert/strict';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright-core');
 const b=await chromium.connectOverCDP(process.env.CDP_URL||'http://127.0.0.1:9222');const p=await b.newPage({viewport:{width:1100,height:1200}});const errors=[];p.on('pageerror',e=>errors.push(String(e)));
@@ -14,4 +15,4 @@ try{
  await p.setViewportSize({width:390,height:844});await p.screenshot({path:process.env.MOBILE_SCREENSHOT||'/tmp/fe-color-lab-mobile.png',fullPage:true});
  assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.deepEqual(errors,[]);
  console.log(JSON.stringify({live:true,controls:true,mobile:true,color,errors}));
-}finally{await p.close();await b.close();}
+}finally{await releaseTestPage(b,p);}

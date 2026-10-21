@@ -1,3 +1,4 @@
+import { releaseTestPage } from './browser-session.mjs';
 import assert from 'node:assert/strict';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright-core');
 const browser=await chromium.connectOverCDP(process.env.CDP_URL||'http://127.0.0.1:9222');
@@ -45,4 +46,4 @@ try{
  assert.equal(await page.locator('header a[href="../index.html"]').count(),1);
  assert.deepEqual(await page.evaluate(()=>componentErrors),[]);
  assert.deepEqual(errors,[]);console.log(JSON.stringify({files:files.length,exactSource:true,semanticColors:true,lexicalFallback:true,staleResponses:true,errorRecovery:true,mobile:true,stats,errors}));
-}finally{await page.close();await browser.close();}
+}finally{await releaseTestPage(browser,page);}

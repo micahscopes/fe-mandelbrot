@@ -1,3 +1,4 @@
+import { releaseTestPage } from './browser-session.mjs';
 import assert from 'node:assert/strict';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright-core');
 const browser=await chromium.connectOverCDP(process.env.CDP_URL||'http://127.0.0.1:9222');
@@ -66,4 +67,4 @@ try{
  if(process.env.COLOR_SCREENSHOT)await page.screenshot({path:process.env.COLOR_SCREENSHOT});
  assert.deepEqual(errors,[]);
  console.log(JSON.stringify({live:true,zoom:changed.zoom,magnification:changed.magnification,oracle,colorCheck,sourceFiles:11,colorLab:true,errors}));
-}finally{await page.close();await browser.close();}
+}finally{await releaseTestPage(browser,page);}

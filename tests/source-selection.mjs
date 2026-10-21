@@ -1,3 +1,4 @@
+import { releaseTestPage } from './browser-session.mjs';
 import assert from 'node:assert/strict';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright-core');
 const browser=await chromium.connectOverCDP(process.env.CDP_URL||'http://127.0.0.1:9223');
@@ -6,6 +7,7 @@ const base=process.env.BASE_URL||'http://127.0.0.1:8126/standalone/';
 try {
  await page.context().grantPermissions(['clipboard-read','clipboard-write'],{origin:new URL(base).origin});
  await page.goto(new URL('viewer/index.html',base).href);
+ await page.waitForFunction(()=>document.querySelector('fe-component')?._active,null,{timeout:30000});
  await page.locator('.file').first().click();
  await page.waitForFunction(()=>document.querySelector('.source-code')?.textContent.length>100);
  const keyword=page.locator('.source-code .hl-keyword').first();
@@ -34,4 +36,4 @@ try {
  await page.waitForFunction(()=>document.querySelector('.file-heading strong')?.textContent==='policy.fe'&&!document.querySelector('.source-lines').hidden);
  assert.ok((await page.locator('.source-code').textContent()).includes('MandelbrotParams'));
  console.log(JSON.stringify({doubleClickSelection:true,copyShortcut:true,multiTokenCopy:true,fileSwitch:true}));
-}finally{await page.close();await browser.close();}
+}finally{await releaseTestPage(browser,page);}
