@@ -194,6 +194,10 @@ fn url_persisted_view_rejects_malformed_nonfinite_and_out_of_range_atomically() 
     let v4: PersistedView = r4.view
     assert(v4 == fallback)
 
+    let mut fractional_resolution = fallback
+    fractional_resolution.res_bits = 0x3fc00000 // 1.5 pixels
+    assert(!is_valid_persisted_view(fractional_resolution, bounds))
+
     // 5. Out-of-range center_x_w0 (2.0 = 0x40000000 > CENTER_X_MAX = 1.0)
     let mut oor_cx: PersistedView = fallback
     oor_cx.center_x.w0 = 0x40000000

@@ -338,11 +338,21 @@ fn is_valid_quad(_ q: QuadWordBits, _ lower_bits: u32, _ upper_bits: u32) -> boo
     true
 }
 
+/// Resolutions are positive whole pixel counts. Restricting the exponent
+/// before building the fractional mask keeps every shift within u32 width.
+fn is_whole_resolution(_ bits: u32) -> bool {
+    let exponent: u32 = (bits >> 23) & 255
+    if exponent < 127 || exponent > 138 { return false }
+    let fractional_bits: u32 = 150 - exponent
+    (bits & ((1 << fractional_bits) - 1)) == 0
+}
+
 pub fn is_valid_persisted_view(_ view: PersistedView, _ bounds: PersistedBounds) -> bool {
     is_valid_quad(view.center_x, bounds.center_x_min_bits, bounds.center_x_max_bits)
         && is_valid_quad(view.center_y, bounds.center_y_min_bits, bounds.center_y_max_bits)
         && f32_bits_in_range(view.zoom_bits, bounds.zoom_min_bits, bounds.zoom_max_bits)
         && f32_bits_in_range(view.res_bits, F32_ONE_BITS, F32_RES_2048_BITS)
+        && is_whole_resolution(view.res_bits)
         && f32_bits_in_range(view.antialias_bits, F32_ZERO_BITS, F32_ONE_BITS)
 }
 
