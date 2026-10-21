@@ -113,12 +113,17 @@ impl Oklch {
     }
 
     /// Shortest-arc interpolation in polar OKLCH coordinates.
-    /// Differences in `[-540, 540]` retain their exact single-turn arithmetic
-    /// and signed half-turn ties. Other finite endpoints use equivalent
+    /// Endpoints and their difference in `[-540, 540]` retain their exact
+    /// single-turn arithmetic and signed half-turn ties. Other finite endpoints use equivalent
     /// near-zero hue representatives, avoiding overflow and cancellation.
     pub fn interpolate(_ start: Oklch, _ end: Oklch, _ t: f32) -> Oklch {
         let delta: f32 = end.hue - start.hue
-        let ordinary: bool = delta >= -540.0 && delta <= 540.0
+        let ordinary: bool = start.hue >= -540.0
+            && start.hue <= 540.0
+            && end.hue >= -540.0
+            && end.hue <= 540.0
+            && delta >= -540.0
+            && delta <= 540.0
         let origin: f32 = if ordinary {
             start.hue
         } else {

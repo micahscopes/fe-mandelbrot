@@ -22,7 +22,7 @@ function remainder(x) {
 }
 function expected(start, end, t) {
   const delta = f(end - start);
-  const ordinary = delta >= -540 && delta <= 540;
+  const ordinary = Math.abs(start) <= 540 && Math.abs(end) <= 540 && Math.abs(delta) <= 540;
   const origin = ordinary ? start : remainder(start);
   let arc = ordinary ? delta : f(remainder(end) - origin);
   if (arc > 180) arc = f(arc - 360);
@@ -64,10 +64,19 @@ for (let exponent = 0; exponent < 255; exponent++)
   for (const mantissa of [0, 1, 0x123456, 0x7fffff])
     for (const sign of [0, 0x80000000])
       for (const t of [0, .5, 1]) check(0, float((sign | (exponent << 23) | mantissa) >>> 0), t);
-for (const [start, end] of [[0, 99999997952], [99999997952, 0], [-3e38, 3e38], [3e38, -3e38],
+for (const [start, end] of [[0, 99999997952], [99999997952, 0], [99999997952, 99999997952],
+  [99999997952, 100000006144], [float(0x7f7fffff), float(0x7f7fffff)], [-3e38, 3e38], [3e38, -3e38],
   [-float(0x7f7fffff), float(0x7f7fffff)], [float(0x7f7ffffe), float(0x7f7fffff)],
   [350, 10], [10, 350], [0, 900], [0, -900], [-359.5, 359.5]])
   for (const t of [0, .5, 1]) check(start, end, t, true);
+// Explicit semantic anchors keep the oracle honest about huge equal inputs.
+for (const t of [0, .5, 1]) {
+  assert.equal(actual(99999997952, 99999997952, t), 32);
+  assert.equal(actual(float(0x7f7fffff), float(0x7f7fffff), t), 0);
+}
+assert.equal(actual(99999997952, 100000006144, 0), 32);
+assert.equal(actual(99999997952, 100000006144, .5), -12);
+assert.equal(actual(99999997952, 100000006144, 1), -56);
 const receipt = {actualWasm: true, cases, failures, examples,
   oracle: 'Exact BigInt binary32 rational modulo; float32 interpolation preserves ordinary path and signed half-turn policy'};
 if (process.argv[3]) await fs.writeFile(process.argv[3], JSON.stringify(receipt, null, 2) + '\n');
