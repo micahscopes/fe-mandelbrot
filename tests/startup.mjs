@@ -18,6 +18,7 @@ if(process.env.STAGED_SITE){
  });
 }
 try{
+ if(process.env.FAIL_GPU_PIPELINE)await page.addInitScript(()=>{GPUDevice.prototype.createComputePipelineAsync=function(descriptor){return Promise.reject(new Error('Injected driver failure for '+descriptor.label));};});
  if(process.env.BLOCK_GPU)await page.addInitScript(()=>Object.defineProperty(navigator,'gpu',{value:undefined,configurable:true}));
  await page.addInitScript(()=>{
   window.startupAllocations=[];window.startupPipelines=0;window.startupInFlight=0;window.startupPeak=0;
@@ -35,7 +36,10 @@ try{
  await page.goto(new URL('index.html',base).href);
  await page.waitForFunction(()=>['live','error'].includes(document.querySelector('fe-surface')?.state),null,{timeout:60000});
  let receipt;
- if(process.env.BLOCK_GPU){
+ if(process.env.FAIL_GPU_PIPELINE){
+  receipt=await page.evaluate(()=>({state:document.querySelector('fe-surface').state,message:document.querySelector('#status').textContent,hidden:document.querySelector('#status').hidden,pipelines:startupPipelines}));
+  assert.equal(receipt.state,'error');assert.equal(receipt.hidden,false);assert.match(receipt.message,/Fe pass: .+: pipeline creation failed: Injected driver failure for Fe pass:/);assert.equal(receipt.pipelines,1);
+ }else if(process.env.BLOCK_GPU){
   receipt=await page.evaluate(()=>({state:document.querySelector('fe-surface').state,message:document.querySelector('#status').textContent,hidden:document.querySelector('#status').hidden,pipelines:startupPipelines}));
   assert.equal(receipt.state,'error');assert.equal(receipt.hidden,false);assert.match(receipt.message,/WebGPU/);assert.equal(receipt.pipelines,0);
  }else{

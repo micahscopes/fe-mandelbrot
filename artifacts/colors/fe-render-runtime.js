@@ -2071,27 +2071,32 @@ export function selectPreparedPassRecords(passRecords, preparationKernels, unifo
 export function realizePassPipeline(device, record) {
   if (record.pipeline) return Promise.resolve(record.pipeline);
   if (record.pipelinePromise) return record.pipelinePromise;
+  const label = `Fe pass: ${record.pass.source_entry ?? record.pipelineDescriptor.compute?.entryPoint ?? record.pipelineDescriptor.vertex?.entryPoint ?? "unknown"}`;
   let pending;
   pending = (async () => {
     try {
       const shaderSource = record.shaderSource ?? await (
         await fetchOrThrow(record.shaderUrl, "WGSL pass shader")
       ).text();
-      const module = record.shaderModule ?? device.createShaderModule({ code: shaderSource });
+      const module = record.shaderModule ?? device.createShaderModule({ label, code: shaderSource });
       record.shaderModule = module;
       record.shaderSource = null;
       const pipeline = record.pass.layout.mode === "compute"
         ? await device.createComputePipelineAsync({
             ...record.pipelineDescriptor,
+            label,
             compute: { ...record.pipelineDescriptor.compute, module },
           })
         : await device.createRenderPipelineAsync({
             ...record.pipelineDescriptor,
+            label,
             vertex: { ...record.pipelineDescriptor.vertex, module },
             fragment: { ...record.pipelineDescriptor.fragment, module },
           });
       record.pipeline = pipeline;
       return pipeline;
+    } catch (error) {
+      throw new Error(`${label}: pipeline creation failed: ${error.message ?? String(error)}`, { cause: error });
     } finally {
       if (record.pipelinePromise === pending) record.pipelinePromise = null;
     }

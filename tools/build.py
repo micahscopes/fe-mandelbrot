@@ -13,7 +13,7 @@ def artifact_hashes(directory):return{p.relative_to(directory).as_posix():hashli
 def patch_runtime(directory):
     # Mirror generic runtime-only source patches for an older compatible
     # compiler. Preserve the compiler-injected host-runtime prelude.
-    for name in ['control-parts.patch', 'wasm-rgba.patch', 'active-pipeline-preparation.patch', 'live-startup.patch']:
+    for name in ['control-parts.patch', 'wasm-rgba.patch', 'active-pipeline-preparation.patch', 'live-startup.patch', 'pipeline-diagnostics.patch']:
         patch=ROOT/'toolchain/patches'/name
         command=['patch','--batch','--no-backup-if-mismatch','-p5','-d',str(directory),'-i',str(patch)]
         reverse=subprocess.run([*command,'--force','--reverse','--dry-run'],capture_output=True)
