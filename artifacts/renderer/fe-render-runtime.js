@@ -764,6 +764,75 @@ export function createFeHostAdapter(host, runtime) {
 // precompiler to `<fe-surface manifest=...>`, crates/html-precompile) all
 // import this SAME module and drive the SAME element. One mount path.
 
+// Fixed scalar vocabularies shared with std::web::component_events. These
+// describe browser facts, not gesture membership or camera behavior.
+export const SurfaceContactPhase = Object.freeze({ Down: 0, Move: 1, Up: 2, Cancel: 3, LostCapture: 4 });
+
+export function wireSurfaceContactTransport(canvas, deliver) {
+  const captured = new Map();
+  const touchAction = canvas.style.touchAction;
+  canvas.style.touchAction = "none";
+  const device = type => ({ mouse: 0, pen: 1, touch: 2 })[type] ?? 3;
+  const snapshot = (event, phase) => {
+    const { left, top, width, height } = canvas.getBoundingClientRect();
+    return {
+      phase, device: device(event.pointerType), pointerId: event.pointerId >>> 0,
+      clientX: event.clientX, clientY: event.clientY, buttons: event.buttons,
+      primary: event.isPrimary, pressure: event.pressure, timestamp: event.timeStamp,
+      bounds: { left, top, width, height },
+    };
+  };
+  const release = id => {
+    try { canvas.releasePointerCapture(id); } catch { /* Already released. */ }
+  };
+  const down = event => {
+    const raw = snapshot(event, SurfaceContactPhase.Down);
+    canvas.setPointerCapture(event.pointerId);
+    captured.set(raw.pointerId, raw);
+    deliver(raw);
+    if (event.button === 0) event.preventDefault();
+  };
+  const move = event => {
+    const id = event.pointerId >>> 0;
+    if (!captured.has(id)) return;
+    const raw = snapshot(event, SurfaceContactPhase.Move);
+    captured.set(id, raw);
+    deliver(raw);
+    event.preventDefault();
+  };
+  const finish = (event, phase) => {
+    const id = event.pointerId >>> 0;
+    if (!captured.has(id)) return;
+    const raw = snapshot(event, phase);
+    captured.delete(id);
+    deliver(raw);
+    if (phase !== SurfaceContactPhase.LostCapture) release(event.pointerId);
+  };
+  const handlers = {
+    pointerdown: down, pointermove: move,
+    pointerup: event => finish(event, SurfaceContactPhase.Up),
+    pointercancel: event => finish(event, SurfaceContactPhase.Cancel),
+    lostpointercapture: event => finish(event, SurfaceContactPhase.LostCapture),
+  };
+  for (const [name, handler] of Object.entries(handlers)) canvas.addEventListener(name, handler);
+  let closed = false;
+  return closeScope => {
+    if (closed) return;
+    closed = true;
+    // Scope cancellation is a typed lifecycle fact. Retained raw observations
+    // are delivered before these cancellations; no terminal motion is invented.
+    const timestamp = globalThis.performance?.now?.() ?? 0;
+    const cancelled = [...captured.values()].map(raw => ({ ...raw, phase: SurfaceContactPhase.Cancel, timestamp }));
+    try { closeScope(cancelled); } finally {
+      for (const [name, handler] of Object.entries(handlers)) canvas.removeEventListener(name, handler);
+      const ids = [...captured.keys()];
+      captured.clear();
+      for (const id of ids) release(id);
+      canvas.style.touchAction = touchAction;
+    }
+  };
+}
+
 const DEFAULT_SIZE = 256; // dispatch/canvas size for a v4 manifest with no declared `surface.extent`.
 const SURFACE_EVENT_STRIDE = 52;
 const MAX_SURFACE_EVENT_BATCH = Math.floor(0x7fffffff / SURFACE_EVENT_STRIDE);
@@ -2393,6 +2462,7 @@ export class FeSurfaceElement extends HTMLElement {
     this._scopedTaskLifetime = null;
     this._bufferPublications = null;
     this._actorNotificationKernel = null;
+    this._surfaceContactKernel = null;
     this._scopedTasksNeedReboot = false;
     this._surface = null;
     this._control = null; // R3 param gestures: the projected `control` manifest section.
@@ -2404,6 +2474,11 @@ export class FeSurfaceElement extends HTMLElement {
     this._surfaceScheduleKernel = null;
     this._surfaceRecoveryKernel = null;
     this._surfaceQualityKernel = null;
+    this._surfaceLocationKernel = null;
+    this._surfaceLocationListeners = null;
+    this._suppressLocationEcho = false;
+    this._lastSyncedLocationHash = null;
+    this._lastAppliedLocationHref = null;
     this._passActivationKernels = [];
     this._passPreparationKernels = [];
     this._passPreparationObserver = null;
@@ -2549,6 +2624,9 @@ export class FeSurfaceElement extends HTMLElement {
         return;
       }
       this._startScopedTasks();
+      if (this._surfaceLocationKernel) {
+        this._wireSurfaceLocationListeners();
+      }
       if (this._fsm === "live") {
         this._wireSuspendObserver();
         this._wireResizeObserver();
@@ -2561,6 +2639,7 @@ export class FeSurfaceElement extends HTMLElement {
   disconnectedCallback() {
     const hadScopedTasks = this._scopedTaskMachines !== null;
     this._stopScopedTasks();
+    this._unwireSurfaceLocationListeners();
     this._scopedTasksNeedReboot = hadScopedTasks;
     this._suspendObserver?.disconnect();
     this._activationObserver?.disconnect();
@@ -2758,10 +2837,30 @@ export class FeSurfaceElement extends HTMLElement {
       }
       this._surfaceTransitionStateResident =
         typeof residentScheduled === "function" || this._gpuReadbackKernel !== null;
+      this._surfaceContactKernel = instance?.exports.fe_surface_contact_v1 ?? null;
+      if (this._surfaceContactKernel !== null) {
+        if (typeof this._surfaceContactKernel !== "function") {
+          throw new Error("fe render runtime: contact export is not callable");
+        }
+        this._surfaceTransitionStateResident = true;
+      }
       this._actorNotificationKernel = instance?.exports.fe_surface_actor_message_v1 ?? null;
       if (this._actorNotificationKernel !== null) {
         if (typeof this._actorNotificationKernel !== "function") {
           throw new Error("fe render runtime: actor notification export is not callable");
+        }
+        this._surfaceTransitionStateResident = true;
+      }
+      this._surfaceLocationKernel = instance?.exports.fe_surface_location_v1 ?? null;
+      if (this._surfaceLocationKernel !== null) {
+        if (typeof this._surfaceLocationKernel !== "function") {
+          throw new Error("fe render runtime: surface location export is not callable");
+        }
+        const expectedLocationArity = 6 + this._resources.length;
+        if (this._surfaceLocationKernel.length !== expectedLocationArity) {
+          throw new Error(
+            `fe render runtime: surface location export has arity ${this._surfaceLocationKernel.length}; expected ${expectedLocationArity}`,
+          );
         }
         this._surfaceTransitionStateResident = true;
       }
@@ -2774,7 +2873,11 @@ export class FeSurfaceElement extends HTMLElement {
         }
         this._surfaceStateReplaceKernel = replaceState;
       }
-      if (this._surfaceTransitionSchedule === "resident" || this._gpuReadbackKernel) {
+      if (
+        this._surfaceTransitionSchedule === "resident" ||
+        this._gpuReadbackKernel ||
+        this._surfaceLocationKernel
+      ) {
         this._attachSurfaceByteTransport(instance.exports);
       }
       const surfaceScheduleV2 = instance?.exports.fe_surface_schedule_v2;
@@ -2861,6 +2964,11 @@ export class FeSurfaceElement extends HTMLElement {
       this._startScopedTasks();
 
       if (!this._adoptedCanvas) this._ensureStage();
+      this._applyBackingExtent(null);
+      if (this._surfaceLocationKernel) {
+        this._wireSurfaceLocationListeners();
+        this._syncSurfaceLocation(true, false);
+      }
       // Publish inspectable artifact links as soon as the manifest has been
       // resolved. They remain useful diagnostics even when poster rendering
       // subsequently fails because this browser has no usable WebGPU device.
@@ -2901,7 +3009,7 @@ export class FeSurfaceElement extends HTMLElement {
   _applyStatePolicy() {
     const policy = this.getAttribute("state") || "auto";
     if (policy === "live") {
-      this._goLive();
+      this._goLive().catch(error => this._fail(error));
       return;
     }
     if (policy === "frozen") {
@@ -3013,7 +3121,16 @@ export class FeSurfaceElement extends HTMLElement {
       throw new Error("fe render runtime: surface quality facts must be finite");
     }
     if (this._surfaceQualityKernel) {
-      const reply = this._runWasmArenaEpoch(() => this._surfaceQualityKernel(...facts));
+      const state = this._uniforms ?? [];
+      const arity = this._surfaceQualityKernel.length;
+      if (arity > facts.length && arity !== facts.length + state.length) {
+        throw new Error("fe render runtime: surface quality state does not match its ABI");
+      }
+      const qualityArgs =
+        arity === facts.length + state.length
+          ? [...facts, ...state]
+          : facts;
+      const reply = this._runWasmArenaEpoch(() => this._surfaceQualityKernel(...qualityArgs));
       const extent = Array.isArray(reply) ? reply : [reply];
       if (
         extent.length !== 2 ||
@@ -3087,6 +3204,9 @@ export class FeSurfaceElement extends HTMLElement {
         : null;
       if (!this._applyBackingExtent(gpu)) return;
       this._resizePresentationCanvases();
+      if (this._surfaceLocationKernel) {
+        this._syncSurfaceLocation(false, false);
+      }
       await this._render();
     } finally {
       this._resizePending = false;
@@ -3790,6 +3910,9 @@ export class FeSurfaceElement extends HTMLElement {
    * without allocating a canvas swap chain. */
   async _prepareReadyFrame() {
     if (this._graph && !this._hasRenderPass) return;
+    // A declared live surface presents immediately. Creating and reading back
+    // a disposable poster would allocate and compile the same graph twice.
+    if (this.getAttribute("state") === "live") return;
     await this._renderPosterWithRecovery();
   }
 
@@ -3994,7 +4117,7 @@ export class FeSurfaceElement extends HTMLElement {
       // Already presenting (webgpu, kept configured) or cheap to re-run
       // (wasm-2d); "live" is a state/event transition here, not new work.
       let gpu = null;
-      if (this._mode === "webgpu") {
+      if (this._mode !== "wasm-2d") {
         gpu = await this._ensurePipeline();
         if (!gpu) {
           if (!this._kernel) {
@@ -4004,10 +4127,13 @@ export class FeSurfaceElement extends HTMLElement {
             return;
           }
           this._mode = "wasm-2d";
-        } else if (!this._adoptedContext) {
-          const context = this._adoptedCanvas.getContext("webgpu");
-          context.configure({ device: gpu.device, format: gpu.format, alphaMode: "opaque" });
-          this._adoptedContext = context;
+        } else {
+          this._mode = "webgpu";
+          if (!this._adoptedContext) {
+            const context = this._adoptedCanvas.getContext("webgpu");
+            context.configure({ device: gpu.device, format: gpu.format, alphaMode: "opaque" });
+            this._adoptedContext = context;
+          }
         }
       }
       this._applyBackingExtent(gpu);
@@ -4048,6 +4174,7 @@ export class FeSurfaceElement extends HTMLElement {
       this._enterLive();
       return;
     }
+    this._mode = "webgpu";
     this._applyBackingExtent(gpu);
     this._createLiveCanvas();
     this._liveCanvas.width = this._backingWidth;
@@ -4325,9 +4452,11 @@ export class FeSurfaceElement extends HTMLElement {
   }
 
   _teardown() {
+    this._unwireGestures();
     this._stopScopedTasks();
     this._bufferPublications = null;
     this._actorNotificationKernel = null;
+    this._surfaceContactKernel = null;
     this._scopedTaskBroker = null;
     this._scopedTaskMachines = null;
     this._scopedTasksNeedReboot = false;
@@ -4353,6 +4482,11 @@ export class FeSurfaceElement extends HTMLElement {
     this._recoveryObservedLoss = false;
     this._recoveryWasLive = false;
     this._surfaceQualityKernel = null;
+    this._unwireSurfaceLocationListeners();
+    this._surfaceLocationKernel = null;
+    this._suppressLocationEcho = false;
+    this._lastSyncedLocationHash = null;
+    this._lastAppliedLocationHref = null;
     this._passActivationKernels = [];
     this._passPreparationKernels = [];
     this._unwireResizeObserver();
@@ -4518,6 +4652,113 @@ export class FeSurfaceElement extends HTMLElement {
     }
   }
 
+  _wireSurfaceLocationListeners() {
+    if (this._surfaceLocationListeners || typeof globalThis.addEventListener !== "function") {
+      return;
+    }
+    const onLocationChange = () => {
+      if (this._suppressLocationEcho || !this._surfaceLocationKernel) return;
+      const currentHref = String(globalThis.location?.href ?? "");
+      const currentHash = String(globalThis.location?.hash ?? "");
+      if (
+        currentHref === this._lastAppliedLocationHref &&
+        currentHash === this._lastSyncedLocationHash
+      ) {
+        return;
+      }
+      this._syncSurfaceLocation(true, true);
+    };
+    globalThis.addEventListener("popstate", onLocationChange);
+    globalThis.addEventListener("hashchange", onLocationChange);
+    this._surfaceLocationListeners = { onLocationChange };
+  }
+
+  _unwireSurfaceLocationListeners() {
+    if (!this._surfaceLocationListeners || typeof globalThis.removeEventListener !== "function") {
+      this._surfaceLocationListeners = null;
+      return;
+    }
+    const { onLocationChange } = this._surfaceLocationListeners;
+    globalThis.removeEventListener("popstate", onLocationChange);
+    globalThis.removeEventListener("hashchange", onLocationChange);
+    this._surfaceLocationListeners = null;
+  }
+
+  _syncSurfaceLocation(applyInput = false, fromNavigationEvent = false) {
+    if (!this._surfaceLocationKernel) return null;
+    if (this._suppressLocationEcho && applyInput && fromNavigationEvent) return null;
+    const href = String(globalThis.location?.href ?? "");
+    const result = this._runWasmArenaEpoch(() => {
+      const encoded = applyInput ? new TextEncoder().encode(href) : new Uint8Array(0);
+      const inputPtr = encoded.byteLength > 0
+        ? this._surfaceTransitionAlloc(encoded.byteLength, 1)
+        : 0;
+      const outputCap = 256;
+      const outputPtr = this._surfaceTransitionAlloc(outputCap, 1);
+      const outputLenPtr = this._surfaceTransitionAlloc(4, 4);
+      const memory = this._surfaceTransitionMemory;
+      if (encoded.byteLength > 0) {
+        new Uint8Array(memory.buffer, inputPtr, encoded.byteLength).set(encoded);
+      }
+      const view = new DataView(memory.buffer);
+      view.setUint32(outputLenPtr, 0, true);
+      const reply = this._surfaceLocationKernel(
+        applyInput ? 1 : 0,
+        inputPtr,
+        encoded.byteLength,
+        outputPtr,
+        outputCap,
+        outputLenPtr,
+        ...this._surfaceResourceArgs(),
+      );
+      const next = this._surfaceReplyValues(reply, "typed surface location transition");
+      const afterView = new DataView(memory.buffer);
+      const outLen = afterView.getUint32(outputLenPtr, true);
+      const outHash = outLen > 0 && outputPtr + outLen <= memory.buffer.byteLength
+        ? new TextDecoder().decode(new Uint8Array(memory.buffer, outputPtr, outLen))
+        : "";
+      return { next, outHash };
+    });
+    if (!result?.next) return null;
+    if (applyInput) {
+      this._uniforms = result.next;
+      if (this._applyBackingExtent(this._gpu)) {
+        this._resizePresentationCanvases();
+      }
+      this._refreshControlValues();
+    }
+    if (result.outHash && typeof globalThis.history?.replaceState === "function") {
+      const currentUrl = new URL(href || "http://localhost/");
+      const currentHash = currentUrl.hash;
+      const shouldReplace = applyInput
+        ? (currentHash.length > 0 && currentHash !== result.outHash)
+        : currentHash !== result.outHash;
+      if (shouldReplace) {
+        currentUrl.hash = result.outHash;
+        this._suppressLocationEcho = true;
+        try {
+          globalThis.history.replaceState(globalThis.history.state, "", currentUrl.href);
+        } finally {
+          this._suppressLocationEcho = false;
+        }
+      }
+      this._lastSyncedLocationHash = String(globalThis.location?.hash || "");
+      this._lastAppliedLocationHref = String(globalThis.location?.href ?? "");
+    }
+    if (applyInput && fromNavigationEvent) {
+      if (this._fsm === "live") {
+        if (this._surfaceScheduleKernel) {
+          this._realizeSurfaceSchedule(this._runSurfaceSchedule(SurfaceEventKind.StateChanged));
+        }
+        void this._render().catch((error) => this._fail(error));
+      } else if (this._fsm === "ready") {
+        void this._prepareReadyFrame().catch((error) => this._fail(error));
+      }
+      this._dispatch("fe-frame", { params: this._paramsSnapshot() });
+    }
+    return result;
+  }
+
   async _bootCanonicalActor(wasm) {
     const canonical = this._manifest?.canonical_interface;
     if (!canonical) return;
@@ -4564,10 +4805,14 @@ export class FeSurfaceElement extends HTMLElement {
    * Captured drag is the compatibility default. A compiler-projected Fe actor
    * capability may additionally request raw uncaptured primary hover motion. */
   _wireGestures() {
-    if (!this._surfaceTransitionKernel && (!this._control || !this._controlKernel)) return;
+    if (!this._surfaceContactKernel && !this._surfaceTransitionKernel && (!this._control || !this._controlKernel)) return;
     const canvas = this._adoptedCanvas || (this._mode === "webgpu" ? this._liveCanvas : this._posterCanvas);
     if (!canvas || this._gestureListeners?.canvas === canvas) return;
     this._unwireGestures();
+    if (this._surfaceContactKernel) {
+      this._wireContactGestures(canvas);
+      return;
+    }
     const touchAction = canvas.style.touchAction;
     canvas.style.touchAction = "none";
 
@@ -4687,9 +4932,70 @@ export class FeSurfaceElement extends HTMLElement {
     };
   }
 
+  _wireContactGestures(canvas) {
+    const disposeContacts = wireSurfaceContactTransport(canvas, raw => this._applyContact(raw));
+    const onWheel = event => {
+      event.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      this._applyGesture({
+        dx: 0, dy: 0, wheelDelta: event.deltaY, wheelMode: event.deltaMode,
+        mx: (event.clientX - rect.left) * this._backingWidth / (rect.width || 1),
+        my: (event.clientY - rect.top) * this._backingHeight / (rect.height || 1),
+        buttons: event.buttons, timestamp: event.timeStamp,
+      });
+    };
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    this._gestureListeners = { canvas, disposeContacts, onWheel };
+  }
+
+  _applyContact(raw) {
+    if (this._fsm !== "live" || !this._surfaceContactKernel) return;
+    const eventKind = raw.phase === SurfaceContactPhase.Down ? SurfaceEventKind.PointerDown
+      : raw.phase === SurfaceContactPhase.Move ? SurfaceEventKind.PointerMove : SurfaceEventKind.PointerUp;
+    const event = { lane: "contact", contact: raw, eventKind, timestamp: raw.timestamp };
+    if (this._surfaceTransitionSchedule === "resident") {
+      this._pendingSurfaceEvents.push(event);
+      this._notifyScheduledInput(eventKind, raw.timestamp);
+    } else {
+      this._queueGestureRender(this._runSurfaceContact(raw));
+    }
+  }
+
+  _runSurfaceContact(raw) {
+    const { left, top, width, height } = raw.bounds;
+    return this._runWasmArenaEpoch(() => this._surfaceReplyValues(
+      this._surfaceContactKernel(
+        raw.phase, raw.device, raw.pointerId, raw.clientX, raw.clientY,
+        raw.buttons, raw.primary ? 1 : 0, raw.pressure, raw.timestamp,
+        left, top, width, height, ...this._surfaceResourceArgs(),
+      ), "typed surface contact",
+    ));
+  }
+
+  _finishSurfaceContactScope(cancelled) {
+    if (!this._surfaceContactKernel) return;
+    // The queue contains only input retained by the Fe policy. Closing this
+    // input scope consumes that retained prefix before cancelling its captures;
+    // it never restores dropped events or requests presentation.
+    if (this._pendingSurfaceEvents.length) {
+      this._uniforms = this._runSurfaceFrame(this._pendingSurfaceEvents.splice(0));
+    }
+    for (const raw of cancelled) this._uniforms = this._runSurfaceContact(raw);
+    this._refreshControlValues();
+  }
+
   _unwireGestures() {
     const listeners = this._gestureListeners;
     if (!listeners) return;
+    if (listeners.disposeContacts) {
+      try {
+        listeners.disposeContacts(cancelled => this._finishSurfaceContactScope(cancelled));
+      } finally {
+        listeners.canvas.removeEventListener("wheel", listeners.onWheel);
+        this._gestureListeners = null;
+      }
+      return;
+    }
     const { canvas, onPointerDown, onPointerMove, onPointerUp, onWheel, touchAction } = listeners;
     canvas.removeEventListener("pointerdown", onPointerDown);
     canvas.removeEventListener("pointermove", onPointerMove);
@@ -4861,12 +5167,18 @@ export class FeSurfaceElement extends HTMLElement {
         : this._runSurfaceTransition(event);
       if (!next) return;
       this._uniforms = next;
+      if (this._surfaceLocationKernel) {
+        this._syncSurfaceLocation(false, false);
+      }
       void this._render().catch((error) => this._fail(error));
       return;
     }
 
     const next = this._uniforms.slice();
     next[index] = value;
+    if (this._surfaceLocationKernel) {
+      this._syncSurfaceLocation(false, false);
+    }
     void this._render(next).catch((error) => this._fail(error));
   }
 
@@ -4958,6 +5270,28 @@ export class FeSurfaceElement extends HTMLElement {
   }
 
   _runSurfaceFrame(events) {
+    if (!events.some(event => event.lane === "contact")) return this._runSurfaceEventBatch(events);
+    let pending = [];
+    let next = null;
+    const flush = () => {
+      if (pending.length) {
+        next = this._runSurfaceEventBatch(pending);
+        pending = [];
+        return next !== null;
+      }
+      return true;
+    };
+    for (const event of events) {
+      if (event.lane === "contact") {
+        if (!flush()) return null;
+        next = this._runSurfaceContact(event.contact);
+      } else pending.push(event);
+    }
+    if (!flush()) return null;
+    return next;
+  }
+
+  _runSurfaceEventBatch(events) {
     if (events.length === 0 || events.length > MAX_SURFACE_EVENT_BATCH) {
       throw new Error(`fe render runtime: invalid surface event batch length ${events.length}`);
     }
@@ -5171,6 +5505,9 @@ export class FeSurfaceElement extends HTMLElement {
   _queueGestureRender(next) {
     this._uniforms = next;
     this._refreshControlValues();
+    if (this._surfaceLocationKernel) {
+      this._syncSurfaceLocation(false, false);
+    }
     if (this._fsm !== "live") return;
     this._gestureDirty = true;
     this._scheduleGestureFrame();
@@ -5200,6 +5537,12 @@ export class FeSurfaceElement extends HTMLElement {
       this._realizeSurfaceSchedule(decision);
       if (!decision?.present) return;
 
+      const hadUserEvent = this._pendingSurfaceEvents.some(
+        (event) =>
+          event.eventKind !== SurfaceEventKind.AnimationFrame &&
+          event.eventKind !== SurfaceEventKind.GpuComplete &&
+          event.eventKind !== SurfaceEventKind.StateChanged,
+      );
       const events = [
         ...this._pendingSurfaceEvents.splice(0),
         this._surfaceBoundaryEvent(SurfaceEventKind.AnimationFrame, timestamp),
@@ -5211,6 +5554,9 @@ export class FeSurfaceElement extends HTMLElement {
       if (next) {
         this._uniforms = next;
         this._refreshControlValues();
+        if (hadUserEvent && this._surfaceLocationKernel) {
+          this._syncSurfaceLocation(false, false);
+        }
       }
       try {
         await this._render();

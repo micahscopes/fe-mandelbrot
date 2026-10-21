@@ -1706,12 +1706,6 @@
           "ce": 81,
           "cs": 0,
           "line": 35,
-          "sym": "fe fe std 0.1.0 lib/web/view/ApplyParamBindings#"
-        },
-        {
-          "ce": 81,
-          "cs": 0,
-          "line": 35,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceState#"
         },
         {
@@ -1719,6 +1713,12 @@
           "cs": 0,
           "line": 35,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceState#Params#"
+        },
+        {
+          "ce": 81,
+          "cs": 0,
+          "line": 35,
+          "sym": "fe fe std 0.1.0 lib/web/view/ApplyParamBindings#"
         },
         {
           "ce": 29,

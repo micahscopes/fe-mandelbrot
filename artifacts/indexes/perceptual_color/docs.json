@@ -3595,12 +3595,6 @@
           "ce": 62,
           "cs": 0,
           "line": 18,
-          "sym": "fe fe core 0.1.0 lib/ops/Eq#"
-        },
-        {
-          "ce": 62,
-          "cs": 0,
-          "line": 18,
           "sym": "fe fe core 0.1.0 lib:"
         },
         {
@@ -3608,6 +3602,12 @@
           "cs": 0,
           "line": 18,
           "sym": "fe fe core 0.1.0 lib/ops:"
+        },
+        {
+          "ce": 62,
+          "cs": 0,
+          "line": 18,
+          "sym": "fe fe core 0.1.0 lib/ops/Eq#"
         },
         {
           "ce": 16,
@@ -3683,12 +3683,6 @@
           "ce": 55,
           "cs": 0,
           "line": 24,
-          "sym": "fe fe core 0.1.0 lib/ops/Eq#"
-        },
-        {
-          "ce": 55,
-          "cs": 0,
-          "line": 24,
           "sym": "fe fe core 0.1.0 lib:"
         },
         {
@@ -3701,19 +3695,25 @@
           "ce": 55,
           "cs": 0,
           "line": 24,
-          "sym": "fe fe core 0.1.0 lib/default/Default/default."
-        },
-        {
-          "ce": 55,
-          "cs": 0,
-          "line": 24,
           "sym": "fe fe core 0.1.0 lib/ops:"
         },
         {
           "ce": 55,
           "cs": 0,
           "line": 24,
+          "sym": "fe fe core 0.1.0 lib/default/Default/default."
+        },
+        {
+          "ce": 55,
+          "cs": 0,
+          "line": 24,
           "sym": "fe fe core 0.1.0 lib/default/Default#"
+        },
+        {
+          "ce": 55,
+          "cs": 0,
+          "line": 24,
+          "sym": "fe fe core 0.1.0 lib/ops/Eq#"
         },
         {
           "ce": 16,

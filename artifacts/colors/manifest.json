@@ -4,7 +4,7 @@
   "source_entry": "shade",
   "artifacts": {
     "wasm": "module.wasm",
-    "wasm_bytes": 5526,
+    "wasm_bytes": 5645,
     "wgsl": "shader.wgsl",
     "wgsl_bytes": 7329,
     "canonical_adapters": []

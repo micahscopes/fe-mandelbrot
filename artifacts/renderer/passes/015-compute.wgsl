@@ -6,44 +6,92 @@ struct FeLocal_fe_shader_private_layout_2_ {
 
 struct FeLocal_fe_shader_private_layout_3_ {
     f0_: f32,
-    f1_: f32,
-    f2_: f32,
-    f3_: f32,
-    f4_: f32,
-    f5_: f32,
-    f6_: f32,
-    f7_: f32,
-    f8_: f32,
-    f9_: f32,
-    f10_: f32,
-    f11_: f32,
-    f12_: f32,
-    f13_: f32,
-    f14_: f32,
 }
 
 struct FeLocal_fe_shader_private_layout_4_ {
     f0_: f32,
+    f1_: FeLocal_fe_shader_private_layout_3_,
+}
+
+struct FeLocal_fe_shader_private_layout_5_ {
+    f0_: f32,
+    f1_: FeLocal_fe_shader_private_layout_4_,
+}
+
+struct FeLocal_fe_shader_private_layout_6_ {
+    f0_: f32,
+    f1_: FeLocal_fe_shader_private_layout_5_,
+}
+
+struct FeLocal_fe_shader_private_layout_7_ {
+    f0_: FeLocal_fe_shader_private_layout_6_,
+}
+
+struct FeLocal_fe_shader_private_layout_8_ {
+    f0_: FeLocal_fe_shader_private_layout_7_,
+    f1_: FeLocal_fe_shader_private_layout_7_,
+}
+
+struct FeLocal_fe_shader_private_layout_9_ {
+    f0_: FeLocal_fe_shader_private_layout_8_,
+    f1_: f32,
+    f2_: f32,
+}
+
+struct FeLocal_fe_shader_private_layout_10_ {
+    f0_: f32,
+    f1_: f32,
+}
+
+struct FeLocal_fe_shader_private_layout_11_ {
+    f0_: bool,
+    f1_: u32,
+    f2_: FeLocal_fe_shader_private_layout_10_,
+}
+
+struct FeLocal_fe_shader_private_layout_12_ {
+    f0_: array<FeLocal_fe_shader_private_layout_11_, 10>,
+}
+
+struct FeLocal_fe_shader_private_layout_13_ {
+    f0_: FeLocal_fe_shader_private_layout_10_,
+    f1_: FeLocal_fe_shader_private_layout_10_,
+}
+
+struct FeLocal_fe_shader_private_layout_14_ {
+    f0_: FeLocal_fe_shader_private_layout_12_,
+    f1_: FeLocal_fe_shader_private_layout_13_,
+}
+
+struct FeLocal_fe_shader_private_layout_15_ {
+    f0_: bool,
+    f1_: f32,
+}
+
+struct FeLocal_fe_shader_private_layout_16_ {
+    f0_: FeLocal_fe_shader_private_layout_9_,
     f1_: f32,
     f2_: f32,
     f3_: f32,
     f4_: f32,
     f5_: f32,
-    f6_: f32,
-    f7_: f32,
-    f8_: f32,
-    f9_: f32,
-    f10_: u32,
-    f11_: f32,
-    f12_: u32,
-    f13_: f32,
-    f14_: u32,
-    f15_: u32,
-    f16_: u32,
-    f17_: u32,
+    f6_: FeLocal_fe_shader_private_layout_14_,
+    f7_: FeLocal_fe_shader_private_layout_15_,
 }
 
-struct FeLocal_fe_shader_private_layout_5_ {
+struct FeLocal_fe_shader_private_layout_17_ {
+    f0_: FeLocal_fe_shader_private_layout_9_,
+    f1_: u32,
+    f2_: f32,
+    f3_: u32,
+    f4_: f32,
+    f5_: u32,
+    f6_: u32,
+    f7_: u32,
+    f8_: u32,
+}
+
+struct FeLocal_fe_shader_private_layout_18_ {
     f0_: u32,
     f1_: u32,
     f2_: u32,
@@ -72,16 +120,16 @@ struct snapshot_oracle_element {
 }
 
 struct cache_element {
-    x0_: f32,
-    x1_: f32,
-    x2_: f32,
-    x3_: f32,
-    y0_: f32,
-    y1_: f32,
-    y2_: f32,
-    y3_: f32,
-    zoom: f32,
-    res: f32,
+    camera_u002e_center_u002e_re_u002e_value_u002e_lead: f32,
+    camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_lead: f32,
+    camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_tail_u002e_lead: f32,
+    camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value: f32,
+    camera_u002e_center_u002e_im_u002e_value_u002e_lead: f32,
+    camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_lead: f32,
+    camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_lead: f32,
+    camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value: f32,
+    camera_u002e_zoom: f32,
+    camera_u002e_res: f32,
     cursor: u32,
     aa: f32,
     budget: u32,
@@ -119,6 +167,52 @@ struct Params {
     p41_: f32,
     p42_: f32,
     p43_: f32,
+    p44_: u32,
+    p45_: u32,
+    p46_: f32,
+    p47_: f32,
+    p48_: u32,
+    p49_: u32,
+    p50_: f32,
+    p51_: f32,
+    p52_: u32,
+    p53_: u32,
+    p54_: f32,
+    p55_: f32,
+    p56_: u32,
+    p57_: u32,
+    p58_: f32,
+    p59_: f32,
+    p60_: u32,
+    p61_: u32,
+    p62_: f32,
+    p63_: f32,
+    p64_: u32,
+    p65_: u32,
+    p66_: f32,
+    p67_: f32,
+    p68_: u32,
+    p69_: u32,
+    p70_: f32,
+    p71_: f32,
+    p72_: u32,
+    p73_: u32,
+    p74_: f32,
+    p75_: f32,
+    p76_: u32,
+    p77_: u32,
+    p78_: f32,
+    p79_: f32,
+    p80_: u32,
+    p81_: u32,
+    p82_: f32,
+    p83_: f32,
+    p84_: f32,
+    p85_: f32,
+    p86_: f32,
+    p87_: f32,
+    p88_: u32,
+    p89_: f32,
 }
 
 @group(0) @binding(0)
@@ -178,7 +272,7 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
     var local_2: u32 = u32();
     var loop_result: u32;
     var loop_did_return: bool = false;
-    var loop_header_carry_295_: bool;
+    var loop_header_carry_595_: bool;
 
     let _e13 = params.p38_;
     let _e19 = cache[i32(0u)].epoch;
@@ -197,7 +291,7 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
             loop {
                 let _e40 = local_2;
                 let _e42 = (_e40 < 64u);
-                loop_header_carry_295_ = _e42;
+                loop_header_carry_595_ = _e42;
                 if _e42 {
                     let _e44 = (_e40 << 16u);
                     let _e46 = (_e34 + _e44);

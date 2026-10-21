@@ -1,74 +1,124 @@
 struct FeLocal_fe_shader_private_layout_0_ {
     f0_: f32,
-    f1_: f32,
-    f2_: f32,
-    f3_: f32,
-    f4_: f32,
-    f5_: f32,
-    f6_: f32,
-    f7_: f32,
-    f8_: f32,
-    f9_: f32,
-    f10_: u32,
-    f11_: u32,
-    f12_: u32,
-    f13_: u32,
-    f14_: u32,
-    f15_: u32,
-    f16_: u32,
-    f17_: u32,
-}
-
-struct FeLocal_fe_shader_private_layout_2_ {
-    f0_: f32,
-    f1_: f32,
-    f2_: f32,
-    f3_: f32,
-    f4_: f32,
-    f5_: f32,
-    f6_: f32,
-    f7_: f32,
-    f8_: f32,
-    f9_: f32,
-    f10_: u32,
-    f11_: f32,
-    f12_: u32,
-    f13_: f32,
-    f14_: u32,
-    f15_: u32,
-    f16_: u32,
-    f17_: u32,
 }
 
 struct FeLocal_fe_shader_private_layout_1_ {
     f0_: f32,
+    f1_: FeLocal_fe_shader_private_layout_0_,
+}
+
+struct FeLocal_fe_shader_private_layout_2_ {
+    f0_: f32,
+    f1_: FeLocal_fe_shader_private_layout_1_,
+}
+
+struct FeLocal_fe_shader_private_layout_3_ {
+    f0_: f32,
+    f1_: FeLocal_fe_shader_private_layout_2_,
+}
+
+struct FeLocal_fe_shader_private_layout_4_ {
+    f0_: FeLocal_fe_shader_private_layout_3_,
+}
+
+struct FeLocal_fe_shader_private_layout_5_ {
+    f0_: FeLocal_fe_shader_private_layout_4_,
+    f1_: FeLocal_fe_shader_private_layout_4_,
+}
+
+struct FeLocal_fe_shader_private_layout_6_ {
+    f0_: FeLocal_fe_shader_private_layout_5_,
+    f1_: f32,
+    f2_: f32,
+}
+
+struct FeLocal_fe_shader_private_layout_10_ {
+    f0_: f32,
+    f1_: f32,
+}
+
+struct FeLocal_fe_shader_private_layout_11_ {
+    f0_: bool,
+    f1_: u32,
+    f2_: FeLocal_fe_shader_private_layout_10_,
+}
+
+struct FeLocal_fe_shader_private_layout_12_ {
+    f0_: array<FeLocal_fe_shader_private_layout_11_, 10>,
+}
+
+struct FeLocal_fe_shader_private_layout_13_ {
+    f0_: FeLocal_fe_shader_private_layout_10_,
+    f1_: FeLocal_fe_shader_private_layout_10_,
+}
+
+struct FeLocal_fe_shader_private_layout_14_ {
+    f0_: FeLocal_fe_shader_private_layout_12_,
+    f1_: FeLocal_fe_shader_private_layout_13_,
+}
+
+struct FeLocal_fe_shader_private_layout_15_ {
+    f0_: bool,
+    f1_: f32,
+}
+
+struct FeLocal_fe_shader_private_layout_16_ {
+    f0_: FeLocal_fe_shader_private_layout_6_,
     f1_: f32,
     f2_: f32,
     f3_: f32,
     f4_: f32,
     f5_: f32,
-    f6_: f32,
-    f7_: f32,
-    f8_: f32,
-    f9_: f32,
-    f10_: f32,
-    f11_: f32,
-    f12_: f32,
-    f13_: f32,
-    f14_: f32,
+    f6_: FeLocal_fe_shader_private_layout_14_,
+    f7_: FeLocal_fe_shader_private_layout_15_,
+}
+
+struct FeLocal_fe_shader_private_layout_7_ {
+    f0_: f32,
+    f1_: f32,
+}
+
+struct FeLocal_fe_shader_private_layout_8_ {
+    f0_: FeLocal_fe_shader_private_layout_7_,
+    f1_: FeLocal_fe_shader_private_layout_7_,
+}
+
+struct FeLocal_fe_shader_private_layout_9_ {
+    f0_: FeLocal_fe_shader_private_layout_6_,
+    f1_: u32,
+    f2_: u32,
+    f3_: u32,
+    f4_: u32,
+    f5_: u32,
+    f6_: u32,
+    f7_: u32,
+    f8_: u32,
+    f9_: FeLocal_fe_shader_private_layout_8_,
+}
+
+struct FeLocal_fe_shader_private_layout_17_ {
+    f0_: FeLocal_fe_shader_private_layout_6_,
+    f1_: u32,
+    f2_: f32,
+    f3_: u32,
+    f4_: f32,
+    f5_: u32,
+    f6_: u32,
+    f7_: u32,
+    f8_: u32,
 }
 
 struct preview_cache_element {
-    x0_: f32,
-    x1_: f32,
-    x2_: f32,
-    x3_: f32,
-    y0_: f32,
-    y1_: f32,
-    y2_: f32,
-    y3_: f32,
-    zoom: f32,
-    res: f32,
+    camera_u002e_center_u002e_re_u002e_value_u002e_lead: f32,
+    camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_lead: f32,
+    camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_tail_u002e_lead: f32,
+    camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value: f32,
+    camera_u002e_center_u002e_im_u002e_value_u002e_lead: f32,
+    camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_lead: f32,
+    camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_lead: f32,
+    camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value: f32,
+    camera_u002e_zoom: f32,
+    camera_u002e_res: f32,
     reference_generation: u32,
     reference_bank: u32,
     prefix_only: u32,
@@ -77,19 +127,23 @@ struct preview_cache_element {
     budget: u32,
     epoch: u32,
     completed: u32,
+    history_u002e_full_u002e_re: f32,
+    history_u002e_full_u002e_im: f32,
+    history_u002e_initial_u002e_re: f32,
+    history_u002e_initial_u002e_im: f32,
 }
 
 struct cache_element {
-    x0_: f32,
-    x1_: f32,
-    x2_: f32,
-    x3_: f32,
-    y0_: f32,
-    y1_: f32,
-    y2_: f32,
-    y3_: f32,
-    zoom: f32,
-    res: f32,
+    camera_u002e_center_u002e_re_u002e_value_u002e_lead: f32,
+    camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_lead: f32,
+    camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_tail_u002e_lead: f32,
+    camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value: f32,
+    camera_u002e_center_u002e_im_u002e_value_u002e_lead: f32,
+    camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_lead: f32,
+    camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_lead: f32,
+    camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value: f32,
+    camera_u002e_zoom: f32,
+    camera_u002e_res: f32,
     cursor: u32,
     aa: f32,
     budget: u32,
@@ -116,6 +170,52 @@ struct Params {
     p28_: f32,
     p29_: f32,
     p30_: f32,
+    p31_: u32,
+    p32_: u32,
+    p33_: f32,
+    p34_: f32,
+    p35_: u32,
+    p36_: u32,
+    p37_: f32,
+    p38_: f32,
+    p39_: u32,
+    p40_: u32,
+    p41_: f32,
+    p42_: f32,
+    p43_: u32,
+    p44_: u32,
+    p45_: f32,
+    p46_: f32,
+    p47_: u32,
+    p48_: u32,
+    p49_: f32,
+    p50_: f32,
+    p51_: u32,
+    p52_: u32,
+    p53_: f32,
+    p54_: f32,
+    p55_: u32,
+    p56_: u32,
+    p57_: f32,
+    p58_: f32,
+    p59_: u32,
+    p60_: u32,
+    p61_: f32,
+    p62_: f32,
+    p63_: u32,
+    p64_: u32,
+    p65_: f32,
+    p66_: f32,
+    p67_: u32,
+    p68_: u32,
+    p69_: f32,
+    p70_: f32,
+    p71_: f32,
+    p72_: f32,
+    p73_: f32,
+    p74_: f32,
+    p75_: u32,
+    p76_: f32,
 }
 
 @group(0) @binding(0)
@@ -125,18 +225,21 @@ var<storage, read_write> cache: array<cache_element>;
 @group(0) @binding(2)
 var<storage> params: Params;
 
-fn is_input_settled(a0_: FeLocal_fe_shader_private_layout_1_) -> bool {
+fn is_input_settled(a0_: ptr<function, FeLocal_fe_shader_private_layout_16_>) -> bool {
     var local_4: bool;
     var local_5: bool = false;
     var local_6: bool = bool();
 
-    if (a0_.f13_ < 0.5f) {
-        if (60f <= (a0_.f10_ - a0_.f11_)) {
+    let _e4 = (*a0_).f4_;
+    if (_e4 < 0.5f) {
+        let _e8 = (*a0_).f1_;
+        let _e10 = (*a0_).f2_;
+        if (60f <= (_e8 - _e10)) {
             local_6 = true;
         }
     }
-    let _e14 = local_6;
-    return _e14;
+    let _e17 = local_6;
+    return _e17;
 }
 
 fn preview_is_completed(a0_1: u32, a1_: u32, a2_: u32) -> bool {
@@ -155,20 +258,20 @@ fn preview_is_completed(a0_1: u32, a1_: u32, a2_: u32) -> bool {
     return _e15;
 }
 
-fn commit_step(a0_2: FeLocal_fe_shader_private_layout_0_) -> FeLocal_fe_shader_private_layout_0_ {
-    var local_10: FeLocal_fe_shader_private_layout_0_;
+fn commit_step(a0_2: FeLocal_fe_shader_private_layout_9_) -> FeLocal_fe_shader_private_layout_9_ {
+    var local_10: FeLocal_fe_shader_private_layout_9_;
     var local_11: bool = false;
     var local_12: u32 = u32();
-    var fixed_local_2_: FeLocal_fe_shader_private_layout_0_ = FeLocal_fe_shader_private_layout_0_();
+    var fixed_local_2_: FeLocal_fe_shader_private_layout_9_ = FeLocal_fe_shader_private_layout_9_();
 
     fixed_local_2_ = a0_2;
-    fixed_local_2_.f14_ = a0_2.f13_;
-    let _e10 = preview_is_completed(a0_2.f12_, a0_2.f13_, a0_2.f15_);
+    fixed_local_2_.f5_ = a0_2.f4_;
+    let _e10 = preview_is_completed(a0_2.f3_, a0_2.f4_, a0_2.f6_);
     if _e10 {
         local_12 = 1u;
     }
     let _e14 = local_12;
-    fixed_local_2_.f17_ = _e14;
+    fixed_local_2_.f8_ = _e14;
     let _e16 = fixed_local_2_;
     return _e16;
 }
@@ -179,6 +282,7 @@ fn main() {
     var local_1: bool = false;
     var local_2: u32;
     var local_3: bool = false;
+    var fixed_local_710_: FeLocal_fe_shader_private_layout_16_ = FeLocal_fe_shader_private_layout_16_();
 
     let _e4 = params.p16_;
     let _e6 = params.p17_;
@@ -195,80 +299,135 @@ fn main() {
     let _e28 = params.p28_;
     let _e30 = params.p29_;
     let _e32 = params.p30_;
-    let _e38 = cache[i32(0u)].preview_dirty;
-    if (_e38 == 0u) {
+    let _e34 = params.p31_;
+    let _e38 = params.p32_;
+    let _e40 = params.p33_;
+    let _e42 = params.p34_;
+    let _e44 = params.p35_;
+    let _e48 = params.p36_;
+    let _e50 = params.p37_;
+    let _e52 = params.p38_;
+    let _e54 = params.p39_;
+    let _e58 = params.p40_;
+    let _e60 = params.p41_;
+    let _e62 = params.p42_;
+    let _e64 = params.p43_;
+    let _e68 = params.p44_;
+    let _e70 = params.p45_;
+    let _e72 = params.p46_;
+    let _e74 = params.p47_;
+    let _e78 = params.p48_;
+    let _e80 = params.p49_;
+    let _e82 = params.p50_;
+    let _e84 = params.p51_;
+    let _e88 = params.p52_;
+    let _e90 = params.p53_;
+    let _e92 = params.p54_;
+    let _e94 = params.p55_;
+    let _e98 = params.p56_;
+    let _e100 = params.p57_;
+    let _e102 = params.p58_;
+    let _e104 = params.p59_;
+    let _e108 = params.p60_;
+    let _e110 = params.p61_;
+    let _e112 = params.p62_;
+    let _e114 = params.p63_;
+    let _e118 = params.p64_;
+    let _e120 = params.p65_;
+    let _e122 = params.p66_;
+    let _e124 = params.p67_;
+    let _e128 = params.p68_;
+    let _e130 = params.p69_;
+    let _e132 = params.p70_;
+    let _e134 = params.p71_;
+    let _e136 = params.p72_;
+    let _e138 = params.p73_;
+    let _e140 = params.p74_;
+    let _e142 = params.p75_;
+    let _e146 = params.p76_;
+    let _e152 = cache[i32(0u)].preview_dirty;
+    if (_e152 == 0u) {
         local_1 = true;
     }
-    let _e161 = local_1;
-    if _e161 {
+    let _e362 = local_1;
+    if _e362 {
     } else {
-        let _e48 = preview_cache[i32(0u)].x0_;
-        let _e50 = preview_cache[i32(0u)].x1_;
-        let _e52 = preview_cache[i32(0u)].x2_;
-        let _e54 = preview_cache[i32(0u)].x3_;
-        let _e56 = preview_cache[i32(0u)].y0_;
-        let _e58 = preview_cache[i32(0u)].y1_;
-        let _e60 = preview_cache[i32(0u)].y2_;
-        let _e62 = preview_cache[i32(0u)].y3_;
-        let _e64 = preview_cache[i32(0u)].zoom;
-        let _e66 = preview_cache[i32(0u)].res;
-        let _e68 = preview_cache[i32(0u)].reference_generation;
-        let _e70 = preview_cache[i32(0u)].reference_bank;
-        let _e72 = preview_cache[i32(0u)].prefix_only;
-        let _e74 = preview_cache[i32(0u)].step_target;
-        let _e76 = preview_cache[i32(0u)].completed_steps;
-        let _e78 = preview_cache[i32(0u)].budget;
-        let _e80 = preview_cache[i32(0u)].epoch;
-        let _e82 = preview_cache[i32(0u)].completed;
-        if (_e82 == 1u) {
+        let _e162 = preview_cache[i32(0u)].camera_u002e_center_u002e_re_u002e_value_u002e_lead;
+        let _e164 = preview_cache[i32(0u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_lead;
+        let _e166 = preview_cache[i32(0u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_tail_u002e_lead;
+        let _e168 = preview_cache[i32(0u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value;
+        let _e170 = preview_cache[i32(0u)].camera_u002e_center_u002e_im_u002e_value_u002e_lead;
+        let _e172 = preview_cache[i32(0u)].camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_lead;
+        let _e174 = preview_cache[i32(0u)].camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_lead;
+        let _e176 = preview_cache[i32(0u)].camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value;
+        let _e178 = preview_cache[i32(0u)].camera_u002e_zoom;
+        let _e180 = preview_cache[i32(0u)].camera_u002e_res;
+        let _e182 = preview_cache[i32(0u)].reference_generation;
+        let _e184 = preview_cache[i32(0u)].reference_bank;
+        let _e186 = preview_cache[i32(0u)].prefix_only;
+        let _e188 = preview_cache[i32(0u)].step_target;
+        let _e190 = preview_cache[i32(0u)].completed_steps;
+        let _e192 = preview_cache[i32(0u)].budget;
+        let _e194 = preview_cache[i32(0u)].epoch;
+        let _e196 = preview_cache[i32(0u)].completed;
+        let _e198 = preview_cache[i32(0u)].history_u002e_full_u002e_re;
+        let _e200 = preview_cache[i32(0u)].history_u002e_full_u002e_im;
+        let _e202 = preview_cache[i32(0u)].history_u002e_initial_u002e_re;
+        let _e204 = preview_cache[i32(0u)].history_u002e_initial_u002e_im;
+        if (_e196 == 1u) {
         } else {
-            if (_e74 == 0u) {
+            if (_e188 == 0u) {
                 local_3 = true;
             }
-            let _e159 = local_3;
-            if _e159 {
+            let _e360 = local_3;
+            if _e360 {
             } else {
-                let _e95 = cache[i32(1u)].completed;
-                let _e100 = cache[i32(2u)].completed;
-                let _e101 = is_input_settled(FeLocal_fe_shader_private_layout_1_(_e4, _e6, _e8, _e10, _e12, _e14, _e16, _e18, _e20, _e22, _e24, _e26, _e28, _e30, _e32));
-                if _e101 {
+                let _e271 = cache[i32(1u)].completed;
+                let _e276 = cache[i32(2u)].completed;
+                fixed_local_710_ = FeLocal_fe_shader_private_layout_16_(FeLocal_fe_shader_private_layout_6_(FeLocal_fe_shader_private_layout_5_(FeLocal_fe_shader_private_layout_4_(FeLocal_fe_shader_private_layout_3_(_e4, FeLocal_fe_shader_private_layout_2_(_e6, FeLocal_fe_shader_private_layout_1_(_e8, FeLocal_fe_shader_private_layout_0_(_e10))))), FeLocal_fe_shader_private_layout_4_(FeLocal_fe_shader_private_layout_3_(_e12, FeLocal_fe_shader_private_layout_2_(_e14, FeLocal_fe_shader_private_layout_1_(_e16, FeLocal_fe_shader_private_layout_0_(_e18)))))), _e20, _e22), _e24, _e26, _e28, _e30, _e32, FeLocal_fe_shader_private_layout_14_(FeLocal_fe_shader_private_layout_12_(array<FeLocal_fe_shader_private_layout_11_, 10>(FeLocal_fe_shader_private_layout_11_((_e34 != 0u), _e38, FeLocal_fe_shader_private_layout_10_(_e40, _e42)), FeLocal_fe_shader_private_layout_11_((_e44 != 0u), _e48, FeLocal_fe_shader_private_layout_10_(_e50, _e52)), FeLocal_fe_shader_private_layout_11_((_e54 != 0u), _e58, FeLocal_fe_shader_private_layout_10_(_e60, _e62)), FeLocal_fe_shader_private_layout_11_((_e64 != 0u), _e68, FeLocal_fe_shader_private_layout_10_(_e70, _e72)), FeLocal_fe_shader_private_layout_11_((_e74 != 0u), _e78, FeLocal_fe_shader_private_layout_10_(_e80, _e82)), FeLocal_fe_shader_private_layout_11_((_e84 != 0u), _e88, FeLocal_fe_shader_private_layout_10_(_e90, _e92)), FeLocal_fe_shader_private_layout_11_((_e94 != 0u), _e98, FeLocal_fe_shader_private_layout_10_(_e100, _e102)), FeLocal_fe_shader_private_layout_11_((_e104 != 0u), _e108, FeLocal_fe_shader_private_layout_10_(_e110, _e112)), FeLocal_fe_shader_private_layout_11_((_e114 != 0u), _e118, FeLocal_fe_shader_private_layout_10_(_e120, _e122)), FeLocal_fe_shader_private_layout_11_((_e124 != 0u), _e128, FeLocal_fe_shader_private_layout_10_(_e130, _e132)))), FeLocal_fe_shader_private_layout_13_(FeLocal_fe_shader_private_layout_10_(_e134, _e136), FeLocal_fe_shader_private_layout_10_(_e138, _e140))), FeLocal_fe_shader_private_layout_15_((_e142 != 0u), _e146));
+                let _e279 = is_input_settled((&fixed_local_710_));
+                if _e279 {
                 } else {
-                    if (_e95 == 1u) {
+                    if (_e271 == 1u) {
                         local_3 = true;
                     } else {
-                        if (_e100 == 1u) {
+                        if (_e276 == 1u) {
                             local_3 = true;
                         }
-                        let _e111 = local_3;
-                        if _e111 {
+                        let _e289 = local_3;
+                        if _e289 {
                         }
                     }
-                    let _e113 = local_3;
-                    if _e113 {
+                    let _e291 = local_3;
+                    if _e291 {
                     }
                 }
-                let _e157 = local_3;
-                if _e157 {
+                let _e358 = local_3;
+                if _e358 {
                 } else {
-                    let _e114 = commit_step(FeLocal_fe_shader_private_layout_0_(_e48, _e50, _e52, _e54, _e56, _e58, _e60, _e62, _e64, _e66, _e68, _e70, _e72, _e74, _e76, _e78, _e80, _e82));
-                    preview_cache[i32(0u)].x0_ = _e114.f0_;
-                    preview_cache[i32(0u)].x1_ = _e114.f1_;
-                    preview_cache[i32(0u)].x2_ = _e114.f2_;
-                    preview_cache[i32(0u)].x3_ = _e114.f3_;
-                    preview_cache[i32(0u)].y0_ = _e114.f4_;
-                    preview_cache[i32(0u)].y1_ = _e114.f5_;
-                    preview_cache[i32(0u)].y2_ = _e114.f6_;
-                    preview_cache[i32(0u)].y3_ = _e114.f7_;
-                    preview_cache[i32(0u)].zoom = _e114.f8_;
-                    preview_cache[i32(0u)].res = _e114.f9_;
-                    preview_cache[i32(0u)].reference_generation = _e114.f10_;
-                    preview_cache[i32(0u)].reference_bank = _e114.f11_;
-                    preview_cache[i32(0u)].prefix_only = _e114.f12_;
-                    preview_cache[i32(0u)].step_target = _e114.f13_;
-                    preview_cache[i32(0u)].completed_steps = _e114.f14_;
-                    preview_cache[i32(0u)].budget = _e114.f15_;
-                    preview_cache[i32(0u)].epoch = _e114.f16_;
-                    preview_cache[i32(0u)].completed = _e114.f17_;
+                    let _e292 = commit_step(FeLocal_fe_shader_private_layout_9_(FeLocal_fe_shader_private_layout_6_(FeLocal_fe_shader_private_layout_5_(FeLocal_fe_shader_private_layout_4_(FeLocal_fe_shader_private_layout_3_(_e162, FeLocal_fe_shader_private_layout_2_(_e164, FeLocal_fe_shader_private_layout_1_(_e166, FeLocal_fe_shader_private_layout_0_(_e168))))), FeLocal_fe_shader_private_layout_4_(FeLocal_fe_shader_private_layout_3_(_e170, FeLocal_fe_shader_private_layout_2_(_e172, FeLocal_fe_shader_private_layout_1_(_e174, FeLocal_fe_shader_private_layout_0_(_e176)))))), _e178, _e180), _e182, _e184, _e186, _e188, _e190, _e192, _e194, _e196, FeLocal_fe_shader_private_layout_8_(FeLocal_fe_shader_private_layout_7_(_e198, _e200), FeLocal_fe_shader_private_layout_7_(_e202, _e204))));
+                    preview_cache[i32(0u)].camera_u002e_center_u002e_re_u002e_value_u002e_lead = _e292.f0_.f0_.f0_.f0_.f0_;
+                    preview_cache[i32(0u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_lead = _e292.f0_.f0_.f0_.f0_.f1_.f0_;
+                    preview_cache[i32(0u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_tail_u002e_lead = _e292.f0_.f0_.f0_.f0_.f1_.f1_.f0_;
+                    preview_cache[i32(0u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value = _e292.f0_.f0_.f0_.f0_.f1_.f1_.f1_.f0_;
+                    preview_cache[i32(0u)].camera_u002e_center_u002e_im_u002e_value_u002e_lead = _e292.f0_.f0_.f1_.f0_.f0_;
+                    preview_cache[i32(0u)].camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_lead = _e292.f0_.f0_.f1_.f0_.f1_.f0_;
+                    preview_cache[i32(0u)].camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_lead = _e292.f0_.f0_.f1_.f0_.f1_.f1_.f0_;
+                    preview_cache[i32(0u)].camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value = _e292.f0_.f0_.f1_.f0_.f1_.f1_.f1_.f0_;
+                    preview_cache[i32(0u)].camera_u002e_zoom = _e292.f0_.f1_;
+                    preview_cache[i32(0u)].camera_u002e_res = _e292.f0_.f2_;
+                    preview_cache[i32(0u)].reference_generation = _e292.f1_;
+                    preview_cache[i32(0u)].reference_bank = _e292.f2_;
+                    preview_cache[i32(0u)].prefix_only = _e292.f3_;
+                    preview_cache[i32(0u)].step_target = _e292.f4_;
+                    preview_cache[i32(0u)].completed_steps = _e292.f5_;
+                    preview_cache[i32(0u)].budget = _e292.f6_;
+                    preview_cache[i32(0u)].epoch = _e292.f7_;
+                    preview_cache[i32(0u)].completed = _e292.f8_;
+                    preview_cache[i32(0u)].history_u002e_full_u002e_re = _e292.f9_.f0_.f0_;
+                    preview_cache[i32(0u)].history_u002e_full_u002e_im = _e292.f9_.f0_.f1_;
+                    preview_cache[i32(0u)].history_u002e_initial_u002e_re = _e292.f9_.f1_.f0_;
+                    preview_cache[i32(0u)].history_u002e_initial_u002e_im = _e292.f9_.f1_.f1_;
                     local_3 = true;
                 }
             }
