@@ -6,6 +6,7 @@
 use core::default::Default
 use core::marker::Copy
 use core::num::IntDowncast
+use core::ops::Eq
 use algebra::Vec2
 use std::web::{PointerDevice, PointerPhase, PointerSample}
 
@@ -54,6 +55,7 @@ pub struct ContactUpdate<const N: usize> { pub contacts: Contacts<N>, pub gestur
 /// The CSS viewport is a coordinate frame, independent of backing resolution.
 /// Extents must be positive; the host view decides whether a hidden or empty
 /// viewport can accept motion.
+#[derive(Eq)]
 pub struct Viewport { pub origin: Vec2<f32>, pub extent: Vec2<f32> }
 
 impl Copy for Viewport {}

@@ -1,8 +1,9 @@
 """Package the compiler's existing SCIP JSON export for the Fe source viewer."""
 import json,subprocess
 from pathlib import Path
-SOURCES={**{name:('app/renderer',f'src/{name}') for name in ['lib.fe','policy.fe','orbit.fe','image.fe','cache.fe','palette.fe','partition.fe']},
+SOURCES={**{name:('app/renderer',f'src/{name}') for name in ['lib.fe','policy.fe','interaction.fe','orbit.fe','image.fe','cache.fe','palette.fe','partition.fe']},
     'algebra.fe':('lib/algebra','src/lib.fe'),
+    'gestures.fe':('lib/gestures','src/lib.fe'),
     'color_library.fe':('lib/perceptual_color','src/lib.fe'),
     'color_demo.fe':('app/color_demo','src/lib.fe'),
     'viewer.fe':('app/source_viewer','src/lib.fe'),

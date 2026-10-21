@@ -13,7 +13,7 @@ def artifact_hashes(directory):return{p.relative_to(directory).as_posix():hashli
 def patch_runtime(directory):
     # Mirror generic runtime-only source patches for an older compatible
     # compiler. Preserve the compiler-injected host-runtime prelude.
-    for name in ['wasm-rgba.patch', 'active-pipeline-preparation.patch']:
+    for name in ['control-parts.patch', 'wasm-rgba.patch', 'active-pipeline-preparation.patch']:
         patch=ROOT/'toolchain/patches'/name
         command=['patch','--batch','--no-backup-if-mismatch','-p5','-d',str(directory),'-i',str(patch)]
         reverse=subprocess.run([*command,'--force','--reverse','--dry-run'],capture_output=True)
@@ -24,13 +24,13 @@ if __name__=='__main__':
     if not args.fe:raise SystemExit('Run tools/bootstrap.py, then pass --fe /path/to/fe')
     out=Path(args.out).resolve();out.mkdir(parents=True,exist_ok=False)
     subprocess.run([args.fe,'web','build',str(ROOT/'app/renderer'),'--out',str(out/'renderer')],cwd=ROOT,check=True)
-    runtime=(out/'renderer/fe-render-runtime.js').read_text()
-    assert 'control-${param.name}' in runtime,'Compiler lacks control-parts patch; rebuild the pinned toolchain'
     subprocess.run([args.fe,'web','build',str(ROOT/'app/color_demo'),'--out',str(out/'colors')],cwd=ROOT,check=True)
     subprocess.run([args.fe,'web','precompile',str(ROOT/'web/source.html'),'--out',str(out/'viewer')],cwd=ROOT,check=True)
     from source_catalog import generate
     generate(Path(args.fe).resolve(),ROOT,out)
     for name in ['renderer','colors']:patch_runtime(out/name)
+    runtime=(out/'renderer/fe-render-runtime.js').read_text()
+    assert 'control-${param.name}' in runtime,'Runtime lacks generic control styling parts'
     manifest={'sourceHash':source_hash(),'toolchain':json.loads((ROOT/'toolchain.lock.json').read_text()),'files':artifact_hashes(out)}
     (out/'build-info.json').write_text(json.dumps(manifest,indent=2)+'\n')
     if args.record:

@@ -345,6 +345,8 @@ actor FeSourceViewer {
             .open(element: PageElement::Section)
             .attribute(value: PageAttribute::class(value: "files"))
         let page = file_link(page, "lib.fe", "Actor and pass graph")
+        let page = file_link(page, "interaction.fe", "Contact and camera policy")
+        let page = file_link(page, "gestures.fe", "Typed touch gestures")
         let page = file_link(page, "policy.fe", "Camera and quality policy")
         let page = file_link(page, "orbit.fe", "Resumable perturbation")
         let page = file_link(page, "image.fe", "Color, sampling and Gaussian")

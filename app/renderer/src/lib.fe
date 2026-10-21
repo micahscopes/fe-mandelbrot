@@ -21,6 +21,8 @@ use std::webgpu::{
     WebGpuBackend,
 }
 use std::web::view::{Extent, Surface, SurfaceEvent}
+use std::web::{SurfaceContactEvent, SurfaceContactTransition}
+use ingot::interaction::contact_transition
 use algebra::Vec2
 use fmath::{PixelSample, abs, from_i32, to_i32, max, min}
 use precision::fixed::{
@@ -841,6 +843,12 @@ actor SmoothPerturbationalMandelbrot uses (
         } else {
             display_rgba(coarse)
         }
+    }
+
+    fn contact(self, event: own SurfaceContactEvent) -> SurfaceStateEnvelope
+        uses (SurfaceContactTransition)
+    {
+        SurfaceStateEnvelope { state: contact_transition(self.state, event) }
     }
 
     fn navigate(self, event: own SurfaceEvent) -> SurfaceStateEnvelope

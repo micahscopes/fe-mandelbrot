@@ -26,9 +26,9 @@ function words(values) {
 async function trace(directory, signedZero) {
   const manifest = JSON.parse(await fs.readFile(path.join(directory, 'manifest.json'), 'utf8'));
   const binding = manifest.layout.bindings.find(binding => binding.role === 'input');
-  assert.equal(binding.span, 60);
-  assert.equal(binding.members.length, 15);
-  assert.deepEqual(binding.members.map(member => [member.offset, member.width, member.scalar]),
+  assert.ok(binding.span >= 60);
+  assert.ok(binding.members.length >= 15);
+  assert.deepEqual(binding.members.slice(0,15).map(member => [member.offset, member.width, member.scalar]),
     Array.from({length: 15}, (_, index) => [index * 4, 4, 'f32']));
   let wasm;
   try { wasm = await fs.readFile(path.join(directory, 'module.wasm')); }
@@ -40,14 +40,15 @@ async function trace(directory, signedZero) {
   const api = instance.exports;
   const resources = manifest.resources.map(() => 0n);
   const initial = api.fe_surface_initialize_v1();
-  assert.equal(initial.length, 15);
+  assert.equal(initial.length, binding.members.length);
+  const suffix=initial.slice(15);
   if (signedZero) {
     // Hidden low coefficients must survive whole-camera updates bit for bit.
     initial[3] = -0;
     initial[7] = -0;
   }
   api.fe_surface_state_replace_v1(...initial);
-  const samples = [words(initial)];
+  const samples = [words(initial.slice(0,15))];
   for (const event of gestures) {
     const cursor = api.fe_cabi_checkpoint?.() ?? null;
     if (cursor === null) api.fe_cabi_reset?.();
@@ -68,8 +69,9 @@ async function trace(directory, signedZero) {
       assert.ok(ordinal >= 0, 'Missing semantic control: ' + event.parameter);
       view.setUint32(44, ordinal, true);
       const next = api.fe_surface_transition_scheduled_v1(pointer, 1, ...resources);
-      assert.equal(next.length, 15);
-      samples.push(words(next));
+      assert.equal(next.length, initial.length);
+      assert.deepEqual(next.slice(15),suffix,"Legacy input must preserve appended state");
+      samples.push(words(next.slice(0,15)));
     } finally {
       if (cursor !== null && api.fe_cabi_rewind) api.fe_cabi_rewind(cursor);
       else api.fe_cabi_reset?.();
@@ -84,7 +86,7 @@ for (const signedZero of [false, true]) {
   assert.deepEqual(await trace(candidate, signedZero), await trace(baseline, signedZero),
     'Camera state differs at the actual Wasm ABI, signed-zero case: ' + signedZero);
 }
-const result = {exactCameraWords: true, statesPerCase: 9, cases: 2, scalarLeaves: 15, span: 60,
+const result = {exactCameraWords: true, statesPerCase: 9, cases: 2, cameraPrefixLeaves: 15, cameraPrefixSpan: 60, appendedStatePreserved: true,
   semanticControlOrdinals: true, hiddenSignedZero: true};
 if (receipt) await fs.writeFile(receipt, JSON.stringify(result, null, 2) + '\n');
 console.log(JSON.stringify(result));
