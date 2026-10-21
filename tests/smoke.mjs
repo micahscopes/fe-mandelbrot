@@ -23,7 +23,10 @@ try{
  }
  assert.ok(complete,'Refinement snapshot did not complete');
  const oracle=await page.evaluate(async()=>{const s=document.querySelector('fe-surface'),d=s._gpu.device,n=512,b=d.createBuffer({size:n*n*12,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ}),e=d.createCommandEncoder();for(let y=0;y<n;y++)e.copyBufferToBuffer(s._gpu.resourceBuffers.get('snapshot_oracle'),y*2048*12,b,y*n*12,n*12);d.queue.submit([e.finish()]);await b.mapAsync(GPUMapMode.READ);const data=new Uint8Array(b.getMappedRange()).slice();b.unmap();b.destroy();return [...new Uint8Array(await crypto.subtle.digest('SHA-256',data))].map(x=>x.toString(16).padStart(2,'0')).join('');});
- assert.equal(oracle,'f65af2c90be815c577f481fdeeb22491bd0f844f92b1a78594d1e3f5ea8bbe12','Palette change altered Mandelbrot numeric results');
+ // The former f65af2... golden predates the compiler/origin correction.
+ // Independent80/120-digit iteration confirms the corrected default escape.
+ // See tests/oracles and numeric-oracle.py for the recorded comparison scope.
+ assert.equal(oracle,'75cf6799dcc7c405db672d54a0a7abf3c2c72b43b7e3bb48efdf3114cb3e6f1d','Mandelbrot numeric history differs from the validated correction');
  await page.waitForTimeout(2200);
  const colorCheck=await page.evaluate(async()=>{
   const s=document.querySelector('fe-surface'),g=s._gpu,d=g.device,n=s._liveCanvas.width;

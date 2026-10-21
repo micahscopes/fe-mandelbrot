@@ -1,16 +1,16 @@
-struct FeLocal_fe_shader_private_layout_2_ {
+struct FeLocal_fe_shader_private_layout_1_ {
+    f0_: f32,
+    f1_: f32,
+}
+
+struct FeLocal_fe_shader_private_layout_3_ {
     f0_: u32,
     f1_: f32,
     f2_: u32,
 }
 
-struct FeLocal_fe_shader_private_layout_3_ {
-    f0_: f32,
-}
-
 struct FeLocal_fe_shader_private_layout_4_ {
     f0_: f32,
-    f1_: FeLocal_fe_shader_private_layout_3_,
 }
 
 struct FeLocal_fe_shader_private_layout_5_ {
@@ -24,63 +24,68 @@ struct FeLocal_fe_shader_private_layout_6_ {
 }
 
 struct FeLocal_fe_shader_private_layout_7_ {
-    f0_: FeLocal_fe_shader_private_layout_6_,
+    f0_: f32,
+    f1_: FeLocal_fe_shader_private_layout_6_,
 }
 
 struct FeLocal_fe_shader_private_layout_8_ {
     f0_: FeLocal_fe_shader_private_layout_7_,
-    f1_: FeLocal_fe_shader_private_layout_7_,
 }
 
 struct FeLocal_fe_shader_private_layout_9_ {
     f0_: FeLocal_fe_shader_private_layout_8_,
+    f1_: FeLocal_fe_shader_private_layout_8_,
+}
+
+struct FeLocal_fe_shader_private_layout_10_ {
+    f0_: FeLocal_fe_shader_private_layout_9_,
     f1_: f32,
     f2_: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_10_ {
+struct FeLocal_fe_shader_private_layout_11_ {
     f0_: f32,
     f1_: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_11_ {
+struct FeLocal_fe_shader_private_layout_12_ {
     f0_: bool,
     f1_: u32,
-    f2_: FeLocal_fe_shader_private_layout_10_,
-}
-
-struct FeLocal_fe_shader_private_layout_12_ {
-    f0_: array<FeLocal_fe_shader_private_layout_11_, 10>,
+    f2_: FeLocal_fe_shader_private_layout_11_,
 }
 
 struct FeLocal_fe_shader_private_layout_13_ {
-    f0_: FeLocal_fe_shader_private_layout_10_,
-    f1_: FeLocal_fe_shader_private_layout_10_,
+    f0_: array<FeLocal_fe_shader_private_layout_12_, 10>,
 }
 
 struct FeLocal_fe_shader_private_layout_14_ {
-    f0_: FeLocal_fe_shader_private_layout_12_,
-    f1_: FeLocal_fe_shader_private_layout_13_,
+    f0_: FeLocal_fe_shader_private_layout_11_,
+    f1_: FeLocal_fe_shader_private_layout_11_,
 }
 
 struct FeLocal_fe_shader_private_layout_15_ {
+    f0_: FeLocal_fe_shader_private_layout_13_,
+    f1_: FeLocal_fe_shader_private_layout_14_,
+}
+
+struct FeLocal_fe_shader_private_layout_16_ {
     f0_: bool,
     f1_: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_16_ {
-    f0_: FeLocal_fe_shader_private_layout_9_,
+struct FeLocal_fe_shader_private_layout_17_ {
+    f0_: FeLocal_fe_shader_private_layout_10_,
     f1_: f32,
     f2_: f32,
     f3_: f32,
     f4_: f32,
     f5_: f32,
-    f6_: FeLocal_fe_shader_private_layout_14_,
-    f7_: FeLocal_fe_shader_private_layout_15_,
+    f6_: FeLocal_fe_shader_private_layout_15_,
+    f7_: FeLocal_fe_shader_private_layout_16_,
 }
 
-struct FeLocal_fe_shader_private_layout_17_ {
-    f0_: FeLocal_fe_shader_private_layout_9_,
+struct FeLocal_fe_shader_private_layout_18_ {
+    f0_: FeLocal_fe_shader_private_layout_10_,
     f1_: u32,
     f2_: f32,
     f3_: u32,
@@ -91,21 +96,16 @@ struct FeLocal_fe_shader_private_layout_17_ {
     f8_: u32,
 }
 
-struct FeLocal_fe_shader_private_layout_18_ {
+struct FeLocal_fe_shader_private_layout_19_ {
     f0_: u32,
     f1_: u32,
     f2_: u32,
 }
 
-struct FeLocal_fe_shader_private_layout_1_ {
-    f0_: f32,
-    f1_: f32,
-    f2_: f32,
-    f3_: f32,
-    f4_: u32,
-    f5_: u32,
-    f6_: u32,
-    f7_: f32,
+struct FeLocal_fe_shader_private_layout_2_ {
+    f0_: u32,
+    f1_: u32,
+    f2_: FeLocal_fe_shader_private_layout_1_,
 }
 
 struct FeLocal_fe_shader_private_layout_0_ {
@@ -141,14 +141,10 @@ struct cache_element {
 }
 
 struct progress_pixels_element {
-    dz_re: f32,
-    dz_im: f32,
-    z_re: f32,
-    z_im: f32,
-    reference_i: u32,
-    iteration: u32,
+    control: u32,
     epoch: u32,
-    magnitude: f32,
+    payload_u002e_re: f32,
+    payload_u002e_im: f32,
 }
 
 struct Params {
@@ -230,37 +226,57 @@ var<storage> params: Params;
 @group(0) @binding(6)
 var<storage, read_write> trap: array<u32, 65536>;
 
-fn progress_outcome_flags(a0_: u32) -> u32 {
-    return (a0_ & 3221225472u);
+fn iteration(a0_: FeLocal_fe_shader_private_layout_2_) -> u32 {
+    return ((a0_.f0_ >> 14u) & 16383u);
 }
 
-fn outcome_flags(a0_1: FeLocal_fe_shader_private_layout_1_) -> u32 {
-    let _e2 = progress_outcome_flags(a0_1.f4_);
+fn magnitude(a0_1: FeLocal_fe_shader_private_layout_2_) -> f32 {
+    var local_3: f32;
+    var local_4: bool = false;
+    var local_5: f32 = f32();
+
+    if (((a0_1.f0_ & 268435456u) == 0u) == false) {
+        local_5 = a0_1.f2_.f0_;
+    } else {
+        local_5 = 4f;
+    }
+    let _e16 = local_5;
+    return _e16;
+}
+
+fn progress_outcome_flags(a0_2: u32) -> u32 {
+    return (a0_2 & 3221225472u);
+}
+
+fn outcome_flags(a0_3: FeLocal_fe_shader_private_layout_2_) -> u32 {
+    let _e2 = progress_outcome_flags(a0_3.f0_);
     return _e2;
 }
 
-fn to_oracle(a0_2: FeLocal_fe_shader_private_layout_1_) -> FeLocal_fe_shader_private_layout_2_ {
-    let _e3 = outcome_flags(a0_2);
-    return FeLocal_fe_shader_private_layout_2_(a0_2.f5_, a0_2.f7_, _e3);
+fn to_oracle(a0_4: FeLocal_fe_shader_private_layout_2_) -> FeLocal_fe_shader_private_layout_3_ {
+    let _e1 = iteration(a0_4);
+    let _e2 = magnitude(a0_4);
+    let _e3 = outcome_flags(a0_4);
+    return FeLocal_fe_shader_private_layout_3_(_e1, _e2, _e3);
 }
 
-fn from_i32_(a0_3: u32) -> f32 {
-    return f32(bitcast<i32>(a0_3));
+fn from_i32_(a0_5: u32) -> f32 {
+    return f32(bitcast<i32>(a0_5));
 }
 
-fn in_extent(a0_4: FeLocal_fe_shader_private_layout_0_, a1_: f32) -> bool {
-    var local_3: bool;
-    var local_4: bool = false;
-    var local_5: bool = bool();
+fn in_extent(a0_6: FeLocal_fe_shader_private_layout_0_, a1_: f32) -> bool {
+    var local_6: bool;
+    var local_7: bool = false;
+    var local_8: bool = bool();
 
-    let _e5 = from_i32_(a0_4.f0_);
+    let _e5 = from_i32_(a0_6.f0_);
     if (_e5 < a1_) {
-        let _e8 = from_i32_(a0_4.f1_);
+        let _e8 = from_i32_(a0_6.f1_);
         if (_e8 < a1_) {
-            local_5 = true;
+            local_8 = true;
         }
     }
-    let _e13 = local_5;
+    let _e13 = local_8;
     return _e13;
 }
 
@@ -283,8 +299,8 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
         if (_e26 == _e19) {
             local_1 = true;
         }
-        let _e100 = local_1;
-        if _e100 {
+        let _e93 = local_1;
+        if _e93 {
         } else {
             let _e34 = ((global_invocation_id.y << 8u) | global_invocation_id.x);
             local_2 = 0u;
@@ -303,18 +319,14 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
                     if _e55 {
                         let _e58 = antialiased_pixels[i32(_e46)];
                         snapshot_pixels[i32(_e46)] = _e58;
-                        let _e64 = progress_pixels[i32(_e46)].dz_re;
-                        let _e66 = progress_pixels[i32(_e46)].dz_im;
-                        let _e68 = progress_pixels[i32(_e46)].z_re;
-                        let _e70 = progress_pixels[i32(_e46)].z_im;
-                        let _e72 = progress_pixels[i32(_e46)].reference_i;
-                        let _e74 = progress_pixels[i32(_e46)].iteration;
-                        let _e76 = progress_pixels[i32(_e46)].epoch;
-                        let _e78 = progress_pixels[i32(_e46)].magnitude;
-                        let _e80 = to_oracle(FeLocal_fe_shader_private_layout_1_(_e64, _e66, _e68, _e70, _e72, _e74, _e76, _e78));
-                        snapshot_oracle[i32(_e46)].iteration = _e80.f0_;
-                        snapshot_oracle[i32(_e46)].magnitude = _e80.f1_;
-                        snapshot_oracle[i32(_e46)].flags = _e80.f2_;
+                        let _e64 = progress_pixels[i32(_e46)].control;
+                        let _e66 = progress_pixels[i32(_e46)].epoch;
+                        let _e68 = progress_pixels[i32(_e46)].payload_u002e_re;
+                        let _e70 = progress_pixels[i32(_e46)].payload_u002e_im;
+                        let _e73 = to_oracle(FeLocal_fe_shader_private_layout_2_(_e64, _e66, FeLocal_fe_shader_private_layout_1_(_e68, _e70)));
+                        snapshot_oracle[i32(_e46)].iteration = _e73.f0_;
+                        snapshot_oracle[i32(_e46)].magnitude = _e73.f1_;
+                        snapshot_oracle[i32(_e46)].flags = _e73.f2_;
                     }
                     local_2 = (_e40 + 1u);
                     continue;
@@ -323,12 +335,12 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
                     break;
                 }
             }
-            let _e96 = loop_did_return;
-            if _e96 {
+            let _e89 = loop_did_return;
+            if _e89 {
                 local_1 = true;
             }
         }
     }
-    let _e111 = fe_trapped;
-    trap[((global_invocation_id.x + (global_invocation_id.y * 256u)) + (global_invocation_id.z * 65536u))] = u32(_e111);
+    let _e104 = fe_trapped;
+    trap[((global_invocation_id.x + (global_invocation_id.y * 256u)) + (global_invocation_id.z * 65536u))] = u32(_e104);
 }

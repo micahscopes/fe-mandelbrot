@@ -26,7 +26,7 @@
             "text": "interpolate"
           },
           {
-            "text": "}\nuse fmath::{cos, floor, from_i32, sin, sqrt, to_i32}\n\nextern {\n    const fn __bitcast<From, To>(_: From) -> To\n}\n\nfn clamp(_ value: f32, _ low: f32, _ high: f32) -> f32 {\n    if value < low {\n        low\n    } else if value > high { high } else { value }\n}\n\n"
+            "text": "}\nuse fmath::{cos, from_i32, sin, sqrt, to_i32}\n\nextern {\n    const fn __bitcast<From, To>(_: From) -> To\n}\n\nfn clamp(_ value: f32, _ low: f32, _ high: f32) -> f32 {\n    if value < low {\n        low\n    } else if value > high { high } else { value }\n}\n\n"
           },
           {
             "link": "perceptual_color::Oklch/struct",
@@ -222,7 +222,35 @@
             "text": "Self"
           },
           {
-            "text": "::from_vec(self.to_vec() / rhs)\n    }\n}\n\nimpl "
+            "text": "::from_vec(self.to_vec() / rhs)\n    }\n}\n\n/// Signed finite-angle remainder, with magnitude below one turn.\n/// Large binary32 values are integers: reduce their exact significand, then\n/// apply the exponent using bounded modular doubling instead of cancellation.\nfn hue_remainder(_ value: f32) -> f32 {\n    let bits: u32 = "
+          },
+          {
+            "link": "perceptual_color::__bitcast/fn",
+            "text": "__bitcast"
+          },
+          {
+            "text": "<f32, u32>(value)\n    let magnitude: u32 = bits & 2147483647\n    if magnitude < 1135869952 {\n        // 360.0, including signed zero\n        return value\n    }\n    let exponent: u32 = (magnitude >> 23) & 255\n    if exponent == 255 {\n        return value // Nonfinite input is outside the finite-angle contract.\n    }\n    let positive: f32 = if value < 0.0 { -value } else { value }\n    let reduced: f32 = if exponent < 150 {\n        // Here the integer part is below 2^23 and converts exactly.\n        let integer: i32 = to_i32(positive)\n        let remainder: u32 = "
+          },
+          {
+            "link": "perceptual_color::__bitcast/fn",
+            "text": "__bitcast"
+          },
+          {
+            "text": "<i32, u32>(integer) % 360\n        from_i32("
+          },
+          {
+            "link": "perceptual_color::__bitcast/fn",
+            "text": "__bitcast"
+          },
+          {
+            "text": "<u32, i32>(remainder)) + (positive - from_i32(integer))\n    } else {\n        let significand: u32 = (magnitude & 8388607) | 8388608\n        let mut remainder: u32 = significand % 360\n        let mut shift: u32 = exponent - 150\n        while shift > 0 {\n            remainder = (remainder * 2) % 360\n            shift = shift - 1\n        }\n        from_i32("
+          },
+          {
+            "link": "perceptual_color::__bitcast/fn",
+            "text": "__bitcast"
+          },
+          {
+            "text": "<u32, i32>(remainder))\n    }\n    if value < 0.0 { -reduced } else { reduced }\n}\n\nimpl "
           },
           {
             "link": "perceptual_color::Oklch/struct",
@@ -271,7 +299,7 @@
             "text": "chroma"
           },
           {
-            "text": " * sin(radians) }\n    }\n\n    /// Shortest-arc interpolation in polar OKLCH coordinates.\n    /// Preserves the exact single-turn subtraction/addition and `+-180.0` tie\n    /// behavior for differences in `[-540.0, 540.0]`, while folding unbounded\n    /// multi-turn hue differences into `[-180.0, 180.0]`.\n    pub fn interpolate(_ start: "
+            "text": " * sin(radians) }\n    }\n\n    /// Shortest-arc interpolation in polar OKLCH coordinates.\n    /// Endpoints and their difference in `[-540, 540]` retain their exact\n    /// single-turn arithmetic and signed half-turn ties. Other finite endpoints use equivalent\n    /// near-zero hue representatives, avoiding overflow and cancellation.\n    pub fn interpolate(_ start: "
           },
           {
             "link": "perceptual_color::Oklch/struct",
@@ -306,7 +334,98 @@
             "text": "hue"
           },
           {
-            "text": "\n        let arc: f32 = if delta > 540.0 || delta < -540.0 {\n            let wrapped: f32 = delta - 360.0 * floor((delta + 180.0) / 360.0)\n            if wrapped == -180.0 && delta > 0.0 {\n                180.0\n            } else {\n                wrapped\n            }\n        } else if delta > 180.0 {\n            delta - 360.0\n        } else if delta < -180.0 { delta + 360.0 } else { delta }\n        "
+            "text": "\n        let ordinary: bool = start."
+          },
+          {
+            "link": "perceptual_color::Oklch/struct~field.hue",
+            "text": "hue"
+          },
+          {
+            "text": " >= -540.0\n            && start."
+          },
+          {
+            "link": "perceptual_color::Oklch/struct~field.hue",
+            "text": "hue"
+          },
+          {
+            "text": " <= 540.0\n            && end."
+          },
+          {
+            "link": "perceptual_color::Oklch/struct~field.hue",
+            "text": "hue"
+          },
+          {
+            "text": " >= -540.0\n            && end."
+          },
+          {
+            "link": "perceptual_color::Oklch/struct~field.hue",
+            "text": "hue"
+          },
+          {
+            "text": " <= 540.0\n            && delta >= -540.0\n            && delta <= 540.0\n        let origin: f32 = if ordinary {\n            start."
+          },
+          {
+            "link": "perceptual_color::Oklch/struct~field.hue",
+            "text": "hue"
+          },
+          {
+            "text": "\n        } else {\n            "
+          },
+          {
+            "link": "perceptual_color::hue_remainder/fn",
+            "text": "hue_remainder"
+          },
+          {
+            "text": "(start."
+          },
+          {
+            "link": "perceptual_color::Oklch/struct~field.hue",
+            "text": "hue"
+          },
+          {
+            "text": ")\n        }\n        let mut arc: f32 = if ordinary {\n            delta\n        } else {\n            "
+          },
+          {
+            "link": "perceptual_color::hue_remainder/fn",
+            "text": "hue_remainder"
+          },
+          {
+            "text": "(end."
+          },
+          {
+            "link": "perceptual_color::Oklch/struct~field.hue",
+            "text": "hue"
+          },
+          {
+            "text": ") - origin\n        }\n        if arc > 180.0 {\n            arc = arc - 360.0\n        } else if arc < -180.0 {\n            arc = arc + 360.0\n        }\n        if !ordinary {\n            // Signed endpoint remainders can differ by almost two turns.\n            if arc > 180.0 {\n                arc = arc - 360.0\n            } else if arc < -180.0 {\n                arc = arc + 360.0\n            }\n            // Compare finite endpoints without overflowing their difference.\n            if arc == -180.0 && end."
+          },
+          {
+            "link": "perceptual_color::Oklch/struct~field.hue",
+            "text": "hue"
+          },
+          {
+            "text": " > start."
+          },
+          {
+            "link": "perceptual_color::Oklch/struct~field.hue",
+            "text": "hue"
+          },
+          {
+            "text": " {\n                arc = 180.0\n            } else if arc == 180.0 && end."
+          },
+          {
+            "link": "perceptual_color::Oklch/struct~field.hue",
+            "text": "hue"
+          },
+          {
+            "text": " < start."
+          },
+          {
+            "link": "perceptual_color::Oklch/struct~field.hue",
+            "text": "hue"
+          },
+          {
+            "text": " {\n                arc = -180.0\n            }\n        }\n        "
           },
           {
             "link": "perceptual_color::Oklch/struct",
@@ -334,14 +453,7 @@
             "text": "chroma"
           },
           {
-            "text": ") * t,\n            hue: start."
-          },
-          {
-            "link": "perceptual_color::Oklch/struct~field.hue",
-            "text": "hue"
-          },
-          {
-            "text": " + arc * t,\n        }\n    }\n}\n\n/// Construct Cartesian OKLab from lightness, chroma and hue in degrees.\npub fn oklch(_ lightness: f32, _ chroma: f32, _ hue: f32) -> "
+            "text": ") * t,\n            hue: origin + arc * t,\n        }\n    }\n}\n\n/// Construct Cartesian OKLab from lightness, chroma and hue in degrees.\npub fn oklch(_ lightness: f32, _ chroma: f32, _ hue: f32) -> "
           },
           {
             "link": "perceptual_color::Color/struct",
@@ -646,13 +758,13 @@
           }
         ],
         "sig_scope": "__sig__/perceptual_color/mod",
-        "signature": "//! OKLCH construction, OKLab blending and compact storage, and sRGB display.\n//! Hue uses degrees. Out-of-gamut RGB channels are clipped at display.\nuse core::default::Default\nuse core::marker::Copy\nuse core::ops::{Add, Div, Eq, Mul, Sub}\nuse algebra::{DirectExecution, Vec3, VectorExecution, interpolate}\nuse fmath::{cos, floor, from_i32, sin, sqrt, to_i32}\n\nextern {\n    const fn __bitcast<From, To>(_: From) -> To\n}\n\nfn clamp(_ value: f32, _ low: f32, _ high: f32) -> f32 {\n    if value < low {\n        low\n    } else if value > high { high } else { value }\n}\n\n/// Polar OKLCH: lightness L, non-negative chroma C, and hue in degrees.\n#[derive(Eq)]\npub struct Oklch { pub l: f32, pub chroma: f32, pub hue: f32 }\n\nimpl Copy for Oklch {}\n\n/// Cartesian OKLab: lightness L and signed chromatic axes a/b.\n#[derive(Eq, Default)]\npub struct Color { pub l: f32, pub a: f32, pub b: f32 }\n\nimpl Copy for Color {}\n\nimpl Color {\n    /// View Cartesian OKLab coordinates `(l, a, b)` as `Vec3<f32>`.\n    pub fn to_vec(self) -> Vec3<f32> {\n        Vec3 { x: self.l, y: self.a, z: self.b }\n    }\n\n    /// Construct Cartesian OKLab from a 3D coordinate vector `(l, a, b)`.\n    pub fn from_vec(_ v: Vec3<f32>) -> Self {\n        Self { l: v.x, a: v.y, b: v.z }\n    }\n}\n\nimpl Add for Color {\n    type Output = Color\n\n    fn add(own self, _ other: own Self) -> Self {\n        Self::from_vec(self.to_vec() + other.to_vec())\n    }\n}\n\nimpl Sub for Color {\n    type Output = Color\n\n    fn sub(own self, _ other: own Self) -> Self {\n        Self::from_vec(self.to_vec() - other.to_vec())\n    }\n}\n\nimpl Mul<f32> for Color {\n    type Output = Color\n\n    fn mul(own self, _ rhs: own f32) -> Self {\n        Self::from_vec(self.to_vec() * rhs)\n    }\n}\n\nimpl Div<f32> for Color {\n    type Output = Color\n\n    fn div(own self, _ rhs: own f32) -> Self {\n        Self::from_vec(self.to_vec() / rhs)\n    }\n}\n\nimpl Oklch {\n    /// Convert polar OKLCH coordinates (hue in degrees) to Cartesian OKLab.\n    pub fn to_color(self) -> Color {\n        let radians: f32 = self.hue * 0.017453292519943295\n        Color { l: self.l, a: self.chroma * cos(radians), b: self.chroma * sin(radians) }\n    }\n\n    /// Shortest-arc interpolation in polar OKLCH coordinates.\n    /// Preserves the exact single-turn subtraction/addition and `+-180.0` tie\n    /// behavior for differences in `[-540.0, 540.0]`, while folding unbounded\n    /// multi-turn hue differences into `[-180.0, 180.0]`.\n    pub fn interpolate(_ start: Oklch, _ end: Oklch, _ t: f32) -> Oklch {\n        let delta: f32 = end.hue - start.hue\n        let arc: f32 = if delta > 540.0 || delta < -540.0 {\n            let wrapped: f32 = delta - 360.0 * floor((delta + 180.0) / 360.0)\n            if wrapped == -180.0 && delta > 0.0 {\n                180.0\n            } else {\n                wrapped\n            }\n        } else if delta > 180.0 {\n            delta - 360.0\n        } else if delta < -180.0 { delta + 360.0 } else { delta }\n        Oklch {\n            l: start.l + (end.l - start.l) * t,\n            chroma: start.chroma + (end.chroma - start.chroma) * t,\n            hue: start.hue + arc * t,\n        }\n    }\n}\n\n/// Construct Cartesian OKLab from lightness, chroma and hue in degrees.\npub fn oklch(_ lightness: f32, _ chroma: f32, _ hue: f32) -> Color {\n    Oklch { l: lightness, chroma: chroma, hue: hue }.to_color()\n}\n\n/// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n/// Signed chroma spans [-0.25, 0.2495], with an exactly representable neutral.\npub fn unpack_lab(_ bits: u32) -> Color {\n    Color {\n        l: from_i32(__bitcast<u32, i32>(bits & 4095)) / 4095.0,\n        a: (from_i32(__bitcast<u32, i32>((bits >> 12) & 1023)) - 512.0) / 2048.0,\n        b: (from_i32(__bitcast<u32, i32>((bits >> 22) & 1023)) - 512.0) / 2048.0,\n    }\n}\n\npub fn pack_lab(_ c: Color) -> u32 {\n    let l: u32 = __bitcast<i32, u32>(to_i32(clamp(c.l, 0.0, 1.0) * 4095.0 + 0.5))\n    let a: u32 = __bitcast<i32, u32>(to_i32(clamp(c.a * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    let b: u32 = __bitcast<i32, u32>(to_i32(clamp(c.b * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    (l & 4095) | ((a & 1023) << 12) | ((b & 1023) << 22)\n}\n\npub fn color(_ bits: u32) -> Color {\n    unpack_lab(bits)\n}\n\npub fn packed(_ c: Color) -> u32 {\n    pack_lab(c)\n}\n\n// Ian Taylor's square-root sRGB approximation, with the exact linear toe.\n// Keeps transfer work at presentation, outside orbit and Gaussian loops.\nfn srgb(_ linear: f32) -> f32 {\n    let x: f32 = clamp(linear, 0.0, 1.0)\n    if x <= 0.0031308 {\n        return 12.92 * x\n    }\n    let s1: f32 = sqrt(x)\n    let s2: f32 = sqrt(s1)\n    let s3: f32 = sqrt(s2)\n    clamp(\n        0.662002687 * s1 + 0.684122060 * s2 - 0.323583601 * s3 - 0.022541147 * x,\n        0.0,\n        1.0,\n    )\n}\n\n/// Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer.\npub fn display_rgba(_ c: Color) -> i32 {\n    let lp: f32 = c.l + 0.3963377774 * c.a + 0.2158037573 * c.b\n    let mp: f32 = c.l - 0.1055613458 * c.a - 0.0638541728 * c.b\n    let sp: f32 = c.l - 0.0894841775 * c.a - 1.2914855480 * c.b\n    let l: f32 = lp * lp * lp\n    let m: f32 = mp * mp * mp\n    let s: f32 = sp * sp * sp\n    let r: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s) * 255.0 + 0.5,\n        ),\n    )\n    let g: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s) * 255.0 + 0.5,\n        ),\n    )\n    let b: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s) * 255.0 + 0.5,\n        ),\n    )\n    __bitcast<u32, i32>(\n        (r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | 4278190080,\n    )\n}\n\npub fn rgba(_ c: Color) -> i32 {\n    display_rgba(c)\n}\n\npub fn blend(_ a: Color, _ b: Color, _ t: f32) -> Color {\n    let coordinates = with (VectorExecution<Vec3<f32>, f32> = DirectExecution {}) {\n        interpolate(a.to_vec(), b.to_vec(), t)\n    }\n    Color::from_vec(coordinates)\n}",
+        "signature": "//! OKLCH construction, OKLab blending and compact storage, and sRGB display.\n//! Hue uses degrees. Out-of-gamut RGB channels are clipped at display.\nuse core::default::Default\nuse core::marker::Copy\nuse core::ops::{Add, Div, Eq, Mul, Sub}\nuse algebra::{DirectExecution, Vec3, VectorExecution, interpolate}\nuse fmath::{cos, from_i32, sin, sqrt, to_i32}\n\nextern {\n    const fn __bitcast<From, To>(_: From) -> To\n}\n\nfn clamp(_ value: f32, _ low: f32, _ high: f32) -> f32 {\n    if value < low {\n        low\n    } else if value > high { high } else { value }\n}\n\n/// Polar OKLCH: lightness L, non-negative chroma C, and hue in degrees.\n#[derive(Eq)]\npub struct Oklch { pub l: f32, pub chroma: f32, pub hue: f32 }\n\nimpl Copy for Oklch {}\n\n/// Cartesian OKLab: lightness L and signed chromatic axes a/b.\n#[derive(Eq, Default)]\npub struct Color { pub l: f32, pub a: f32, pub b: f32 }\n\nimpl Copy for Color {}\n\nimpl Color {\n    /// View Cartesian OKLab coordinates `(l, a, b)` as `Vec3<f32>`.\n    pub fn to_vec(self) -> Vec3<f32> {\n        Vec3 { x: self.l, y: self.a, z: self.b }\n    }\n\n    /// Construct Cartesian OKLab from a 3D coordinate vector `(l, a, b)`.\n    pub fn from_vec(_ v: Vec3<f32>) -> Self {\n        Self { l: v.x, a: v.y, b: v.z }\n    }\n}\n\nimpl Add for Color {\n    type Output = Color\n\n    fn add(own self, _ other: own Self) -> Self {\n        Self::from_vec(self.to_vec() + other.to_vec())\n    }\n}\n\nimpl Sub for Color {\n    type Output = Color\n\n    fn sub(own self, _ other: own Self) -> Self {\n        Self::from_vec(self.to_vec() - other.to_vec())\n    }\n}\n\nimpl Mul<f32> for Color {\n    type Output = Color\n\n    fn mul(own self, _ rhs: own f32) -> Self {\n        Self::from_vec(self.to_vec() * rhs)\n    }\n}\n\nimpl Div<f32> for Color {\n    type Output = Color\n\n    fn div(own self, _ rhs: own f32) -> Self {\n        Self::from_vec(self.to_vec() / rhs)\n    }\n}\n\n/// Signed finite-angle remainder, with magnitude below one turn.\n/// Large binary32 values are integers: reduce their exact significand, then\n/// apply the exponent using bounded modular doubling instead of cancellation.\nfn hue_remainder(_ value: f32) -> f32 {\n    let bits: u32 = __bitcast<f32, u32>(value)\n    let magnitude: u32 = bits & 2147483647\n    if magnitude < 1135869952 {\n        // 360.0, including signed zero\n        return value\n    }\n    let exponent: u32 = (magnitude >> 23) & 255\n    if exponent == 255 {\n        return value // Nonfinite input is outside the finite-angle contract.\n    }\n    let positive: f32 = if value < 0.0 { -value } else { value }\n    let reduced: f32 = if exponent < 150 {\n        // Here the integer part is below 2^23 and converts exactly.\n        let integer: i32 = to_i32(positive)\n        let remainder: u32 = __bitcast<i32, u32>(integer) % 360\n        from_i32(__bitcast<u32, i32>(remainder)) + (positive - from_i32(integer))\n    } else {\n        let significand: u32 = (magnitude & 8388607) | 8388608\n        let mut remainder: u32 = significand % 360\n        let mut shift: u32 = exponent - 150\n        while shift > 0 {\n            remainder = (remainder * 2) % 360\n            shift = shift - 1\n        }\n        from_i32(__bitcast<u32, i32>(remainder))\n    }\n    if value < 0.0 { -reduced } else { reduced }\n}\n\nimpl Oklch {\n    /// Convert polar OKLCH coordinates (hue in degrees) to Cartesian OKLab.\n    pub fn to_color(self) -> Color {\n        let radians: f32 = self.hue * 0.017453292519943295\n        Color { l: self.l, a: self.chroma * cos(radians), b: self.chroma * sin(radians) }\n    }\n\n    /// Shortest-arc interpolation in polar OKLCH coordinates.\n    /// Endpoints and their difference in `[-540, 540]` retain their exact\n    /// single-turn arithmetic and signed half-turn ties. Other finite endpoints use equivalent\n    /// near-zero hue representatives, avoiding overflow and cancellation.\n    pub fn interpolate(_ start: Oklch, _ end: Oklch, _ t: f32) -> Oklch {\n        let delta: f32 = end.hue - start.hue\n        let ordinary: bool = start.hue >= -540.0\n            && start.hue <= 540.0\n            && end.hue >= -540.0\n            && end.hue <= 540.0\n            && delta >= -540.0\n            && delta <= 540.0\n        let origin: f32 = if ordinary {\n            start.hue\n        } else {\n            hue_remainder(start.hue)\n        }\n        let mut arc: f32 = if ordinary {\n            delta\n        } else {\n            hue_remainder(end.hue) - origin\n        }\n        if arc > 180.0 {\n            arc = arc - 360.0\n        } else if arc < -180.0 {\n            arc = arc + 360.0\n        }\n        if !ordinary {\n            // Signed endpoint remainders can differ by almost two turns.\n            if arc > 180.0 {\n                arc = arc - 360.0\n            } else if arc < -180.0 {\n                arc = arc + 360.0\n            }\n            // Compare finite endpoints without overflowing their difference.\n            if arc == -180.0 && end.hue > start.hue {\n                arc = 180.0\n            } else if arc == 180.0 && end.hue < start.hue {\n                arc = -180.0\n            }\n        }\n        Oklch {\n            l: start.l + (end.l - start.l) * t,\n            chroma: start.chroma + (end.chroma - start.chroma) * t,\n            hue: origin + arc * t,\n        }\n    }\n}\n\n/// Construct Cartesian OKLab from lightness, chroma and hue in degrees.\npub fn oklch(_ lightness: f32, _ chroma: f32, _ hue: f32) -> Color {\n    Oklch { l: lightness, chroma: chroma, hue: hue }.to_color()\n}\n\n/// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n/// Signed chroma spans [-0.25, 0.2495], with an exactly representable neutral.\npub fn unpack_lab(_ bits: u32) -> Color {\n    Color {\n        l: from_i32(__bitcast<u32, i32>(bits & 4095)) / 4095.0,\n        a: (from_i32(__bitcast<u32, i32>((bits >> 12) & 1023)) - 512.0) / 2048.0,\n        b: (from_i32(__bitcast<u32, i32>((bits >> 22) & 1023)) - 512.0) / 2048.0,\n    }\n}\n\npub fn pack_lab(_ c: Color) -> u32 {\n    let l: u32 = __bitcast<i32, u32>(to_i32(clamp(c.l, 0.0, 1.0) * 4095.0 + 0.5))\n    let a: u32 = __bitcast<i32, u32>(to_i32(clamp(c.a * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    let b: u32 = __bitcast<i32, u32>(to_i32(clamp(c.b * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    (l & 4095) | ((a & 1023) << 12) | ((b & 1023) << 22)\n}\n\npub fn color(_ bits: u32) -> Color {\n    unpack_lab(bits)\n}\n\npub fn packed(_ c: Color) -> u32 {\n    pack_lab(c)\n}\n\n// Ian Taylor's square-root sRGB approximation, with the exact linear toe.\n// Keeps transfer work at presentation, outside orbit and Gaussian loops.\nfn srgb(_ linear: f32) -> f32 {\n    let x: f32 = clamp(linear, 0.0, 1.0)\n    if x <= 0.0031308 {\n        return 12.92 * x\n    }\n    let s1: f32 = sqrt(x)\n    let s2: f32 = sqrt(s1)\n    let s3: f32 = sqrt(s2)\n    clamp(\n        0.662002687 * s1 + 0.684122060 * s2 - 0.323583601 * s3 - 0.022541147 * x,\n        0.0,\n        1.0,\n    )\n}\n\n/// Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer.\npub fn display_rgba(_ c: Color) -> i32 {\n    let lp: f32 = c.l + 0.3963377774 * c.a + 0.2158037573 * c.b\n    let mp: f32 = c.l - 0.1055613458 * c.a - 0.0638541728 * c.b\n    let sp: f32 = c.l - 0.0894841775 * c.a - 1.2914855480 * c.b\n    let l: f32 = lp * lp * lp\n    let m: f32 = mp * mp * mp\n    let s: f32 = sp * sp * sp\n    let r: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s) * 255.0 + 0.5,\n        ),\n    )\n    let g: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s) * 255.0 + 0.5,\n        ),\n    )\n    let b: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s) * 255.0 + 0.5,\n        ),\n    )\n    __bitcast<u32, i32>(\n        (r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | 4278190080,\n    )\n}\n\npub fn rgba(_ c: Color) -> i32 {\n    display_rgba(c)\n}\n\npub fn blend(_ a: Color, _ b: Color, _ t: f32) -> Color {\n    let coordinates = with (VectorExecution<Vec3<f32>, f32> = DirectExecution {}) {\n        interpolate(a.to_vec(), b.to_vec(), t)\n    }\n    Color::from_vec(coordinates)\n}",
         "source": {
           "column": 0,
           "display_file": "lib/perceptual_color/src/lib.fe",
           "line": 1
         },
-        "source_text": "//! OKLCH construction, OKLab blending and compact storage, and sRGB display.\n//! Hue uses degrees. Out-of-gamut RGB channels are clipped at display.\nuse core::default::Default\nuse core::marker::Copy\nuse core::ops::{Add, Div, Eq, Mul, Sub}\nuse algebra::{DirectExecution, Vec3, VectorExecution, interpolate}\nuse fmath::{cos, floor, from_i32, sin, sqrt, to_i32}\n\nextern {\n    const fn __bitcast<From, To>(_: From) -> To\n}\n\nfn clamp(_ value: f32, _ low: f32, _ high: f32) -> f32 {\n    if value < low {\n        low\n    } else if value > high { high } else { value }\n}\n\n/// Polar OKLCH: lightness L, non-negative chroma C, and hue in degrees.\n#[derive(Eq)]\npub struct Oklch { pub l: f32, pub chroma: f32, pub hue: f32 }\n\nimpl Copy for Oklch {}\n\n/// Cartesian OKLab: lightness L and signed chromatic axes a/b.\n#[derive(Eq, Default)]\npub struct Color { pub l: f32, pub a: f32, pub b: f32 }\n\nimpl Copy for Color {}\n\nimpl Color {\n    /// View Cartesian OKLab coordinates `(l, a, b)` as `Vec3<f32>`.\n    pub fn to_vec(self) -> Vec3<f32> {\n        Vec3 { x: self.l, y: self.a, z: self.b }\n    }\n\n    /// Construct Cartesian OKLab from a 3D coordinate vector `(l, a, b)`.\n    pub fn from_vec(_ v: Vec3<f32>) -> Self {\n        Self { l: v.x, a: v.y, b: v.z }\n    }\n}\n\nimpl Add for Color {\n    type Output = Color\n\n    fn add(own self, _ other: own Self) -> Self {\n        Self::from_vec(self.to_vec() + other.to_vec())\n    }\n}\n\nimpl Sub for Color {\n    type Output = Color\n\n    fn sub(own self, _ other: own Self) -> Self {\n        Self::from_vec(self.to_vec() - other.to_vec())\n    }\n}\n\nimpl Mul<f32> for Color {\n    type Output = Color\n\n    fn mul(own self, _ rhs: own f32) -> Self {\n        Self::from_vec(self.to_vec() * rhs)\n    }\n}\n\nimpl Div<f32> for Color {\n    type Output = Color\n\n    fn div(own self, _ rhs: own f32) -> Self {\n        Self::from_vec(self.to_vec() / rhs)\n    }\n}\n\nimpl Oklch {\n    /// Convert polar OKLCH coordinates (hue in degrees) to Cartesian OKLab.\n    pub fn to_color(self) -> Color {\n        let radians: f32 = self.hue * 0.017453292519943295\n        Color { l: self.l, a: self.chroma * cos(radians), b: self.chroma * sin(radians) }\n    }\n\n    /// Shortest-arc interpolation in polar OKLCH coordinates.\n    /// Preserves the exact single-turn subtraction/addition and `+-180.0` tie\n    /// behavior for differences in `[-540.0, 540.0]`, while folding unbounded\n    /// multi-turn hue differences into `[-180.0, 180.0]`.\n    pub fn interpolate(_ start: Oklch, _ end: Oklch, _ t: f32) -> Oklch {\n        let delta: f32 = end.hue - start.hue\n        let arc: f32 = if delta > 540.0 || delta < -540.0 {\n            let wrapped: f32 = delta - 360.0 * floor((delta + 180.0) / 360.0)\n            if wrapped == -180.0 && delta > 0.0 {\n                180.0\n            } else {\n                wrapped\n            }\n        } else if delta > 180.0 {\n            delta - 360.0\n        } else if delta < -180.0 { delta + 360.0 } else { delta }\n        Oklch {\n            l: start.l + (end.l - start.l) * t,\n            chroma: start.chroma + (end.chroma - start.chroma) * t,\n            hue: start.hue + arc * t,\n        }\n    }\n}\n\n/// Construct Cartesian OKLab from lightness, chroma and hue in degrees.\npub fn oklch(_ lightness: f32, _ chroma: f32, _ hue: f32) -> Color {\n    Oklch { l: lightness, chroma: chroma, hue: hue }.to_color()\n}\n\n/// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n/// Signed chroma spans [-0.25, 0.2495], with an exactly representable neutral.\npub fn unpack_lab(_ bits: u32) -> Color {\n    Color {\n        l: from_i32(__bitcast<u32, i32>(bits & 4095)) / 4095.0,\n        a: (from_i32(__bitcast<u32, i32>((bits >> 12) & 1023)) - 512.0) / 2048.0,\n        b: (from_i32(__bitcast<u32, i32>((bits >> 22) & 1023)) - 512.0) / 2048.0,\n    }\n}\n\npub fn pack_lab(_ c: Color) -> u32 {\n    let l: u32 = __bitcast<i32, u32>(to_i32(clamp(c.l, 0.0, 1.0) * 4095.0 + 0.5))\n    let a: u32 = __bitcast<i32, u32>(to_i32(clamp(c.a * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    let b: u32 = __bitcast<i32, u32>(to_i32(clamp(c.b * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    (l & 4095) | ((a & 1023) << 12) | ((b & 1023) << 22)\n}\n\npub fn color(_ bits: u32) -> Color {\n    unpack_lab(bits)\n}\n\npub fn packed(_ c: Color) -> u32 {\n    pack_lab(c)\n}\n\n// Ian Taylor's square-root sRGB approximation, with the exact linear toe.\n// Keeps transfer work at presentation, outside orbit and Gaussian loops.\nfn srgb(_ linear: f32) -> f32 {\n    let x: f32 = clamp(linear, 0.0, 1.0)\n    if x <= 0.0031308 {\n        return 12.92 * x\n    }\n    let s1: f32 = sqrt(x)\n    let s2: f32 = sqrt(s1)\n    let s3: f32 = sqrt(s2)\n    clamp(\n        0.662002687 * s1 + 0.684122060 * s2 - 0.323583601 * s3 - 0.022541147 * x,\n        0.0,\n        1.0,\n    )\n}\n\n/// Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer.\npub fn display_rgba(_ c: Color) -> i32 {\n    let lp: f32 = c.l + 0.3963377774 * c.a + 0.2158037573 * c.b\n    let mp: f32 = c.l - 0.1055613458 * c.a - 0.0638541728 * c.b\n    let sp: f32 = c.l - 0.0894841775 * c.a - 1.2914855480 * c.b\n    let l: f32 = lp * lp * lp\n    let m: f32 = mp * mp * mp\n    let s: f32 = sp * sp * sp\n    let r: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s) * 255.0 + 0.5,\n        ),\n    )\n    let g: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s) * 255.0 + 0.5,\n        ),\n    )\n    let b: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s) * 255.0 + 0.5,\n        ),\n    )\n    __bitcast<u32, i32>(\n        (r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | 4278190080,\n    )\n}\n\npub fn rgba(_ c: Color) -> i32 {\n    display_rgba(c)\n}\n\npub fn blend(_ a: Color, _ b: Color, _ t: f32) -> Color {\n    let coordinates = with (VectorExecution<Vec3<f32>, f32> = DirectExecution {}) {\n        interpolate(a.to_vec(), b.to_vec(), t)\n    }\n    Color::from_vec(coordinates)\n}\n",
+        "source_text": "//! OKLCH construction, OKLab blending and compact storage, and sRGB display.\n//! Hue uses degrees. Out-of-gamut RGB channels are clipped at display.\nuse core::default::Default\nuse core::marker::Copy\nuse core::ops::{Add, Div, Eq, Mul, Sub}\nuse algebra::{DirectExecution, Vec3, VectorExecution, interpolate}\nuse fmath::{cos, from_i32, sin, sqrt, to_i32}\n\nextern {\n    const fn __bitcast<From, To>(_: From) -> To\n}\n\nfn clamp(_ value: f32, _ low: f32, _ high: f32) -> f32 {\n    if value < low {\n        low\n    } else if value > high { high } else { value }\n}\n\n/// Polar OKLCH: lightness L, non-negative chroma C, and hue in degrees.\n#[derive(Eq)]\npub struct Oklch { pub l: f32, pub chroma: f32, pub hue: f32 }\n\nimpl Copy for Oklch {}\n\n/// Cartesian OKLab: lightness L and signed chromatic axes a/b.\n#[derive(Eq, Default)]\npub struct Color { pub l: f32, pub a: f32, pub b: f32 }\n\nimpl Copy for Color {}\n\nimpl Color {\n    /// View Cartesian OKLab coordinates `(l, a, b)` as `Vec3<f32>`.\n    pub fn to_vec(self) -> Vec3<f32> {\n        Vec3 { x: self.l, y: self.a, z: self.b }\n    }\n\n    /// Construct Cartesian OKLab from a 3D coordinate vector `(l, a, b)`.\n    pub fn from_vec(_ v: Vec3<f32>) -> Self {\n        Self { l: v.x, a: v.y, b: v.z }\n    }\n}\n\nimpl Add for Color {\n    type Output = Color\n\n    fn add(own self, _ other: own Self) -> Self {\n        Self::from_vec(self.to_vec() + other.to_vec())\n    }\n}\n\nimpl Sub for Color {\n    type Output = Color\n\n    fn sub(own self, _ other: own Self) -> Self {\n        Self::from_vec(self.to_vec() - other.to_vec())\n    }\n}\n\nimpl Mul<f32> for Color {\n    type Output = Color\n\n    fn mul(own self, _ rhs: own f32) -> Self {\n        Self::from_vec(self.to_vec() * rhs)\n    }\n}\n\nimpl Div<f32> for Color {\n    type Output = Color\n\n    fn div(own self, _ rhs: own f32) -> Self {\n        Self::from_vec(self.to_vec() / rhs)\n    }\n}\n\n/// Signed finite-angle remainder, with magnitude below one turn.\n/// Large binary32 values are integers: reduce their exact significand, then\n/// apply the exponent using bounded modular doubling instead of cancellation.\nfn hue_remainder(_ value: f32) -> f32 {\n    let bits: u32 = __bitcast<f32, u32>(value)\n    let magnitude: u32 = bits & 2147483647\n    if magnitude < 1135869952 {\n        // 360.0, including signed zero\n        return value\n    }\n    let exponent: u32 = (magnitude >> 23) & 255\n    if exponent == 255 {\n        return value // Nonfinite input is outside the finite-angle contract.\n    }\n    let positive: f32 = if value < 0.0 { -value } else { value }\n    let reduced: f32 = if exponent < 150 {\n        // Here the integer part is below 2^23 and converts exactly.\n        let integer: i32 = to_i32(positive)\n        let remainder: u32 = __bitcast<i32, u32>(integer) % 360\n        from_i32(__bitcast<u32, i32>(remainder)) + (positive - from_i32(integer))\n    } else {\n        let significand: u32 = (magnitude & 8388607) | 8388608\n        let mut remainder: u32 = significand % 360\n        let mut shift: u32 = exponent - 150\n        while shift > 0 {\n            remainder = (remainder * 2) % 360\n            shift = shift - 1\n        }\n        from_i32(__bitcast<u32, i32>(remainder))\n    }\n    if value < 0.0 { -reduced } else { reduced }\n}\n\nimpl Oklch {\n    /// Convert polar OKLCH coordinates (hue in degrees) to Cartesian OKLab.\n    pub fn to_color(self) -> Color {\n        let radians: f32 = self.hue * 0.017453292519943295\n        Color { l: self.l, a: self.chroma * cos(radians), b: self.chroma * sin(radians) }\n    }\n\n    /// Shortest-arc interpolation in polar OKLCH coordinates.\n    /// Endpoints and their difference in `[-540, 540]` retain their exact\n    /// single-turn arithmetic and signed half-turn ties. Other finite endpoints use equivalent\n    /// near-zero hue representatives, avoiding overflow and cancellation.\n    pub fn interpolate(_ start: Oklch, _ end: Oklch, _ t: f32) -> Oklch {\n        let delta: f32 = end.hue - start.hue\n        let ordinary: bool = start.hue >= -540.0\n            && start.hue <= 540.0\n            && end.hue >= -540.0\n            && end.hue <= 540.0\n            && delta >= -540.0\n            && delta <= 540.0\n        let origin: f32 = if ordinary {\n            start.hue\n        } else {\n            hue_remainder(start.hue)\n        }\n        let mut arc: f32 = if ordinary {\n            delta\n        } else {\n            hue_remainder(end.hue) - origin\n        }\n        if arc > 180.0 {\n            arc = arc - 360.0\n        } else if arc < -180.0 {\n            arc = arc + 360.0\n        }\n        if !ordinary {\n            // Signed endpoint remainders can differ by almost two turns.\n            if arc > 180.0 {\n                arc = arc - 360.0\n            } else if arc < -180.0 {\n                arc = arc + 360.0\n            }\n            // Compare finite endpoints without overflowing their difference.\n            if arc == -180.0 && end.hue > start.hue {\n                arc = 180.0\n            } else if arc == 180.0 && end.hue < start.hue {\n                arc = -180.0\n            }\n        }\n        Oklch {\n            l: start.l + (end.l - start.l) * t,\n            chroma: start.chroma + (end.chroma - start.chroma) * t,\n            hue: origin + arc * t,\n        }\n    }\n}\n\n/// Construct Cartesian OKLab from lightness, chroma and hue in degrees.\npub fn oklch(_ lightness: f32, _ chroma: f32, _ hue: f32) -> Color {\n    Oklch { l: lightness, chroma: chroma, hue: hue }.to_color()\n}\n\n/// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n/// Signed chroma spans [-0.25, 0.2495], with an exactly representable neutral.\npub fn unpack_lab(_ bits: u32) -> Color {\n    Color {\n        l: from_i32(__bitcast<u32, i32>(bits & 4095)) / 4095.0,\n        a: (from_i32(__bitcast<u32, i32>((bits >> 12) & 1023)) - 512.0) / 2048.0,\n        b: (from_i32(__bitcast<u32, i32>((bits >> 22) & 1023)) - 512.0) / 2048.0,\n    }\n}\n\npub fn pack_lab(_ c: Color) -> u32 {\n    let l: u32 = __bitcast<i32, u32>(to_i32(clamp(c.l, 0.0, 1.0) * 4095.0 + 0.5))\n    let a: u32 = __bitcast<i32, u32>(to_i32(clamp(c.a * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    let b: u32 = __bitcast<i32, u32>(to_i32(clamp(c.b * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    (l & 4095) | ((a & 1023) << 12) | ((b & 1023) << 22)\n}\n\npub fn color(_ bits: u32) -> Color {\n    unpack_lab(bits)\n}\n\npub fn packed(_ c: Color) -> u32 {\n    pack_lab(c)\n}\n\n// Ian Taylor's square-root sRGB approximation, with the exact linear toe.\n// Keeps transfer work at presentation, outside orbit and Gaussian loops.\nfn srgb(_ linear: f32) -> f32 {\n    let x: f32 = clamp(linear, 0.0, 1.0)\n    if x <= 0.0031308 {\n        return 12.92 * x\n    }\n    let s1: f32 = sqrt(x)\n    let s2: f32 = sqrt(s1)\n    let s3: f32 = sqrt(s2)\n    clamp(\n        0.662002687 * s1 + 0.684122060 * s2 - 0.323583601 * s3 - 0.022541147 * x,\n        0.0,\n        1.0,\n    )\n}\n\n/// Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer.\npub fn display_rgba(_ c: Color) -> i32 {\n    let lp: f32 = c.l + 0.3963377774 * c.a + 0.2158037573 * c.b\n    let mp: f32 = c.l - 0.1055613458 * c.a - 0.0638541728 * c.b\n    let sp: f32 = c.l - 0.0894841775 * c.a - 1.2914855480 * c.b\n    let l: f32 = lp * lp * lp\n    let m: f32 = mp * mp * mp\n    let s: f32 = sp * sp * sp\n    let r: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s) * 255.0 + 0.5,\n        ),\n    )\n    let g: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s) * 255.0 + 0.5,\n        ),\n    )\n    let b: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s) * 255.0 + 0.5,\n        ),\n    )\n    __bitcast<u32, i32>(\n        (r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | 4278190080,\n    )\n}\n\npub fn rgba(_ c: Color) -> i32 {\n    display_rgba(c)\n}\n\npub fn blend(_ a: Color, _ b: Color, _ t: f32) -> Color {\n    let coordinates = with (VectorExecution<Vec3<f32>, f32> = DirectExecution {}) {\n        interpolate(a.to_vec(), b.to_vec(), t)\n    }\n    Color::from_vec(coordinates)\n}\n",
         "trait_impls": [],
         "visibility": "public",
         "where_bounds": []
@@ -836,10 +948,10 @@
               },
               {
                 "docs": {
-                  "body": "Shortest-arc interpolation in polar OKLCH coordinates.\n Preserves the exact single-turn subtraction/addition and `+-180.0` tie\n behavior for differences in `[-540.0, 540.0]`, while folding unbounded\n multi-turn hue differences into `[-180.0, 180.0]`.",
-                  "html_body": "<p>Shortest-arc interpolation in polar OKLCH coordinates.<br />\nPreserves the exact single-turn subtraction/addition and <code>+-180.0</code> tie<br />\nbehavior for differences in <code>[-540.0, 540.0]</code>, while folding unbounded<br />\nmulti-turn hue differences into <code>[-180.0, 180.0]</code>.</p>\n",
+                  "body": "Shortest-arc interpolation in polar OKLCH coordinates.\n Endpoints and their difference in `[-540, 540]` retain their exact\n single-turn arithmetic and signed half-turn ties. Other finite endpoints use equivalent\n near-zero hue representatives, avoiding overflow and cancellation.",
+                  "html_body": "<p>Shortest-arc interpolation in polar OKLCH coordinates.<br />\nEndpoints and their difference in <code>[-540, 540]</code> retain their exact<br />\nsingle-turn arithmetic and signed half-turn ties. Other finite endpoints use equivalent<br />\nnear-zero hue representatives, avoiding overflow and cancellation.</p>\n",
                   "sections": [],
-                  "summary": "Shortest-arc interpolation in polar OKLCH coordinates.\n Preserves the exact single-turn subtraction/addition and `+-180.0` tie\n behavior for differences in `[-540.0, 540.0]`, while folding unbounded\n multi-turn hue differences into `[-180.0, 180.0]`."
+                  "summary": "Shortest-arc interpolation in polar OKLCH coordinates.\n Endpoints and their difference in `[-540, 540]` retain their exact\n single-turn arithmetic and signed half-turn ties. Other finite endpoints use equivalent\n near-zero hue representatives, avoiding overflow and cancellation."
                 },
                 "name": "interpolate",
                 "rich_signature": [
@@ -1257,6 +1369,30 @@
       {
         "children": [],
         "docs": {
+          "body": "Signed finite-angle remainder, with magnitude below one turn.\n Large binary32 values are integers: reduce their exact significand, then\n apply the exponent using bounded modular doubling instead of cancellation.",
+          "html_body": "<p>Signed finite-angle remainder, with magnitude below one turn.<br />\nLarge binary32 values are integers: reduce their exact significand, then<br />\napply the exponent using bounded modular doubling instead of cancellation.</p>\n",
+          "sections": [],
+          "summary": "Signed finite-angle remainder, with magnitude below one turn.\n Large binary32 values are integers: reduce their exact significand, then\n apply the exponent using bounded modular doubling instead of cancellation."
+        },
+        "generics": [],
+        "kind": "function",
+        "name": "hue_remainder",
+        "path": "perceptual_color::hue_remainder",
+        "sig_scope": "__sig__/perceptual_color::hue_remainder/fn",
+        "signature": "fn hue_remainder(_ value: f32) -> f32",
+        "source": {
+          "column": 0,
+          "display_file": "lib/perceptual_color/src/lib.fe",
+          "line": 75
+        },
+        "source_text": "/// Signed finite-angle remainder, with magnitude below one turn.\n/// Large binary32 values are integers: reduce their exact significand, then\n/// apply the exponent using bounded modular doubling instead of cancellation.\nfn hue_remainder(_ value: f32) -> f32 {\n    let bits: u32 = __bitcast<f32, u32>(value)\n    let magnitude: u32 = bits & 2147483647\n    if magnitude < 1135869952 {\n        // 360.0, including signed zero\n        return value\n    }\n    let exponent: u32 = (magnitude >> 23) & 255\n    if exponent == 255 {\n        return value // Nonfinite input is outside the finite-angle contract.\n    }\n    let positive: f32 = if value < 0.0 { -value } else { value }\n    let reduced: f32 = if exponent < 150 {\n        // Here the integer part is below 2^23 and converts exactly.\n        let integer: i32 = to_i32(positive)\n        let remainder: u32 = __bitcast<i32, u32>(integer) % 360\n        from_i32(__bitcast<u32, i32>(remainder)) + (positive - from_i32(integer))\n    } else {\n        let significand: u32 = (magnitude & 8388607) | 8388608\n        let mut remainder: u32 = significand % 360\n        let mut shift: u32 = exponent - 150\n        while shift > 0 {\n            remainder = (remainder * 2) % 360\n            shift = shift - 1\n        }\n        from_i32(__bitcast<u32, i32>(remainder))\n    }\n    if value < 0.0 { -reduced } else { reduced }\n}",
+        "trait_impls": [],
+        "visibility": "private",
+        "where_bounds": []
+      },
+      {
+        "children": [],
+        "docs": {
           "body": "Construct Cartesian OKLab from lightness, chroma and hue in degrees.",
           "html_body": "<p>Construct Cartesian OKLab from lightness, chroma and hue in degrees.</p>\n",
           "sections": [],
@@ -1280,7 +1416,7 @@
         "source": {
           "column": 0,
           "display_file": "lib/perceptual_color/src/lib.fe",
-          "line": 106
+          "line": 164
         },
         "source_text": "/// Construct Cartesian OKLab from lightness, chroma and hue in degrees.\npub fn oklch(_ lightness: f32, _ chroma: f32, _ hue: f32) -> Color {\n    Oklch { l: lightness, chroma: chroma, hue: hue }.to_color()\n}",
         "trait_impls": [],
@@ -1313,7 +1449,7 @@
         "source": {
           "column": 0,
           "display_file": "lib/perceptual_color/src/lib.fe",
-          "line": 111
+          "line": 169
         },
         "source_text": "/// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n/// Signed chroma spans [-0.25, 0.2495], with an exactly representable neutral.\npub fn unpack_lab(_ bits: u32) -> Color {\n    Color {\n        l: from_i32(__bitcast<u32, i32>(bits & 4095)) / 4095.0,\n        a: (from_i32(__bitcast<u32, i32>((bits >> 12) & 1023)) - 512.0) / 2048.0,\n        b: (from_i32(__bitcast<u32, i32>((bits >> 22) & 1023)) - 512.0) / 2048.0,\n    }\n}",
         "trait_impls": [],
@@ -1344,7 +1480,7 @@
         "source": {
           "column": 0,
           "display_file": "lib/perceptual_color/src/lib.fe",
-          "line": 121
+          "line": 179
         },
         "source_text": "pub fn pack_lab(_ c: Color) -> u32 {\n    let l: u32 = __bitcast<i32, u32>(to_i32(clamp(c.l, 0.0, 1.0) * 4095.0 + 0.5))\n    let a: u32 = __bitcast<i32, u32>(to_i32(clamp(c.a * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    let b: u32 = __bitcast<i32, u32>(to_i32(clamp(c.b * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    (l & 4095) | ((a & 1023) << 12) | ((b & 1023) << 22)\n}",
         "trait_impls": [],
@@ -1372,7 +1508,7 @@
         "source": {
           "column": 0,
           "display_file": "lib/perceptual_color/src/lib.fe",
-          "line": 128
+          "line": 186
         },
         "source_text": "pub fn color(_ bits: u32) -> Color {\n    unpack_lab(bits)\n}",
         "trait_impls": [],
@@ -1403,7 +1539,7 @@
         "source": {
           "column": 0,
           "display_file": "lib/perceptual_color/src/lib.fe",
-          "line": 132
+          "line": 190
         },
         "source_text": "pub fn packed(_ c: Color) -> u32 {\n    pack_lab(c)\n}",
         "trait_impls": [],
@@ -1422,7 +1558,7 @@
         "source": {
           "column": 0,
           "display_file": "lib/perceptual_color/src/lib.fe",
-          "line": 138
+          "line": 196
         },
         "source_text": "fn srgb(_ linear: f32) -> f32 {\n    let x: f32 = clamp(linear, 0.0, 1.0)\n    if x <= 0.0031308 {\n        return 12.92 * x\n    }\n    let s1: f32 = sqrt(x)\n    let s2: f32 = sqrt(s1)\n    let s3: f32 = sqrt(s2)\n    clamp(\n        0.662002687 * s1 + 0.684122060 * s2 - 0.323583601 * s3 - 0.022541147 * x,\n        0.0,\n        1.0,\n    )\n}",
         "trait_impls": [],
@@ -1458,7 +1594,7 @@
         "source": {
           "column": 0,
           "display_file": "lib/perceptual_color/src/lib.fe",
-          "line": 153
+          "line": 211
         },
         "source_text": "/// Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer.\npub fn display_rgba(_ c: Color) -> i32 {\n    let lp: f32 = c.l + 0.3963377774 * c.a + 0.2158037573 * c.b\n    let mp: f32 = c.l - 0.1055613458 * c.a - 0.0638541728 * c.b\n    let sp: f32 = c.l - 0.0894841775 * c.a - 1.2914855480 * c.b\n    let l: f32 = lp * lp * lp\n    let m: f32 = mp * mp * mp\n    let s: f32 = sp * sp * sp\n    let r: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s) * 255.0 + 0.5,\n        ),\n    )\n    let g: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s) * 255.0 + 0.5,\n        ),\n    )\n    let b: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s) * 255.0 + 0.5,\n        ),\n    )\n    __bitcast<u32, i32>(\n        (r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | 4278190080,\n    )\n}",
         "trait_impls": [],
@@ -1489,7 +1625,7 @@
         "source": {
           "column": 0,
           "display_file": "lib/perceptual_color/src/lib.fe",
-          "line": 181
+          "line": 239
         },
         "source_text": "pub fn rgba(_ c: Color) -> i32 {\n    display_rgba(c)\n}",
         "trait_impls": [],
@@ -1531,7 +1667,7 @@
         "source": {
           "column": 0,
           "display_file": "lib/perceptual_color/src/lib.fe",
-          "line": 185
+          "line": 243
         },
         "source_text": "pub fn blend(_ a: Color, _ b: Color, _ t: f32) -> Color {\n    let coordinates = with (VectorExecution<Vec3<f32>, f32> = DirectExecution {}) {\n        interpolate(a.to_vec(), b.to_vec(), t)\n    }\n    Color::from_vec(coordinates)\n}",
         "trait_impls": [],
@@ -1568,6 +1704,12 @@
             "name": "display_rgba",
             "path": "perceptual_color::display_rgba",
             "summary": "Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer."
+          },
+          {
+            "kind": "function",
+            "name": "hue_remainder",
+            "path": "perceptual_color::hue_remainder",
+            "summary": "Signed finite-angle remainder, with magnitude below one turn."
           },
           {
             "kind": "function",
@@ -1743,32 +1885,26 @@
           "sym": "fe fe fmath 0.1.0 lib/cos."
         },
         {
-          "ce": 22,
+          "ce": 25,
           "cs": 17,
-          "line": 6,
-          "sym": "fe fe fmath 0.1.0 lib/floor."
-        },
-        {
-          "ce": 32,
-          "cs": 24,
           "line": 6,
           "sym": "fe fe fmath 0.1.0 lib/from_i32."
         },
         {
-          "ce": 37,
-          "cs": 34,
+          "ce": 30,
+          "cs": 27,
           "line": 6,
           "sym": "fe fe fmath 0.1.0 lib/sin."
         },
         {
-          "ce": 43,
-          "cs": 39,
+          "ce": 36,
+          "cs": 32,
           "line": 6,
           "sym": "fe fe fmath 0.1.0 lib/sqrt."
         },
         {
-          "ce": 51,
-          "cs": 45,
+          "ce": 44,
+          "cs": 38,
           "line": 6,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
@@ -2157,594 +2293,715 @@
           "sym": "fe fe perceptual_color 0.1.0 lib:"
         },
         {
+          "ce": 16,
+          "cs": 3,
+          "def": true,
+          "line": 77,
+          "sym": "fe fe perceptual_color 0.1.0 lib/hue_remainder."
+        },
+        {
+          "ce": 29,
+          "cs": 20,
+          "line": 78,
+          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+        },
+        {
+          "ce": 33,
+          "cs": 27,
+          "line": 91,
+          "sym": "fe fe fmath 0.1.0 lib/to_i32."
+        },
+        {
+          "ce": 38,
+          "cs": 29,
+          "line": 92,
+          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+        },
+        {
+          "ce": 16,
+          "cs": 8,
+          "line": 93,
+          "sym": "fe fe fmath 0.1.0 lib/from_i32."
+        },
+        {
+          "ce": 26,
+          "cs": 17,
+          "line": 93,
+          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+        },
+        {
+          "ce": 71,
+          "cs": 63,
+          "line": 93,
+          "sym": "fe fe fmath 0.1.0 lib/from_i32."
+        },
+        {
+          "ce": 16,
+          "cs": 8,
+          "line": 102,
+          "sym": "fe fe fmath 0.1.0 lib/from_i32."
+        },
+        {
+          "ce": 26,
+          "cs": 17,
+          "line": 102,
+          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+        },
+        {
           "ce": 10,
           "cs": 5,
-          "line": 74,
+          "line": 107,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
         },
         {
           "ce": 24,
           "cs": 20,
-          "line": 76,
+          "line": 109,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
         },
         {
           "ce": 34,
           "cs": 29,
-          "line": 76,
+          "line": 109,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 31,
           "cs": 27,
-          "line": 77,
+          "line": 110,
           "sym": "fe fe perceptual_color 0.1.0 lib:"
         },
         {
           "ce": 35,
           "cs": 32,
-          "line": 77,
+          "line": 110,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
         },
         {
           "ce": 13,
           "cs": 8,
-          "line": 78,
+          "line": 111,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 23,
           "cs": 19,
-          "line": 78,
+          "line": 111,
           "sym": "fe fe perceptual_color 0.1.0 lib:"
         },
         {
           "ce": 25,
           "cs": 24,
-          "line": 78,
+          "line": 111,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#l."
         },
         {
           "ce": 34,
           "cs": 30,
-          "line": 78,
+          "line": 111,
           "sym": "fe fe perceptual_color 0.1.0 lib:"
         },
         {
           "ce": 41,
           "cs": 35,
-          "line": 78,
+          "line": 111,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
         },
         {
           "ce": 47,
           "cs": 44,
-          "line": 78,
+          "line": 111,
           "sym": "fe fe fmath 0.1.0 lib/cos."
         },
         {
           "ce": 65,
           "cs": 61,
-          "line": 78,
+          "line": 111,
           "sym": "fe fe perceptual_color 0.1.0 lib:"
         },
         {
           "ce": 72,
           "cs": 66,
-          "line": 78,
+          "line": 111,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
         },
         {
           "ce": 78,
           "cs": 75,
-          "line": 78,
+          "line": 111,
           "sym": "fe fe fmath 0.1.0 lib/sin."
         },
         {
           "ce": 37,
           "cs": 32,
-          "line": 85,
+          "line": 118,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
         },
         {
           "ce": 51,
           "cs": 46,
-          "line": 85,
+          "line": 118,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
         },
         {
           "ce": 71,
           "cs": 66,
-          "line": 85,
+          "line": 118,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
         },
         {
           "ce": 32,
           "cs": 29,
-          "line": 86,
+          "line": 119,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
         },
         {
           "ce": 44,
           "cs": 41,
-          "line": 86,
+          "line": 119,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
         },
         {
-          "ce": 52,
-          "cs": 47,
-          "line": 88,
-          "sym": "fe fe fmath 0.1.0 lib/floor."
+          "ce": 38,
+          "cs": 35,
+          "line": 120,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 24,
+          "cs": 21,
+          "line": 121,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 22,
+          "cs": 19,
+          "line": 122,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 22,
+          "cs": 19,
+          "line": 123,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 21,
+          "cs": 18,
+          "line": 127,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 25,
+          "cs": 12,
+          "line": 129,
+          "sym": "fe fe perceptual_color 0.1.0 lib/hue_remainder."
+        },
+        {
+          "ce": 35,
+          "cs": 32,
+          "line": 129,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 25,
+          "cs": 12,
+          "line": 134,
+          "sym": "fe fe perceptual_color 0.1.0 lib/hue_remainder."
+        },
+        {
+          "ce": 33,
+          "cs": 30,
+          "line": 134,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 39,
+          "cs": 36,
+          "line": 149,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 51,
+          "cs": 48,
+          "line": 149,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 45,
+          "cs": 42,
+          "line": 151,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 57,
+          "cs": 54,
+          "line": 151,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
         },
         {
           "ce": 13,
           "cs": 8,
-          "line": 97,
+          "line": 155,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
         },
         {
           "ce": 22,
           "cs": 21,
-          "line": 98,
+          "line": 156,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#l."
         },
         {
           "ce": 31,
           "cs": 30,
-          "line": 98,
+          "line": 156,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#l."
         },
         {
           "ce": 41,
           "cs": 40,
-          "line": 98,
+          "line": 156,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#l."
         },
         {
           "ce": 32,
           "cs": 26,
-          "line": 99,
+          "line": 157,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
         },
         {
           "ce": 46,
           "cs": 40,
-          "line": 99,
+          "line": 157,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
         },
         {
           "ce": 61,
           "cs": 55,
-          "line": 99,
+          "line": 157,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
-        },
-        {
-          "ce": 26,
-          "cs": 23,
-          "line": 100,
-          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
         },
         {
           "ce": 12,
           "cs": 7,
           "def": true,
-          "line": 106,
+          "line": 164,
           "sym": "fe fe perceptual_color 0.1.0 lib/oklch."
         },
         {
           "ce": 66,
           "cs": 61,
-          "line": 106,
+          "line": 164,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 9,
           "cs": 4,
-          "line": 107,
+          "line": 165,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
         },
         {
           "ce": 17,
           "cs": 7,
           "def": true,
-          "line": 112,
+          "line": 170,
           "sym": "fe fe perceptual_color 0.1.0 lib/unpack_lab."
         },
         {
           "ce": 39,
           "cs": 34,
-          "line": 112,
+          "line": 170,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 9,
           "cs": 4,
-          "line": 113,
+          "line": 171,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 19,
           "cs": 11,
-          "line": 114,
+          "line": 172,
           "sym": "fe fe fmath 0.1.0 lib/from_i32."
         },
         {
           "ce": 29,
           "cs": 20,
-          "line": 114,
+          "line": 172,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
           "ce": 20,
           "cs": 12,
-          "line": 115,
+          "line": 173,
           "sym": "fe fe fmath 0.1.0 lib/from_i32."
         },
         {
           "ce": 30,
           "cs": 21,
-          "line": 115,
+          "line": 173,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
           "ce": 20,
           "cs": 12,
-          "line": 116,
+          "line": 174,
           "sym": "fe fe fmath 0.1.0 lib/from_i32."
         },
         {
           "ce": 30,
           "cs": 21,
-          "line": 116,
+          "line": 174,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
           "ce": 15,
           "cs": 7,
           "def": true,
-          "line": 120,
+          "line": 178,
           "sym": "fe fe perceptual_color 0.1.0 lib/pack_lab."
         },
         {
           "ce": 26,
           "cs": 21,
-          "line": 120,
+          "line": 178,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 26,
           "cs": 17,
-          "line": 121,
+          "line": 179,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
           "ce": 43,
           "cs": 37,
-          "line": 121,
+          "line": 179,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
           "ce": 49,
           "cs": 44,
-          "line": 121,
+          "line": 179,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
           "ce": 53,
           "cs": 52,
-          "line": 121,
+          "line": 179,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         },
         {
           "ce": 26,
           "cs": 17,
-          "line": 122,
+          "line": 180,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
           "ce": 43,
           "cs": 37,
-          "line": 122,
+          "line": 180,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
           "ce": 49,
           "cs": 44,
-          "line": 122,
+          "line": 180,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
           "ce": 53,
           "cs": 52,
-          "line": 122,
+          "line": 180,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
         },
         {
           "ce": 26,
           "cs": 17,
-          "line": 123,
+          "line": 181,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
           "ce": 43,
           "cs": 37,
-          "line": 123,
+          "line": 181,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
           "ce": 49,
           "cs": 44,
-          "line": 123,
+          "line": 181,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
           "ce": 53,
           "cs": 52,
-          "line": 123,
+          "line": 181,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
         },
         {
           "ce": 12,
           "cs": 7,
           "def": true,
-          "line": 127,
+          "line": 185,
           "sym": "fe fe perceptual_color 0.1.0 lib/color."
         },
         {
           "ce": 34,
           "cs": 29,
-          "line": 127,
+          "line": 185,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 14,
           "cs": 4,
-          "line": 128,
+          "line": 186,
           "sym": "fe fe perceptual_color 0.1.0 lib/unpack_lab."
         },
         {
           "ce": 13,
           "cs": 7,
           "def": true,
-          "line": 131,
+          "line": 189,
           "sym": "fe fe perceptual_color 0.1.0 lib/packed."
         },
         {
           "ce": 24,
           "cs": 19,
-          "line": 131,
+          "line": 189,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 12,
           "cs": 4,
-          "line": 132,
+          "line": 190,
           "sym": "fe fe perceptual_color 0.1.0 lib/pack_lab."
         },
         {
           "ce": 7,
           "cs": 3,
           "def": true,
-          "line": 137,
+          "line": 195,
           "sym": "fe fe perceptual_color 0.1.0 lib/srgb."
         },
         {
           "ce": 22,
           "cs": 17,
-          "line": 138,
+          "line": 196,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
           "ce": 22,
           "cs": 18,
-          "line": 142,
+          "line": 200,
           "sym": "fe fe fmath 0.1.0 lib/sqrt."
         },
         {
           "ce": 22,
           "cs": 18,
-          "line": 143,
+          "line": 201,
           "sym": "fe fe fmath 0.1.0 lib/sqrt."
         },
         {
           "ce": 22,
           "cs": 18,
-          "line": 144,
+          "line": 202,
           "sym": "fe fe fmath 0.1.0 lib/sqrt."
         },
         {
           "ce": 9,
           "cs": 4,
-          "line": 145,
+          "line": 203,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
           "ce": 19,
           "cs": 7,
           "def": true,
-          "line": 153,
+          "line": 211,
           "sym": "fe fe perceptual_color 0.1.0 lib/display_rgba."
         },
         {
           "ce": 30,
           "cs": 25,
-          "line": 153,
+          "line": 211,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 21,
           "cs": 20,
-          "line": 154,
+          "line": 212,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         },
         {
           "ce": 42,
           "cs": 41,
-          "line": 154,
+          "line": 212,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
         },
         {
           "ce": 63,
           "cs": 62,
-          "line": 154,
+          "line": 212,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
         },
         {
           "ce": 21,
           "cs": 20,
-          "line": 155,
+          "line": 213,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         },
         {
           "ce": 42,
           "cs": 41,
-          "line": 155,
+          "line": 213,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
         },
         {
           "ce": 63,
           "cs": 62,
-          "line": 155,
+          "line": 213,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
         },
         {
           "ce": 21,
           "cs": 20,
-          "line": 156,
+          "line": 214,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         },
         {
           "ce": 42,
           "cs": 41,
-          "line": 156,
+          "line": 214,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
         },
         {
           "ce": 63,
           "cs": 62,
-          "line": 156,
+          "line": 214,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
         },
         {
           "ce": 26,
           "cs": 17,
-          "line": 160,
+          "line": 218,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
           "ce": 14,
           "cs": 8,
-          "line": 161,
+          "line": 219,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
           "ce": 16,
           "cs": 12,
-          "line": 162,
+          "line": 220,
           "sym": "fe fe perceptual_color 0.1.0 lib/srgb."
         },
         {
           "ce": 26,
           "cs": 17,
-          "line": 165,
+          "line": 223,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
           "ce": 14,
           "cs": 8,
-          "line": 166,
+          "line": 224,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
           "ce": 16,
           "cs": 12,
-          "line": 167,
+          "line": 225,
           "sym": "fe fe perceptual_color 0.1.0 lib/srgb."
         },
         {
           "ce": 26,
           "cs": 17,
-          "line": 170,
+          "line": 228,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
           "ce": 14,
           "cs": 8,
-          "line": 171,
+          "line": 229,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
           "ce": 16,
           "cs": 12,
-          "line": 172,
+          "line": 230,
           "sym": "fe fe perceptual_color 0.1.0 lib/srgb."
         },
         {
           "ce": 13,
           "cs": 4,
-          "line": 175,
+          "line": 233,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
           "ce": 11,
           "cs": 7,
           "def": true,
-          "line": 180,
+          "line": 238,
           "sym": "fe fe perceptual_color 0.1.0 lib/rgba."
         },
         {
           "ce": 22,
           "cs": 17,
-          "line": 180,
+          "line": 238,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 16,
           "cs": 4,
-          "line": 181,
+          "line": 239,
           "sym": "fe fe perceptual_color 0.1.0 lib/display_rgba."
         },
         {
           "ce": 12,
           "cs": 7,
           "def": true,
-          "line": 184,
+          "line": 242,
           "sym": "fe fe perceptual_color 0.1.0 lib/blend."
         },
         {
           "ce": 23,
           "cs": 18,
-          "line": 184,
+          "line": 242,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 35,
           "cs": 30,
-          "line": 184,
+          "line": 242,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 55,
           "cs": 50,
-          "line": 184,
+          "line": 242,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 77,
           "cs": 62,
-          "line": 185,
+          "line": 243,
           "sym": "fe fe algebra 0.1.0 lib/DirectExecution#"
         },
         {
           "ce": 19,
           "cs": 8,
-          "line": 186,
+          "line": 244,
           "sym": "fe fe algebra 0.1.0 lib/interpolate."
         },
         {
           "ce": 9,
           "cs": 4,
-          "line": 188,
+          "line": 246,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         }
       ],
@@ -3286,6 +3543,15 @@
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         }
       ],
+      "__sig__/perceptual_color::hue_remainder/fn": [
+        {
+          "ce": 16,
+          "cs": 3,
+          "def": true,
+          "line": 0,
+          "sym": "fe fe perceptual_color 0.1.0 lib/hue_remainder."
+        }
+      ],
       "__sig__/perceptual_color::oklch/fn": [
         {
           "ce": 12,
@@ -3492,32 +3758,26 @@
           "sym": "fe fe fmath 0.1.0 lib/cos."
         },
         {
-          "ce": 22,
+          "ce": 25,
           "cs": 17,
-          "line": 6,
-          "sym": "fe fe fmath 0.1.0 lib/floor."
-        },
-        {
-          "ce": 32,
-          "cs": 24,
           "line": 6,
           "sym": "fe fe fmath 0.1.0 lib/from_i32."
         },
         {
-          "ce": 37,
-          "cs": 34,
+          "ce": 30,
+          "cs": 27,
           "line": 6,
           "sym": "fe fe fmath 0.1.0 lib/sin."
         },
         {
-          "ce": 43,
-          "cs": 39,
+          "ce": 36,
+          "cs": 32,
           "line": 6,
           "sym": "fe fe fmath 0.1.0 lib/sqrt."
         },
         {
-          "ce": 51,
-          "cs": 45,
+          "ce": 44,
+          "cs": 38,
           "line": 6,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
@@ -3695,13 +3955,13 @@
           "ce": 55,
           "cs": 0,
           "line": 24,
-          "sym": "fe fe core 0.1.0 lib/ops:"
+          "sym": "fe fe core 0.1.0 lib/default/Default/default."
         },
         {
           "ce": 55,
           "cs": 0,
           "line": 24,
-          "sym": "fe fe core 0.1.0 lib/default/Default/default."
+          "sym": "fe fe core 0.1.0 lib/ops:"
         },
         {
           "ce": 55,
@@ -4008,594 +4268,715 @@
           "sym": "fe fe perceptual_color 0.1.0 lib:"
         },
         {
+          "ce": 16,
+          "cs": 3,
+          "def": true,
+          "line": 77,
+          "sym": "fe fe perceptual_color 0.1.0 lib/hue_remainder."
+        },
+        {
+          "ce": 29,
+          "cs": 20,
+          "line": 78,
+          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+        },
+        {
+          "ce": 33,
+          "cs": 27,
+          "line": 91,
+          "sym": "fe fe fmath 0.1.0 lib/to_i32."
+        },
+        {
+          "ce": 38,
+          "cs": 29,
+          "line": 92,
+          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+        },
+        {
+          "ce": 16,
+          "cs": 8,
+          "line": 93,
+          "sym": "fe fe fmath 0.1.0 lib/from_i32."
+        },
+        {
+          "ce": 26,
+          "cs": 17,
+          "line": 93,
+          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+        },
+        {
+          "ce": 71,
+          "cs": 63,
+          "line": 93,
+          "sym": "fe fe fmath 0.1.0 lib/from_i32."
+        },
+        {
+          "ce": 16,
+          "cs": 8,
+          "line": 102,
+          "sym": "fe fe fmath 0.1.0 lib/from_i32."
+        },
+        {
+          "ce": 26,
+          "cs": 17,
+          "line": 102,
+          "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
+        },
+        {
           "ce": 10,
           "cs": 5,
-          "line": 74,
+          "line": 107,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
         },
         {
           "ce": 24,
           "cs": 20,
-          "line": 76,
+          "line": 109,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
         },
         {
           "ce": 34,
           "cs": 29,
-          "line": 76,
+          "line": 109,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 31,
           "cs": 27,
-          "line": 77,
+          "line": 110,
           "sym": "fe fe perceptual_color 0.1.0 lib:"
         },
         {
           "ce": 35,
           "cs": 32,
-          "line": 77,
+          "line": 110,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
         },
         {
           "ce": 13,
           "cs": 8,
-          "line": 78,
+          "line": 111,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 23,
           "cs": 19,
-          "line": 78,
+          "line": 111,
           "sym": "fe fe perceptual_color 0.1.0 lib:"
         },
         {
           "ce": 25,
           "cs": 24,
-          "line": 78,
+          "line": 111,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#l."
         },
         {
           "ce": 34,
           "cs": 30,
-          "line": 78,
+          "line": 111,
           "sym": "fe fe perceptual_color 0.1.0 lib:"
         },
         {
           "ce": 41,
           "cs": 35,
-          "line": 78,
+          "line": 111,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
         },
         {
           "ce": 47,
           "cs": 44,
-          "line": 78,
+          "line": 111,
           "sym": "fe fe fmath 0.1.0 lib/cos."
         },
         {
           "ce": 65,
           "cs": 61,
-          "line": 78,
+          "line": 111,
           "sym": "fe fe perceptual_color 0.1.0 lib:"
         },
         {
           "ce": 72,
           "cs": 66,
-          "line": 78,
+          "line": 111,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
         },
         {
           "ce": 78,
           "cs": 75,
-          "line": 78,
+          "line": 111,
           "sym": "fe fe fmath 0.1.0 lib/sin."
         },
         {
           "ce": 37,
           "cs": 32,
-          "line": 85,
+          "line": 118,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
         },
         {
           "ce": 51,
           "cs": 46,
-          "line": 85,
+          "line": 118,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
         },
         {
           "ce": 71,
           "cs": 66,
-          "line": 85,
+          "line": 118,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
         },
         {
           "ce": 32,
           "cs": 29,
-          "line": 86,
+          "line": 119,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
         },
         {
           "ce": 44,
           "cs": 41,
-          "line": 86,
+          "line": 119,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
         },
         {
-          "ce": 52,
-          "cs": 47,
-          "line": 88,
-          "sym": "fe fe fmath 0.1.0 lib/floor."
+          "ce": 38,
+          "cs": 35,
+          "line": 120,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 24,
+          "cs": 21,
+          "line": 121,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 22,
+          "cs": 19,
+          "line": 122,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 22,
+          "cs": 19,
+          "line": 123,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 21,
+          "cs": 18,
+          "line": 127,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 25,
+          "cs": 12,
+          "line": 129,
+          "sym": "fe fe perceptual_color 0.1.0 lib/hue_remainder."
+        },
+        {
+          "ce": 35,
+          "cs": 32,
+          "line": 129,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 25,
+          "cs": 12,
+          "line": 134,
+          "sym": "fe fe perceptual_color 0.1.0 lib/hue_remainder."
+        },
+        {
+          "ce": 33,
+          "cs": 30,
+          "line": 134,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 39,
+          "cs": 36,
+          "line": 149,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 51,
+          "cs": 48,
+          "line": 149,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 45,
+          "cs": 42,
+          "line": 151,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
+        },
+        {
+          "ce": 57,
+          "cs": 54,
+          "line": 151,
+          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
         },
         {
           "ce": 13,
           "cs": 8,
-          "line": 97,
+          "line": 155,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
         },
         {
           "ce": 22,
           "cs": 21,
-          "line": 98,
+          "line": 156,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#l."
         },
         {
           "ce": 31,
           "cs": 30,
-          "line": 98,
+          "line": 156,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#l."
         },
         {
           "ce": 41,
           "cs": 40,
-          "line": 98,
+          "line": 156,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#l."
         },
         {
           "ce": 32,
           "cs": 26,
-          "line": 99,
+          "line": 157,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
         },
         {
           "ce": 46,
           "cs": 40,
-          "line": 99,
+          "line": 157,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
         },
         {
           "ce": 61,
           "cs": 55,
-          "line": 99,
+          "line": 157,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#chroma."
-        },
-        {
-          "ce": 26,
-          "cs": 23,
-          "line": 100,
-          "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#hue."
         },
         {
           "ce": 12,
           "cs": 7,
           "def": true,
-          "line": 106,
+          "line": 164,
           "sym": "fe fe perceptual_color 0.1.0 lib/oklch."
         },
         {
           "ce": 66,
           "cs": 61,
-          "line": 106,
+          "line": 164,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 9,
           "cs": 4,
-          "line": 107,
+          "line": 165,
           "sym": "fe fe perceptual_color 0.1.0 lib/Oklch#"
         },
         {
           "ce": 17,
           "cs": 7,
           "def": true,
-          "line": 112,
+          "line": 170,
           "sym": "fe fe perceptual_color 0.1.0 lib/unpack_lab."
         },
         {
           "ce": 39,
           "cs": 34,
-          "line": 112,
+          "line": 170,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 9,
           "cs": 4,
-          "line": 113,
+          "line": 171,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 19,
           "cs": 11,
-          "line": 114,
+          "line": 172,
           "sym": "fe fe fmath 0.1.0 lib/from_i32."
         },
         {
           "ce": 29,
           "cs": 20,
-          "line": 114,
+          "line": 172,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
           "ce": 20,
           "cs": 12,
-          "line": 115,
+          "line": 173,
           "sym": "fe fe fmath 0.1.0 lib/from_i32."
         },
         {
           "ce": 30,
           "cs": 21,
-          "line": 115,
+          "line": 173,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
           "ce": 20,
           "cs": 12,
-          "line": 116,
+          "line": 174,
           "sym": "fe fe fmath 0.1.0 lib/from_i32."
         },
         {
           "ce": 30,
           "cs": 21,
-          "line": 116,
+          "line": 174,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
           "ce": 15,
           "cs": 7,
           "def": true,
-          "line": 120,
+          "line": 178,
           "sym": "fe fe perceptual_color 0.1.0 lib/pack_lab."
         },
         {
           "ce": 26,
           "cs": 21,
-          "line": 120,
+          "line": 178,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 26,
           "cs": 17,
-          "line": 121,
+          "line": 179,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
           "ce": 43,
           "cs": 37,
-          "line": 121,
+          "line": 179,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
           "ce": 49,
           "cs": 44,
-          "line": 121,
+          "line": 179,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
           "ce": 53,
           "cs": 52,
-          "line": 121,
+          "line": 179,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         },
         {
           "ce": 26,
           "cs": 17,
-          "line": 122,
+          "line": 180,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
           "ce": 43,
           "cs": 37,
-          "line": 122,
+          "line": 180,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
           "ce": 49,
           "cs": 44,
-          "line": 122,
+          "line": 180,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
           "ce": 53,
           "cs": 52,
-          "line": 122,
+          "line": 180,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
         },
         {
           "ce": 26,
           "cs": 17,
-          "line": 123,
+          "line": 181,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
           "ce": 43,
           "cs": 37,
-          "line": 123,
+          "line": 181,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
           "ce": 49,
           "cs": 44,
-          "line": 123,
+          "line": 181,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
           "ce": 53,
           "cs": 52,
-          "line": 123,
+          "line": 181,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
         },
         {
           "ce": 12,
           "cs": 7,
           "def": true,
-          "line": 127,
+          "line": 185,
           "sym": "fe fe perceptual_color 0.1.0 lib/color."
         },
         {
           "ce": 34,
           "cs": 29,
-          "line": 127,
+          "line": 185,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 14,
           "cs": 4,
-          "line": 128,
+          "line": 186,
           "sym": "fe fe perceptual_color 0.1.0 lib/unpack_lab."
         },
         {
           "ce": 13,
           "cs": 7,
           "def": true,
-          "line": 131,
+          "line": 189,
           "sym": "fe fe perceptual_color 0.1.0 lib/packed."
         },
         {
           "ce": 24,
           "cs": 19,
-          "line": 131,
+          "line": 189,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 12,
           "cs": 4,
-          "line": 132,
+          "line": 190,
           "sym": "fe fe perceptual_color 0.1.0 lib/pack_lab."
         },
         {
           "ce": 7,
           "cs": 3,
           "def": true,
-          "line": 137,
+          "line": 195,
           "sym": "fe fe perceptual_color 0.1.0 lib/srgb."
         },
         {
           "ce": 22,
           "cs": 17,
-          "line": 138,
+          "line": 196,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
           "ce": 22,
           "cs": 18,
-          "line": 142,
+          "line": 200,
           "sym": "fe fe fmath 0.1.0 lib/sqrt."
         },
         {
           "ce": 22,
           "cs": 18,
-          "line": 143,
+          "line": 201,
           "sym": "fe fe fmath 0.1.0 lib/sqrt."
         },
         {
           "ce": 22,
           "cs": 18,
-          "line": 144,
+          "line": 202,
           "sym": "fe fe fmath 0.1.0 lib/sqrt."
         },
         {
           "ce": 9,
           "cs": 4,
-          "line": 145,
+          "line": 203,
           "sym": "fe fe perceptual_color 0.1.0 lib/clamp."
         },
         {
           "ce": 19,
           "cs": 7,
           "def": true,
-          "line": 153,
+          "line": 211,
           "sym": "fe fe perceptual_color 0.1.0 lib/display_rgba."
         },
         {
           "ce": 30,
           "cs": 25,
-          "line": 153,
+          "line": 211,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 21,
           "cs": 20,
-          "line": 154,
+          "line": 212,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         },
         {
           "ce": 42,
           "cs": 41,
-          "line": 154,
+          "line": 212,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
         },
         {
           "ce": 63,
           "cs": 62,
-          "line": 154,
+          "line": 212,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
         },
         {
           "ce": 21,
           "cs": 20,
-          "line": 155,
+          "line": 213,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         },
         {
           "ce": 42,
           "cs": 41,
-          "line": 155,
+          "line": 213,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
         },
         {
           "ce": 63,
           "cs": 62,
-          "line": 155,
+          "line": 213,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
         },
         {
           "ce": 21,
           "cs": 20,
-          "line": 156,
+          "line": 214,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#l."
         },
         {
           "ce": 42,
           "cs": 41,
-          "line": 156,
+          "line": 214,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#a."
         },
         {
           "ce": 63,
           "cs": 62,
-          "line": 156,
+          "line": 214,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#b."
         },
         {
           "ce": 26,
           "cs": 17,
-          "line": 160,
+          "line": 218,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
           "ce": 14,
           "cs": 8,
-          "line": 161,
+          "line": 219,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
           "ce": 16,
           "cs": 12,
-          "line": 162,
+          "line": 220,
           "sym": "fe fe perceptual_color 0.1.0 lib/srgb."
         },
         {
           "ce": 26,
           "cs": 17,
-          "line": 165,
+          "line": 223,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
           "ce": 14,
           "cs": 8,
-          "line": 166,
+          "line": 224,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
           "ce": 16,
           "cs": 12,
-          "line": 167,
+          "line": 225,
           "sym": "fe fe perceptual_color 0.1.0 lib/srgb."
         },
         {
           "ce": 26,
           "cs": 17,
-          "line": 170,
+          "line": 228,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
           "ce": 14,
           "cs": 8,
-          "line": 171,
+          "line": 229,
           "sym": "fe fe fmath 0.1.0 lib/to_i32."
         },
         {
           "ce": 16,
           "cs": 12,
-          "line": 172,
+          "line": 230,
           "sym": "fe fe perceptual_color 0.1.0 lib/srgb."
         },
         {
           "ce": 13,
           "cs": 4,
-          "line": 175,
+          "line": 233,
           "sym": "fe fe perceptual_color 0.1.0 lib/__bitcast."
         },
         {
           "ce": 11,
           "cs": 7,
           "def": true,
-          "line": 180,
+          "line": 238,
           "sym": "fe fe perceptual_color 0.1.0 lib/rgba."
         },
         {
           "ce": 22,
           "cs": 17,
-          "line": 180,
+          "line": 238,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 16,
           "cs": 4,
-          "line": 181,
+          "line": 239,
           "sym": "fe fe perceptual_color 0.1.0 lib/display_rgba."
         },
         {
           "ce": 12,
           "cs": 7,
           "def": true,
-          "line": 184,
+          "line": 242,
           "sym": "fe fe perceptual_color 0.1.0 lib/blend."
         },
         {
           "ce": 23,
           "cs": 18,
-          "line": 184,
+          "line": 242,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 35,
           "cs": 30,
-          "line": 184,
+          "line": 242,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 55,
           "cs": 50,
-          "line": 184,
+          "line": 242,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         },
         {
           "ce": 77,
           "cs": 62,
-          "line": 185,
+          "line": 243,
           "sym": "fe fe algebra 0.1.0 lib/DirectExecution#"
         },
         {
           "ce": 19,
           "cs": 8,
-          "line": 186,
+          "line": 244,
           "sym": "fe fe algebra 0.1.0 lib/interpolate."
         },
         {
           "ce": 9,
           "cs": 4,
-          "line": 188,
+          "line": 246,
           "sym": "fe fe perceptual_color 0.1.0 lib/Color#"
         }
       ]
@@ -4684,10 +5065,6 @@
       "fe fe fmath 0.1.0 lib/cos.": {
         "kind": 17,
         "name": "cos"
-      },
-      "fe fe fmath 0.1.0 lib/floor.": {
-        "kind": 17,
-        "name": "floor"
       },
       "fe fe fmath 0.1.0 lib/from_i32.": {
         "kind": 17,
@@ -4839,6 +5216,21 @@
         "kind": 0,
         "name": "{fn_body}"
       },
+      "fe fe perceptual_color 0.1.0 lib/hue_remainder.": {
+        "doc_url": "perceptual_color::hue_remainder/fn",
+        "docs": [
+          "```fe\nfn hue_remainder(_ value: f32) -> f32\n```\n\n Signed finite-angle remainder, with magnitude below one turn.\n Large binary32 values are integers: reduce their exact significand, then\n apply the exponent using bounded modular doubling instead of cancellation."
+        ],
+        "kind": 17,
+        "name": "hue_remainder"
+      },
+      "fe fe perceptual_color 0.1.0 lib/hue_remainder/`{fn_body}`:": {
+        "docs": [
+          "```fe\n{\n    let bits: u32 = __bitcast<f32, u32>(value)\n    let magnitude: u32 = bits & 2147483647\n    if magnitude < 1135869952 {\n        // 360.0, including signed zero\n        return value\n    }\n    let exponent: u32 = (magnitude >> 23) & 255\n    if exponent == 255 {\n        return value // Nonfinite input is outside the finite-angle contract.\n    }\n    let positive: f32 = if value < 0.0 { -value } else { value }\n    let reduced: f32 = if exponent < 150 {\n        // Here the integer part is below 2^23 and converts exactly.\n        let integer: i32 = to_i32(positive)\n        let remainder: u32 = __bitcast<i32, u32>(integer) % 360\n        from_i32(__bitcast<u32, i32>(remainder)) + (positive - from_i32(integer))\n    } else {\n        let significand: u32 = (magnitude & 8388607) | 8388608\n        let mut remainder: u32 = significand % 360\n        let mut shift: u32 = exponent - 150\n        while shift > 0 {\n            remainder = (remainder * 2) % 360\n            shift = shift - 1\n        }\n        from_i32(__bitcast<u32, i32>(remainder))\n    }\n    if value < 0.0 { -reduced } else { reduced }\n}\n```"
+        ],
+        "kind": 0,
+        "name": "{fn_body}"
+      },
       "fe fe perceptual_color 0.1.0 lib/oklch.": {
         "doc_url": "perceptual_color::oklch/fn",
         "docs": [
@@ -4932,7 +5324,7 @@
       "fe fe perceptual_color 0.1.0 lib:": {
         "doc_url": "perceptual_color/mod",
         "docs": [
-          "```fe\n//! OKLCH construction, OKLab blending and compact storage, and sRGB display.\n//! Hue uses degrees. Out-of-gamut RGB channels are clipped at display.\nuse core::default::Default\nuse core::marker::Copy\nuse core::ops::{Add, Div, Eq, Mul, Sub}\nuse algebra::{DirectExecution, Vec3, VectorExecution, interpolate}\nuse fmath::{cos, floor, from_i32, sin, sqrt, to_i32}\n\nextern {\n    const fn __bitcast<From, To>(_: From) -> To\n}\n\nfn clamp(_ value: f32, _ low: f32, _ high: f32) -> f32 {\n    if value < low {\n        low\n    } else if value > high { high } else { value }\n}\n\n/// Polar OKLCH: lightness L, non-negative chroma C, and hue in degrees.\n#[derive(Eq)]\npub struct Oklch { pub l: f32, pub chroma: f32, pub hue: f32 }\n\nimpl Copy for Oklch {}\n\n/// Cartesian OKLab: lightness L and signed chromatic axes a/b.\n#[derive(Eq, Default)]\npub struct Color { pub l: f32, pub a: f32, pub b: f32 }\n\nimpl Copy for Color {}\n\nimpl Color {\n    /// View Cartesian OKLab coordinates `(l, a, b)` as `Vec3<f32>`.\n    pub fn to_vec(self) -> Vec3<f32> {\n        Vec3 { x: self.l, y: self.a, z: self.b }\n    }\n\n    /// Construct Cartesian OKLab from a 3D coordinate vector `(l, a, b)`.\n    pub fn from_vec(_ v: Vec3<f32>) -> Self {\n        Self { l: v.x, a: v.y, b: v.z }\n    }\n}\n\nimpl Add for Color {\n    type Output = Color\n\n    fn add(own self, _ other: own Self) -> Self {\n        Self::from_vec(self.to_vec() + other.to_vec())\n    }\n}\n\nimpl Sub for Color {\n    type Output = Color\n\n    fn sub(own self, _ other: own Self) -> Self {\n        Self::from_vec(self.to_vec() - other.to_vec())\n    }\n}\n\nimpl Mul<f32> for Color {\n    type Output = Color\n\n    fn mul(own self, _ rhs: own f32) -> Self {\n        Self::from_vec(self.to_vec() * rhs)\n    }\n}\n\nimpl Div<f32> for Color {\n    type Output = Color\n\n    fn div(own self, _ rhs: own f32) -> Self {\n        Self::from_vec(self.to_vec() / rhs)\n    }\n}\n\nimpl Oklch {\n    /// Convert polar OKLCH coordinates (hue in degrees) to Cartesian OKLab.\n    pub fn to_color(self) -> Color {\n        let radians: f32 = self.hue * 0.017453292519943295\n        Color { l: self.l, a: self.chroma * cos(radians), b: self.chroma * sin(radians) }\n    }\n\n    /// Shortest-arc interpolation in polar OKLCH coordinates.\n    /// Preserves the exact single-turn subtraction/addition and `+-180.0` tie\n    /// behavior for differences in `[-540.0, 540.0]`, while folding unbounded\n    /// multi-turn hue differences into `[-180.0, 180.0]`.\n    pub fn interpolate(_ start: Oklch, _ end: Oklch, _ t: f32) -> Oklch {\n        let delta: f32 = end.hue - start.hue\n        let arc: f32 = if delta > 540.0 || delta < -540.0 {\n            let wrapped: f32 = delta - 360.0 * floor((delta + 180.0) / 360.0)\n            if wrapped == -180.0 && delta > 0.0 {\n                180.0\n            } else {\n                wrapped\n            }\n        } else if delta > 180.0 {\n            delta - 360.0\n        } else if delta < -180.0 { delta + 360.0 } else { delta }\n        Oklch {\n            l: start.l + (end.l - start.l) * t,\n            chroma: start.chroma + (end.chroma - start.chroma) * t,\n            hue: start.hue + arc * t,\n        }\n    }\n}\n\n/// Construct Cartesian OKLab from lightness, chroma and hue in degrees.\npub fn oklch(_ lightness: f32, _ chroma: f32, _ hue: f32) -> Color {\n    Oklch { l: lightness, chroma: chroma, hue: hue }.to_color()\n}\n\n/// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n/// Signed chroma spans [-0.25, 0.2495], with an exactly representable neutral.\npub fn unpack_lab(_ bits: u32) -> Color {\n    Color {\n        l: from_i32(__bitcast<u32, i32>(bits & 4095)) / 4095.0,\n        a: (from_i32(__bitcast<u32, i32>((bits >> 12) & 1023)) - 512.0) / 2048.0,\n        b: (from_i32(__bitcast<u32, i32>((bits >> 22) & 1023)) - 512.0) / 2048.0,\n    }\n}\n\npub fn pack_lab(_ c: Color) -> u32 {\n    let l: u32 = __bitcast<i32, u32>(to_i32(clamp(c.l, 0.0, 1.0) * 4095.0 + 0.5))\n    let a: u32 = __bitcast<i32, u32>(to_i32(clamp(c.a * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    let b: u32 = __bitcast<i32, u32>(to_i32(clamp(c.b * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    (l & 4095) | ((a & 1023) << 12) | ((b & 1023) << 22)\n}\n\npub fn color(_ bits: u32) -> Color {\n    unpack_lab(bits)\n}\n\npub fn packed(_ c: Color) -> u32 {\n    pack_lab(c)\n}\n\n// Ian Taylor's square-root sRGB approximation, with the exact linear toe.\n// Keeps transfer work at presentation, outside orbit and Gaussian loops.\nfn srgb(_ linear: f32) -> f32 {\n    let x: f32 = clamp(linear, 0.0, 1.0)\n    if x <= 0.0031308 {\n        return 12.92 * x\n    }\n    let s1: f32 = sqrt(x)\n    let s2: f32 = sqrt(s1)\n    let s3: f32 = sqrt(s2)\n    clamp(\n        0.662002687 * s1 + 0.684122060 * s2 - 0.323583601 * s3 - 0.022541147 * x,\n        0.0,\n        1.0,\n    )\n}\n\n/// Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer.\npub fn display_rgba(_ c: Color) -> i32 {\n    let lp: f32 = c.l + 0.3963377774 * c.a + 0.2158037573 * c.b\n    let mp: f32 = c.l - 0.1055613458 * c.a - 0.0638541728 * c.b\n    let sp: f32 = c.l - 0.0894841775 * c.a - 1.2914855480 * c.b\n    let l: f32 = lp * lp * lp\n    let m: f32 = mp * mp * mp\n    let s: f32 = sp * sp * sp\n    let r: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s) * 255.0 + 0.5,\n        ),\n    )\n    let g: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s) * 255.0 + 0.5,\n        ),\n    )\n    let b: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s) * 255.0 + 0.5,\n        ),\n    )\n    __bitcast<u32, i32>(\n        (r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | 4278190080,\n    )\n}\n\npub fn rgba(_ c: Color) -> i32 {\n    display_rgba(c)\n}\n\npub fn blend(_ a: Color, _ b: Color, _ t: f32) -> Color {\n    let coordinates = with (VectorExecution<Vec3<f32>, f32> = DirectExecution {}) {\n        interpolate(a.to_vec(), b.to_vec(), t)\n    }\n    Color::from_vec(coordinates)\n}\n```"
+          "```fe\n//! OKLCH construction, OKLab blending and compact storage, and sRGB display.\n//! Hue uses degrees. Out-of-gamut RGB channels are clipped at display.\nuse core::default::Default\nuse core::marker::Copy\nuse core::ops::{Add, Div, Eq, Mul, Sub}\nuse algebra::{DirectExecution, Vec3, VectorExecution, interpolate}\nuse fmath::{cos, from_i32, sin, sqrt, to_i32}\n\nextern {\n    const fn __bitcast<From, To>(_: From) -> To\n}\n\nfn clamp(_ value: f32, _ low: f32, _ high: f32) -> f32 {\n    if value < low {\n        low\n    } else if value > high { high } else { value }\n}\n\n/// Polar OKLCH: lightness L, non-negative chroma C, and hue in degrees.\n#[derive(Eq)]\npub struct Oklch { pub l: f32, pub chroma: f32, pub hue: f32 }\n\nimpl Copy for Oklch {}\n\n/// Cartesian OKLab: lightness L and signed chromatic axes a/b.\n#[derive(Eq, Default)]\npub struct Color { pub l: f32, pub a: f32, pub b: f32 }\n\nimpl Copy for Color {}\n\nimpl Color {\n    /// View Cartesian OKLab coordinates `(l, a, b)` as `Vec3<f32>`.\n    pub fn to_vec(self) -> Vec3<f32> {\n        Vec3 { x: self.l, y: self.a, z: self.b }\n    }\n\n    /// Construct Cartesian OKLab from a 3D coordinate vector `(l, a, b)`.\n    pub fn from_vec(_ v: Vec3<f32>) -> Self {\n        Self { l: v.x, a: v.y, b: v.z }\n    }\n}\n\nimpl Add for Color {\n    type Output = Color\n\n    fn add(own self, _ other: own Self) -> Self {\n        Self::from_vec(self.to_vec() + other.to_vec())\n    }\n}\n\nimpl Sub for Color {\n    type Output = Color\n\n    fn sub(own self, _ other: own Self) -> Self {\n        Self::from_vec(self.to_vec() - other.to_vec())\n    }\n}\n\nimpl Mul<f32> for Color {\n    type Output = Color\n\n    fn mul(own self, _ rhs: own f32) -> Self {\n        Self::from_vec(self.to_vec() * rhs)\n    }\n}\n\nimpl Div<f32> for Color {\n    type Output = Color\n\n    fn div(own self, _ rhs: own f32) -> Self {\n        Self::from_vec(self.to_vec() / rhs)\n    }\n}\n\n/// Signed finite-angle remainder, with magnitude below one turn.\n/// Large binary32 values are integers: reduce their exact significand, then\n/// apply the exponent using bounded modular doubling instead of cancellation.\nfn hue_remainder(_ value: f32) -> f32 {\n    let bits: u32 = __bitcast<f32, u32>(value)\n    let magnitude: u32 = bits & 2147483647\n    if magnitude < 1135869952 {\n        // 360.0, including signed zero\n        return value\n    }\n    let exponent: u32 = (magnitude >> 23) & 255\n    if exponent == 255 {\n        return value // Nonfinite input is outside the finite-angle contract.\n    }\n    let positive: f32 = if value < 0.0 { -value } else { value }\n    let reduced: f32 = if exponent < 150 {\n        // Here the integer part is below 2^23 and converts exactly.\n        let integer: i32 = to_i32(positive)\n        let remainder: u32 = __bitcast<i32, u32>(integer) % 360\n        from_i32(__bitcast<u32, i32>(remainder)) + (positive - from_i32(integer))\n    } else {\n        let significand: u32 = (magnitude & 8388607) | 8388608\n        let mut remainder: u32 = significand % 360\n        let mut shift: u32 = exponent - 150\n        while shift > 0 {\n            remainder = (remainder * 2) % 360\n            shift = shift - 1\n        }\n        from_i32(__bitcast<u32, i32>(remainder))\n    }\n    if value < 0.0 { -reduced } else { reduced }\n}\n\nimpl Oklch {\n    /// Convert polar OKLCH coordinates (hue in degrees) to Cartesian OKLab.\n    pub fn to_color(self) -> Color {\n        let radians: f32 = self.hue * 0.017453292519943295\n        Color { l: self.l, a: self.chroma * cos(radians), b: self.chroma * sin(radians) }\n    }\n\n    /// Shortest-arc interpolation in polar OKLCH coordinates.\n    /// Endpoints and their difference in `[-540, 540]` retain their exact\n    /// single-turn arithmetic and signed half-turn ties. Other finite endpoints use equivalent\n    /// near-zero hue representatives, avoiding overflow and cancellation.\n    pub fn interpolate(_ start: Oklch, _ end: Oklch, _ t: f32) -> Oklch {\n        let delta: f32 = end.hue - start.hue\n        let ordinary: bool = start.hue >= -540.0\n            && start.hue <= 540.0\n            && end.hue >= -540.0\n            && end.hue <= 540.0\n            && delta >= -540.0\n            && delta <= 540.0\n        let origin: f32 = if ordinary {\n            start.hue\n        } else {\n            hue_remainder(start.hue)\n        }\n        let mut arc: f32 = if ordinary {\n            delta\n        } else {\n            hue_remainder(end.hue) - origin\n        }\n        if arc > 180.0 {\n            arc = arc - 360.0\n        } else if arc < -180.0 {\n            arc = arc + 360.0\n        }\n        if !ordinary {\n            // Signed endpoint remainders can differ by almost two turns.\n            if arc > 180.0 {\n                arc = arc - 360.0\n            } else if arc < -180.0 {\n                arc = arc + 360.0\n            }\n            // Compare finite endpoints without overflowing their difference.\n            if arc == -180.0 && end.hue > start.hue {\n                arc = 180.0\n            } else if arc == 180.0 && end.hue < start.hue {\n                arc = -180.0\n            }\n        }\n        Oklch {\n            l: start.l + (end.l - start.l) * t,\n            chroma: start.chroma + (end.chroma - start.chroma) * t,\n            hue: origin + arc * t,\n        }\n    }\n}\n\n/// Construct Cartesian OKLab from lightness, chroma and hue in degrees.\npub fn oklch(_ lightness: f32, _ chroma: f32, _ hue: f32) -> Color {\n    Oklch { l: lightness, chroma: chroma, hue: hue }.to_color()\n}\n\n/// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.\n/// Signed chroma spans [-0.25, 0.2495], with an exactly representable neutral.\npub fn unpack_lab(_ bits: u32) -> Color {\n    Color {\n        l: from_i32(__bitcast<u32, i32>(bits & 4095)) / 4095.0,\n        a: (from_i32(__bitcast<u32, i32>((bits >> 12) & 1023)) - 512.0) / 2048.0,\n        b: (from_i32(__bitcast<u32, i32>((bits >> 22) & 1023)) - 512.0) / 2048.0,\n    }\n}\n\npub fn pack_lab(_ c: Color) -> u32 {\n    let l: u32 = __bitcast<i32, u32>(to_i32(clamp(c.l, 0.0, 1.0) * 4095.0 + 0.5))\n    let a: u32 = __bitcast<i32, u32>(to_i32(clamp(c.a * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    let b: u32 = __bitcast<i32, u32>(to_i32(clamp(c.b * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))\n    (l & 4095) | ((a & 1023) << 12) | ((b & 1023) << 22)\n}\n\npub fn color(_ bits: u32) -> Color {\n    unpack_lab(bits)\n}\n\npub fn packed(_ c: Color) -> u32 {\n    pack_lab(c)\n}\n\n// Ian Taylor's square-root sRGB approximation, with the exact linear toe.\n// Keeps transfer work at presentation, outside orbit and Gaussian loops.\nfn srgb(_ linear: f32) -> f32 {\n    let x: f32 = clamp(linear, 0.0, 1.0)\n    if x <= 0.0031308 {\n        return 12.92 * x\n    }\n    let s1: f32 = sqrt(x)\n    let s2: f32 = sqrt(s1)\n    let s3: f32 = sqrt(s2)\n    clamp(\n        0.662002687 * s1 + 0.684122060 * s2 - 0.323583601 * s3 - 0.022541147 * x,\n        0.0,\n        1.0,\n    )\n}\n\n/// Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer.\npub fn display_rgba(_ c: Color) -> i32 {\n    let lp: f32 = c.l + 0.3963377774 * c.a + 0.2158037573 * c.b\n    let mp: f32 = c.l - 0.1055613458 * c.a - 0.0638541728 * c.b\n    let sp: f32 = c.l - 0.0894841775 * c.a - 1.2914855480 * c.b\n    let l: f32 = lp * lp * lp\n    let m: f32 = mp * mp * mp\n    let s: f32 = sp * sp * sp\n    let r: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s) * 255.0 + 0.5,\n        ),\n    )\n    let g: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s) * 255.0 + 0.5,\n        ),\n    )\n    let b: u32 = __bitcast<i32, u32>(\n        to_i32(\n            srgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s) * 255.0 + 0.5,\n        ),\n    )\n    __bitcast<u32, i32>(\n        (r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | 4278190080,\n    )\n}\n\npub fn rgba(_ c: Color) -> i32 {\n    display_rgba(c)\n}\n\npub fn blend(_ a: Color, _ b: Color, _ t: f32) -> Color {\n    let coordinates = with (VectorExecution<Vec3<f32>, f32> = DirectExecution {}) {\n        interpolate(a.to_vec(), b.to_vec(), t)\n    }\n    Color::from_vec(coordinates)\n}\n```"
         ],
         "kind": 0,
         "name": "lib"

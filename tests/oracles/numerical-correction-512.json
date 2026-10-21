@@ -1,0 +1,946 @@
+{
+  "precisions": [
+    80,
+    120
+  ],
+  "agree": true,
+  "scope": "All changed default/deep snapshot tuples; authored center plus actual f32 pixel offset; no newly introduced escape/iteration disagreement or increased iteration error; not every pixel",
+  "cases": [
+    {
+      "case": "default",
+      "changed": 21,
+      "records": [
+        {
+          "x": 255,
+          "y": 3,
+          "old": [
+            1271,
+            1082246669,
+            2147483648
+          ],
+          "new": [
+            1271,
+            1082247345,
+            2147483648
+          ],
+          "oracle": [
+            1271,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 255,
+          "y": 62,
+          "old": [
+            1317,
+            1095918639,
+            2147483648
+          ],
+          "new": [
+            1317,
+            1096832042,
+            2147483648
+          ],
+          "oracle": [
+            1317,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 255,
+          "y": 192,
+          "old": [
+            1507,
+            1100255847,
+            2147483648
+          ],
+          "new": [
+            1507,
+            1100214986,
+            2147483648
+          ],
+          "oracle": [
+            1507,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 255,
+          "y": 198,
+          "old": [
+            1467,
+            1084798392,
+            2147483648
+          ],
+          "new": [
+            1467,
+            1084802141,
+            2147483648
+          ],
+          "oracle": [
+            1467,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 255,
+          "y": 226,
+          "old": [
+            1406,
+            1092359644,
+            2147483648
+          ],
+          "new": [
+            1406,
+            1092360144,
+            2147483648
+          ],
+          "oracle": [
+            1406,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 255,
+          "y": 252,
+          "old": [
+            1293,
+            1083577477,
+            2147483648
+          ],
+          "new": [
+            1293,
+            1083577384,
+            2147483648
+          ],
+          "oracle": [
+            1293,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 255,
+          "y": 253,
+          "old": [
+            1289,
+            1099992332,
+            2147483648
+          ],
+          "new": [
+            1289,
+            1099992180,
+            2147483648
+          ],
+          "oracle": [
+            1289,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 255,
+          "y": 254,
+          "old": [
+            1287,
+            1094058365,
+            2147483648
+          ],
+          "new": [
+            1287,
+            1094058418,
+            2147483648
+          ],
+          "oracle": [
+            1287,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 254,
+          "y": 255,
+          "old": [
+            1305,
+            1085046670,
+            2147483648
+          ],
+          "new": [
+            1305,
+            1085043751,
+            2147483648
+          ],
+          "oracle": [
+            1305,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 255,
+          "y": 255,
+          "old": [
+            1293,
+            1084359322,
+            2147483648
+          ],
+          "new": [
+            1293,
+            1084360159,
+            2147483648
+          ],
+          "oracle": [
+            1293,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 256,
+          "y": 255,
+          "old": [
+            1283,
+            1082341572,
+            2147483648
+          ],
+          "new": [
+            1283,
+            1082341560,
+            2147483648
+          ],
+          "oracle": [
+            1283,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 258,
+          "y": 255,
+          "old": [
+            1288,
+            1088648420,
+            2147483648
+          ],
+          "new": [
+            1288,
+            1088648744,
+            2147483648
+          ],
+          "oracle": [
+            1288,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 255,
+          "y": 256,
+          "old": [
+            1284,
+            1084219432,
+            2147483648
+          ],
+          "new": [
+            1284,
+            1084219440,
+            2147483648
+          ],
+          "oracle": [
+            1284,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 255,
+          "y": 259,
+          "old": [
+            1304,
+            1099011191,
+            2147483648
+          ],
+          "new": [
+            1304,
+            1099086126,
+            2147483648
+          ],
+          "oracle": [
+            1304,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 255,
+          "y": 261,
+          "old": [
+            1301,
+            1084421253,
+            2147483648
+          ],
+          "new": [
+            1301,
+            1084407567,
+            2147483648
+          ],
+          "oracle": [
+            1301,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 255,
+          "y": 267,
+          "old": [
+            1279,
+            1086857121,
+            2147483648
+          ],
+          "new": [
+            1279,
+            1086856861,
+            2147483648
+          ],
+          "oracle": [
+            1279,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 255,
+          "y": 276,
+          "old": [
+            1332,
+            1082140708,
+            2147483648
+          ],
+          "new": [
+            1333,
+            1092960204,
+            2147483648
+          ],
+          "oracle": [
+            1333,
+            true
+          ],
+          "oldMatches": false,
+          "newMatches": true
+        },
+        {
+          "x": 255,
+          "y": 278,
+          "old": [
+            1315,
+            1086833118,
+            2147483648
+          ],
+          "new": [
+            1315,
+            1086549035,
+            2147483648
+          ],
+          "oracle": [
+            1315,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 255,
+          "y": 388,
+          "old": [
+            1475,
+            1089881296,
+            2147483648
+          ],
+          "new": [
+            1475,
+            1089868776,
+            2147483648
+          ],
+          "oracle": [
+            1475,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 255,
+          "y": 389,
+          "old": [
+            1471,
+            1100616691,
+            2147483648
+          ],
+          "new": [
+            1471,
+            1100612315,
+            2147483648
+          ],
+          "oracle": [
+            1471,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 255,
+          "y": 405,
+          "old": [
+            1469,
+            1095024916,
+            2147483648
+          ],
+          "new": [
+            1469,
+            1094731298,
+            2147483648
+          ],
+          "oracle": [
+            1469,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        }
+      ],
+      "oldMismatches": 1,
+      "newMismatches": 0
+    },
+    {
+      "case": "captured-deep",
+      "changed": 25,
+      "records": [
+        {
+          "x": 257,
+          "y": 127,
+          "old": [
+            3441,
+            1097113478,
+            2147483648
+          ],
+          "new": [
+            3441,
+            1097362603,
+            2147483648
+          ],
+          "oracle": [
+            3441,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 257,
+          "y": 128,
+          "old": [
+            3436,
+            1091745658,
+            2147483648
+          ],
+          "new": [
+            3436,
+            1095855638,
+            2147483648
+          ],
+          "oracle": [
+            3436,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 257,
+          "y": 209,
+          "old": [
+            3383,
+            1086244645,
+            2147483648
+          ],
+          "new": [
+            3381,
+            1090979596,
+            2147483648
+          ],
+          "oracle": [
+            3376,
+            true
+          ],
+          "oldMatches": false,
+          "newMatches": false
+        },
+        {
+          "x": 257,
+          "y": 221,
+          "old": [
+            3260,
+            1084545637,
+            2147483648
+          ],
+          "new": [
+            3260,
+            1084545639,
+            2147483648
+          ],
+          "oracle": [
+            3260,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 257,
+          "y": 234,
+          "old": [
+            3292,
+            1100224028,
+            2147483648
+          ],
+          "new": [
+            3292,
+            1100106667,
+            2147483648
+          ],
+          "oracle": [
+            3292,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 104,
+          "y": 254,
+          "old": [
+            3011,
+            1100230534,
+            2147483648
+          ],
+          "new": [
+            3011,
+            1100213882,
+            2147483648
+          ],
+          "oracle": [
+            3011,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 133,
+          "y": 254,
+          "old": [
+            2981,
+            1091915424,
+            2147483648
+          ],
+          "new": [
+            2981,
+            1091767913,
+            2147483648
+          ],
+          "oracle": [
+            2981,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 182,
+          "y": 254,
+          "old": [
+            2948,
+            1082348723,
+            2147483648
+          ],
+          "new": [
+            2948,
+            1082351161,
+            2147483648
+          ],
+          "oracle": [
+            2948,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 184,
+          "y": 254,
+          "old": [
+            2947,
+            1089251797,
+            2147483648
+          ],
+          "new": [
+            2947,
+            1089248954,
+            2147483648
+          ],
+          "oracle": [
+            2947,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 188,
+          "y": 254,
+          "old": [
+            2954,
+            1089310905,
+            2147483648
+          ],
+          "new": [
+            2954,
+            1089334779,
+            2147483648
+          ],
+          "oracle": [
+            2954,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 201,
+          "y": 254,
+          "old": [
+            2958,
+            1082899840,
+            2147483648
+          ],
+          "new": [
+            2958,
+            1082897141,
+            2147483648
+          ],
+          "oracle": [
+            2958,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 238,
+          "y": 254,
+          "old": [
+            3444,
+            1085274678,
+            2147483648
+          ],
+          "new": [
+            3444,
+            1084788381,
+            2147483648
+          ],
+          "oracle": [
+            3444,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 239,
+          "y": 254,
+          "old": [
+            3492,
+            1090375170,
+            2147483648
+          ],
+          "new": [
+            3492,
+            1088592219,
+            2147483648
+          ],
+          "oracle": [
+            3492,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 242,
+          "y": 254,
+          "old": [
+            3519,
+            1090665594,
+            2147483648
+          ],
+          "new": [
+            3519,
+            1090665310,
+            2147483648
+          ],
+          "oracle": [
+            3519,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 297,
+          "y": 254,
+          "old": [
+            3102,
+            1086745563,
+            2147483648
+          ],
+          "new": [
+            3102,
+            1086751488,
+            2147483648
+          ],
+          "oracle": [
+            3102,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 301,
+          "y": 254,
+          "old": [
+            3104,
+            1082133900,
+            2147483648
+          ],
+          "new": [
+            3104,
+            1082138983,
+            2147483648
+          ],
+          "oracle": [
+            3104,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 348,
+          "y": 254,
+          "old": [
+            2963,
+            1091601338,
+            2147483648
+          ],
+          "new": [
+            2963,
+            1091603373,
+            2147483648
+          ],
+          "oracle": [
+            2963,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 431,
+          "y": 254,
+          "old": [
+            3300,
+            1099034985,
+            2147483648
+          ],
+          "new": [
+            3300,
+            1098934799,
+            2147483648
+          ],
+          "oracle": [
+            3300,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 257,
+          "y": 334,
+          "old": [
+            2813,
+            1090845849,
+            2147483648
+          ],
+          "new": [
+            2813,
+            1090846483,
+            2147483648
+          ],
+          "oracle": [
+            2813,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 257,
+          "y": 376,
+          "old": [
+            2811,
+            1086324017,
+            2147483648
+          ],
+          "new": [
+            2811,
+            1086323104,
+            2147483648
+          ],
+          "oracle": [
+            2811,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 257,
+          "y": 404,
+          "old": [
+            2825,
+            1089805303,
+            2147483648
+          ],
+          "new": [
+            2825,
+            1089804750,
+            2147483648
+          ],
+          "oracle": [
+            2825,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 257,
+          "y": 418,
+          "old": [
+            2833,
+            1084357561,
+            2147483648
+          ],
+          "new": [
+            2833,
+            1084349611,
+            2147483648
+          ],
+          "oracle": [
+            2833,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 257,
+          "y": 466,
+          "old": [
+            2921,
+            1095757840,
+            2147483648
+          ],
+          "new": [
+            2921,
+            1095758445,
+            2147483648
+          ],
+          "oracle": [
+            2921,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 257,
+          "y": 477,
+          "old": [
+            2946,
+            1089984153,
+            2147483648
+          ],
+          "new": [
+            2946,
+            1090000688,
+            2147483648
+          ],
+          "oracle": [
+            2946,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 257,
+          "y": 489,
+          "old": [
+            2981,
+            1083296740,
+            2147483648
+          ],
+          "new": [
+            2981,
+            1083319891,
+            2147483648
+          ],
+          "oracle": [
+            2981,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        }
+      ],
+      "oldMismatches": 1,
+      "newMismatches": 1
+    }
+  ]
+}

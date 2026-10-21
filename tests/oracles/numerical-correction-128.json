@@ -1,0 +1,506 @@
+{
+  "precisions": [
+    80,
+    120
+  ],
+  "agree": true,
+  "scope": "All changed default/deep snapshot tuples; authored center plus actual f32 pixel offset; no newly introduced escape/iteration disagreement or increased iteration error; not every pixel",
+  "cases": [
+    {
+      "case": "default",
+      "changed": 8,
+      "records": [
+        {
+          "x": 63,
+          "y": 59,
+          "old": [
+            1376,
+            1083818387,
+            2147483648
+          ],
+          "new": [
+            1376,
+            1083815909,
+            2147483648
+          ],
+          "oracle": [
+            1376,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 63,
+          "y": 63,
+          "old": [
+            1292,
+            1090779171,
+            2147483648
+          ],
+          "new": [
+            1292,
+            1090779477,
+            2147483648
+          ],
+          "oracle": [
+            1292,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 73,
+          "y": 63,
+          "old": [
+            1175,
+            1088774577,
+            2147483648
+          ],
+          "new": [
+            1175,
+            1088806994,
+            2147483648
+          ],
+          "oracle": [
+            1175,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 63,
+          "y": 65,
+          "old": [
+            1286,
+            1091363994,
+            2147483648
+          ],
+          "new": [
+            1286,
+            1091364571,
+            2147483648
+          ],
+          "oracle": [
+            1286,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 63,
+          "y": 67,
+          "old": [
+            1284,
+            1093026615,
+            2147483648
+          ],
+          "new": [
+            1284,
+            1093024988,
+            2147483648
+          ],
+          "oracle": [
+            1284,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 63,
+          "y": 68,
+          "old": [
+            1293,
+            1103199593,
+            2147483648
+          ],
+          "new": [
+            1293,
+            1103199509,
+            2147483648
+          ],
+          "oracle": [
+            1293,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 63,
+          "y": 70,
+          "old": [
+            1308,
+            1087347718,
+            2147483648
+          ],
+          "new": [
+            1308,
+            1087348474,
+            2147483648
+          ],
+          "oracle": [
+            1308,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 63,
+          "y": 119,
+          "old": [
+            1315,
+            1088182723,
+            2147483648
+          ],
+          "new": [
+            1315,
+            1088180757,
+            2147483648
+          ],
+          "oracle": [
+            1315,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        }
+      ],
+      "oldMismatches": 0,
+      "newMismatches": 0
+    },
+    {
+      "case": "captured-deep",
+      "changed": 16,
+      "records": [
+        {
+          "x": 65,
+          "y": 55,
+          "old": [
+            3286,
+            1087580414,
+            2147483648
+          ],
+          "new": [
+            3286,
+            1087612117,
+            2147483648
+          ],
+          "oracle": [
+            3286,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 65,
+          "y": 61,
+          "old": [
+            3420,
+            1097184821,
+            2147483648
+          ],
+          "new": [
+            3420,
+            1097258340,
+            2147483648
+          ],
+          "oracle": [
+            3420,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 46,
+          "y": 62,
+          "old": [
+            2957,
+            1094129536,
+            2147483648
+          ],
+          "new": [
+            2957,
+            1094142039,
+            2147483648
+          ],
+          "oracle": [
+            2957,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 47,
+          "y": 62,
+          "old": [
+            2966,
+            1085891029,
+            2147483648
+          ],
+          "new": [
+            2966,
+            1085844165,
+            2147483648
+          ],
+          "oracle": [
+            2966,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 65,
+          "y": 62,
+          "old": [
+            3431,
+            1088223225,
+            2147483648
+          ],
+          "new": [
+            3431,
+            1088217719,
+            2147483648
+          ],
+          "oracle": [
+            3431,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 66,
+          "y": 62,
+          "old": [
+            3447,
+            1084086813,
+            2147483648
+          ],
+          "new": [
+            3447,
+            1084105027,
+            2147483648
+          ],
+          "oracle": [
+            3447,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 77,
+          "y": 62,
+          "old": [
+            3038,
+            1088488329,
+            2147483648
+          ],
+          "new": [
+            3038,
+            1088405967,
+            2147483648
+          ],
+          "oracle": [
+            3038,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 79,
+          "y": 62,
+          "old": [
+            3527,
+            1099119414,
+            2147483648
+          ],
+          "new": [
+            3584,
+            1082130432,
+            0
+          ],
+          "oracle": [
+            3584,
+            false
+          ],
+          "oldMatches": false,
+          "newMatches": true
+        },
+        {
+          "x": 80,
+          "y": 62,
+          "old": [
+            3014,
+            1093624722,
+            2147483648
+          ],
+          "new": [
+            3014,
+            1093521064,
+            2147483648
+          ],
+          "oracle": [
+            3014,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 105,
+          "y": 62,
+          "old": [
+            3421,
+            1083939990,
+            2147483648
+          ],
+          "new": [
+            3421,
+            1083946667,
+            2147483648
+          ],
+          "oracle": [
+            3421,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 109,
+          "y": 62,
+          "old": [
+            3266,
+            1097367491,
+            2147483648
+          ],
+          "new": [
+            3261,
+            1093118504,
+            2147483648
+          ],
+          "oracle": [
+            3260,
+            true
+          ],
+          "oldMatches": false,
+          "newMatches": false
+        },
+        {
+          "x": 65,
+          "y": 63,
+          "old": [
+            3539,
+            1084663069,
+            2147483648
+          ],
+          "new": [
+            3539,
+            1084664586,
+            2147483648
+          ],
+          "oracle": [
+            3539,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 65,
+          "y": 64,
+          "old": [
+            3581,
+            1088366779,
+            2147483648
+          ],
+          "new": [
+            3581,
+            1088400146,
+            2147483648
+          ],
+          "oracle": [
+            3581,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 65,
+          "y": 77,
+          "old": [
+            2844,
+            1091519298,
+            2147483648
+          ],
+          "new": [
+            2844,
+            1091445276,
+            2147483648
+          ],
+          "oracle": [
+            2844,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 65,
+          "y": 85,
+          "old": [
+            2820,
+            1084408019,
+            2147483648
+          ],
+          "new": [
+            2820,
+            1084392871,
+            2147483648
+          ],
+          "oracle": [
+            2820,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        },
+        {
+          "x": 65,
+          "y": 92,
+          "old": [
+            2806,
+            1082893323,
+            2147483648
+          ],
+          "new": [
+            2806,
+            1082892637,
+            2147483648
+          ],
+          "oracle": [
+            2806,
+            true
+          ],
+          "oldMatches": true,
+          "newMatches": true
+        }
+      ],
+      "oldMismatches": 2,
+      "newMismatches": 1
+    }
+  ]
+}

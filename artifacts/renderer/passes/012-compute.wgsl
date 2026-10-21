@@ -1,15 +1,5 @@
-struct FeLocal_fe_shader_private_layout_6_ {
-    f0_: f32,
-}
-
-struct FeLocal_fe_shader_private_layout_7_ {
-    f0_: f32,
-    f1_: FeLocal_fe_shader_private_layout_6_,
-}
-
 struct FeLocal_fe_shader_private_layout_8_ {
     f0_: f32,
-    f1_: FeLocal_fe_shader_private_layout_7_,
 }
 
 struct FeLocal_fe_shader_private_layout_9_ {
@@ -18,62 +8,72 @@ struct FeLocal_fe_shader_private_layout_9_ {
 }
 
 struct FeLocal_fe_shader_private_layout_10_ {
-    f0_: FeLocal_fe_shader_private_layout_9_,
+    f0_: f32,
+    f1_: FeLocal_fe_shader_private_layout_9_,
 }
 
 struct FeLocal_fe_shader_private_layout_11_ {
-    f0_: FeLocal_fe_shader_private_layout_10_,
+    f0_: f32,
     f1_: FeLocal_fe_shader_private_layout_10_,
 }
 
 struct FeLocal_fe_shader_private_layout_12_ {
     f0_: FeLocal_fe_shader_private_layout_11_,
+}
+
+struct FeLocal_fe_shader_private_layout_13_ {
+    f0_: FeLocal_fe_shader_private_layout_12_,
+    f1_: FeLocal_fe_shader_private_layout_12_,
+}
+
+struct FeLocal_fe_shader_private_layout_14_ {
+    f0_: FeLocal_fe_shader_private_layout_13_,
     f1_: f32,
     f2_: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_13_ {
+struct FeLocal_fe_shader_private_layout_15_ {
     f0_: f32,
     f1_: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_14_ {
+struct FeLocal_fe_shader_private_layout_16_ {
     f0_: bool,
     f1_: u32,
-    f2_: FeLocal_fe_shader_private_layout_13_,
-}
-
-struct FeLocal_fe_shader_private_layout_15_ {
-    f0_: array<FeLocal_fe_shader_private_layout_14_, 10>,
-}
-
-struct FeLocal_fe_shader_private_layout_16_ {
-    f0_: FeLocal_fe_shader_private_layout_13_,
-    f1_: FeLocal_fe_shader_private_layout_13_,
+    f2_: FeLocal_fe_shader_private_layout_15_,
 }
 
 struct FeLocal_fe_shader_private_layout_17_ {
-    f0_: FeLocal_fe_shader_private_layout_15_,
-    f1_: FeLocal_fe_shader_private_layout_16_,
+    f0_: array<FeLocal_fe_shader_private_layout_16_, 10>,
 }
 
 struct FeLocal_fe_shader_private_layout_18_ {
+    f0_: FeLocal_fe_shader_private_layout_15_,
+    f1_: FeLocal_fe_shader_private_layout_15_,
+}
+
+struct FeLocal_fe_shader_private_layout_19_ {
+    f0_: FeLocal_fe_shader_private_layout_17_,
+    f1_: FeLocal_fe_shader_private_layout_18_,
+}
+
+struct FeLocal_fe_shader_private_layout_20_ {
     f0_: bool,
     f1_: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_19_ {
-    f0_: FeLocal_fe_shader_private_layout_12_,
+struct FeLocal_fe_shader_private_layout_21_ {
+    f0_: FeLocal_fe_shader_private_layout_14_,
     f1_: f32,
     f2_: f32,
     f3_: f32,
     f4_: f32,
     f5_: f32,
-    f6_: FeLocal_fe_shader_private_layout_17_,
-    f7_: FeLocal_fe_shader_private_layout_18_,
+    f6_: FeLocal_fe_shader_private_layout_19_,
+    f7_: FeLocal_fe_shader_private_layout_20_,
 }
 
-struct FeLocal_fe_shader_private_layout_24_ {
+struct FeLocal_fe_shader_private_layout_25_ {
     f0_: u32,
     f1_: u32,
     f2_: u32,
@@ -82,13 +82,13 @@ struct FeLocal_fe_shader_private_layout_24_ {
     f5_: u32,
 }
 
-struct FeLocal_fe_shader_private_layout_3_ {
+struct FeLocal_fe_shader_private_layout_5_ {
     f0_: u32,
     f1_: u32,
 }
 
-struct FeLocal_fe_shader_private_layout_4_ {
-    f0_: FeLocal_fe_shader_private_layout_3_,
+struct FeLocal_fe_shader_private_layout_6_ {
+    f0_: FeLocal_fe_shader_private_layout_5_,
     f1_: bool,
 }
 
@@ -98,6 +98,50 @@ struct FeLocal_fe_shader_private_layout_0_ {
 }
 
 struct FeLocal_fe_shader_private_layout_1_ {
+    f0_: u32,
+    f1_: u32,
+    f2_: FeLocal_fe_shader_private_layout_0_,
+}
+
+struct FeLocal_fe_shader_private_layout_26_ {
+    f0_: f32,
+    f1_: f32,
+    f2_: f32,
+}
+
+struct FeLocal_fe_shader_private_layout_4_ {
+    f0_: f32,
+    f1_: f32,
+    f2_: f32,
+}
+
+struct FeLocal_fe_shader_private_layout_22_ {
+    f0_: f32,
+    f1_: f32,
+}
+
+struct FeLocal_fe_shader_private_layout_27_ {
+    f0_: f32,
+    f1_: f32,
+}
+
+struct FeLocal_fe_shader_private_layout_2_ {
+    f0_: u32,
+    f1_: u32,
+    f2_: u32,
+    f3_: u32,
+    f4_: u32,
+    f5_: u32,
+    f6_: u32,
+    f7_: u32,
+}
+
+struct FeLocal_fe_shader_private_layout_24_ {
+    f0_: u32,
+    f1_: u32,
+}
+
+struct FeLocal_fe_shader_private_layout_3_ {
     f0_: f32,
     f1_: f32,
     f2_: f32,
@@ -108,62 +152,24 @@ struct FeLocal_fe_shader_private_layout_1_ {
     f7_: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_25_ {
-    f0_: f32,
-    f1_: f32,
-    f2_: f32,
+struct FeLocal_fe_shader_private_layout_23_ {
+    f0_: FeLocal_fe_shader_private_layout_11_,
+    f1_: FeLocal_fe_shader_private_layout_11_,
 }
 
-struct FeLocal_fe_shader_private_layout_2_ {
-    f0_: f32,
-    f1_: f32,
-    f2_: f32,
-}
-
-struct FeLocal_fe_shader_private_layout_21_ {
-    f0_: f32,
-    f1_: f32,
-}
-
-struct FeLocal_fe_shader_private_layout_26_ {
-    f0_: f32,
-    f1_: f32,
-}
-
-struct FeLocal_fe_shader_private_layout_20_ {
-    f0_: u32,
-    f1_: u32,
-    f2_: u32,
-    f3_: u32,
-    f4_: u32,
-    f5_: u32,
-    f6_: u32,
-    f7_: u32,
-}
-
-struct FeLocal_fe_shader_private_layout_22_ {
-    f0_: FeLocal_fe_shader_private_layout_9_,
-    f1_: FeLocal_fe_shader_private_layout_9_,
-}
-
-struct FeLocal_fe_shader_private_layout_27_ {
+struct FeLocal_fe_shader_private_layout_28_ {
     f0_: f32,
     f1_: f32,
     f2_: f32,
     f3_: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_28_ {
+struct FeLocal_fe_shader_private_layout_29_ {
     f0_: f32,
     f1_: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_23_ {
-    f0_: u32,
-    f1_: u32,
-}
-
-struct FeLocal_fe_shader_private_layout_5_ {
+struct FeLocal_fe_shader_private_layout_7_ {
     f0_: u32,
     f1_: u32,
     f2_: u32,
@@ -173,8 +179,8 @@ struct FeLocal_fe_shader_private_layout_5_ {
     f6_: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_29_ {
-    f0_: FeLocal_fe_shader_private_layout_12_,
+struct FeLocal_fe_shader_private_layout_30_ {
+    f0_: FeLocal_fe_shader_private_layout_14_,
     f1_: u32,
     f2_: f32,
     f3_: u32,
@@ -185,7 +191,7 @@ struct FeLocal_fe_shader_private_layout_29_ {
     f8_: u32,
 }
 
-struct FeLocal_fe_shader_private_layout_30_ {
+struct FeLocal_fe_shader_private_layout_31_ {
     f0_: u32,
     f1_: u32,
     f2_: u32,
@@ -234,14 +240,10 @@ struct reference_element {
 }
 
 struct progress_pixels_element {
-    dz_re: f32,
-    dz_im: f32,
-    z_re: f32,
-    z_im: f32,
-    reference_i: u32,
-    iteration: u32,
+    control: u32,
     epoch: u32,
-    magnitude: f32,
+    payload_u002e_re: f32,
+    payload_u002e_im: f32,
 }
 
 struct Params {
@@ -325,7 +327,7 @@ var<storage> params: Params;
 @group(0) @binding(7)
 var<storage, read_write> trap: array<u32, 32768>;
 
-fn is_input_settled(a0_: ptr<function, FeLocal_fe_shader_private_layout_19_>) -> bool {
+fn is_input_settled(a0_: ptr<function, FeLocal_fe_shader_private_layout_21_>) -> bool {
     var local_14: bool;
     var local_15: bool = false;
     var local_16: bool = bool();
@@ -342,7 +344,7 @@ fn is_input_settled(a0_: ptr<function, FeLocal_fe_shader_private_layout_19_>) ->
     return _e17;
 }
 
-fn can_refine(a0_1: FeLocal_fe_shader_private_layout_5_, a1_: ptr<function, FeLocal_fe_shader_private_layout_19_>) -> bool {
+fn can_refine(a0_1: FeLocal_fe_shader_private_layout_7_, a1_: ptr<function, FeLocal_fe_shader_private_layout_21_>) -> bool {
     var local_17: bool;
     var local_18: bool = false;
     var local_19: bool = bool();
@@ -435,8 +437,8 @@ fn to_i32_(a0_3: f32) -> u32 {
     return select(0u, select(select(bitcast<u32>(i32(a0_3)), 2147483648u, (a0_3 <= -2147483600f)), 2147483647u, (a0_3 >= 2147483600f)), (a0_3 == a0_3));
 }
 
-fn for_view(a0_4: f32, a1_1: f32, fe_trapped_2: ptr<function, bool>) -> FeLocal_fe_shader_private_layout_24_ {
-    var local_28: FeLocal_fe_shader_private_layout_24_;
+fn for_view(a0_4: f32, a1_1: f32, fe_trapped_2: ptr<function, bool>) -> FeLocal_fe_shader_private_layout_25_ {
+    var local_28: FeLocal_fe_shader_private_layout_25_;
     var local_29: bool = false;
 
     let _e4 = iteration_limit(a0_4, fe_trapped_2);
@@ -446,10 +448,10 @@ fn for_view(a0_4: f32, a1_1: f32, fe_trapped_2: ptr<function, bool>) -> FeLocal_
     if (_e23 && (_e18 > (4294967295u / select(1u, _e13, _e23)))) {
         (*fe_trapped_2) = true;
     }
-    return FeLocal_fe_shader_private_layout_24_(_e4, ((_e4 + 2047u) / 2048u), _e13, _e18, (_e13 * _e18), _e18);
+    return FeLocal_fe_shader_private_layout_25_(_e4, ((_e4 + 2047u) / 2048u), _e13, _e18, (_e13 * _e18), _e18);
 }
 
-fn refine_steps(a0_5: FeLocal_fe_shader_private_layout_24_, fe_trapped_3: ptr<function, bool>) -> u32 {
+fn refine_steps(a0_5: FeLocal_fe_shader_private_layout_25_, fe_trapped_3: ptr<function, bool>) -> u32 {
     var local_30: u32;
     var local_31: bool = false;
 
@@ -464,13 +466,13 @@ fn refine_steps(a0_5: FeLocal_fe_shader_private_layout_24_, fe_trapped_3: ptr<fu
     return _e19;
 }
 
-fn impl_trait_Pixel_default() -> FeLocal_fe_shader_private_layout_3_ {
-    return FeLocal_fe_shader_private_layout_3_();
+fn impl_trait_Pixel_default() -> FeLocal_fe_shader_private_layout_5_ {
+    return FeLocal_fe_shader_private_layout_5_();
 }
 
-fn impl_trait_CohortPixel_default() -> FeLocal_fe_shader_private_layout_4_ {
+fn impl_trait_CohortPixel_default() -> FeLocal_fe_shader_private_layout_6_ {
     let _e0 = impl_trait_Pixel_default();
-    return FeLocal_fe_shader_private_layout_4_(_e0, false);
+    return FeLocal_fe_shader_private_layout_6_(_e0, false);
 }
 
 fn from_i32_(a0_6: u32) -> f32 {
@@ -543,7 +545,7 @@ fn phase_order_rect(a0_8: u32, a1_3: u32, a2_1: u32, a3_: u32, a4_: u32, fe_trap
     return _e60;
 }
 
-fn in_extent(a0_9: FeLocal_fe_shader_private_layout_3_, a1_4: f32) -> bool {
+fn in_extent(a0_9: FeLocal_fe_shader_private_layout_5_, a1_4: f32) -> bool {
     var local_35: bool;
     var local_36: bool = false;
     var local_37: bool = bool();
@@ -559,16 +561,16 @@ fn in_extent(a0_9: FeLocal_fe_shader_private_layout_3_, a1_4: f32) -> bool {
     return _e13;
 }
 
-fn at(a0_10: u32, a1_5: u32, a2_2: f32) -> FeLocal_fe_shader_private_layout_4_ {
-    let _e3 = FeLocal_fe_shader_private_layout_3_(a0_10, a1_5);
+fn at(a0_10: u32, a1_5: u32, a2_2: f32) -> FeLocal_fe_shader_private_layout_6_ {
+    let _e3 = FeLocal_fe_shader_private_layout_5_(a0_10, a1_5);
     let _e4 = in_extent(_e3, a2_2);
-    return FeLocal_fe_shader_private_layout_4_(_e3, _e4);
+    return FeLocal_fe_shader_private_layout_6_(_e3, _e4);
 }
 
-fn rect_pixel(a0_11: FeLocal_fe_shader_private_layout_24_, a1_6: u32, a2_3: u32, a3_1: u32, a4_1: f32, fe_trapped_5: ptr<function, bool>) -> FeLocal_fe_shader_private_layout_4_ {
-    var local_38: FeLocal_fe_shader_private_layout_4_;
+fn rect_pixel(a0_11: FeLocal_fe_shader_private_layout_25_, a1_6: u32, a2_3: u32, a3_1: u32, a4_1: f32, fe_trapped_5: ptr<function, bool>) -> FeLocal_fe_shader_private_layout_6_ {
+    var local_38: FeLocal_fe_shader_private_layout_6_;
     var local_39: bool = false;
-    var local_40: FeLocal_fe_shader_private_layout_4_;
+    var local_40: FeLocal_fe_shader_private_layout_6_;
     var local_41: bool = false;
 
     let _e7 = refine_steps(a0_11, fe_trapped_5);
@@ -641,11 +643,11 @@ fn rect_pixel(a0_11: FeLocal_fe_shader_private_layout_24_, a1_6: u32, a2_3: u32,
     return _e84;
 }
 
-fn impl_Pixel_index(a0_12: FeLocal_fe_shader_private_layout_3_, a1_7: u32) -> u32 {
+fn impl_Pixel_index(a0_12: FeLocal_fe_shader_private_layout_5_, a1_7: u32) -> u32 {
     return ((a0_12.f1_ << a1_7) | a0_12.f0_);
 }
 
-fn impl_CohortPixel_index(a0_13: FeLocal_fe_shader_private_layout_4_) -> u32 {
+fn impl_CohortPixel_index(a0_13: FeLocal_fe_shader_private_layout_6_) -> u32 {
     let _e3 = impl_Pixel_index(a0_13.f0_, 11u);
     return _e3;
 }
@@ -654,236 +656,356 @@ fn default_ge58b() -> FeLocal_fe_shader_private_layout_0_ {
     return FeLocal_fe_shader_private_layout_0_();
 }
 
-fn from_continuation(a0_14: FeLocal_fe_shader_private_layout_0_, a1_8: FeLocal_fe_shader_private_layout_0_, a2_4: u32, a3_2: u32, a4_2: u32, a5_: f32) -> FeLocal_fe_shader_private_layout_1_ {
-    return FeLocal_fe_shader_private_layout_1_(a0_14.f0_, a0_14.f1_, a1_8.f0_, a1_8.f1_, a2_4, a3_2, a4_2, a5_);
-}
-
-fn empty_progress(a0_15: u32) -> FeLocal_fe_shader_private_layout_1_ {
+fn initial(a0_14: u32) -> FeLocal_fe_shader_private_layout_1_ {
     let _e1 = default_ge58b();
-    let _e2 = default_ge58b();
-    let _e6 = from_continuation(_e1, _e2, 0u, 0u, a0_15, 4f);
-    return _e6;
+    return FeLocal_fe_shader_private_layout_1_(FeLocal_fe_shader_private_layout_1_().f0_, a0_14, _e1);
 }
 
-fn progress_is_presentable(a0_16: u32) -> bool {
-    return (((a0_16 & 536870912u) == 0u) == false);
+fn iteration(a0_15: FeLocal_fe_shader_private_layout_1_) -> u32 {
+    return ((a0_15.f0_ >> 14u) & 16383u);
 }
 
-fn progress_has_outcome(a0_17: u32) -> bool {
-    return (((a0_17 & 3221225472u) == 0u) == false);
-}
-
-fn progress_is_terminal(a0_18: u32, a1_9: u32, a2_5: u32) -> bool {
+fn impl_NativeCheckpoint_is_terminal(a0_16: FeLocal_fe_shader_private_layout_1_, a1_8: u32) -> bool {
     var local_42: bool;
     var local_43: bool = false;
     var local_44: bool = bool();
 
-    if ((a1_9 < a2_5) == false) {
+    let _e4 = iteration(a0_16);
+    if ((_e4 < a1_8) == false) {
         local_44 = true;
     } else {
-        let _e8 = progress_has_outcome(a0_18);
-        if _e8 {
+        if (((a0_16.f0_ & 268435456u) == 0u) == false) {
             local_44 = true;
-        } else {
-            let _e9 = progress_is_presentable(a0_18);
-            if _e9 {
-                local_44 = true;
-            }
         }
     }
-    let _e17 = local_44;
-    return _e17;
+    let _e20 = local_44;
+    return _e20;
 }
 
-fn is_terminal(a0_19: FeLocal_fe_shader_private_layout_1_, a1_10: u32) -> bool {
-    let _e4 = progress_is_terminal(a0_19.f4_, a0_19.f5_, a1_10);
-    return _e4;
-}
-
-fn progress_with_presentable(a0_20: u32) -> u32 {
-    return (a0_20 | 536870912u);
-}
-
-fn with_fade_start(a0_21: FeLocal_fe_shader_private_layout_1_, a1_11: f32) -> FeLocal_fe_shader_private_layout_1_ {
-    var fixed_local_3_: FeLocal_fe_shader_private_layout_1_ = FeLocal_fe_shader_private_layout_1_();
-
-    fixed_local_3_ = a0_21;
-    fixed_local_3_.f2_ = a1_11;
-    let _e6 = progress_with_presentable(a0_21.f4_);
-    fixed_local_3_.f4_ = _e6;
-    let _e8 = fixed_local_3_;
-    return _e8;
-}
-
-fn progress_is_glitched(a0_22: u32) -> bool {
-    return (((a0_22 & 1073741824u) == 0u) == false);
-}
-
-fn is_glitched(a0_23: FeLocal_fe_shader_private_layout_1_) -> bool {
-    let _e2 = progress_is_glitched(a0_23.f4_);
-    return _e2;
-}
-
-fn clamp_(a0_24: f32, a1_12: f32, a2_6: f32) -> f32 {
+fn magnitude(a0_17: FeLocal_fe_shader_private_layout_1_) -> f32 {
     var local_45: f32;
     var local_46: bool = false;
     var local_47: f32 = f32();
 
-    if (a0_24 < a1_12) {
-        local_47 = a1_12;
+    if (((a0_17.f0_ & 268435456u) == 0u) == false) {
+        local_47 = a0_17.f2_.f0_;
     } else {
-        if (a2_6 < a0_24) {
-            local_47 = a2_6;
+        local_47 = 4f;
+    }
+    let _e16 = local_47;
+    return _e16;
+}
+
+fn with_fade_start(a0_18: FeLocal_fe_shader_private_layout_1_, a1_9: f32) -> FeLocal_fe_shader_private_layout_1_ {
+    let _e8 = magnitude(a0_18);
+    return FeLocal_fe_shader_private_layout_1_(((a0_18.f0_ | 268435456u) | 536870912u), a0_18.f1_, FeLocal_fe_shader_private_layout_0_(_e8, a1_9));
+}
+
+fn progress_is_glitched(a0_19: u32) -> bool {
+    return (((a0_19 & 1073741824u) == 0u) == false);
+}
+
+fn impl_NativeCheckpoint_is_glitched(a0_20: FeLocal_fe_shader_private_layout_1_) -> bool {
+    let _e2 = progress_is_glitched(a0_20.f0_);
+    return _e2;
+}
+
+fn clamp_(a0_21: f32, a1_10: f32, a2_4: f32) -> f32 {
+    var local_48: f32;
+    var local_49: bool = false;
+    var local_50: f32 = f32();
+
+    if (a0_21 < a1_10) {
+        local_50 = a1_10;
+    } else {
+        if (a2_4 < a0_21) {
+            local_50 = a2_4;
         } else {
-            local_47 = a0_24;
+            local_50 = a0_21;
         }
     }
-    let _e11 = local_47;
+    let _e11 = local_50;
     return _e11;
 }
 
-fn pack_lab(a0_25: FeLocal_fe_shader_private_layout_25_) -> u32 {
-    let _e4 = clamp_(a0_25.f0_, 0f, 1f);
+fn pack_lab(a0_22: FeLocal_fe_shader_private_layout_26_) -> u32 {
+    let _e4 = clamp_(a0_22.f0_, 0f, 1f);
     let _e9 = to_i32_(((_e4 * 4095f) + 0.5f));
-    let _e17 = clamp_(((a0_25.f1_ * 2048f) + 512f), 0f, 1023f);
+    let _e17 = clamp_(((a0_22.f1_ * 2048f) + 512f), 0f, 1023f);
     let _e20 = to_i32_((_e17 + 0.5f));
-    let _e28 = clamp_(((a0_25.f2_ * 2048f) + 512f), 0f, 1023f);
+    let _e28 = clamp_(((a0_22.f2_ * 2048f) + 512f), 0f, 1023f);
     let _e31 = to_i32_((_e28 + 0.5f));
     return (((_e9 & 4095u) | ((_e20 & 1023u) << 12u)) | (_e31 << 22u));
 }
 
 fn glitch() -> u32 {
-    let _e4 = pack_lab(FeLocal_fe_shader_private_layout_25_(0.72f, 0.18f, -0.09f));
+    let _e4 = pack_lab(FeLocal_fe_shader_private_layout_26_(0.72f, 0.18f, -0.09f));
     return _e4;
 }
 
-fn progress_is_escaped(a0_26: u32) -> bool {
-    return (((a0_26 & 2147483648u) == 0u) == false);
+fn progress_is_escaped(a0_23: u32) -> bool {
+    return (((a0_23 & 2147483648u) == 0u) == false);
 }
 
-fn is_escaped(a0_27: FeLocal_fe_shader_private_layout_1_) -> bool {
-    let _e2 = progress_is_escaped(a0_27.f4_);
+fn impl_NativeCheckpoint_is_escaped(a0_24: FeLocal_fe_shader_private_layout_1_) -> bool {
+    let _e2 = progress_is_escaped(a0_24.f0_);
     return _e2;
 }
 
-fn impl_trait_f32_floor(a0_28: f32) -> f32 {
-    return floor(a0_28);
+fn impl_trait_f32_floor(a0_25: f32) -> f32 {
+    return floor(a0_25);
 }
 
-fn fract_(a0_29: f32) -> f32 {
-    let _e1 = impl_trait_f32_floor(a0_29);
-    return (a0_29 - _e1);
+fn fract_(a0_26: f32) -> f32 {
+    let _e1 = impl_trait_f32_floor(a0_26);
+    return (a0_26 - _e1);
 }
 
-fn anchor(a0_30: u32) -> FeLocal_fe_shader_private_layout_2_ {
-    var local_48: FeLocal_fe_shader_private_layout_2_;
-    var local_49: bool = false;
-    var local_50: FeLocal_fe_shader_private_layout_2_ = FeLocal_fe_shader_private_layout_2_();
+fn anchor(a0_27: u32) -> FeLocal_fe_shader_private_layout_4_ {
+    var local_51: FeLocal_fe_shader_private_layout_4_;
+    var local_52: bool = false;
+    var local_53: FeLocal_fe_shader_private_layout_4_ = FeLocal_fe_shader_private_layout_4_();
 
-    switch a0_30 {
+    switch a0_27 {
         case 0u: {
-            local_50 = FeLocal_fe_shader_private_layout_2_(0.58f, 0.215f, 275f);
+            local_53 = FeLocal_fe_shader_private_layout_4_(0.58f, 0.215f, 275f);
         }
         case 1u: {
-            local_50 = FeLocal_fe_shader_private_layout_2_(0.65f, 0.24f, 335f);
+            local_53 = FeLocal_fe_shader_private_layout_4_(0.65f, 0.24f, 335f);
         }
         case 2u: {
-            local_50 = FeLocal_fe_shader_private_layout_2_(0.78f, 0.155f, 65f);
+            local_53 = FeLocal_fe_shader_private_layout_4_(0.78f, 0.155f, 65f);
         }
         case 3u: {
-            local_50 = FeLocal_fe_shader_private_layout_2_(0.73f, 0.142f, 165f);
+            local_53 = FeLocal_fe_shader_private_layout_4_(0.73f, 0.142f, 165f);
         }
         default: {
-            local_50 = FeLocal_fe_shader_private_layout_2_(0.65f, 0.127f, 235f);
+            local_53 = FeLocal_fe_shader_private_layout_4_(0.65f, 0.127f, 235f);
         }
     }
-    let _e29 = local_50;
+    let _e29 = local_53;
     return _e29;
 }
 
-fn interpolate(a0_31: FeLocal_fe_shader_private_layout_2_, a1_13: FeLocal_fe_shader_private_layout_2_, a2_7: f32) -> FeLocal_fe_shader_private_layout_2_ {
-    var local_51: FeLocal_fe_shader_private_layout_2_;
-    var local_52: bool = false;
-    var local_53: f32 = f32();
+fn hue_remainder(a0_28: f32) -> f32 {
+    var local_54: f32;
+    var local_55: bool = false;
+    var local_56: f32;
+    var local_57: bool = false;
+    var local_58: f32;
+    var local_59: bool = false;
+    var local_60: f32 = f32();
+    var local_61: f32;
+    var local_62: bool = false;
+    var local_63: f32 = f32();
+    var local_64: u32 = u32();
+    var local_65: u32 = u32();
+    var loop_result_1: f32;
+    var loop_did_return_1: bool = false;
+    var loop_header_carry_51_: bool;
+    var local_66: f32;
+    var local_67: bool = false;
+    var local_68: f32 = f32();
 
-    let _e7 = (a1_13.f2_ - a0_31.f2_);
-    if (540f < _e7) {
-        let _e14 = impl_trait_f32_floor(((_e7 + 180f) / 360f));
-        let _e17 = (_e7 - (360f * _e14));
-        if (_e17 == -180f) {
-            if (0f < _e7) {
-                local_53 = 180f;
-            } else {
-                local_53 = _e17;
-            }
-        } else {
-            local_53 = _e17;
-        }
+    let _e4 = (bitcast<u32>(a0_28) & 2147483647u);
+    if (_e4 < 1135869952u) {
+        local_54 = a0_28;
+        local_55 = true;
+    }
+    let _e89 = local_55;
+    if _e89 {
     } else {
-        if (_e7 < -540f) {
-            let _e32 = impl_trait_f32_floor(((_e7 + 180f) / 360f));
-            let _e35 = (_e7 - (360f * _e32));
-            if (_e35 == -180f) {
-                if (0f < _e7) {
-                    local_53 = 180f;
-                } else {
-                    local_53 = _e35;
-                }
-            } else {
-                local_53 = _e35;
-            }
+        let _e12 = (_e4 >> 23u);
+        if (_e12 == 255u) {
+            local_56 = a0_28;
+            local_57 = true;
+        }
+        let _e84 = local_57;
+        if _e84 {
         } else {
-            if (180f < _e7) {
-                local_53 = (_e7 - 360f);
+            if (a0_28 < 0f) {
+                local_60 = -(a0_28);
             } else {
-                if (_e7 < -180f) {
-                    local_53 = (_e7 + 360f);
-                } else {
-                    local_53 = _e7;
+                local_60 = a0_28;
+            }
+            let _e28 = local_60;
+            if (_e12 < 150u) {
+                let _e31 = to_i32_(_e28);
+                let _e34 = from_i32_((_e31 % 360u));
+                let _e35 = from_i32_(_e31);
+                local_63 = (_e34 + (_e28 - _e35));
+            } else {
+                local_64 = (((_e4 & 8388607u) | 8388608u) % 360u);
+                local_65 = (_e12 - 150u);
+                loop {
+                    let _e52 = local_64;
+                    let _e54 = local_65;
+                    let _e56 = (0u < _e54);
+                    loop_header_carry_51_ = _e56;
+                    if _e56 {
+                        local_64 = ((_e52 << 1u) % 360u);
+                        local_65 = (_e54 - 1u);
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+                let _e67 = local_64;
+                let _e68 = from_i32_(_e67);
+                local_63 = _e68;
+            }
+            let _e74 = local_63;
+            if (a0_28 < 0f) {
+                local_68 = -(_e74);
+            } else {
+                local_68 = _e74;
+            }
+            let _e81 = local_68;
+            local_56 = _e81;
+        }
+        let _e86 = local_56;
+        local_54 = _e86;
+    }
+    let _e91 = local_54;
+    return _e91;
+}
+
+fn interpolate(a0_29: FeLocal_fe_shader_private_layout_4_, a1_11: FeLocal_fe_shader_private_layout_4_, a2_5: f32) -> FeLocal_fe_shader_private_layout_4_ {
+    var local_69: FeLocal_fe_shader_private_layout_4_;
+    var local_70: bool = false;
+    var local_71: bool = bool();
+    var local_72: FeLocal_fe_shader_private_layout_4_;
+    var local_73: bool = false;
+    var local_74: f32 = f32();
+    var local_75: FeLocal_fe_shader_private_layout_4_;
+    var local_76: bool = false;
+    var local_77: f32 = f32();
+    var local_78: FeLocal_fe_shader_private_layout_4_;
+    var local_79: bool = false;
+    var local_80: f32 = f32();
+    var local_81: FeLocal_fe_shader_private_layout_4_;
+    var local_82: bool = false;
+    var local_83: f32 = f32();
+    var local_84: f32 = f32();
+
+    let _e7 = (a1_11.f2_ - a0_29.f2_);
+    if (-540f <= a0_29.f2_) {
+        if (a0_29.f2_ <= 540f) {
+            if (-540f <= a1_11.f2_) {
+                if (a1_11.f2_ <= 540f) {
+                    if (-540f <= _e7) {
+                        if (_e7 <= 540f) {
+                            local_71 = true;
+                        }
+                    }
                 }
             }
         }
     }
-    let _e56 = local_53;
-    return FeLocal_fe_shader_private_layout_2_((a0_31.f0_ + ((a1_13.f0_ - a0_31.f0_) * a2_7)), (a0_31.f1_ + ((a1_13.f1_ - a0_31.f1_) * a2_7)), (a0_31.f2_ + (_e56 * a2_7)));
+    let _e29 = local_71;
+    if _e29 {
+        local_74 = a0_29.f2_;
+    } else {
+        let _e32 = hue_remainder(a0_29.f2_);
+        local_74 = _e32;
+    }
+    let _e38 = local_74;
+    if _e29 {
+        local_77 = _e7;
+    } else {
+        let _e40 = hue_remainder(a1_11.f2_);
+        local_77 = (_e40 - _e38);
+    }
+    let _e47 = local_77;
+    if (180f < _e47) {
+        local_80 = (_e47 - 360f);
+    } else {
+        if (_e47 < -180f) {
+            local_80 = (_e47 + 360f);
+        } else {
+            local_80 = _e47;
+        }
+    }
+    let _e62 = local_80;
+    if (_e29 == false) {
+        if (180f < _e62) {
+            local_84 = (_e62 - 360f);
+        } else {
+            if (_e62 < -180f) {
+                local_84 = (_e62 + 360f);
+            } else {
+                local_84 = _e62;
+            }
+        }
+        let _e78 = local_84;
+        if (_e78 == -180f) {
+            if (a0_29.f2_ < a1_11.f2_) {
+                local_83 = 180f;
+            } else {
+                if (_e78 == 180f) {
+                    if (a1_11.f2_ < a0_29.f2_) {
+                        local_83 = -180f;
+                    } else {
+                        local_83 = _e78;
+                    }
+                } else {
+                    local_83 = _e78;
+                }
+            }
+        } else {
+            if (_e78 == 180f) {
+                if (a1_11.f2_ < a0_29.f2_) {
+                    local_83 = -180f;
+                } else {
+                    local_83 = _e78;
+                }
+            } else {
+                local_83 = _e78;
+            }
+        }
+    } else {
+        local_83 = _e62;
+    }
+    let _e106 = local_83;
+    return FeLocal_fe_shader_private_layout_4_((a0_29.f0_ + ((a1_11.f0_ - a0_29.f0_) * a2_5)), (a0_29.f1_ + ((a1_11.f1_ - a0_29.f1_) * a2_5)), (_e38 + (_e106 * a2_5)));
 }
 
-fn wrap_pi(a0_32: f32) -> f32 {
-    let _e5 = impl_trait_f32_floor(((a0_32 / 6.2831855f) + 0.5f));
-    return (a0_32 - (6.2831855f * _e5));
+fn wrap_pi(a0_30: f32) -> f32 {
+    let _e5 = impl_trait_f32_floor(((a0_30 / 6.2831855f) + 0.5f));
+    return (a0_30 - (6.2831855f * _e5));
 }
 
-fn impl_trait_f32_abs(a0_33: f32) -> f32 {
-    return bitcast<f32>((bitcast<u32>(a0_33) & 2147483647u));
+fn impl_trait_f32_abs(a0_31: f32) -> f32 {
+    return bitcast<f32>((bitcast<u32>(a0_31) & 2147483647u));
 }
 
-fn sin_(a0_34: f32) -> f32 {
-    let _e1 = wrap_pi(a0_34);
+fn sin_(a0_32: f32) -> f32 {
+    let _e1 = wrap_pi(a0_32);
     let _e6 = impl_trait_f32_abs(_e1);
     let _e8 = ((1.2732395f * _e1) - ((0.40528473f * _e1) * _e6));
     let _e9 = impl_trait_f32_abs(_e8);
     return ((0.225f * ((_e8 * _e9) - _e8)) + _e8);
 }
 
-fn cos_(a0_35: f32) -> f32 {
-    let _e3 = sin_((a0_35 + 1.5707964f));
+fn cos_(a0_33: f32) -> f32 {
+    let _e3 = sin_((a0_33 + 1.5707964f));
     return _e3;
 }
 
-fn to_color(a0_36: FeLocal_fe_shader_private_layout_2_) -> FeLocal_fe_shader_private_layout_25_ {
-    let _e3 = (a0_36.f2_ * 0.017453292f);
+fn to_color(a0_34: FeLocal_fe_shader_private_layout_4_) -> FeLocal_fe_shader_private_layout_26_ {
+    let _e3 = (a0_34.f2_ * 0.017453292f);
     let _e6 = cos_(_e3);
     let _e9 = sin_(_e3);
-    return FeLocal_fe_shader_private_layout_25_(a0_36.f0_, (a0_36.f1_ * _e6), (a0_36.f1_ * _e9));
+    return FeLocal_fe_shader_private_layout_26_(a0_34.f0_, (a0_34.f1_ * _e6), (a0_34.f1_ * _e9));
 }
 
-fn escape_palette(a0_37: u32, a1_14: f32, fe_trapped_6: ptr<function, bool>) -> u32 {
-    var local_54: u32;
-    var local_55: bool = false;
-    var local_56: u32 = u32();
+fn escape_palette(a0_35: u32, a1_12: f32, fe_trapped_6: ptr<function, bool>) -> u32 {
+    var local_85: u32;
+    var local_86: bool = false;
+    var local_87: u32 = u32();
 
-    let _e5 = from_i32_(a0_37);
-    let _e11 = fract_(((_e5 + (4f / a1_14)) / 256f));
+    let _e5 = from_i32_(a0_35);
+    let _e11 = fract_(((_e5 + (4f / a1_12)) / 256f));
     let _e13 = (_e11 * 5f);
     let _e14 = to_i32_(_e13);
     let _e15 = from_i32_(_e14);
@@ -895,10 +1017,10 @@ fn escape_palette(a0_37: u32, a1_14: f32, fe_trapped_6: ptr<function, bool>) -> 
         if ((((_e14 ^ _e29) & (1u ^ _e29)) & 2147483648u) != 0u) {
             (*fe_trapped_6) = true;
         } else {
-            local_56 = _e29;
+            local_87 = _e29;
         }
     }
-    let _e38 = local_56;
+    let _e38 = local_87;
     let _e39 = anchor(_e38);
     let _e40 = interpolate(_e23, _e39, ((_e16 * _e16) * (3f - (2f * _e16))));
     let _e41 = to_color(_e40);
@@ -907,458 +1029,533 @@ fn escape_palette(a0_37: u32, a1_14: f32, fe_trapped_6: ptr<function, bool>) -> 
 }
 
 fn interior() -> u32 {
-    let _e4 = pack_lab(FeLocal_fe_shader_private_layout_25_(0.14f, 0.008f, -0.018f));
+    let _e4 = pack_lab(FeLocal_fe_shader_private_layout_26_(0.14f, 0.008f, -0.018f));
     return _e4;
 }
 
-fn progress_color(a0_38: FeLocal_fe_shader_private_layout_1_, fe_trapped_7: ptr<function, bool>) -> u32 {
-    var local_57: u32;
-    var local_58: bool = false;
-    var local_59: u32 = u32();
+fn color(a0_36: FeLocal_fe_shader_private_layout_1_, fe_trapped_7: ptr<function, bool>) -> u32 {
+    var local_88: u32;
+    var local_89: bool = false;
+    var local_90: u32 = u32();
 
-    let _e4 = is_glitched(a0_38);
+    let _e4 = impl_NativeCheckpoint_is_glitched(a0_36);
     if _e4 {
         let _e5 = glitch();
-        local_59 = _e5;
+        local_90 = _e5;
     } else {
-        let _e6 = is_escaped(a0_38);
+        let _e6 = impl_NativeCheckpoint_is_escaped(a0_36);
         if _e6 {
-            let _e9 = escape_palette(a0_38.f5_, a0_38.f7_, fe_trapped_7);
-            local_59 = _e9;
+            let _e7 = iteration(a0_36);
+            let _e8 = magnitude(a0_36);
+            let _e9 = escape_palette(_e7, _e8, fe_trapped_7);
+            local_90 = _e9;
         } else {
             let _e10 = interior();
-            local_59 = _e10;
+            local_90 = _e10;
         }
     }
-    let _e15 = local_59;
+    let _e15 = local_90;
     return _e15;
 }
 
-fn ordered_2x2_(a0_39: u32, a1_15: u32) -> FeLocal_fe_shader_private_layout_21_ {
-    let _e6 = from_i32_(a0_39);
-    let _e9 = from_i32_((a0_39 & 1u));
-    let _e13 = from_i32_(a1_15);
-    let _e16 = from_i32_((a1_15 & 1u));
-    return FeLocal_fe_shader_private_layout_21_(((_e6 + 0.375f) + (0.25f * _e9)), ((_e13 + 0.375f) + (0.25f * _e16)));
+fn ordered_2x2_(a0_37: u32, a1_13: u32) -> FeLocal_fe_shader_private_layout_22_ {
+    let _e6 = from_i32_(a0_37);
+    let _e9 = from_i32_((a0_37 & 1u));
+    let _e13 = from_i32_(a1_13);
+    let _e16 = from_i32_((a1_13 & 1u));
+    return FeLocal_fe_shader_private_layout_22_(((_e6 + 0.375f) + (0.25f * _e9)), ((_e13 + 0.375f) + (0.25f * _e16)));
 }
 
-fn impl_Pixel_sample(a0_40: FeLocal_fe_shader_private_layout_3_) -> FeLocal_fe_shader_private_layout_21_ {
-    let _e3 = ordered_2x2_(a0_40.f0_, a0_40.f1_);
+fn impl_Pixel_sample(a0_38: FeLocal_fe_shader_private_layout_5_) -> FeLocal_fe_shader_private_layout_22_ {
+    let _e3 = ordered_2x2_(a0_38.f0_, a0_38.f1_);
     return _e3;
 }
 
-fn impl_CohortPixel_sample(a0_41: FeLocal_fe_shader_private_layout_4_) -> FeLocal_fe_shader_private_layout_21_ {
-    let _e2 = impl_Pixel_sample(a0_41.f0_);
+fn impl_CohortPixel_sample(a0_39: FeLocal_fe_shader_private_layout_6_) -> FeLocal_fe_shader_private_layout_22_ {
+    let _e2 = impl_Pixel_sample(a0_39.f0_);
     return _e2;
 }
 
-fn plane(a0_42: FeLocal_fe_shader_private_layout_21_, a1_16: f32) -> FeLocal_fe_shader_private_layout_26_ {
-    return FeLocal_fe_shader_private_layout_26_((((a0_42.f0_ / a1_16) * 2f) - 1f), (1f - ((a0_42.f1_ / a1_16) * 2f)));
+fn plane(a0_40: FeLocal_fe_shader_private_layout_22_, a1_14: f32) -> FeLocal_fe_shader_private_layout_27_ {
+    return FeLocal_fe_shader_private_layout_27_((((a0_40.f0_ / a1_14) * 2f) - 1f), (1f - ((a0_40.f1_ / a1_14) * 2f)));
 }
 
-fn center_offset(a0_43: FeLocal_fe_shader_private_layout_20_) -> FeLocal_fe_shader_private_layout_0_ {
-    return FeLocal_fe_shader_private_layout_0_(bitcast<f32>(a0_43.f2_), bitcast<f32>(a0_43.f3_));
+fn center_offset(a0_41: FeLocal_fe_shader_private_layout_2_) -> FeLocal_fe_shader_private_layout_0_ {
+    return FeLocal_fe_shader_private_layout_0_(bitcast<f32>(a0_41.f2_), bitcast<f32>(a0_41.f3_));
 }
 
-fn add(a0_44: FeLocal_fe_shader_private_layout_0_, a1_17: FeLocal_fe_shader_private_layout_0_) -> FeLocal_fe_shader_private_layout_0_ {
-    return FeLocal_fe_shader_private_layout_0_((a0_44.f0_ + a1_17.f0_), (a0_44.f1_ + a1_17.f1_));
+fn add(a0_42: FeLocal_fe_shader_private_layout_0_, a1_15: FeLocal_fe_shader_private_layout_0_) -> FeLocal_fe_shader_private_layout_0_ {
+    return FeLocal_fe_shader_private_layout_0_((a0_42.f0_ + a1_15.f0_), (a0_42.f1_ + a1_15.f1_));
 }
 
-fn pixel_delta_from_reference(a1_18: u32, a2_8: FeLocal_fe_shader_private_layout_12_, a3_3: FeLocal_fe_shader_private_layout_21_, fe_trapped_8: ptr<function, bool>) -> FeLocal_fe_shader_private_layout_0_ {
-    var local_60: FeLocal_fe_shader_private_layout_0_;
-    var local_61: bool = false;
+fn pixel_delta_from_reference(a1_16: u32, a2_6: FeLocal_fe_shader_private_layout_14_, a3_2: FeLocal_fe_shader_private_layout_22_, fe_trapped_8: ptr<function, bool>) -> FeLocal_fe_shader_private_layout_0_ {
+    var local_91: FeLocal_fe_shader_private_layout_0_;
+    var local_92: bool = false;
 
-    let _e7 = plane(a3_3, a2_8.f2_);
-    if (a1_18 > (4294967295u - 8194u)) {
+    let _e7 = plane(a3_2, a2_6.f2_);
+    if (a1_16 > (4294967295u - 8194u)) {
         (*fe_trapped_8) = true;
     }
-    let _e17 = orbit[i32((a1_18 + 8194u))].re_w0_bits;
-    let _e19 = orbit[i32((a1_18 + 8194u))].re_w1_bits;
-    let _e21 = orbit[i32((a1_18 + 8194u))].re_w2_bits;
-    let _e23 = orbit[i32((a1_18 + 8194u))].re_w3_bits;
-    let _e25 = orbit[i32((a1_18 + 8194u))].im_w0_bits;
-    let _e27 = orbit[i32((a1_18 + 8194u))].im_w1_bits;
-    let _e29 = orbit[i32((a1_18 + 8194u))].im_w2_bits;
-    let _e31 = orbit[i32((a1_18 + 8194u))].im_w3_bits;
-    let _e33 = center_offset(FeLocal_fe_shader_private_layout_20_(_e17, _e19, _e21, _e23, _e25, _e27, _e29, _e31));
-    let _e41 = add(_e33, FeLocal_fe_shader_private_layout_0_((_e7.f0_ * a2_8.f1_), (_e7.f1_ * a2_8.f1_)));
+    let _e17 = orbit[i32((a1_16 + 8194u))].re_w0_bits;
+    let _e19 = orbit[i32((a1_16 + 8194u))].re_w1_bits;
+    let _e21 = orbit[i32((a1_16 + 8194u))].re_w2_bits;
+    let _e23 = orbit[i32((a1_16 + 8194u))].re_w3_bits;
+    let _e25 = orbit[i32((a1_16 + 8194u))].im_w0_bits;
+    let _e27 = orbit[i32((a1_16 + 8194u))].im_w1_bits;
+    let _e29 = orbit[i32((a1_16 + 8194u))].im_w2_bits;
+    let _e31 = orbit[i32((a1_16 + 8194u))].im_w3_bits;
+    let _e33 = center_offset(FeLocal_fe_shader_private_layout_2_(_e17, _e19, _e21, _e23, _e25, _e27, _e29, _e31));
+    let _e41 = add(_e33, FeLocal_fe_shader_private_layout_0_((_e7.f0_ * a2_6.f1_), (_e7.f1_ * a2_6.f1_)));
     return _e41;
 }
 
-fn is_presentable(a0_45: FeLocal_fe_shader_private_layout_1_) -> bool {
-    let _e2 = progress_is_presentable(a0_45.f4_);
+fn impl_NativeCheckpoint_reference_index(a0_43: FeLocal_fe_shader_private_layout_1_) -> u32 {
+    return (a0_43.f0_ & 16383u);
+}
+
+fn decode_metadata(a0_44: FeLocal_fe_shader_private_layout_2_) -> FeLocal_fe_shader_private_layout_24_ {
+    return FeLocal_fe_shader_private_layout_24_(a0_44.f0_, a0_44.f1_);
+}
+
+fn impl_NativeCheckpoint_delta(a0_45: FeLocal_fe_shader_private_layout_1_) -> FeLocal_fe_shader_private_layout_0_ {
+    return a0_45.f2_;
+}
+
+fn from_continuation(a0_46: FeLocal_fe_shader_private_layout_0_, a1_17: FeLocal_fe_shader_private_layout_0_, a2_7: u32, a3_3: u32, a4_2: u32, a5_: f32) -> FeLocal_fe_shader_private_layout_3_ {
+    return FeLocal_fe_shader_private_layout_3_(a0_46.f0_, a0_46.f1_, a1_17.f0_, a1_17.f1_, a2_7, a3_3, a4_2, a5_);
+}
+
+fn impl_OrbitProgress_delta(a0_47: FeLocal_fe_shader_private_layout_3_) -> FeLocal_fe_shader_private_layout_0_ {
+    return FeLocal_fe_shader_private_layout_0_(a0_47.f0_, a0_47.f1_);
+}
+
+fn position(a0_48: FeLocal_fe_shader_private_layout_3_) -> FeLocal_fe_shader_private_layout_0_ {
+    return FeLocal_fe_shader_private_layout_0_(a0_48.f2_, a0_48.f3_);
+}
+
+fn progress_reference_index(a0_49: u32) -> u32 {
+    return (a0_49 & 536870911u);
+}
+
+fn impl_OrbitProgress_reference_index(a0_50: FeLocal_fe_shader_private_layout_3_) -> u32 {
+    let _e2 = progress_reference_index(a0_50.f4_);
     return _e2;
 }
 
-fn pack_progress_reference(a0_46: u32, a1_19: u32, a2_9: u32) -> u32 {
-    return (((a0_46 & 536870911u) | (a1_19 << 31u)) | (a2_9 << 30u));
+fn impl_OrbitProgress_is_escaped(a0_51: FeLocal_fe_shader_private_layout_3_) -> bool {
+    let _e2 = progress_is_escaped(a0_51.f4_);
+    return _e2;
 }
 
-fn from_quad(a0_47: f32, a1_20: f32, a2_10: f32, a3_4: f32) -> FeLocal_fe_shader_private_layout_9_ {
-    return FeLocal_fe_shader_private_layout_9_(a0_47, FeLocal_fe_shader_private_layout_8_(a1_20, FeLocal_fe_shader_private_layout_7_(a2_10, FeLocal_fe_shader_private_layout_6_(a3_4))));
+fn impl_OrbitProgress_is_glitched(a0_52: FeLocal_fe_shader_private_layout_3_) -> bool {
+    let _e2 = progress_is_glitched(a0_52.f4_);
+    return _e2;
 }
 
-fn decode(a0_48: FeLocal_fe_shader_private_layout_20_) -> FeLocal_fe_shader_private_layout_22_ {
-    let _e9 = from_quad(bitcast<f32>(a0_48.f0_), bitcast<f32>(a0_48.f1_), bitcast<f32>(a0_48.f2_), bitcast<f32>(a0_48.f3_));
-    let _e18 = from_quad(bitcast<f32>(a0_48.f4_), bitcast<f32>(a0_48.f5_), bitcast<f32>(a0_48.f6_), bitcast<f32>(a0_48.f7_));
-    return FeLocal_fe_shader_private_layout_22_(_e9, _e18);
+fn is_invalid(a0_53: FeLocal_fe_shader_private_layout_2_) -> bool {
+    var local_93: bool;
+    var local_94: bool = false;
+    var local_95: bool = bool();
+
+    if (a0_53.f0_ == 2143289344u) {
+        local_95 = true;
+    } else {
+        if (a0_53.f4_ == 2143289344u) {
+            local_95 = true;
+        }
+    }
+    let _e14 = local_95;
+    return _e14;
 }
 
-fn to_quad(a0_49: FeLocal_fe_shader_private_layout_9_) -> FeLocal_fe_shader_private_layout_27_ {
-    return FeLocal_fe_shader_private_layout_27_(a0_49.f0_, a0_49.f1_.f0_, a0_49.f1_.f1_.f0_, a0_49.f1_.f1_.f1_.f0_);
+fn from_quad(a0_54: f32, a1_18: f32, a2_8: f32, a3_4: f32) -> FeLocal_fe_shader_private_layout_11_ {
+    return FeLocal_fe_shader_private_layout_11_(a0_54, FeLocal_fe_shader_private_layout_10_(a1_18, FeLocal_fe_shader_private_layout_9_(a2_8, FeLocal_fe_shader_private_layout_8_(a3_4))));
 }
 
-fn perturb(a0_50: FeLocal_fe_shader_private_layout_22_, a1_21: FeLocal_fe_shader_private_layout_0_, a2_11: FeLocal_fe_shader_private_layout_0_) -> FeLocal_fe_shader_private_layout_0_ {
-    let _e4 = to_quad(a0_50.f0_);
-    let _e10 = to_quad(a0_50.f1_);
-    return FeLocal_fe_shader_private_layout_0_(((((2f * ((_e4.f0_ * a1_21.f0_) - (_e10.f0_ * a1_21.f1_))) + (2f * ((((((_e4.f1_ * a1_21.f0_) - (_e10.f1_ * a1_21.f1_)) + (_e4.f2_ * a1_21.f0_)) - (_e10.f2_ * a1_21.f1_)) + (_e4.f3_ * a1_21.f0_)) - (_e10.f3_ * a1_21.f1_)))) + ((a1_21.f0_ * a1_21.f0_) - (a1_21.f1_ * a1_21.f1_))) + a2_11.f0_), ((((2f * ((_e4.f0_ * a1_21.f1_) + (_e10.f0_ * a1_21.f0_))) + (2f * ((((((_e4.f1_ * a1_21.f1_) + (_e10.f1_ * a1_21.f0_)) + (_e4.f2_ * a1_21.f1_)) + (_e10.f2_ * a1_21.f0_)) + (_e4.f3_ * a1_21.f1_)) + (_e10.f3_ * a1_21.f0_)))) + ((2f * a1_21.f0_) * a1_21.f1_)) + a2_11.f1_));
+fn decode(a0_55: FeLocal_fe_shader_private_layout_2_) -> FeLocal_fe_shader_private_layout_23_ {
+    let _e9 = from_quad(bitcast<f32>(a0_55.f0_), bitcast<f32>(a0_55.f1_), bitcast<f32>(a0_55.f2_), bitcast<f32>(a0_55.f3_));
+    let _e18 = from_quad(bitcast<f32>(a0_55.f4_), bitcast<f32>(a0_55.f5_), bitcast<f32>(a0_55.f6_), bitcast<f32>(a0_55.f7_));
+    return FeLocal_fe_shader_private_layout_23_(_e9, _e18);
 }
 
-fn two_sum(a0_51: f32, a1_22: f32) -> FeLocal_fe_shader_private_layout_28_ {
-    let _e2 = (a0_51 + a1_22);
-    let _e3 = (_e2 - a0_51);
-    return FeLocal_fe_shader_private_layout_28_(_e2, ((a0_51 - (_e2 - _e3)) + (a1_22 - _e3)));
+fn to_quad(a0_56: FeLocal_fe_shader_private_layout_11_) -> FeLocal_fe_shader_private_layout_28_ {
+    return FeLocal_fe_shader_private_layout_28_(a0_56.f0_, a0_56.f1_.f0_, a0_56.f1_.f1_.f0_, a0_56.f1_.f1_.f1_.f0_);
 }
 
-fn reference_plus_delta(a0_52: f32, a1_23: f32, a2_12: f32, a3_5: f32, a4_3: f32) -> f32 {
-    let _e5 = two_sum(a0_52, a4_3);
-    let _e8 = two_sum(_e5.f0_, a1_23);
-    let _e11 = two_sum(_e8.f0_, a2_12);
+fn perturb(a0_57: FeLocal_fe_shader_private_layout_23_, a1_19: FeLocal_fe_shader_private_layout_0_, a2_9: FeLocal_fe_shader_private_layout_0_) -> FeLocal_fe_shader_private_layout_0_ {
+    let _e4 = to_quad(a0_57.f0_);
+    let _e10 = to_quad(a0_57.f1_);
+    return FeLocal_fe_shader_private_layout_0_(((((2f * ((_e4.f0_ * a1_19.f0_) - (_e10.f0_ * a1_19.f1_))) + (2f * ((((((_e4.f1_ * a1_19.f0_) - (_e10.f1_ * a1_19.f1_)) + (_e4.f2_ * a1_19.f0_)) - (_e10.f2_ * a1_19.f1_)) + (_e4.f3_ * a1_19.f0_)) - (_e10.f3_ * a1_19.f1_)))) + ((a1_19.f0_ * a1_19.f0_) - (a1_19.f1_ * a1_19.f1_))) + a2_9.f0_), ((((2f * ((_e4.f0_ * a1_19.f1_) + (_e10.f0_ * a1_19.f0_))) + (2f * ((((((_e4.f1_ * a1_19.f1_) + (_e10.f1_ * a1_19.f0_)) + (_e4.f2_ * a1_19.f1_)) + (_e10.f2_ * a1_19.f0_)) + (_e4.f3_ * a1_19.f1_)) + (_e10.f3_ * a1_19.f0_)))) + ((2f * a1_19.f0_) * a1_19.f1_)) + a2_9.f1_));
+}
+
+fn two_sum(a0_58: f32, a1_20: f32) -> FeLocal_fe_shader_private_layout_29_ {
+    let _e2 = (a0_58 + a1_20);
+    let _e3 = (_e2 - a0_58);
+    return FeLocal_fe_shader_private_layout_29_(_e2, ((a0_58 - (_e2 - _e3)) + (a1_20 - _e3)));
+}
+
+fn reference_plus_delta(a0_59: f32, a1_21: f32, a2_10: f32, a3_5: f32, a4_3: f32) -> f32 {
+    let _e5 = two_sum(a0_59, a4_3);
+    let _e8 = two_sum(_e5.f0_, a1_21);
+    let _e11 = two_sum(_e8.f0_, a2_10);
     let _e14 = two_sum(_e11.f0_, a3_5);
     return (_e14.f0_ + (((_e14.f1_ + _e11.f1_) + _e8.f1_) + _e5.f1_));
 }
 
-fn expansion_plus_delta(a0_53: FeLocal_fe_shader_private_layout_9_, a1_24: f32) -> f32 {
-    let _e2 = to_quad(a0_53);
-    let _e7 = reference_plus_delta(_e2.f0_, _e2.f1_, _e2.f2_, _e2.f3_, a1_24);
+fn expansion_plus_delta(a0_60: FeLocal_fe_shader_private_layout_11_, a1_22: f32) -> f32 {
+    let _e2 = to_quad(a0_60);
+    let _e7 = reference_plus_delta(_e2.f0_, _e2.f1_, _e2.f2_, _e2.f3_, a1_22);
     return _e7;
 }
 
-fn reference_with_delta(a0_54: FeLocal_fe_shader_private_layout_22_, a1_25: FeLocal_fe_shader_private_layout_0_) -> FeLocal_fe_shader_private_layout_0_ {
-    let _e4 = expansion_plus_delta(a0_54.f0_, a1_25.f0_);
-    let _e7 = expansion_plus_delta(a0_54.f1_, a1_25.f1_);
+fn reference_with_delta(a0_61: FeLocal_fe_shader_private_layout_23_, a1_23: FeLocal_fe_shader_private_layout_0_) -> FeLocal_fe_shader_private_layout_0_ {
+    let _e4 = expansion_plus_delta(a0_61.f0_, a1_23.f0_);
+    let _e7 = expansion_plus_delta(a0_61.f1_, a1_23.f1_);
     return FeLocal_fe_shader_private_layout_0_(_e4, _e7);
 }
 
-fn norm_squared(a0_55: FeLocal_fe_shader_private_layout_0_) -> f32 {
-    return ((a0_55.f0_ * a0_55.f0_) + (a0_55.f1_ * a0_55.f1_));
+fn norm_squared(a0_62: FeLocal_fe_shader_private_layout_0_) -> f32 {
+    return ((a0_62.f0_ * a0_62.f0_) + (a0_62.f1_ * a0_62.f1_));
 }
 
-fn is_invalid(a0_56: FeLocal_fe_shader_private_layout_20_) -> bool {
-    var local_62: bool;
-    var local_63: bool = false;
-    var local_64: bool = bool();
-
-    if (a0_56.f0_ == 2143289344u) {
-        local_64 = true;
-    } else {
-        if (a0_56.f4_ == 2143289344u) {
-            local_64 = true;
-        }
-    }
-    let _e14 = local_64;
-    return _e14;
+fn pack_progress_reference(a0_63: u32, a1_24: u32, a2_11: u32) -> u32 {
+    return (((a0_63 & 536870911u) | (a1_24 << 31u)) | (a2_11 << 30u));
 }
 
-fn non_finite(a0_57: f32) -> bool {
-    return (((a0_57 - a0_57) == 0f) == false);
+fn non_finite(a0_64: f32) -> bool {
+    return (((a0_64 - a0_64) == 0f) == false);
 }
 
-fn is_non_finite_complex(a0_58: FeLocal_fe_shader_private_layout_0_) -> bool {
-    var local_65: bool;
-    var local_66: bool = false;
-    var local_67: bool = bool();
+fn is_non_finite_complex(a0_65: FeLocal_fe_shader_private_layout_0_) -> bool {
+    var local_96: bool;
+    var local_97: bool = false;
+    var local_98: bool = bool();
 
-    let _e4 = non_finite(a0_58.f0_);
+    let _e4 = non_finite(a0_65.f0_);
     if _e4 {
-        local_67 = true;
+        local_98 = true;
     } else {
-        let _e6 = non_finite(a0_58.f1_);
+        let _e6 = non_finite(a0_65.f1_);
         if _e6 {
-            local_67 = true;
+            local_98 = true;
         }
     }
-    let _e12 = local_67;
+    let _e12 = local_98;
     return _e12;
 }
 
-fn impl_trait_f32_max(a0_59: f32, a1_26: f32) -> f32 {
-    let _e2 = bitcast<u32>(a0_59);
-    let _e3 = bitcast<u32>(a1_26);
+fn impl_trait_f32_max(a0_66: f32, a1_25: f32) -> f32 {
+    let _e2 = bitcast<u32>(a0_66);
+    let _e3 = bitcast<u32>(a1_25);
     return bitcast<f32>(select(select(_e3, _e2, ((_e2 ^ ((0u - (_e2 >> 31u)) | 2147483648u)) > (_e3 ^ ((0u - (_e3 >> 31u)) | 2147483648u)))), 2143289344u, (((_e2 & 2147483647u) > 2139095040u) || ((_e3 & 2147483647u) > 2139095040u))));
 }
 
-fn decode_metadata(a0_60: FeLocal_fe_shader_private_layout_20_) -> FeLocal_fe_shader_private_layout_23_ {
-    return FeLocal_fe_shader_private_layout_23_(a0_60.f0_, a0_60.f1_);
+fn advance_progress_step(a0_67: FeLocal_fe_shader_private_layout_3_, a1_26: FeLocal_fe_shader_private_layout_0_, a2_12: FeLocal_fe_shader_private_layout_2_, a3_6: FeLocal_fe_shader_private_layout_2_, fe_trapped_9: ptr<function, bool>) -> FeLocal_fe_shader_private_layout_3_ {
+    var local_99: FeLocal_fe_shader_private_layout_3_;
+    var local_100: bool = false;
+    var local_101: u32 = u32();
+    var local_102: FeLocal_fe_shader_private_layout_3_;
+    var local_103: bool = false;
+    var local_104: u32 = u32();
+    var local_105: FeLocal_fe_shader_private_layout_3_;
+    var local_106: bool = false;
+    var local_107: f32 = f32();
+    var local_108: FeLocal_fe_shader_private_layout_0_ = FeLocal_fe_shader_private_layout_0_();
+    var local_109: FeLocal_fe_shader_private_layout_0_ = FeLocal_fe_shader_private_layout_0_();
+    var local_110: u32 = u32();
+    var local_111: u32 = u32();
+    var local_112: u32 = u32();
+    var local_113: bool = bool();
+    var local_114: FeLocal_fe_shader_private_layout_3_;
+    var local_115: bool = false;
+
+    let _e7 = impl_OrbitProgress_delta(a0_67);
+    let _e8 = position(a0_67);
+    let _e9 = impl_OrbitProgress_reference_index(a0_67);
+    let _e10 = impl_OrbitProgress_is_escaped(a0_67);
+    if _e10 {
+        local_101 = 1u;
+    }
+    let _e16 = local_101;
+    let _e17 = impl_OrbitProgress_is_glitched(a0_67);
+    if _e17 {
+        local_104 = 1u;
+    }
+    let _e28 = local_104;
+    let _e30 = is_invalid(a2_12);
+    if _e30 {
+        local_107 = a0_67.f7_;
+        local_108 = _e8;
+        local_109 = _e7;
+        local_110 = 1u;
+        local_111 = _e16;
+        local_112 = _e9;
+    } else {
+        let _e31 = is_invalid(a3_6);
+        if _e31 {
+            local_107 = a0_67.f7_;
+            local_108 = _e8;
+            local_109 = _e7;
+            local_110 = 1u;
+            local_111 = _e16;
+            local_112 = _e9;
+        } else {
+            let _e33 = decode(a2_12);
+            let _e34 = decode(a3_6);
+            let _e35 = perturb(_e33, _e7, a1_26);
+            let _e36 = reference_with_delta(_e34, _e35);
+            let _e37 = norm_squared(_e36);
+            let _e38 = norm_squared(_e35);
+            if (4f < _e37) {
+                let _e44 = impl_trait_f32_abs((_e37 - 4f));
+                let _e46 = impl_trait_f32_max(1f, _e37);
+                if (_e44 <= (0.000004f * _e46)) {
+                    local_113 = true;
+                }
+            }
+            let _e53 = local_113;
+            let _e54 = is_non_finite_complex(_e35);
+            if _e54 {
+                local_107 = a0_67.f7_;
+                local_108 = _e8;
+                local_109 = _e7;
+                local_110 = 1u;
+                local_111 = _e16;
+                local_112 = _e9;
+            } else {
+                let _e55 = non_finite(_e37);
+                if (_e55 | _e53) {
+                    local_107 = a0_67.f7_;
+                    local_108 = _e8;
+                    local_109 = _e7;
+                    local_110 = 1u;
+                    local_111 = _e16;
+                    local_112 = _e9;
+                } else {
+                    if (4f < _e37) {
+                        local_107 = _e37;
+                        local_108 = _e36;
+                        local_109 = _e35;
+                        local_110 = _e28;
+                        local_111 = 1u;
+                        local_112 = _e9;
+                    } else {
+                        if (_e37 < _e38) {
+                            local_107 = a0_67.f7_;
+                            local_108 = _e36;
+                            local_109 = _e36;
+                            local_110 = _e28;
+                            local_111 = _e16;
+                        } else {
+                            if (_e9 > (4294967295u - 1u)) {
+                                (*fe_trapped_9) = true;
+                            } else {
+                                local_107 = a0_67.f7_;
+                                local_108 = _e36;
+                                local_109 = _e35;
+                                local_110 = _e28;
+                                local_111 = _e16;
+                                local_112 = (_e9 + 1u);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let _e113 = local_107;
+    let _e115 = local_108;
+    let _e117 = local_109;
+    let _e119 = local_110;
+    let _e121 = local_111;
+    let _e123 = local_112;
+    let _e124 = pack_progress_reference(_e123, _e121, _e119);
+    if (a0_67.f5_ > (4294967295u - 1u)) {
+        (*fe_trapped_9) = true;
+    }
+    let _e133 = from_continuation(_e117, _e115, _e124, (a0_67.f5_ + 1u), a0_67.f6_, _e113);
+    return _e133;
 }
 
-fn delta(a0_61: FeLocal_fe_shader_private_layout_1_) -> FeLocal_fe_shader_private_layout_0_ {
-    return FeLocal_fe_shader_private_layout_0_(a0_61.f0_, a0_61.f1_);
+fn progress_is_presentable(a0_68: u32) -> bool {
+    return (((a0_68 & 536870912u) == 0u) == false);
 }
 
-fn position(a0_62: FeLocal_fe_shader_private_layout_1_) -> FeLocal_fe_shader_private_layout_0_ {
-    return FeLocal_fe_shader_private_layout_0_(a0_62.f2_, a0_62.f3_);
+fn progress_has_outcome(a0_69: u32) -> bool {
+    return (((a0_69 & 3221225472u) == 0u) == false);
 }
 
-fn progress_reference_index(a0_63: u32) -> u32 {
-    return (a0_63 & 536870911u);
+fn progress_is_terminal(a0_70: u32, a1_27: u32, a2_13: u32) -> bool {
+    var local_116: bool;
+    var local_117: bool = false;
+    var local_118: bool = bool();
+
+    if ((a1_27 < a2_13) == false) {
+        local_118 = true;
+    } else {
+        let _e8 = progress_has_outcome(a0_70);
+        if _e8 {
+            local_118 = true;
+        } else {
+            let _e9 = progress_is_presentable(a0_70);
+            if _e9 {
+                local_118 = true;
+            }
+        }
+    }
+    let _e17 = local_118;
+    return _e17;
 }
 
-fn reference_index(a0_64: FeLocal_fe_shader_private_layout_1_) -> u32 {
-    let _e2 = progress_reference_index(a0_64.f4_);
+fn impl_OrbitProgress_is_terminal(a0_71: FeLocal_fe_shader_private_layout_3_, a1_28: u32) -> bool {
+    let _e4 = progress_is_terminal(a0_71.f4_, a0_71.f5_, a1_28);
+    return _e4;
+}
+
+fn progress_outcome_flags(a0_72: u32) -> u32 {
+    return (a0_72 & 3221225472u);
+}
+
+fn outcome_flags(a0_73: FeLocal_fe_shader_private_layout_3_) -> u32 {
+    let _e2 = progress_outcome_flags(a0_73.f4_);
     return _e2;
 }
 
-fn advance_progress(a1_27: u32, a2_13: FeLocal_fe_shader_private_layout_0_, a3_6: u32, a4_4: u32, a5_1: FeLocal_fe_shader_private_layout_1_, fe_trapped_9: ptr<function, bool>) -> FeLocal_fe_shader_private_layout_1_ {
-    var local_68: FeLocal_fe_shader_private_layout_1_;
-    var local_69: bool = false;
-    var local_70: FeLocal_fe_shader_private_layout_1_ = FeLocal_fe_shader_private_layout_1_();
-    var local_71: u32 = u32();
-    var local_72: u32 = u32();
-    var local_73: u32 = u32();
-    var local_74: f32 = f32();
-    var local_75: FeLocal_fe_shader_private_layout_0_ = FeLocal_fe_shader_private_layout_0_();
-    var local_76: FeLocal_fe_shader_private_layout_0_ = FeLocal_fe_shader_private_layout_0_();
-    var local_77: u32 = u32();
-    var local_78: u32 = u32();
-    var local_79: u32 = u32();
-    var local_80: u32 = u32();
-    var loop_result_1: FeLocal_fe_shader_private_layout_1_;
-    var loop_did_return_1: bool = false;
-    var loop_header_carry_81_: bool;
-    var local_81: FeLocal_fe_shader_private_layout_0_ = FeLocal_fe_shader_private_layout_0_();
-    var local_82: u32 = u32();
-    var local_83: f32 = f32();
-    var local_84: FeLocal_fe_shader_private_layout_0_ = FeLocal_fe_shader_private_layout_0_();
-    var local_85: FeLocal_fe_shader_private_layout_0_ = FeLocal_fe_shader_private_layout_0_();
-    var local_86: u32 = u32();
-    var local_87: u32 = u32();
-    var local_88: u32 = u32();
-    var local_89: bool = bool();
+fn advance(a0_74: FeLocal_fe_shader_private_layout_1_, a1_29: FeLocal_fe_shader_private_layout_0_, a2_14: FeLocal_fe_shader_private_layout_2_, a3_7: FeLocal_fe_shader_private_layout_2_, a4_4: u32, a5_1: u32, fe_trapped_10: ptr<function, bool>) -> FeLocal_fe_shader_private_layout_1_ {
+    var local_119: FeLocal_fe_shader_private_layout_1_;
+    var local_120: bool = false;
+    var local_121: FeLocal_fe_shader_private_layout_1_;
+    var local_122: bool = false;
+    var local_123: FeLocal_fe_shader_private_layout_1_ = FeLocal_fe_shader_private_layout_1_();
 
-    let _e9 = is_presentable(a5_1);
-    if _e9 {
-        local_70 = a5_1;
+    let _e8 = impl_NativeCheckpoint_is_terminal(a0_74, a5_1);
+    if _e8 {
+        local_119 = a0_74;
+        local_120 = true;
+    }
+    let _e63 = local_120;
+    if _e63 {
     } else {
-        if (a1_27 > (4294967295u - 8194u)) {
-            (*fe_trapped_9) = true;
+        let _e14 = impl_NativeCheckpoint_delta(a0_74);
+        let _e15 = default_ge58b();
+        let _e16 = impl_NativeCheckpoint_reference_index(a0_74);
+        let _e17 = iteration(a0_74);
+        let _e20 = from_continuation(_e14, _e15, _e16, _e17, a0_74.f1_, 4f);
+        let _e21 = advance_progress_step(_e20, a1_29, a2_14, a3_7, fe_trapped_10);
+        let _e25 = impl_OrbitProgress_reference_index(_e21);
+        let _e26 = ((_e21.f5_ << 14u) | _e25);
+        let _e27 = impl_OrbitProgress_is_terminal(_e21, a5_1);
+        if _e27 {
+            let _e28 = outcome_flags(_e21);
+            local_123 = FeLocal_fe_shader_private_layout_1_(((_e26 | _e28) | 268435456u), a0_74.f1_, FeLocal_fe_shader_private_layout_0_(_e21.f7_, 0f));
         } else {
-            let _e20 = orbit[i32((a1_27 + 8194u))].re_w0_bits;
-            let _e22 = orbit[i32((a1_27 + 8194u))].re_w1_bits;
-            let _e24 = orbit[i32((a1_27 + 8194u))].re_w2_bits;
-            let _e26 = orbit[i32((a1_27 + 8194u))].re_w3_bits;
-            let _e28 = orbit[i32((a1_27 + 8194u))].im_w0_bits;
-            let _e30 = orbit[i32((a1_27 + 8194u))].im_w1_bits;
-            let _e32 = orbit[i32((a1_27 + 8194u))].im_w2_bits;
-            let _e34 = orbit[i32((a1_27 + 8194u))].im_w3_bits;
-            let _e36 = decode_metadata(FeLocal_fe_shader_private_layout_20_(_e20, _e22, _e24, _e26, _e28, _e30, _e32, _e34));
-            let _e38 = delta(a5_1);
-            let _e39 = position(a5_1);
-            let _e40 = reference_index(a5_1);
-            let _e41 = is_escaped(a5_1);
-            if _e41 {
-                local_71 = 1u;
-            }
-            let _e46 = local_71;
-            let _e47 = is_glitched(a5_1);
-            if _e47 {
-                local_72 = 1u;
-            }
-            let _e51 = local_72;
-            local_73 = 0u;
-            local_74 = a5_1.f7_;
-            local_75 = _e39;
-            local_76 = _e38;
-            local_77 = _e51;
-            local_78 = _e46;
-            local_79 = _e40;
-            local_80 = a5_1.f5_;
-            loop {
-                let _e73 = local_73;
-                let _e75 = local_74;
-                let _e77 = local_75;
-                let _e79 = local_76;
-                let _e81 = local_77;
-                let _e83 = local_78;
-                let _e85 = local_79;
-                let _e87 = local_80;
-                let _e88 = (_e87 < a3_6);
-                loop_header_carry_81_ = _e88;
-                if _e88 {
-                    if (_e73 < a4_4) {
-                        if (_e83 == 0u) {
-                            if (_e81 == 0u) {
-                                if (_e85 > (4294967295u - 1u)) {
-                                } else {
-                                    if (((_e85 + 1u) < _e36.f0_) == false) {
-                                        local_81 = _e77;
-                                        local_82 = 0u;
-                                    } else {
-                                        local_81 = _e79;
-                                        local_82 = _e85;
-                                    }
-                                    let _e110 = local_81;
-                                    let _e112 = local_82;
-                                    if (a1_27 > (4294967295u - _e112)) {
-                                    } else {
-                                        let _e120 = orbit[i32((a1_27 + _e112))].re_w0_bits;
-                                        let _e122 = orbit[i32((a1_27 + _e112))].re_w1_bits;
-                                        let _e124 = orbit[i32((a1_27 + _e112))].re_w2_bits;
-                                        let _e126 = orbit[i32((a1_27 + _e112))].re_w3_bits;
-                                        let _e128 = orbit[i32((a1_27 + _e112))].im_w0_bits;
-                                        let _e130 = orbit[i32((a1_27 + _e112))].im_w1_bits;
-                                        let _e132 = orbit[i32((a1_27 + _e112))].im_w2_bits;
-                                        let _e134 = orbit[i32((a1_27 + _e112))].im_w3_bits;
-                                        let _e135 = FeLocal_fe_shader_private_layout_20_(_e120, _e122, _e124, _e126, _e128, _e130, _e132, _e134);
-                                        let _e137 = (a1_27 + _e112);
-                                        if (a1_27 > (4294967295u - _e112)) {
-                                        } else {
-                                            if (_e137 > (4294967295u - 1u)) {
-                                            } else {
-                                                let _e154 = orbit[i32((_e137 + 1u))].re_w0_bits;
-                                                let _e156 = orbit[i32((_e137 + 1u))].re_w1_bits;
-                                                let _e158 = orbit[i32((_e137 + 1u))].re_w2_bits;
-                                                let _e160 = orbit[i32((_e137 + 1u))].re_w3_bits;
-                                                let _e162 = orbit[i32((_e137 + 1u))].im_w0_bits;
-                                                let _e164 = orbit[i32((_e137 + 1u))].im_w1_bits;
-                                                let _e166 = orbit[i32((_e137 + 1u))].im_w2_bits;
-                                                let _e168 = orbit[i32((_e137 + 1u))].im_w3_bits;
-                                                let _e169 = FeLocal_fe_shader_private_layout_20_(_e154, _e156, _e158, _e160, _e162, _e164, _e166, _e168);
-                                                let _e170 = is_invalid(_e135);
-                                                if _e170 {
-                                                    local_83 = _e75;
-                                                    local_84 = _e77;
-                                                    local_85 = _e110;
-                                                    local_86 = 1u;
-                                                    local_87 = _e83;
-                                                    local_88 = _e112;
-                                                } else {
-                                                    let _e171 = is_invalid(_e169);
-                                                    if _e171 {
-                                                        local_83 = _e75;
-                                                        local_84 = _e77;
-                                                        local_85 = _e110;
-                                                        local_86 = 1u;
-                                                        local_87 = _e83;
-                                                        local_88 = _e112;
-                                                    } else {
-                                                        let _e173 = decode(_e135);
-                                                        let _e174 = decode(_e169);
-                                                        let _e175 = perturb(_e173, _e110, a2_13);
-                                                        let _e176 = reference_with_delta(_e174, _e175);
-                                                        let _e177 = norm_squared(_e176);
-                                                        let _e178 = norm_squared(_e175);
-                                                        if (4f < _e177) {
-                                                            let _e184 = impl_trait_f32_abs((_e177 - 4f));
-                                                            let _e186 = impl_trait_f32_max(1f, _e177);
-                                                            if (_e184 <= (0.000004f * _e186)) {
-                                                                local_89 = true;
-                                                            } else {
-                                                                local_89 = false;
-                                                            }
-                                                        } else {
-                                                            local_89 = false;
-                                                        }
-                                                        let _e197 = local_89;
-                                                        let _e198 = is_non_finite_complex(_e175);
-                                                        if _e198 {
-                                                            local_83 = _e75;
-                                                            local_84 = _e77;
-                                                            local_85 = _e110;
-                                                            local_86 = 1u;
-                                                            local_87 = _e83;
-                                                            local_88 = _e112;
-                                                        } else {
-                                                            let _e199 = non_finite(_e177);
-                                                            if (_e199 | _e197) {
-                                                                local_83 = _e75;
-                                                                local_84 = _e77;
-                                                                local_85 = _e110;
-                                                                local_86 = 1u;
-                                                                local_87 = _e83;
-                                                                local_88 = _e112;
-                                                            } else {
-                                                                if (4f < _e177) {
-                                                                    local_83 = _e177;
-                                                                    local_84 = _e176;
-                                                                    local_85 = _e175;
-                                                                    local_86 = _e81;
-                                                                    local_87 = 1u;
-                                                                    local_88 = _e112;
-                                                                } else {
-                                                                    if (_e177 < _e178) {
-                                                                        local_83 = _e75;
-                                                                        local_84 = _e176;
-                                                                        local_85 = _e176;
-                                                                        local_86 = _e81;
-                                                                        local_87 = _e83;
-                                                                        local_88 = 0u;
-                                                                    } else {
-                                                                        if (_e112 > (4294967295u - 1u)) {
-                                                                            (*fe_trapped_9) = true;
-                                                                            break;
-                                                                        } else {
-                                                                            local_83 = _e75;
-                                                                            local_84 = _e176;
-                                                                            local_85 = _e175;
-                                                                            local_86 = _e81;
-                                                                            local_87 = _e83;
-                                                                            local_88 = (_e112 + 1u);
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                                let _e258 = local_83;
-                                                let _e260 = local_84;
-                                                let _e262 = local_85;
-                                                let _e264 = local_86;
-                                                let _e266 = local_87;
-                                                let _e268 = local_88;
-                                                local_73 = (_e73 + 1u);
-                                                local_74 = _e258;
-                                                local_75 = _e260;
-                                                local_76 = _e262;
-                                                local_77 = _e264;
-                                                local_78 = _e266;
-                                                local_79 = _e268;
-                                                local_80 = (_e87 + 1u);
-                                                continue;
-                                            }
-                                        }
-                                    }
-                                }
-                                (*fe_trapped_9) = true;
-                                break;
-                            } else {
-                                break;
-                            }
-                        } else {
-                            break;
-                        }
-                    } else {
-                        break;
-                    }
+            let _e37 = impl_OrbitProgress_reference_index(_e21);
+            if (_e37 > (4294967295u - 1u)) {
+                (*fe_trapped_10) = true;
+            } else {
+                if (((_e37 + 1u) < a4_4) == false) {
+                    let _e51 = position(_e21);
+                    local_123 = FeLocal_fe_shader_private_layout_1_((_e21.f5_ << 14u), a0_74.f1_, _e51);
                 } else {
-                    break;
+                    let _e54 = impl_OrbitProgress_delta(_e21);
+                    local_123 = FeLocal_fe_shader_private_layout_1_(_e26, a0_74.f1_, _e54);
                 }
             }
-            let _e284 = local_74;
-            let _e286 = local_75;
-            let _e288 = local_76;
-            let _e290 = local_77;
-            let _e292 = local_78;
-            let _e294 = local_79;
-            let _e296 = local_80;
-            let _e297 = pack_progress_reference(_e294, _e292, _e290);
-            let _e299 = from_continuation(_e288, _e286, _e297, _e296, a5_1.f6_, _e284);
-            local_70 = _e299;
+        }
+        let _e60 = local_123;
+        local_119 = _e60;
+    }
+    let _e65 = local_119;
+    return _e65;
+}
+
+fn continue_native_pixel(a1_30: u32, a2_15: FeLocal_fe_shader_private_layout_14_, a3_8: FeLocal_fe_shader_private_layout_22_, a4_5: u32, a5_2: u32, a6_: FeLocal_fe_shader_private_layout_1_, fe_trapped_11: ptr<function, bool>) -> FeLocal_fe_shader_private_layout_1_ {
+    var local_124: FeLocal_fe_shader_private_layout_1_;
+    var local_125: bool = false;
+    var local_126: FeLocal_fe_shader_private_layout_1_ = FeLocal_fe_shader_private_layout_1_();
+    var local_127: u32 = u32();
+    var loop_result_2: FeLocal_fe_shader_private_layout_1_;
+    var loop_did_return_2: bool = false;
+    var loop_header_carry_56_: bool;
+
+    let _e9 = pixel_delta_from_reference(a1_30, a2_15, a3_8, fe_trapped_11);
+    if (a1_30 > (4294967295u - 8194u)) {
+    } else {
+        let _e18 = orbit[i32((a1_30 + 8194u))].re_w0_bits;
+        let _e20 = orbit[i32((a1_30 + 8194u))].re_w1_bits;
+        let _e22 = orbit[i32((a1_30 + 8194u))].re_w2_bits;
+        let _e24 = orbit[i32((a1_30 + 8194u))].re_w3_bits;
+        let _e26 = orbit[i32((a1_30 + 8194u))].im_w0_bits;
+        let _e28 = orbit[i32((a1_30 + 8194u))].im_w1_bits;
+        let _e30 = orbit[i32((a1_30 + 8194u))].im_w2_bits;
+        let _e32 = orbit[i32((a1_30 + 8194u))].im_w3_bits;
+        let _e34 = decode_metadata(FeLocal_fe_shader_private_layout_2_(_e18, _e20, _e22, _e24, _e26, _e28, _e30, _e32));
+        local_126 = a6_;
+        local_127 = 0u;
+        loop {
+            let _e43 = local_126;
+            let _e45 = local_127;
+            let _e46 = (_e45 < a5_2);
+            loop_header_carry_56_ = _e46;
+            if _e46 {
+                let _e47 = impl_NativeCheckpoint_is_terminal(_e43, a4_5);
+                if (_e47 == false) {
+                } else {
+                    loop_result_2 = _e43;
+                    loop_did_return_2 = true;
+                    break;
+                }
+                let _e53 = impl_NativeCheckpoint_reference_index(_e43);
+                let _e55 = (a1_30 + _e53);
+                if (a1_30 > (4294967295u - _e53)) {
+                } else {
+                    let _e61 = orbit[i32(_e55)].re_w0_bits;
+                    let _e63 = orbit[i32(_e55)].re_w1_bits;
+                    let _e65 = orbit[i32(_e55)].re_w2_bits;
+                    let _e67 = orbit[i32(_e55)].re_w3_bits;
+                    let _e69 = orbit[i32(_e55)].im_w0_bits;
+                    let _e71 = orbit[i32(_e55)].im_w1_bits;
+                    let _e73 = orbit[i32(_e55)].im_w2_bits;
+                    let _e75 = orbit[i32(_e55)].im_w3_bits;
+                    if (_e55 > (4294967295u - 1u)) {
+                        (*fe_trapped_11) = true;
+                        break;
+                    }
+                    let _e86 = orbit[i32((_e55 + 1u))].re_w0_bits;
+                    let _e88 = orbit[i32((_e55 + 1u))].re_w1_bits;
+                    let _e90 = orbit[i32((_e55 + 1u))].re_w2_bits;
+                    let _e92 = orbit[i32((_e55 + 1u))].re_w3_bits;
+                    let _e94 = orbit[i32((_e55 + 1u))].im_w0_bits;
+                    let _e96 = orbit[i32((_e55 + 1u))].im_w1_bits;
+                    let _e98 = orbit[i32((_e55 + 1u))].im_w2_bits;
+                    let _e100 = orbit[i32((_e55 + 1u))].im_w3_bits;
+                    let _e102 = advance(_e43, _e9, FeLocal_fe_shader_private_layout_2_(_e61, _e63, _e65, _e67, _e69, _e71, _e73, _e75), FeLocal_fe_shader_private_layout_2_(_e86, _e88, _e90, _e92, _e94, _e96, _e98, _e100), _e34.f0_, a4_5, fe_trapped_11);
+                    local_126 = _e102;
+                    local_127 = (_e45 + 1u);
+                    continue;
+                }
+                (*fe_trapped_11) = true;
+                break;
+            } else {
+                loop_result_2 = _e43;
+                loop_did_return_2 = true;
+                break;
+            }
+        }
+        let _e113 = loop_did_return_2;
+        if _e113 {
+            let _e115 = loop_result_2;
+            local_124 = _e115;
+            local_125 = true;
         }
     }
-    let _e303 = local_70;
-    return _e303;
+    let _e121 = local_125;
+    if _e121 {
+    } else {
+        (*fe_trapped_11) = true;
+    }
+    let _e123 = local_124;
+    return _e123;
 }
 
 @compute @workgroup_size(8, 8, 1)
@@ -1366,7 +1563,7 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
     var fe_trapped: bool = false;
     var local: u32;
     var local_1: bool = false;
-    var fixed_local_325_: FeLocal_fe_shader_private_layout_19_ = FeLocal_fe_shader_private_layout_19_();
+    var fixed_local_325_: FeLocal_fe_shader_private_layout_21_ = FeLocal_fe_shader_private_layout_21_();
     var local_2: u32;
     var local_3: bool = false;
     var local_4: u32;
@@ -1441,7 +1638,7 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
     let _e149 = params.p87_;
     let _e151 = params.p88_;
     let _e155 = params.p89_;
-    let _e168 = FeLocal_fe_shader_private_layout_12_(FeLocal_fe_shader_private_layout_11_(FeLocal_fe_shader_private_layout_10_(FeLocal_fe_shader_private_layout_9_(_e13, FeLocal_fe_shader_private_layout_8_(_e15, FeLocal_fe_shader_private_layout_7_(_e17, FeLocal_fe_shader_private_layout_6_(_e19))))), FeLocal_fe_shader_private_layout_10_(FeLocal_fe_shader_private_layout_9_(_e21, FeLocal_fe_shader_private_layout_8_(_e23, FeLocal_fe_shader_private_layout_7_(_e25, FeLocal_fe_shader_private_layout_6_(_e27)))))), _e29, _e31);
+    let _e168 = FeLocal_fe_shader_private_layout_14_(FeLocal_fe_shader_private_layout_13_(FeLocal_fe_shader_private_layout_12_(FeLocal_fe_shader_private_layout_11_(_e13, FeLocal_fe_shader_private_layout_10_(_e15, FeLocal_fe_shader_private_layout_9_(_e17, FeLocal_fe_shader_private_layout_8_(_e19))))), FeLocal_fe_shader_private_layout_12_(FeLocal_fe_shader_private_layout_11_(_e21, FeLocal_fe_shader_private_layout_10_(_e23, FeLocal_fe_shader_private_layout_9_(_e25, FeLocal_fe_shader_private_layout_8_(_e27)))))), _e29, _e31);
     let _e201 = reference[i32(0u)].active_;
     let _e203 = reference[i32(0u)].active_valid;
     let _e205 = reference[i32(0u)].pending;
@@ -1449,14 +1646,14 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
     let _e209 = reference[i32(0u)].zx_s;
     let _e211 = reference[i32(0u)].zy_s;
     let _e213 = reference[i32(0u)].ready_at;
-    fixed_local_325_ = FeLocal_fe_shader_private_layout_19_(_e168, _e33, _e35, _e37, _e39, _e41, FeLocal_fe_shader_private_layout_17_(FeLocal_fe_shader_private_layout_15_(array<FeLocal_fe_shader_private_layout_14_, 10>(FeLocal_fe_shader_private_layout_14_((_e43 != 0u), _e47, FeLocal_fe_shader_private_layout_13_(_e49, _e51)), FeLocal_fe_shader_private_layout_14_((_e53 != 0u), _e57, FeLocal_fe_shader_private_layout_13_(_e59, _e61)), FeLocal_fe_shader_private_layout_14_((_e63 != 0u), _e67, FeLocal_fe_shader_private_layout_13_(_e69, _e71)), FeLocal_fe_shader_private_layout_14_((_e73 != 0u), _e77, FeLocal_fe_shader_private_layout_13_(_e79, _e81)), FeLocal_fe_shader_private_layout_14_((_e83 != 0u), _e87, FeLocal_fe_shader_private_layout_13_(_e89, _e91)), FeLocal_fe_shader_private_layout_14_((_e93 != 0u), _e97, FeLocal_fe_shader_private_layout_13_(_e99, _e101)), FeLocal_fe_shader_private_layout_14_((_e103 != 0u), _e107, FeLocal_fe_shader_private_layout_13_(_e109, _e111)), FeLocal_fe_shader_private_layout_14_((_e113 != 0u), _e117, FeLocal_fe_shader_private_layout_13_(_e119, _e121)), FeLocal_fe_shader_private_layout_14_((_e123 != 0u), _e127, FeLocal_fe_shader_private_layout_13_(_e129, _e131)), FeLocal_fe_shader_private_layout_14_((_e133 != 0u), _e137, FeLocal_fe_shader_private_layout_13_(_e139, _e141)))), FeLocal_fe_shader_private_layout_16_(FeLocal_fe_shader_private_layout_13_(_e143, _e145), FeLocal_fe_shader_private_layout_13_(_e147, _e149))), FeLocal_fe_shader_private_layout_18_((_e151 != 0u), _e155));
-    let _e217 = can_refine(FeLocal_fe_shader_private_layout_5_(_e201, _e203, _e205, _e207, _e209, _e211, _e213), (&fixed_local_325_));
+    fixed_local_325_ = FeLocal_fe_shader_private_layout_21_(_e168, _e33, _e35, _e37, _e39, _e41, FeLocal_fe_shader_private_layout_19_(FeLocal_fe_shader_private_layout_17_(array<FeLocal_fe_shader_private_layout_16_, 10>(FeLocal_fe_shader_private_layout_16_((_e43 != 0u), _e47, FeLocal_fe_shader_private_layout_15_(_e49, _e51)), FeLocal_fe_shader_private_layout_16_((_e53 != 0u), _e57, FeLocal_fe_shader_private_layout_15_(_e59, _e61)), FeLocal_fe_shader_private_layout_16_((_e63 != 0u), _e67, FeLocal_fe_shader_private_layout_15_(_e69, _e71)), FeLocal_fe_shader_private_layout_16_((_e73 != 0u), _e77, FeLocal_fe_shader_private_layout_15_(_e79, _e81)), FeLocal_fe_shader_private_layout_16_((_e83 != 0u), _e87, FeLocal_fe_shader_private_layout_15_(_e89, _e91)), FeLocal_fe_shader_private_layout_16_((_e93 != 0u), _e97, FeLocal_fe_shader_private_layout_15_(_e99, _e101)), FeLocal_fe_shader_private_layout_16_((_e103 != 0u), _e107, FeLocal_fe_shader_private_layout_15_(_e109, _e111)), FeLocal_fe_shader_private_layout_16_((_e113 != 0u), _e117, FeLocal_fe_shader_private_layout_15_(_e119, _e121)), FeLocal_fe_shader_private_layout_16_((_e123 != 0u), _e127, FeLocal_fe_shader_private_layout_15_(_e129, _e131)), FeLocal_fe_shader_private_layout_16_((_e133 != 0u), _e137, FeLocal_fe_shader_private_layout_15_(_e139, _e141)))), FeLocal_fe_shader_private_layout_18_(FeLocal_fe_shader_private_layout_15_(_e143, _e145), FeLocal_fe_shader_private_layout_15_(_e147, _e149))), FeLocal_fe_shader_private_layout_20_((_e151 != 0u), _e155));
+    let _e217 = can_refine(FeLocal_fe_shader_private_layout_7_(_e201, _e203, _e205, _e207, _e209, _e211, _e213), (&fixed_local_325_));
     if _e217 {
     } else {
         local_1 = true;
     }
-    let _e320 = local_1;
-    if _e320 {
+    let _e305 = local_1;
+    if _e305 {
     } else {
         let _e225 = cache[i32(0u)].cursor;
         let _e227 = cache[i32(0u)].epoch;
@@ -1466,62 +1663,52 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
         } else {
             local_3 = true;
         }
-        let _e318 = local_3;
-        if _e318 {
+        let _e303 = local_3;
+        if _e303 {
         } else {
             let _e235 = impl_CohortPixel_index(_e229);
-            let _e239 = progress_pixels[i32(_e235)].dz_re;
-            let _e241 = progress_pixels[i32(_e235)].dz_im;
-            let _e243 = progress_pixels[i32(_e235)].z_re;
-            let _e245 = progress_pixels[i32(_e235)].z_im;
-            let _e247 = progress_pixels[i32(_e235)].reference_i;
-            let _e249 = progress_pixels[i32(_e235)].iteration;
-            let _e251 = progress_pixels[i32(_e235)].epoch;
-            let _e253 = progress_pixels[i32(_e235)].magnitude;
-            if (_e251 == _e227) {
-                local_6 = FeLocal_fe_shader_private_layout_1_(_e239, _e241, _e243, _e245, _e247, _e249, _e251, _e253);
+            let _e239 = progress_pixels[i32(_e235)].control;
+            let _e241 = progress_pixels[i32(_e235)].epoch;
+            let _e243 = progress_pixels[i32(_e235)].payload_u002e_re;
+            let _e245 = progress_pixels[i32(_e235)].payload_u002e_im;
+            if (_e241 == _e227) {
+                local_6 = FeLocal_fe_shader_private_layout_1_(_e239, _e241, FeLocal_fe_shader_private_layout_0_(_e243, _e245));
             } else {
-                let _e256 = empty_progress(_e227);
-                local_6 = _e256;
+                let _e249 = initial(_e227);
+                local_6 = _e249;
             }
-            let _e261 = local_6;
-            let _e263 = is_terminal(_e261, _e228.f0_);
-            if _e263 {
+            let _e254 = local_6;
+            let _e256 = impl_NativeCheckpoint_is_terminal(_e254, _e228.f0_);
+            if _e256 {
                 local_8 = true;
             }
-            let _e316 = local_8;
-            if _e316 {
+            let _e301 = local_8;
+            if _e301 {
             } else {
-                let _e271 = (_e201 * 8195u);
-                let _e272 = (_e201 != 0u);
-                if (_e272 && (8195u > (4294967295u / select(1u, _e201, _e272)))) {
+                let _e265 = (_e201 != 0u);
+                if (_e265 && (8195u > (4294967295u / select(1u, _e201, _e265)))) {
                     fe_trapped = true;
                 }
-                let _e280 = impl_CohortPixel_sample(_e229);
-                let _e282 = pixel_delta_from_reference(_e271, _e168, _e280, (&fe_trapped));
-                let _e284 = advance_progress(_e271, _e282, _e228.f0_, 2048u, _e261, (&fe_trapped));
-                let _e286 = is_terminal(_e284, _e228.f0_);
-                if _e286 {
-                    let _e287 = with_fade_start(_e284, _e33);
-                    local_13 = _e287;
+                let _e273 = impl_CohortPixel_sample(_e229);
+                let _e276 = continue_native_pixel((_e201 * 8195u), _e168, _e273, _e228.f0_, 2048u, _e254, (&fe_trapped));
+                let _e278 = impl_NativeCheckpoint_is_terminal(_e276, _e228.f0_);
+                if _e278 {
+                    let _e279 = with_fade_start(_e276, _e33);
+                    local_13 = _e279;
                 } else {
-                    local_13 = _e284;
+                    local_13 = _e276;
                 }
-                let _e291 = local_13;
-                progress_pixels[i32(_e235)].dz_re = _e291.f0_;
-                progress_pixels[i32(_e235)].dz_im = _e291.f1_;
-                progress_pixels[i32(_e235)].z_re = _e291.f2_;
-                progress_pixels[i32(_e235)].z_im = _e291.f3_;
-                progress_pixels[i32(_e235)].reference_i = _e291.f4_;
-                progress_pixels[i32(_e235)].iteration = _e291.f5_;
-                progress_pixels[i32(_e235)].epoch = _e291.f6_;
-                progress_pixels[i32(_e235)].magnitude = _e291.f7_;
-                let _e310 = progress_color(_e284, (&fe_trapped));
-                native_pixels[i32(_e235)] = _e310;
-                antialiased_pixels[i32(_e235)] = _e310;
+                let _e283 = local_13;
+                progress_pixels[i32(_e235)].control = _e283.f0_;
+                progress_pixels[i32(_e235)].epoch = _e283.f1_;
+                progress_pixels[i32(_e235)].payload_u002e_re = _e283.f2_.f0_;
+                progress_pixels[i32(_e235)].payload_u002e_im = _e283.f2_.f1_;
+                let _e295 = color(_e276, (&fe_trapped));
+                native_pixels[i32(_e235)] = _e295;
+                antialiased_pixels[i32(_e235)] = _e295;
             }
         }
     }
-    let _e331 = fe_trapped;
-    trap[((global_invocation_id.x + (global_invocation_id.y * 128u)) + (global_invocation_id.z * 32768u))] = u32(_e331);
+    let _e316 = fe_trapped;
+    trap[((global_invocation_id.x + (global_invocation_id.y * 128u)) + (global_invocation_id.z * 32768u))] = u32(_e316);
 }

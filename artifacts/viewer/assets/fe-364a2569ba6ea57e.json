@@ -9,7 +9,7 @@
     "build": "workspace"
   },
   "target": "wasm",
-  "source_set_sha256": "4b9a6f5f603c47c72f45c3d7ff7bea20d4b40bae97171ae61d67edb9657d46f6",
+  "source_set_sha256": "1fccba3b7c95e21509f97514c6485b28e4f26d448657f6acc793ff939f6d916b",
   "source_dependencies": {
     "version": 1,
     "root": "file:///lab/argot/worktrees/fe-mandelbrot/structured-camera-20261020/app/source_viewer/src/lib.fe",
@@ -444,7 +444,7 @@
       },
       {
         "url": "file:///lab/argot/worktrees/fe-mandelbrot/structured-camera-20261020/app/source_viewer/src/lib.fe",
-        "sha256": "2eed7872a9967f110a2bc0fc6e51eccc31abc58b88ef3351523df3407983cc40"
+        "sha256": "4b6363c91053ef369dc61f9d77a123e7fe95ff9b8346f2b380561eaaa96f9e8e"
       },
       {
         "url": "file:///lab/argot/worktrees/fe-mandelbrot/structured-camera-20261020/lib/browser_fetch/src/lib.fe",

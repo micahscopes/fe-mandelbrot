@@ -311,7 +311,9 @@ async function measure(label, directory) {
       servedArtifacts: [...served].map(([file, asset]) => ({file: path.relative(root, file), sha256: asset.hash}))};
   } catch (error) {
     const last = await page.evaluate(() => ({metadata: window.checkpointProbe?.last,
-      gpuErrors: window.checkpointProbe?.errors, state: document.querySelector('fe-surface')?.state})).catch(() => null);
+      gpuErrors: window.checkpointProbe?.errors, state: document.querySelector('fe-surface')?.state,
+      status: document.querySelector('#status')?.textContent, pendingPresent: window.checkpointProbe?.pendingPresent,
+      graphSubmissions: window.checkpointProbe?.graphSubmissions})).catch(() => null);
     await fs.writeFile(path.join(output, `${label}-partial-receipt.json`),
       JSON.stringify({label, captures, transitions, errors, last, failure: String(error.stack || error)}, null, 2) + '\n');
     throw error;
