@@ -1,0 +1,7 @@
+[ingot]
+name = "probe_hue_interpolation"
+version = "0.1.0"
+[dependencies]
+core = "../../.cache/fe/ingots/core"
+std = "../../.cache/fe/ingots/std"
+perceptual_color = "../../lib/perceptual_color"

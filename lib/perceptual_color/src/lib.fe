@@ -4,7 +4,7 @@ use core::default::Default
 use core::marker::Copy
 use core::ops::{Add, Div, Eq, Mul, Sub}
 use algebra::{DirectExecution, Vec3, VectorExecution, interpolate}
-use fmath::{cos, floor, from_i32, sin, sqrt, to_i32}
+use fmath::{cos, from_i32, sin, sqrt, to_i32}
 
 extern {
     const fn __bitcast<From, To>(_: From) -> To
@@ -72,6 +72,39 @@ impl Div<f32> for Color {
     }
 }
 
+/// Signed finite-angle remainder, with magnitude below one turn.
+/// Large binary32 values are integers: reduce their exact significand, then
+/// apply the exponent using bounded modular doubling instead of cancellation.
+fn hue_remainder(_ value: f32) -> f32 {
+    let bits: u32 = __bitcast<f32, u32>(value)
+    let magnitude: u32 = bits & 2147483647
+    if magnitude < 1135869952 {
+        // 360.0, including signed zero
+        return value
+    }
+    let exponent: u32 = (magnitude >> 23) & 255
+    if exponent == 255 {
+        return value // Nonfinite input is outside the finite-angle contract.
+    }
+    let positive: f32 = if value < 0.0 { -value } else { value }
+    let reduced: f32 = if exponent < 150 {
+        // Here the integer part is below 2^23 and converts exactly.
+        let integer: i32 = to_i32(positive)
+        let remainder: u32 = __bitcast<i32, u32>(integer) % 360
+        from_i32(__bitcast<u32, i32>(remainder)) + (positive - from_i32(integer))
+    } else {
+        let significand: u32 = (magnitude & 8388607) | 8388608
+        let mut remainder: u32 = significand % 360
+        let mut shift: u32 = exponent - 150
+        while shift > 0 {
+            remainder = (remainder * 2) % 360
+            shift = shift - 1
+        }
+        from_i32(__bitcast<u32, i32>(remainder))
+    }
+    if value < 0.0 { -reduced } else { reduced }
+}
+
 impl Oklch {
     /// Convert polar OKLCH coordinates (hue in degrees) to Cartesian OKLab.
     pub fn to_color(self) -> Color {
@@ -80,25 +113,45 @@ impl Oklch {
     }
 
     /// Shortest-arc interpolation in polar OKLCH coordinates.
-    /// Preserves the exact single-turn subtraction/addition and `+-180.0` tie
-    /// behavior for differences in `[-540.0, 540.0]`, while folding unbounded
-    /// multi-turn hue differences into `[-180.0, 180.0]`.
+    /// Differences in `[-540, 540]` retain their exact single-turn arithmetic
+    /// and signed half-turn ties. Other finite endpoints use equivalent
+    /// near-zero hue representatives, avoiding overflow and cancellation.
     pub fn interpolate(_ start: Oklch, _ end: Oklch, _ t: f32) -> Oklch {
         let delta: f32 = end.hue - start.hue
-        let arc: f32 = if delta > 540.0 || delta < -540.0 {
-            let wrapped: f32 = delta - 360.0 * floor((delta + 180.0) / 360.0)
-            if wrapped == -180.0 && delta > 0.0 {
-                180.0
-            } else {
-                wrapped
+        let ordinary: bool = delta >= -540.0 && delta <= 540.0
+        let origin: f32 = if ordinary {
+            start.hue
+        } else {
+            hue_remainder(start.hue)
+        }
+        let mut arc: f32 = if ordinary {
+            delta
+        } else {
+            hue_remainder(end.hue) - origin
+        }
+        if arc > 180.0 {
+            arc = arc - 360.0
+        } else if arc < -180.0 {
+            arc = arc + 360.0
+        }
+        if !ordinary {
+            // Signed endpoint remainders can differ by almost two turns.
+            if arc > 180.0 {
+                arc = arc - 360.0
+            } else if arc < -180.0 {
+                arc = arc + 360.0
             }
-        } else if delta > 180.0 {
-            delta - 360.0
-        } else if delta < -180.0 { delta + 360.0 } else { delta }
+            // Compare finite endpoints without overflowing their difference.
+            if arc == -180.0 && end.hue > start.hue {
+                arc = 180.0
+            } else if arc == 180.0 && end.hue < start.hue {
+                arc = -180.0
+            }
+        }
         Oklch {
             l: start.l + (end.l - start.l) * t,
             chroma: start.chroma + (end.chroma - start.chroma) * t,
-            hue: start.hue + arc * t,
+            hue: origin + arc * t,
         }
     }
 }

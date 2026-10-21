@@ -1,0 +1,67 @@
+use core::marker::Copy
+use std::webgpu::{
+    FragmentSurface,
+    GpuProgram,
+    WebGpuBackend,
+    SurfaceQuality,
+    SurfaceQualityFacts,
+    SurfaceBackingExtent,
+    SurfaceRecovery,
+    StandardSurfaceRecovery,
+    SurfaceTransition,
+    SurfaceScheduling,
+    ContinuousFrames,
+}
+use std::web::view::{
+    ApplyParamBindings,
+    Extent,
+    Param,
+    ParamBindingsProvider,
+    Surface,
+    SurfaceEvent,
+    SurfaceState,
+}
+use perceptual_color::Oklch
+pub struct Params { pub start: Param, pub end: Param, pub t: Param, pub hue: Param }
+pub struct State { pub start: f32, pub end: f32, pub t: f32, pub hue: f32 }
+impl Copy for State {}
+impl SurfaceState for State {
+    type Params = Params
+}
+derive ApplyParamBindings for State using ParamBindingsProvider<Params>
+pub struct Envelope { pub state: State }
+impl Copy for Envelope {}
+pub struct Backing {}
+impl Backing {
+    pub fn choose(_ facts: own SurfaceQualityFacts) -> SurfaceBackingExtent {
+        let _ = facts
+        SurfaceBackingExtent { width: 64.0, height: 64.0 }
+    }
+}
+actor Probe uses (GpuProgram<WebGpuBackend>, SurfaceQuality<Backing>, SurfaceRecovery<StandardSurfaceRecovery>) {
+    state: State,
+    fn initial() -> Envelope uses (core::actor::InitialState) {
+        Envelope { state: State { start: 0.0, end: 0.0, t: 1.0, hue: 0.0 } }
+    }
+    const fn view() -> Surface<Params> {
+        Surface { extent: Extent::square(64), params: Params {
+            start: Param::fixed(0.0), end: Param::fixed(0.0),
+            t: Param::fixed(1.0), hue: Param::fixed(0.0),
+        } }
+    }
+    fn display(self, px: i32, py: i32) -> i32 uses (FragmentSurface) {
+        let _ = px
+        let _ = py
+        0
+    }
+    fn navigate(self, event: own SurfaceEvent) -> Envelope uses (SurfaceTransition, SurfaceScheduling<ContinuousFrames>) {
+        let _ = event
+        let start = Oklch { l: 0.5, chroma: 0.1, hue: self.state.start }
+        let end = Oklch { l: 0.5, chroma: 0.1, hue: self.state.end }
+        let value = Oklch::interpolate(start, end, self.state.t)
+        Envelope { state: State {
+            start: self.state.start, end: self.state.end,
+            t: self.state.t, hue: value.hue,
+        } }
+    }
+}
