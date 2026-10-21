@@ -1,0 +1,474 @@
+//! Contact geometry independent of camera precision and browser scheduling.
+//!
+//! A fixed-capacity set retains pointer identities, never an inferred primary
+//! pointer. Membership changes reanchor; only motion transforms a view.
+
+use core::default::Default
+use core::marker::Copy
+use core::num::IntDowncast
+use algebra::Vec2
+use std::web::{PointerDevice, PointerPhase, PointerSample}
+
+extern {
+    const fn __sqrt_f32(_: f32) -> f32
+}
+
+#[derive(Default)]
+struct Contact { active: bool, id: u32, position: Vec2<f32> }
+
+impl Copy for Contact {}
+
+impl Contact {
+    const fn empty() -> Self {
+        Self { active: false, id: 0, position: Vec2 { x: 0.0, y: 0.0 } }
+    }
+}
+
+/// N must be positive and is a capacity, not a pointer-ID range. Full sets ignore new
+/// contacts until a slot is free; they never replace a captured identity.
+pub struct Contacts<const N: usize> { entries: [Contact; N] }
+
+impl<const N: usize> Copy for Contacts<N> {}
+impl<const N: usize> Default for Contacts<N> {
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+
+/// Coordinates at two successive observations of the same contact set.
+/// span_ratio scales a camera half-span (the reciprocal of finger spread).
+pub struct GestureTransform { pub before: Vec2<f32>, pub after: Vec2<f32>, pub span_ratio: f32 }
+
+impl Copy for GestureTransform {}
+
+pub enum Gesture {
+    Ignored,
+    Reanchor,
+    Motion(GestureTransform,),
+}
+
+impl Copy for Gesture {}
+
+pub struct ContactUpdate<const N: usize> { pub contacts: Contacts<N>, pub gesture: Gesture }
+
+/// The CSS viewport is a coordinate frame, independent of backing resolution.
+/// Extents must be positive; the host view decides whether a hidden or empty
+/// viewport can accept motion.
+pub struct Viewport { pub origin: Vec2<f32>, pub extent: Vec2<f32> }
+
+impl Copy for Viewport {}
+
+impl Viewport {
+    pub fn normalized(self, _ point: Vec2<f32>) -> Vec2<f32> {
+        let corner = Vec2 { x: -1.0, y: 1.0 }
+        self.displacement(point - self.origin) + corner
+    }
+    pub fn displacement(self, _ delta: Vec2<f32>) -> Vec2<f32> {
+        Vec2 { x: delta.x * 2.0 / self.extent.x, y: -delta.y * 2.0 / self.extent.y }
+    }
+}
+
+impl GestureTransform {
+    /// Use the actual clamped new span. This single offset preserves the old
+    /// centroid's world point at the new centroid while panning and scaling.
+    pub fn translation(self, _ viewport: Viewport, _ old_span: f32, _ new_span: f32) -> Vec2<f32> {
+        let zoom_offset = viewport.normalized(self.before) * (old_span - new_span)
+        let pan_offset = viewport.displacement(self.after - self.before) * new_span
+        zoom_offset - pan_offset
+    }
+}
+
+struct Geometry { center: Vec2<f32>, spread: f32, count: f32 }
+
+impl Copy for Geometry {}
+
+impl<const N: usize> Contacts<N> {
+    pub const fn empty() -> Self {
+        Self { entries: [Contact::empty(); N] }
+    }
+
+    /// Array dimensions live in Fe's compile-time usize domain; browser
+    /// execution indexes this small positive contact set with u32 values.
+    pub const fn capacity() -> u32 {
+        N.downcast_truncate()
+    }
+    pub fn count(self) -> u32 {
+        let capacity = Self::capacity()
+        let mut count: u32 = 0
+        let mut i: u32 = 0
+        while i < capacity {
+            if self.entries[i as usize].active {
+                count += 1
+            }
+            i += 1
+        }
+        count
+    }
+
+    fn geometry(self) -> Geometry {
+        let capacity = Self::capacity()
+        let mut center: Vec2<f32> = Vec2::zero()
+        let mut count: f32 = 0.0
+        let mut i: u32 = 0
+        while i < capacity {
+            let contact = self.entries[i as usize]
+            if contact.active {
+                center = center + contact.position
+                count = count + 1.0
+            }
+            i += 1
+        }
+        if count == 0.0 {
+            return Geometry { center: center, spread: 0.0, count: 0.0 }
+        }
+        center = center / count
+        let mut spread: f32 = 0.0
+        i = 0
+        while i < capacity {
+            let contact = self.entries[i as usize]
+            if contact.active {
+                spread = spread + (contact.position - center).norm_squared()
+            }
+            i += 1
+        }
+        Geometry { center: center, spread: spread, count: count }
+    }
+    pub fn update(own self, _ sample: PointerSample) -> ContactUpdate<N> {
+        let capacity = Self::capacity()
+        let mut next = self
+        let mut found: u32 = capacity
+        let mut vacant: u32 = capacity
+        let mut i: u32 = 0
+        while i < capacity {
+            let contact = next.entries[i as usize]
+            if contact.active {
+                if contact.id == sample.pointer_id {
+                    found = i
+                }
+            } else if vacant == capacity {
+                vacant = i
+            }
+            i += 1
+        }
+        let position = Vec2 { x: sample.client_x, y: sample.client_y }
+        match sample.phase {
+            PointerPhase::Down => {
+                if (sample.buttons & 1) == 0 {
+                    return ContactUpdate { contacts: next, gesture: Gesture::Ignored }
+                }
+                let slot = if found < capacity { found } else { vacant }
+                if slot == capacity {
+                    return ContactUpdate { contacts: next, gesture: Gesture::Ignored }
+                }
+                next.entries[slot as usize] = Contact {
+                    active: true,
+                    id: sample.pointer_id,
+                    position: position,
+                }
+                ContactUpdate { contacts: next, gesture: Gesture::Reanchor }
+            },
+            PointerPhase::Move => {
+                if found == capacity {
+                    return ContactUpdate { contacts: next, gesture: Gesture::Ignored }
+                }
+                // A missing mouse-up can be recovered from the next observed
+                // button state. Touch/pen lifecycle uses explicit phase facts.
+                let mouse = match sample.device {
+                    PointerDevice::Mouse => true,
+                    _ => false,
+                }
+                if mouse && (sample.buttons & 1) == 0 {
+                    next.entries[found as usize] = Contact::empty()
+                    return ContactUpdate { contacts: next, gesture: Gesture::Reanchor }
+                }
+                let before = next.geometry()
+                next.entries[found as usize].position = position
+                let after = next.geometry()
+                let ratio: f32 = if before.count > 1.0
+                    && before.spread > 0.000001
+                    && after.spread > 0.000001 {
+                    __sqrt_f32(before.spread / after.spread)
+                } else {
+                    1.0
+                }
+                ContactUpdate {
+                    contacts: next,
+                    gesture: Gesture::Motion(
+                        GestureTransform {
+                            before: before.center,
+                            after: after.center,
+                            span_ratio: ratio,
+                        },
+                    ),
+                }
+            },
+            _ => {
+                if found == capacity {
+                    return ContactUpdate { contacts: next, gesture: Gesture::Ignored }
+                }
+                next.entries[found as usize] = Contact::empty()
+                ContactUpdate { contacts: next, gesture: Gesture::Reanchor }
+            },
+        }
+    }
+}
+
+fn touch(_ phase: PointerPhase, _ id: u32, _ position: Vec2<f32>) -> PointerSample {
+    PointerSample {
+        phase: phase,
+        device: PointerDevice::Touch,
+        pointer_id: id,
+        client_x: position.x,
+        client_y: position.y,
+        buttons: 1,
+        primary: id == 7,
+        pressure: 0.5,
+        timestamp: 1.0,
+    }
+}
+
+fn motion(_ gesture: Gesture) -> GestureTransform {
+    match gesture {
+        Gesture::Motion(value,) => value,
+        _ => {
+            assert(false)
+            GestureTransform { before: Vec2::zero(), after: Vec2::zero(), span_ratio: 1.0 }
+        },
+    }
+}
+
+fn near(_ actual: f32, _ expected: f32) -> bool {
+    let delta = actual - expected
+    delta > -0.00001 && delta < 0.00001
+}
+
+fn same_point(_ actual: Vec2<f32>, _ expected: Vec2<f32>) -> bool {
+    near(actual.x, expected.x) && near(actual.y, expected.y)
+}
+
+#[test]
+fn contact_membership_changes_reanchor_without_terminal_motion() {
+    let empty: Contacts<10> = Contacts::empty()
+    let first = empty.update(touch(PointerPhase::Down, 7, Vec2 { x: 20.0, y: 30.0 }))
+    assert(first.contacts.count() == 1)
+    assert(
+        match first.gesture {
+            Gesture::Reanchor => true,
+            _ => false,
+        },
+    )
+    let second = first.contacts.update(touch(PointerPhase::Down, 900, Vec2 { x: 60.0, y: 30.0 }))
+    assert(second.contacts.count() == 2)
+    assert(
+        match second.gesture {
+            Gesture::Reanchor => true,
+            _ => false,
+        },
+    )
+    let lifted = second.contacts.update(touch(PointerPhase::Up, 900, Vec2 { x: 999.0, y: 999.0 }))
+    assert(lifted.contacts.count() == 1)
+    assert(
+        match lifted.gesture {
+            Gesture::Reanchor => true,
+            _ => false,
+        },
+    )
+    let moved = lifted.contacts.update(touch(PointerPhase::Move, 7, Vec2 { x: 25.0, y: 32.0 }))
+    let delta = motion(moved.gesture)
+    assert(same_point(delta.before, Vec2 { x: 20.0, y: 30.0 }))
+    assert(same_point(delta.after, Vec2 { x: 25.0, y: 32.0 }))
+    assert(delta.span_ratio == 1.0)
+    let ended = moved.contacts.update(
+            touch(PointerPhase::Cancel, 7, Vec2 { x: -999.0, y: -999.0 }),
+        )
+    assert(ended.contacts.count() == 0)
+    assert(
+        match ended.gesture {
+            Gesture::Reanchor => true,
+            _ => false,
+        },
+    )
+    let stale = ended.contacts.update(touch(PointerPhase::LostCapture, 7, Vec2::zero()))
+    assert(
+        match stale.gesture {
+            Gesture::Ignored => true,
+            _ => false,
+        },
+    )
+    let stale_move = stale.contacts.update(touch(PointerPhase::Move, 7, Vec2::zero()))
+    assert(stale_move.contacts.count() == 0)
+    assert(
+        match stale_move.gesture {
+            Gesture::Ignored => true,
+            _ => false,
+        },
+    )
+}
+
+#[test]
+fn simultaneous_centroid_motion_and_pinch_preserve_the_anchor() {
+    let first = Contacts<4>::empty().update(touch(PointerPhase::Down, 7, Vec2 { x: 25.0, y: 50.0 }))
+    let pair = first.contacts.update(touch(PointerPhase::Down, 900, Vec2 { x: 75.0, y: 50.0 }))
+    let moved = pair.contacts.update(touch(PointerPhase::Move, 900, Vec2 { x: 125.0, y: 50.0 }))
+    let transform = motion(moved.gesture)
+    assert(same_point(transform.before, Vec2 { x: 50.0, y: 50.0 }))
+    assert(same_point(transform.after, Vec2 { x: 75.0, y: 50.0 }))
+    assert(near(transform.span_ratio, 0.5))
+    let viewport = Viewport { origin: Vec2::zero(), extent: Vec2 { x: 100.0, y: 100.0 } }
+    let center = Vec2 { x: -1.0, y: 0.25 }
+    let old_span: f32 = 2.0
+    let new_span = old_span * transform.span_ratio
+    let shifted = center + transform.translation(viewport, old_span, new_span)
+    let old_world = center + viewport.normalized(transform.before) * old_span
+    let new_world = shifted + viewport.normalized(transform.after) * new_span
+    assert(same_point(old_world, new_world))
+    // Clamping changes span but must preserve the same centroid anchor law.
+    let clamped: f32 = 1.5
+    let clamped_center = center + transform.translation(viewport, old_span, clamped)
+    assert(
+        same_point(
+            old_world,
+            clamped_center + viewport.normalized(transform.after) * clamped,
+        ),
+    )
+}
+
+#[test]
+fn three_contacts_use_geometry_and_keep_identity_when_one_cancels() {
+    let a = Contacts<4>::empty().update(touch(PointerPhase::Down, 7, Vec2 { x: 0.0, y: 0.0 }))
+    let b = a.contacts.update(touch(PointerPhase::Down, 400, Vec2 { x: 30.0, y: 0.0 }))
+    let c = b.contacts.update(touch(PointerPhase::Down, 900, Vec2 { x: 0.0, y: 30.0 }))
+    let moved = c.contacts.update(touch(PointerPhase::Move, 400, Vec2 { x: 60.0, y: 0.0 }))
+    let transform = motion(moved.gesture)
+    assert(same_point(transform.before, Vec2 { x: 10.0, y: 10.0 }))
+    assert(same_point(transform.after, Vec2 { x: 20.0, y: 10.0 }))
+    assert(transform.span_ratio > 0.0 && transform.span_ratio < 1.0)
+    let cancelled = moved.contacts.update(touch(PointerPhase::Cancel, 400, Vec2::zero()))
+    assert(cancelled.contacts.count() == 2)
+    let survivor = cancelled
+        .contacts
+        .update(touch(PointerPhase::Move, 900, Vec2 { x: 0.0, y: 60.0 }))
+    assert(near(motion(survivor.gesture).span_ratio, 0.5))
+}
+
+#[test]
+fn arrival_order_does_not_choose_a_primary_geometry() {
+    let a = touch(PointerPhase::Down, 7, Vec2 { x: 20.0, y: 10.0 })
+    let b = touch(PointerPhase::Down, 90, Vec2 { x: 40.0, y: 10.0 })
+    let forward = Contacts<4>::empty().update(a).contacts.update(b).contacts
+    let reverse = Contacts<4>::empty().update(b).contacts.update(a).contacts
+    let event = touch(PointerPhase::Move, 90, Vec2 { x: 60.0, y: 20.0 })
+    let f = motion(forward.update(event).gesture)
+    let r = motion(reverse.update(event).gesture)
+    assert(
+        same_point(f.before, r.before) && same_point(f.after, r.after),
+    )
+    assert(near(f.span_ratio, r.span_ratio))
+}
+
+#[test]
+fn capacity_and_coincident_contacts_do_not_steal_identity_or_divide_by_zero() {
+    let a = Contacts<2>::empty().update(touch(PointerPhase::Down, 7, Vec2::zero()))
+    let b = a.contacts.update(touch(PointerPhase::Down, 900, Vec2::zero()))
+    let overflow = b.contacts.update(touch(PointerPhase::Down, 42, Vec2::zero()))
+    assert(overflow.contacts.count() == 2)
+    assert(
+        match overflow.gesture {
+            Gesture::Ignored => true,
+            _ => false,
+        },
+    )
+    let unknown = overflow.contacts.update(touch(PointerPhase::Up, 42, Vec2::zero()))
+    assert(unknown.contacts.count() == 2)
+    let moved = unknown.contacts.update(touch(PointerPhase::Move, 900, Vec2 { x: 1.0, y: 0.0 }))
+    assert(motion(moved.gesture).span_ratio == 1.0)
+}
+
+#[test]
+fn viewport_translation_is_independent_of_backing_size() {
+    let viewport = Viewport {
+        origin: Vec2 { x: 10.0, y: 20.0 },
+        extent: Vec2 { x: 390.0, y: 844.0 },
+    }
+    assert(
+        same_point(
+            viewport.normalized(Vec2 { x: 205.0, y: 442.0 }),
+            Vec2::zero(),
+        ),
+    )
+    let transform = GestureTransform {
+        before: Vec2 { x: 100.0, y: 200.0 },
+        after: Vec2 { x: 110.0, y: 220.0 },
+        span_ratio: 1.0,
+    }
+    let offset = transform.translation(viewport, 3.0, 3.0)
+    assert(near(offset.x, -60.0 / 390.0))
+    assert(near(offset.y, 120.0 / 844.0))
+}
+
+#[test]
+fn mouse_button_loss_and_scope_restart_reanchor_without_motion() {
+    let mut down = touch(PointerPhase::Down, 7, Vec2 { x: 10.0, y: 20.0 })
+    down.device = PointerDevice::Mouse
+    let active = Contacts<4>::empty().update(down).contacts
+    let mut lost = touch(PointerPhase::Move, 7, Vec2 { x: 999.0, y: 999.0 })
+    lost.device = PointerDevice::Mouse
+    lost.buttons = 0
+    let cancelled = active.update(lost)
+    assert(cancelled.contacts.count() == 0)
+    assert(
+        match cancelled.gesture {
+            Gesture::Reanchor => true,
+            _ => false,
+        },
+    )
+    let restarted = cancelled
+        .contacts
+        .update(touch(PointerPhase::Down, 7, Vec2 { x: 50.0, y: 60.0 }))
+    let moved = restarted.contacts.update(touch(PointerPhase::Move, 7, Vec2 { x: 51.0, y: 61.0 }))
+    let delta = motion(moved.gesture)
+    assert(same_point(delta.before, Vec2 { x: 50.0, y: 60.0 }))
+    assert(same_point(delta.after, Vec2 { x: 51.0, y: 61.0 }))
+    assert(delta.span_ratio == 1.0)
+}
+
+#[test]
+fn small_pan_keeps_its_displacement_at_deep_zoom() {
+    let viewport = Viewport { origin: Vec2::zero(), extent: Vec2 { x: 390.0, y: 844.0 } }
+    let transform = GestureTransform {
+        before: Vec2 { x: 380.0, y: 400.0 },
+        after: Vec2 { x: 380.000030517578125, y: 400.0 },
+        span_ratio: 1.0,
+    }
+    let span: f32 = 0.00000000000000023257
+    let offset = transform.translation(viewport, span, span)
+    let expected: f32 = -(0.000030517578125 * 2.0 / 390.0) * span
+    assert(near(offset.x / expected, 1.0))
+    assert(offset.y == 0.0)
+}
+
+#[test]
+fn stationary_centroid_preserves_anchor_when_span_is_clamped() {
+    let viewport = Viewport {
+        origin: Vec2 { x: 10.0, y: 20.0 },
+        extent: Vec2 { x: 400.0, y: 800.0 },
+    }
+    let point = Vec2 { x: 310.0, y: 220.0 }
+    let transform = GestureTransform { before: point, after: point, span_ratio: 0.25 }
+    let old_span: f32 = 4.0
+    let clamped: f32 = 3.0
+    let center = Vec2 { x: -0.75, y: 0.125 }
+    let shifted = center + transform.translation(viewport, old_span, clamped)
+    assert(
+        same_point(
+            center + viewport.normalized(point) * old_span,
+            shifted + viewport.normalized(point) * clamped,
+        ),
+    )
+    assert(
+        same_point(
+            transform.translation(viewport, old_span, old_span),
+            Vec2::zero(),
+        ),
+    )
+}

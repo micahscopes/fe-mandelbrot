@@ -3,6 +3,7 @@ name = "FeMandelbrot"
 version = "0.1.0"
 members = [
   { path = "lib/algebra", name = "algebra" },
+  { path = "lib/gestures", name = "gestures" },
   { path = "lib/perceptual_color", name = "perceptual_color" },
   { path = "app/color_demo", name = "color_demo" },
   { path = ".cache/fe/ingots/core", name = "core" },
