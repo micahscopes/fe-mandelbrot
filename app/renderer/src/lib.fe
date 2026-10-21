@@ -6,18 +6,18 @@
 
 use std::webgpu::{
     ComputeInvocation,
-    ComputeSurface as ReferencePass,
-    FixedDispatch as Once,
-    FragmentSurface as Display,
-    GpuProgram as PassGraph,
+    ComputeSurface,
+    FixedDispatch,
+    FragmentSurface,
+    GpuProgram,
     ContinuousFrames,
     StandardSurfaceRecovery,
-    StorageBuffer as OrbitBuffer,
+    StorageBuffer,
     SurfaceQuality,
     SurfaceRecovery,
     SurfaceScheduling,
     SurfaceTransition,
-    Workgroup as Threads,
+    Workgroup,
     WebGpuBackend,
 }
 use std::web::view::{Extent, Surface, SurfaceEvent}
@@ -129,26 +129,26 @@ use ingot::cache::{
 }
 
 actor SmoothPerturbationalMandelbrot uses (
-    PassGraph<WebGpuBackend>,
+    GpuProgram<WebGpuBackend>,
     SurfaceQuality<SharpBacking>,
     SurfaceRecovery<StandardSurfaceRecovery>,
 ) {
-    orbit: OrbitBuffer<PackedReference, ORBIT_CAPACITY>,
-    pixels: OrbitBuffer<Color, 65536>,
-    initial_pixels: OrbitBuffer<Color, 65536>,
-    preview_progress: OrbitBuffer<OrbitProgress, 65536>,
-    preview_cache: OrbitBuffer<PreviewCache, 1>,
-    snapshot_oracle: OrbitBuffer<SampleOracle, 4194304>,
-    horizontal: OrbitBuffer<Color, 65536>,
-    blurred: OrbitBuffer<Color, 65536>,
-    cache: OrbitBuffer<ViewCache, 3>,
-    anchor: OrbitBuffer<ReferenceAnchor, 2>,
-    reference: OrbitBuffer<ReferenceControl, 1>,
-    reference_words: OrbitBuffer<u32, 16>,
-    native_pixels: OrbitBuffer<u32, 4194304>,
-    antialiased_pixels: OrbitBuffer<u32, 4194304>,
-    progress_pixels: OrbitBuffer<OrbitProgress, 4194304>,
-    snapshot_pixels: OrbitBuffer<u32, 4194304>,
+    orbit: StorageBuffer<PackedReference, ORBIT_CAPACITY>,
+    pixels: StorageBuffer<Color, 65536>,
+    initial_pixels: StorageBuffer<Color, 65536>,
+    preview_progress: StorageBuffer<OrbitProgress, 65536>,
+    preview_cache: StorageBuffer<PreviewCache, 1>,
+    snapshot_oracle: StorageBuffer<SampleOracle, 4194304>,
+    horizontal: StorageBuffer<Color, 65536>,
+    blurred: StorageBuffer<Color, 65536>,
+    cache: StorageBuffer<ViewCache, 3>,
+    anchor: StorageBuffer<ReferenceAnchor, 2>,
+    reference: StorageBuffer<ReferenceControl, 1>,
+    reference_words: StorageBuffer<u32, 16>,
+    native_pixels: StorageBuffer<u32, 4194304>,
+    antialiased_pixels: StorageBuffer<u32, 4194304>,
+    progress_pixels: StorageBuffer<OrbitProgress, 4194304>,
+    snapshot_pixels: StorageBuffer<u32, 4194304>,
     state: MandelbrotViewState,
 
     fn initial() -> SurfaceStateEnvelope uses (core::actor::InitialState) {
@@ -163,7 +163,7 @@ actor SmoothPerturbationalMandelbrot uses (
     }
 
     fn initialize_order(self, invocation: ComputeInvocation)
-        uses (ReferencePass<Threads<8, 1, 1>, Once<1, 1, 1>>)
+        uses (ComputeSurface<Workgroup<8, 1, 1>, FixedDispatch<1, 1, 1>>)
     {
         let r: ReferenceControl = self.reference.load(index: 0)
         if r.active_valid == 1 || r.pending == 1 {
@@ -177,7 +177,7 @@ actor SmoothPerturbationalMandelbrot uses (
 
     // Validate a candidate against the latest view before doing more work.
     fn discard_stale_reference(self)
-        uses (ReferencePass<Threads<1, 1, 1>, Once<1, 1, 1>>)
+        uses (ComputeSurface<Workgroup<1, 1, 1>, FixedDispatch<1, 1, 1>>)
     {
         let s: MandelbrotViewState = self.state
         let control: ReferenceControl = self.reference.load(index: 0)
@@ -195,7 +195,7 @@ actor SmoothPerturbationalMandelbrot uses (
     }
 
     fn build_reference(self)
-        uses (ReferencePass<Threads<1, 1, 1>, Once<1, 1, 1>>)
+        uses (ComputeSurface<Workgroup<1, 1, 1>, FixedDispatch<1, 1, 1>>)
     {
         let s: MandelbrotViewState = self.state
         let previous: ViewCache = self.cache.load(index: 0)
@@ -336,7 +336,7 @@ actor SmoothPerturbationalMandelbrot uses (
     }
 
     fn advance_preview(self, invocation: ComputeInvocation)
-        uses (ReferencePass<Threads<8, 8, 1>, Once<32, 32, 1>>)
+        uses (ComputeSurface<Workgroup<8, 8, 1>, FixedDispatch<32, 32, 1>>)
     {
         if self.cache.load(index: 0).preview_dirty == 0 {
             return
@@ -395,7 +395,7 @@ actor SmoothPerturbationalMandelbrot uses (
     }
 
     fn render_preview(self, invocation: ComputeInvocation)
-        uses (ReferencePass<Threads<8, 8, 1>, Once<32, 32, 1>>)
+        uses (ComputeSurface<Workgroup<8, 8, 1>, FixedDispatch<32, 32, 1>>)
     {
         if self.cache.load(index: 0).preview_dirty == 0 {
             return
@@ -456,7 +456,7 @@ actor SmoothPerturbationalMandelbrot uses (
     }
 
     fn finish_preview(self)
-        uses (ReferencePass<Threads<1, 1, 1>, Once<1, 1, 1>>)
+        uses (ComputeSurface<Workgroup<1, 1, 1>, FixedDispatch<1, 1, 1>>)
     {
         if self.cache.load(index: 0).preview_dirty == 0 {
             return
@@ -477,7 +477,7 @@ actor SmoothPerturbationalMandelbrot uses (
     // Preserve the first settled preview before native refinement finishes.
     // Neither this image nor its camera metadata changes while input is live.
     fn cache_initial(self, invocation: ComputeInvocation)
-        uses (ReferencePass<Threads<8, 8, 1>, Once<32, 32, 1>>)
+        uses (ComputeSurface<Workgroup<8, 8, 1>, FixedDispatch<32, 32, 1>>)
     {
         let s: MandelbrotViewState = self.state
         let c: ViewCache = self.cache.load(index: 0)
@@ -495,7 +495,7 @@ actor SmoothPerturbationalMandelbrot uses (
     }
 
     fn publish_initial(self)
-        uses (ReferencePass<Threads<1, 1, 1>, Once<1, 1, 1>>)
+        uses (ComputeSurface<Workgroup<1, 1, 1>, FixedDispatch<1, 1, 1>>)
     {
         let s: MandelbrotViewState = self.state
         let c: ViewCache = self.cache.load(index: 0)
@@ -509,7 +509,7 @@ actor SmoothPerturbationalMandelbrot uses (
     }
 
     fn blur_horizontal(self, invocation: ComputeInvocation)
-        uses (ReferencePass<Threads<8, 8, 1>, Once<32, 32, 1>>)
+        uses (ComputeSurface<Workgroup<8, 8, 1>, FixedDispatch<32, 32, 1>>)
     {
         if self.cache.load(index: 0).blur_dirty == 0 {
             return
@@ -528,7 +528,7 @@ actor SmoothPerturbationalMandelbrot uses (
     }
 
     fn blur_vertical(self, invocation: ComputeInvocation)
-        uses (ReferencePass<Threads<8, 8, 1>, Once<32, 32, 1>>)
+        uses (ComputeSurface<Workgroup<8, 8, 1>, FixedDispatch<32, 32, 1>>)
     {
         if self.cache.load(index: 0).blur_dirty == 0 {
             return
@@ -549,7 +549,7 @@ actor SmoothPerturbationalMandelbrot uses (
     // Spatially interleaved phases cover the whole image, rather
     // than sweeping rectangles. Each orbit resumes its own saved recurrence.
     fn restore_oracle(self, invocation: ComputeInvocation)
-        uses (ReferencePass<Threads<8, 8, 1>, Once<16, 32, 1>>)
+        uses (ComputeSurface<Workgroup<8, 8, 1>, FixedDispatch<16, 32, 1>>)
     {
         let s: MandelbrotViewState = self.state
         if !s.is_input_settled() {
@@ -597,7 +597,7 @@ actor SmoothPerturbationalMandelbrot uses (
     // A sparse, full-depth lattice reveals real results while the denser
     // checkpoints are still iterating. It shares their persistent buffers.
     fn seed_refinement(self, invocation: ComputeInvocation)
-        uses (ReferencePass<Threads<8, 8, 1>, Once<16, 16, 1>>)
+        uses (ComputeSurface<Workgroup<8, 8, 1>, FixedDispatch<16, 16, 1>>)
     {
         let s: MandelbrotViewState = self.state
         let ref_state: ReferenceControl = self.reference.load(index: 0)
@@ -651,7 +651,7 @@ actor SmoothPerturbationalMandelbrot uses (
     }
 
     fn refine_pixels(self, invocation: ComputeInvocation)
-        uses (ReferencePass<Threads<8, 8, 1>, Once<16, 32, 1>>)
+        uses (ComputeSurface<Workgroup<8, 8, 1>, FixedDispatch<16, 32, 1>>)
     {
         let s: MandelbrotViewState = self.state
         let ref_state: ReferenceControl = self.reference.load(index: 0)
@@ -701,7 +701,7 @@ actor SmoothPerturbationalMandelbrot uses (
     }
 
     fn antialias_pixels(self, invocation: ComputeInvocation)
-        uses (ReferencePass<Threads<8, 8, 1>, Once<32, 32, 1>>)
+        uses (ComputeSurface<Workgroup<8, 8, 1>, FixedDispatch<32, 32, 1>>)
     {
         let s: MandelbrotViewState = self.state
         let ref_state: ReferenceControl = self.reference.load(index: 0)
@@ -759,7 +759,7 @@ actor SmoothPerturbationalMandelbrot uses (
     }
 
     fn finish_refinement(self)
-        uses (ReferencePass<Threads<1, 1, 1>, Once<1, 1, 1>>)
+        uses (ComputeSurface<Workgroup<1, 1, 1>, FixedDispatch<1, 1, 1>>)
     {
         let s: MandelbrotViewState = self.state
         let ref_state: ReferenceControl = self.reference.load(index: 0)
@@ -775,7 +775,7 @@ actor SmoothPerturbationalMandelbrot uses (
     }
 
     fn cache_snapshot(self, invocation: ComputeInvocation)
-        uses (ReferencePass<Threads<8, 8, 1>, Once<32, 32, 1>>)
+        uses (ComputeSurface<Workgroup<8, 8, 1>, FixedDispatch<32, 32, 1>>)
     {
         let s: MandelbrotViewState = self.state
         let c: ViewCache = self.cache.load(index: 0)
@@ -806,7 +806,7 @@ actor SmoothPerturbationalMandelbrot uses (
     }
 
     fn publish_snapshot(self)
-        uses (ReferencePass<Threads<1, 1, 1>, Once<1, 1, 1>>)
+        uses (ComputeSurface<Workgroup<1, 1, 1>, FixedDispatch<1, 1, 1>>)
     {
         let c: ViewCache = self.cache.load(index: 0)
         if c.completed == 1 {
@@ -814,7 +814,7 @@ actor SmoothPerturbationalMandelbrot uses (
         }
     }
 
-    fn display_preview(self, px: i32, py: i32) -> i32 uses (Display) {
+    fn display_preview(self, px: i32, py: i32) -> i32 uses (FragmentSurface) {
         let s: MandelbrotViewState = self.state
         let pixel: Pixel = Pixel {
             x: __bitcast<i32, u32>(px) & 2047,

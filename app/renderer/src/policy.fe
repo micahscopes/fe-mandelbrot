@@ -15,7 +15,7 @@ use std::web::view::{
 use algebra::Complex
 use ingot::interaction::GestureSession
 use fmath::{clamp, min, max}
-use precision::{Exp, Expansion, add_f32, from_f32, from_quad, to_quad}
+use precision::{Expansion, add_f32, from_f32, from_quad, to_quad}
 
 pub const MAX_ITER_BASE: u32 = 256
 pub const MAX_ITER_CAP: u32 = 8192
@@ -95,11 +95,12 @@ impl Coordinate {
     }
 
     pub fn bounded(self, _ lower: f32, _ upper: f32) -> Self {
-        let leading: f32 = self.value.head()
-        if leading < lower {
-            Self { value: from_f32<4>(lower) }
-        } else if leading > upper {
-            Self { value: from_f32<4>(upper) }
+        let lower_value = from_f32<4>(lower)
+        let upper_value = from_f32<4>(upper)
+        if self.value < lower_value {
+            Self { value: lower_value }
+        } else if self.value > upper_value {
+            Self { value: upper_value }
         } else {
             self
         }

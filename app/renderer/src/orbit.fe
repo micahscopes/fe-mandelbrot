@@ -3,7 +3,7 @@
 use core::default::Default
 use core::marker::Copy
 use core::ops::{Add, Eq, Sub}
-use std::webgpu::StorageBuffer as OrbitBuffer
+use std::webgpu::StorageBuffer
 pub use algebra::Complex
 use fmath::{abs, max, PixelSample}
 use ingot::cache::{ReferenceAnchor, ReferenceControl, SampleOracle}
@@ -180,7 +180,7 @@ pub fn reference_center(_ anchor: ReferenceAnchor) -> Complex<ReferenceReal> {
     }
 }
 
-pub fn clear_reference_checkpoint(_ words: OrbitBuffer<u32, 16>) {
+pub fn clear_reference_checkpoint(_ words: StorageBuffer<u32, 16>) {
     let mut slot: u32 = 0
     while slot < 16 {
         words.store(index: slot, value: 0)
@@ -189,7 +189,7 @@ pub fn clear_reference_checkpoint(_ words: OrbitBuffer<u32, 16>) {
 }
 
 pub fn load_reference_checkpoint(
-    _ words: OrbitBuffer<u32, 16>,
+    _ words: StorageBuffer<u32, 16>,
     _ control: ReferenceControl,
 ) -> Complex<ReferenceReal> {
     let mut re_words: [u32; 8] = [0; 8]
@@ -207,7 +207,7 @@ pub fn load_reference_checkpoint(
     }
 }
 
-pub fn store_reference_checkpoint(_ words: OrbitBuffer<u32, 16>, _ z: Complex<ReferenceReal>) {
+pub fn store_reference_checkpoint(_ words: StorageBuffer<u32, 16>, _ z: Complex<ReferenceReal>) {
     let re_words: [u32; 8] = z.re.to_words()
     let im_words: [u32; 8] = z.im.to_words()
     let mut i: usize = 0
@@ -383,7 +383,7 @@ pub fn perturb(
 /// Compute the initial complex perturbation `dc` for a sample relative to the
 /// active reference center stored at `base + ORBIT_CENTER_INDEX`.
 fn pixel_delta_from_reference(
-    _ orbit: OrbitBuffer<PackedReference, ORBIT_CAPACITY>,
+    _ orbit: StorageBuffer<PackedReference, ORBIT_CAPACITY>,
     _ base: u32,
     _ camera: Camera,
     _ sample: PixelSample,
@@ -400,7 +400,7 @@ fn pixel_delta_from_reference(
 /// A uniform iteration budget computed once by the reference pass. The pixel
 /// pass reads the result from orbit metadata and does no depth probing.
 pub fn sample_pixel(
-    _ orbit: OrbitBuffer<PackedReference, ORBIT_CAPACITY>,
+    _ orbit: StorageBuffer<PackedReference, ORBIT_CAPACITY>,
     _ base: u32,
     _ camera: Camera,
     _ sample: PixelSample,
@@ -410,7 +410,7 @@ pub fn sample_pixel(
 }
 
 pub fn sample_progress(
-    _ orbit: OrbitBuffer<PackedReference, ORBIT_CAPACITY>,
+    _ orbit: StorageBuffer<PackedReference, ORBIT_CAPACITY>,
     _ base: u32,
     _ camera: Camera,
     _ sample: PixelSample,
@@ -529,7 +529,7 @@ pub fn empty_progress(_ epoch: u32) -> OrbitProgress {
 }
 
 fn advance_progress(
-    _ orbit: OrbitBuffer<PackedReference, ORBIT_CAPACITY>,
+    _ orbit: StorageBuffer<PackedReference, ORBIT_CAPACITY>,
     _ base: u32,
     _ dc: Complex<f32>,
     _ max_iter: u32,
@@ -738,7 +738,7 @@ pub fn advance_progress_step(
 }
 
 fn advance_preview_progress(
-    _ orbit: OrbitBuffer<PackedReference, ORBIT_CAPACITY>,
+    _ orbit: StorageBuffer<PackedReference, ORBIT_CAPACITY>,
     _ base: u32,
     _ dc: Complex<f32>,
     _ max_iter: u32,
@@ -784,7 +784,7 @@ pub fn progress_color(_ saved: OrbitProgress) -> u32 {
 }
 
 pub fn continue_pixel(
-    _ orbit: OrbitBuffer<PackedReference, ORBIT_CAPACITY>,
+    _ orbit: StorageBuffer<PackedReference, ORBIT_CAPACITY>,
     _ base: u32,
     _ camera: Camera,
     _ sample: PixelSample,
@@ -797,7 +797,7 @@ pub fn continue_pixel(
 }
 
 pub fn continue_preview_pixel(
-    _ orbit: OrbitBuffer<PackedReference, ORBIT_CAPACITY>,
+    _ orbit: StorageBuffer<PackedReference, ORBIT_CAPACITY>,
     _ base: u32,
     _ camera: Camera,
     _ sample: PixelSample,

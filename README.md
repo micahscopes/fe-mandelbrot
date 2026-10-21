@@ -8,9 +8,12 @@ and an interactive logarithmic zoom control with live magnification.
 **[Color lab](https://micahscopes.github.io/fe-mandelbrot/colors/)** ·
 **[Browse the Fe source](https://micahscopes.github.io/fe-mandelbrot/viewer/index.html)**
 
-Drag to pan. Scroll or pinch to zoom around the pointer. The bottom slider spans
+Drag with one or two fingers to pan. Pinch to zoom around the contact center;
+scroll to zoom around the pointer. The bottom slider spans
 the supported zoom range; its magnification readout updates as you navigate.
-Settings exposes the remaining controls. Rendering requires WebGPU.
+Settings exposes the remaining controls. The URL retains the exact camera,
+resolution and antialiasing settings, including deep coordinate terms. Rendering
+requires WebGPU.
 
 ## Run the published build locally
 
@@ -32,14 +35,15 @@ The exact dependency revisions live in `toolchain.lock.json`:
 
 | Dependency | Branch | Revision |
 | --- | --- | --- |
-| Fe | `feat/mb2-demo-integration-20261020` (from `mb2`) | `be30de755584b57cf9773623e29465e42f37e83e` |
+| Fe | `feat/mb2-demo-integration-20261020` (from `mb2`) | `4e10c86393e1721d79e2df2f7502a2b672506e82` |
 | Sonatina | `mb2-task-borrows` | `f0ae3f5501cd8a51a6ba53f05ab5c43cd0091e47` |
 | Naga | pinned by MB2 | `854ed576fa186d19b9f7d5a5bb5a1f2fa533dde1` |
 
 Use Rust `nightly-2026-08-17` (the tested compiler reports 1.100.0-nightly) and
 Python 3.11+. Bootstrap fetches the exact Fe commit and checks the Sonatina pins
 in its Cargo manifest. It applies small generic runtime patches exposing CSS parts for Fe-declared controls
-and matching Wasm RGBA channel order to WebGPU; neither contains application logic.
+matching Wasm RGBA channel order to WebGPU, bounded pipeline preparation, and
+starting live surfaces without a disposable poster. These are generic host facilities.
 
 ```sh
 python3 tools/bootstrap.py
@@ -62,6 +66,7 @@ pinned compiler and all three Fe applications, publishing the site as an artifac
   Its catalog includes Mandelbrot, the color library, the color demo and itself.
   Both demo pages link to it, and it links back to both demos.
 - `app/color_demo`: interactive OKLCH hue, OKLab blending and lightness/chroma demo.
+- `lib/gestures`: fixed-capacity contacts, centroid geometry and viewport transforms.
 - `lib/algebra`: shared vectors, matrices and complex values with arithmetic
   operators, equality, identities and explicit execution capabilities.
 - `lib/perceptual_color`: shared color construction, interpolation, packing and display.
@@ -69,7 +74,7 @@ pinned compiler and all three Fe applications, publishing the site as an artifac
 - `web`: layout, styling, and surface lifecycle calls only.
 - `artifacts`: compiler-generated distribution files, checked in so Pages and
   local viewing are quick. Regenerate after changing Fe source.
-- `toolchain`: generic control styling and Wasm color-order patches; revisions are locked.
+- `toolchain`: generic browser runtime patches; dependency revisions are locked.
 - `tools`: bootstrap, compilation, source/artifact validation and site assembly.
 
 The scalar fields stored with pixels remain independent of the palette. Colors

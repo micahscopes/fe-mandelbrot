@@ -1,6 +1,6 @@
 //! Color buffers, interpolation and a dense separable Gaussian filter.
 use core::marker::Copy
-use std::webgpu::StorageBuffer as OrbitBuffer
+use std::webgpu::StorageBuffer
 use fmath::{abs, floor, from_i32, to_i32}
 
 extern {
@@ -113,7 +113,7 @@ pub fn blend_corners(
 // q approximates exp(-1/(2*sigma^2)); the Gaussian weights then advance
 // with two multiplies per tap. Each axis is normalized independently.
 pub fn gaussian(
-    _ image: OrbitBuffer<Color, 65536>,
+    _ image: StorageBuffer<Color, 65536>,
     _ x: u32,
     _ y: u32,
     _ sigma: f32,
@@ -172,7 +172,7 @@ pub fn gaussian(
     sum / total
 }
 
-pub fn sample(_ image: OrbitBuffer<Color, 65536>, _ x: f32, _ y: f32) -> Color {
+pub fn sample(_ image: StorageBuffer<Color, 65536>, _ x: f32, _ y: f32) -> Color {
     let tap: BilinearTap = bilinear_tap(x, y, 255.0, 8)
     blend_corners(
         image.load(index: tap.i00),
@@ -185,7 +185,7 @@ pub fn sample(_ image: OrbitBuffer<Color, 65536>, _ x: f32, _ y: f32) -> Color {
 }
 
 pub fn sample_snapshot(
-    _ image: OrbitBuffer<u32, 4194304>,
+    _ image: StorageBuffer<u32, 4194304>,
     _ x: f32,
     _ y: f32,
     _ side: f32,

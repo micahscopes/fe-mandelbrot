@@ -106,7 +106,7 @@ pub fn two_product(_ a: f32, _ b: f32) -> (f32, f32) {
 
 use core::default::Default
 use core::marker::Copy
-use core::ops::{Add, Eq, Sub}
+use core::ops::{Add, Eq, Ord, Sub}
 
 /// The least-significant term of a chain: `N == 1`. Distinguished from `More`
 /// as its own constructor (see the module doc) so trait dispatch can tell
@@ -141,6 +141,30 @@ impl Eq for Last {
 impl<T: Eq> Eq for More<T> {
     fn eq(self, _ other: Self) -> bool {
         self.lead == other.lead && self.tail == other.tail
+    }
+}
+
+/// Lexicographic ordering of canonical finite non-overlapping expansions.
+/// Lower terms decide comparisons when the leading terms are equal.
+impl Ord for Last {
+    fn lt(self, _ other: Self) -> bool { self.value < other.value }
+    fn le(self, _ other: Self) -> bool { self.value <= other.value }
+    fn gt(self, _ other: Self) -> bool { self.value > other.value }
+    fn ge(self, _ other: Self) -> bool { self.value >= other.value }
+}
+
+impl<T: Ord> Ord for More<T> {
+    fn lt(self, _ other: Self) -> bool {
+        self.lead < other.lead || (self.lead == other.lead && self.tail < other.tail)
+    }
+    fn le(self, _ other: Self) -> bool {
+        self.lead < other.lead || (self.lead == other.lead && self.tail <= other.tail)
+    }
+    fn gt(self, _ other: Self) -> bool {
+        self.lead > other.lead || (self.lead == other.lead && self.tail > other.tail)
+    }
+    fn ge(self, _ other: Self) -> bool {
+        self.lead > other.lead || (self.lead == other.lead && self.tail >= other.tail)
     }
 }
 
