@@ -1,0 +1,8 @@
+[ingot]
+name = "probe_eft_primitives"
+version = "0.1.0"
+
+[dependencies]
+core = "../../.cache/fe/ingots/core"
+std = "../../.cache/fe/ingots/std"
+precision = "../../lib/precision"

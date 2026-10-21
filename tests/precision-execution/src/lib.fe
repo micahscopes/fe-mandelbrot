@@ -1,0 +1,77 @@
+//! Runtime-input probe of the actual precision-library primitive contracts.
+use core::marker::Copy
+use std::webgpu::{
+    ComputeSurface, FixedDispatch, Workgroup, StorageBuffer, FragmentSurface,
+    GpuProgram, ContinuousFrames, StandardSurfaceRecovery, SurfaceQuality,
+    SurfaceQualityFacts, SurfaceBackingExtent, SurfaceRecovery, SurfaceScheduling,
+    SurfaceTransition, WebGpuBackend,
+}
+use std::web::view::{
+    ApplyParamBindings, Extent, Param, ParamBindingsProvider,
+    Surface, SurfaceEvent, SurfaceState,
+}
+use precision::{two_sum, split, two_product}
+extern { const fn __bitcast<From, To>(_: From) -> To }
+
+pub struct ProbeParams { pub result: Param }
+pub struct ProbeState { pub result: f32 }
+impl Copy for ProbeState {}
+impl SurfaceState for ProbeState { type Params = ProbeParams }
+derive ApplyParamBindings for ProbeState using ParamBindingsProvider<ProbeParams>
+pub struct ProbeEnvelope { pub state: ProbeState }
+impl Copy for ProbeEnvelope {}
+pub struct ProbeBacking {}
+impl ProbeBacking {
+    pub fn choose(_ facts: own SurfaceQualityFacts) -> SurfaceBackingExtent {
+        let _ = facts
+        SurfaceBackingExtent { width: 64.0, height: 64.0 }
+    }
+}
+actor EftPrimitives uses (
+    GpuProgram<WebGpuBackend>,
+    SurfaceQuality<ProbeBacking>,
+    SurfaceRecovery<StandardSurfaceRecovery>,
+) {
+    operands: StorageBuffer<u32, 32>,
+    results: StorageBuffer<u32, 128>,
+    state: ProbeState,
+
+    fn initial() -> ProbeEnvelope uses (core::actor::InitialState) {
+        ProbeEnvelope { state: ProbeState { result: 0.0 } }
+    }
+    const fn view() -> Surface<ProbeParams> {
+        Surface { extent: Extent::square(64), params: ProbeParams { result: Param::fixed(0.0) } }
+    }
+    fn evaluate_primitives(self) uses (ComputeSurface<Workgroup<1, 1, 1>, FixedDispatch<1, 1, 1>>) {
+        let mut index: u32 = 0
+        while index < 16 {
+            let a: f32 = __bitcast(self.operands.load(index: index * 2))
+            let b: f32 = __bitcast(self.operands.load(index: index * 2 + 1))
+            let (sum, sum_error) = two_sum(a, b)
+            let (a_high, a_low) = split(a)
+            let (b_high, b_low) = split(b)
+            let (product, product_error) = two_product(a, b)
+            let base: u32 = index * 8
+            self.results.store(index: base, value: __bitcast<f32, u32>(sum))
+            self.results.store(index: base + 1, value: __bitcast<f32, u32>(sum_error))
+            self.results.store(index: base + 2, value: __bitcast<f32, u32>(a_high))
+            self.results.store(index: base + 3, value: __bitcast<f32, u32>(a_low))
+            self.results.store(index: base + 4, value: __bitcast<f32, u32>(b_high))
+            self.results.store(index: base + 5, value: __bitcast<f32, u32>(b_low))
+            self.results.store(index: base + 6, value: __bitcast<f32, u32>(product))
+            self.results.store(index: base + 7, value: __bitcast<f32, u32>(product_error))
+            index = index + 1
+        }
+    }
+    fn display_probe(self, px: i32, py: i32) -> i32 uses (FragmentSurface) {
+        let _ = px
+        let _ = py
+        __bitcast<f32, i32>(self.state.result)
+    }
+    fn navigate(self, event: own SurfaceEvent) -> ProbeEnvelope
+        uses (SurfaceTransition, SurfaceScheduling<ContinuousFrames>)
+    {
+        let _ = event
+        ProbeEnvelope { state: self.state }
+    }
+}

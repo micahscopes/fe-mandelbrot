@@ -1,0 +1,415 @@
+{
+  "oracle": "Exact Fraction sum/product followed by nearest-even binary32 rounding; splitting emulates each specified binary32 operation and independently checks exact decomposition. No primitive implementation output is assumed correct.",
+  "laneNames": [
+    "sum",
+    "sumResidual",
+    "splitAHigh",
+    "splitALow",
+    "splitBHigh",
+    "splitBLow",
+    "product",
+    "productResidual"
+  ],
+  "cases": [
+    {
+      "words": [
+        1065353216,
+        855638016,
+        1065353216,
+        0,
+        855638016,
+        0,
+        855638016,
+        0
+      ],
+      "exactSum": "33554433/33554432",
+      "exactProduct": "1/33554432",
+      "sumPairExact": true,
+      "productPairExact": true,
+      "splitAExact": true,
+      "splitBExact": true,
+      "label": "sum-positive-half-quarter",
+      "inputBits": [
+        1065353216,
+        855638016
+      ],
+      "a": 1.0,
+      "b": 2.9802322387695312e-08
+    },
+    {
+      "words": [
+        1065353216,
+        3003121664,
+        1065353216,
+        0,
+        3003121664,
+        0,
+        3003121664,
+        0
+      ],
+      "exactSum": "33554431/33554432",
+      "exactProduct": "-1/33554432",
+      "sumPairExact": true,
+      "productPairExact": true,
+      "splitAExact": true,
+      "splitBExact": true,
+      "label": "sum-negative-quarter",
+      "inputBits": [
+        1065353216,
+        3003121664
+      ],
+      "a": 1.0,
+      "b": -2.9802322387695312e-08
+    },
+    {
+      "words": [
+        1073741824,
+        864026624,
+        1065353216,
+        872415232,
+        1065353216,
+        3011510272,
+        1065353216,
+        864026622
+      ],
+      "exactSum": "33554433/16777216",
+      "exactProduct": "140737496743935/140737488355328",
+      "sumPairExact": true,
+      "productPairExact": true,
+      "splitAExact": true,
+      "splitBExact": true,
+      "label": "near-one-product",
+      "inputBits": [
+        1065353217,
+        1065353215
+      ],
+      "a": 1.0000001192092896,
+      "b": 0.9999999403953552
+    },
+    {
+      "words": [
+        1073741825,
+        0,
+        1065353216,
+        872415232,
+        1065353216,
+        872415232,
+        1065353218,
+        679477248
+      ],
+      "exactSum": "8388609/4194304",
+      "exactProduct": "70368760954881/70368744177664",
+      "sumPairExact": true,
+      "productPairExact": true,
+      "splitAExact": true,
+      "splitBExact": true,
+      "label": "near-one-product-positive",
+      "inputBits": [
+        1065353217,
+        1065353217
+      ],
+      "a": 1.0000001192092896,
+      "b": 1.0000001192092896
+    },
+    {
+      "words": [
+        3011510272,
+        0,
+        1065353216,
+        3011510272,
+        3212836864,
+        0,
+        3212836863,
+        0
+      ],
+      "exactSum": "-1/16777216",
+      "exactProduct": "-16777215/16777216",
+      "sumPairExact": true,
+      "productPairExact": true,
+      "splitAExact": true,
+      "splitBExact": true,
+      "label": "sum-cancellation",
+      "inputBits": [
+        1065353215,
+        3212836864
+      ],
+      "a": 0.9999999403953552,
+      "b": -1.0
+    },
+    {
+      "words": [
+        1065353217,
+        368547464,
+        368545792,
+        256966656,
+        1065353216,
+        872415232,
+        368547466,
+        2282133376
+      ],
+      "exactSum": "20282412021503309653205602726609/20282409603651670423947251286016",
+      "exactProduct": "17014120706769/170141183460469231731687303715884105728",
+      "sumPairExact": true,
+      "productPairExact": true,
+      "splitAExact": true,
+      "splitBExact": true,
+      "label": "small-times-near-one",
+      "inputBits": [
+        368547464,
+        1065353217
+      ],
+      "a": 1.0000000195414814e-25,
+      "b": 1.0000001192092896
+    },
+    {
+      "words": [
+        1166020608,
+        872415232,
+        1166016512,
+        1065353216,
+        1065353216,
+        872415232,
+        1166018561,
+        872415232
+      ],
+      "exactSum": "34376515585/8388608",
+      "exactProduct": "34368131073/8388608",
+      "sumPairExact": true,
+      "productPairExact": true,
+      "splitAExact": true,
+      "splitBExact": true,
+      "label": "split-4097",
+      "inputBits": [
+        1166018560,
+        1065353217
+      ],
+      "a": 4097.0,
+      "b": 1.0000001192092896
+    },
+    {
+      "words": [
+        3024093184,
+        0,
+        3212836864,
+        3019898880,
+        1065353216,
+        3011510272,
+        3212836864,
+        3011510270
+      ],
+      "exactSum": "-3/16777216",
+      "exactProduct": "-140737496743935/140737488355328",
+      "sumPairExact": true,
+      "productPairExact": true,
+      "splitAExact": true,
+      "splitBExact": true,
+      "label": "opposite-sign-product",
+      "inputBits": [
+        3212836865,
+        1065353215
+      ],
+      "a": -1.0000001192092896,
+      "b": 0.9999999403953552
+    },
+    {
+      "words": [
+        3221225472,
+        2479895474,
+        3221225472,
+        0,
+        2479894528,
+        2364309504,
+        340800434,
+        0
+      ],
+      "exactSum": "-2596148429267413814265248171432409/1298074214633706907132624082305024",
+      "exactProduct": "6822361/649037107316853453566312041152512",
+      "sumPairExact": true,
+      "productPairExact": true,
+      "splitAExact": true,
+      "splitBExact": true,
+      "label": "captured-deep/iteration5/TwoProduct",
+      "inputBits": [
+        3221225472,
+        2479895474
+      ],
+      "a": -2.0,
+      "b": -5.255755736527859e-27
+    },
+    {
+      "words": [
+        1073741824,
+        2479169855,
+        1073741824,
+        0,
+        2479169536,
+        2350874624,
+        2487558463,
+        0
+      ],
+      "exactSum": "5192296858534827628530496316300993/2596148429267413814265248164610048",
+      "exactProduct": "-12919103/1298074214633706907132624082305024",
+      "sumPairExact": true,
+      "productPairExact": true,
+      "splitAExact": true,
+      "splitBExact": true,
+      "label": "captured-deep/iteration5/TwoProduct",
+      "inputBits": [
+        1073741824,
+        2479169855
+      ],
+      "a": 2.0,
+      "b": -4.9762574644645944e-27
+    },
+    {
+      "words": [
+        348826232,
+        142606336,
+        340799488,
+        225214464,
+        340074496,
+        211779584,
+        0,
+        0
+      ],
+      "exactSum": "26563825/1298074214633706907132624082305024",
+      "exactProduct": "88138784462183/842498333348457493583344221469363458551160763204392890034487820288",
+      "sumPairExact": true,
+      "productPairExact": false,
+      "splitAExact": true,
+      "splitBExact": true,
+      "label": "captured-deep/iteration5/TwoSum",
+      "inputBits": [
+        340800434,
+        340074815
+      ],
+      "a": 1.0511511473055717e-26,
+      "b": 9.952514928929189e-27
+    },
+    {
+      "words": [
+        348826232,
+        142606336,
+        348827648,
+        2385575936,
+        142606336,
+        0,
+        0,
+        0
+      ],
+      "exactSum": "26563825/1298074214633706907132624082305024",
+      "exactProduct": "1660239/105312291668557186697918027683670432318895095400549111254310977536",
+      "sumPairExact": true,
+      "productPairExact": false,
+      "splitAExact": true,
+      "splitBExact": true,
+      "label": "captured-deep/iteration5/TwoSum",
+      "inputBits": [
+        348826232,
+        142606336
+      ],
+      "a": 2.0464025631612928e-26,
+      "b": 7.703719777548943e-34
+    },
+    {
+      "words": [
+        3212836864,
+        2462056448,
+        3212836864,
+        0,
+        2462056448,
+        0,
+        314572800,
+        0
+      ],
+      "exactSum": "-2475880078570760549798248451/2475880078570760549798248448",
+      "exactProduct": "3/2475880078570760549798248448",
+      "sumPairExact": true,
+      "productPairExact": true,
+      "splitAExact": true,
+      "splitBExact": true,
+      "label": "deep-after-visibility/iteration5/TwoSum",
+      "inputBits": [
+        3212836864,
+        2462056448
+      ],
+      "a": -1.0,
+      "b": -1.2116903504194741e-27
+    },
+    {
+      "words": [
+        1065353216,
+        329252864,
+        1065353216,
+        0,
+        329252864,
+        0,
+        329252864,
+        0
+      ],
+      "exactSum": "1237940039285380274899124229/1237940039285380274899124224",
+      "exactProduct": "5/1237940039285380274899124224",
+      "sumPairExact": true,
+      "productPairExact": true,
+      "splitAExact": true,
+      "splitBExact": true,
+      "label": "deep-after-visibility/iteration5/TwoSum",
+      "inputBits": [
+        1065353216,
+        329252864
+      ],
+      "a": 1.0,
+      "b": 4.0389678347315804e-27
+    },
+    {
+      "words": [
+        3221225472,
+        2470445056,
+        3221225472,
+        0,
+        2470445056,
+        0,
+        331350016,
+        0
+      ],
+      "exactSum": "-2475880078570760549798248451/1237940039285380274899124224",
+      "exactProduct": "3/618970019642690137449562112",
+      "sumPairExact": true,
+      "productPairExact": true,
+      "splitAExact": true,
+      "splitBExact": true,
+      "label": "deep-after-visibility/iteration5/TwoSum",
+      "inputBits": [
+        3221225472,
+        2470445056
+      ],
+      "a": -2.0,
+      "b": -2.4233807008389483e-27
+    },
+    {
+      "words": [
+        1073741824,
+        337641472,
+        1073741824,
+        0,
+        337641472,
+        0,
+        346030080,
+        0
+      ],
+      "exactSum": "1237940039285380274899124229/618970019642690137449562112",
+      "exactProduct": "5/309485009821345068724781056",
+      "sumPairExact": true,
+      "productPairExact": true,
+      "splitAExact": true,
+      "splitBExact": true,
+      "label": "deep-after-visibility/iteration5/TwoSum",
+      "inputBits": [
+        1073741824,
+        337641472
+      ],
+      "a": 2.0,
+      "b": 8.077935669463161e-27
+    }
+  ]
+}
