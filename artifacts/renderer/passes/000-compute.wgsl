@@ -278,7 +278,7 @@ fn order_word(a0_: u32) -> u32 {
     return _e132;
 }
 
-fn from_quad_bits(a0_1: u32, a1_: u32, a2_: u32, a3_: u32, a4_: u32, a5_: u32, a6_: u32, a7_: u32) -> FeLocal_fe_shader_private_layout_0_ {
+fn from_words(a0_1: u32, a1_: u32, a2_: u32, a3_: u32, a4_: u32, a5_: u32, a6_: u32, a7_: u32) -> FeLocal_fe_shader_private_layout_0_ {
     return FeLocal_fe_shader_private_layout_0_(a0_1, a1_, a2_, a3_, a4_, a5_, a6_, a7_);
 }
 
@@ -312,7 +312,7 @@ fn order_block(a0_2: u32, fe_trapped_1: ptr<function, bool>) -> FeLocal_fe_shade
                                 if (_e7 > (4294967295u - 7u)) {
                                 } else {
                                     let _e55 = order_word((_e7 + 7u));
-                                    let _e56 = from_quad_bits(_e13, _e19, _e25, _e31, _e37, _e43, _e49, _e55);
+                                    let _e56 = from_words(_e13, _e19, _e25, _e31, _e37, _e43, _e49, _e55);
                                     local_5 = _e56;
                                     local_6 = true;
                                 }
