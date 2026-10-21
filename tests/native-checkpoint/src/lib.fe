@@ -2,15 +2,17 @@
 use core::default::Default
 use core::marker::Copy
 use std::webgpu::{
-    ComputeSurface as Compute,
-    FixedDispatch as Once,
-    Workgroup as Threads,
+    ComputeSurface,
+    FixedDispatch,
+    Workgroup,
     StorageBuffer,
-    FragmentSurface as Display,
-    GpuProgram as PassGraph,
+    FragmentSurface,
+    GpuProgram,
     ContinuousFrames,
     StandardSurfaceRecovery,
     SurfaceQuality,
+    SurfaceQualityFacts,
+    SurfaceBackingExtent,
     SurfaceRecovery,
     SurfaceScheduling,
     SurfaceTransition,
@@ -26,7 +28,6 @@ use renderer::orbit::{
     Complex, INVALID_REFERENCE, OrbitProgress, PackedReference,
     advance_progress_step, empty_progress, prepare_reference_step, progress_color,
 }
-use renderer::policy::SharpBacking
 
 extern { const fn __bitcast<From, To>(_: From) -> To }
 
@@ -314,9 +315,18 @@ fn stored_sample() -> SampleOracle {
     SampleOracle { iteration: 8192, magnitude: __bitcast<u32, f32>(1082130433), flags: 2147483648 }
 }
 
+pub struct ProbeBacking {}
+
+impl ProbeBacking {
+    pub fn choose(_ facts: own SurfaceQualityFacts) -> SurfaceBackingExtent {
+        let _ = facts
+        SurfaceBackingExtent { width: 64.0, height: 64.0 }
+    }
+}
+
 actor NativeCheckpointProbe uses (
-    PassGraph<WebGpuBackend>,
-    SurfaceQuality<SharpBacking>,
+    GpuProgram<WebGpuBackend>,
+    SurfaceQuality<ProbeBacking>,
     SurfaceRecovery<StandardSurfaceRecovery>,
 ) {
     compact: StorageBuffer<NativeCheckpoint, 2>,
@@ -332,7 +342,7 @@ actor NativeCheckpointProbe uses (
         Surface { extent: Extent::square(64), params: ProbeParams { result: Param::fixed(0.0) } }
     }
 
-    fn save_checkpoints(self) uses (Compute<Threads<1, 1, 1>, Once<1, 1, 1>>) {
+    fn save_checkpoints(self) uses (ComputeSurface<Workgroup<1, 1, 1>, FixedDispatch<1, 1, 1>>) {
         let epoch: u32 = 4294967295
         let clock: f32 = __bitcast<u32, f32>(2147483648)
         self.compact.store(index: 0, value: NativeCheckpoint::from_oracle(stored_sample(), epoch, clock))
@@ -342,7 +352,7 @@ actor NativeCheckpointProbe uses (
         self.legacy.store(index: 1, value: old_batch(empty_progress(epoch), 0, 3, dc, 96, 2))
     }
 
-    fn verify_checkpoints(self) uses (Compute<Threads<1, 1, 1>, Once<1, 1, 1>>) {
+    fn verify_checkpoints(self) uses (ComputeSurface<Workgroup<1, 1, 1>, FixedDispatch<1, 1, 1>>) {
         let dc: Complex<f32> = Complex { re: 0.00125, im: -0.000875 }
         let live: NativeCheckpoint = self.compact.load(index: 1)
         let old: OrbitProgress = self.legacy.load(index: 1)
@@ -353,7 +363,7 @@ actor NativeCheckpointProbe uses (
         self.results.store(index: 1, value: if ok { 1 } else { 0 })
     }
 
-    fn display_probe(self, px: i32, py: i32) -> i32 uses (Display) {
+    fn display_probe(self, px: i32, py: i32) -> i32 uses (FragmentSurface) {
         let _ = px
         let _ = py
         __bitcast<f32, i32>(self.state.result)

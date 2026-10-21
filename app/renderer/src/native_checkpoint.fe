@@ -6,7 +6,7 @@
 //! Growing preview prefixes must keep their separate OrbitProgress state.
 use core::default::Default
 use core::marker::Copy
-use std::webgpu::StorageBuffer as OrbitBuffer
+use std::webgpu::StorageBuffer
 use fmath::PixelSample
 use ingot::cache::SampleOracle
 use ingot::orbit::{
@@ -188,7 +188,7 @@ impl NativeCheckpoint {
 }
 
 pub fn continue_native_pixel(
-    _ orbit: OrbitBuffer<PackedReference, ORBIT_CAPACITY>,
+    _ orbit: StorageBuffer<PackedReference, ORBIT_CAPACITY>,
     _ base: u32,
     _ camera: Camera,
     _ sample: PixelSample,
