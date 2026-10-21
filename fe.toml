@@ -2,6 +2,7 @@
 name = "FeMandelbrot"
 version = "0.1.0"
 members = [
+  { path = "tests/native-checkpoint", name = "probe_native_checkpoint" },
   { path = "lib/algebra", name = "algebra" },
   { path = "lib/gestures", name = "gestures" },
   { path = "lib/perceptual_color", name = "perceptual_color" },
