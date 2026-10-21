@@ -73,7 +73,6 @@ use ingot::orbit::{
     progress_outcome_flags,
     progress_reference_index,
     progress_with_presentable,
-    pack_progress_reference,
     reference_center,
     reference_step,
     resolve_prefix_step,
@@ -117,6 +116,7 @@ use ingot::cache::{
     ReferenceControl,
     ReferenceAnchor,
     SampleOracle,
+    center_delta,
     next_preview_step_target,
     oracle_is_glitched,
     oracle_is_usable,
@@ -326,7 +326,10 @@ actor SmoothPerturbationalMandelbrot uses (
             let active = current.active_valid == 1 && bank == current.active
             let pending = current.pending == 1 && bank == 1 - current.active
             if active || pending {
-                let offset = self.anchor.load(index: bank).delta_from(s)
+                // Perturb about the origin used by the fixed-point recurrence.
+                // The authored anchor can contain smaller, quantized-away terms.
+                let origin = self.orbit.load(index: bank * 8195 + ORBIT_CENTER_INDEX).decode()
+                let offset = center_delta(origin, s.camera.center_value())
                 let index = bank * 8195 + ORBIT_META_INDEX
                 let metadata = self.orbit.load(index: index)
                 self.orbit.store(index: index, value: metadata.with_center_offset(offset))
