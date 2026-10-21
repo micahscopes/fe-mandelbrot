@@ -20,50 +20,22 @@ pub fn escape_palette(_ iterations: u32, _ magnitude_squared: f32) -> u32 {
 
 fn anchor(_ i: i32) -> Oklch {
     if i == 0 {
-        Oklch {
-            l: 0.58,
-            chroma: 0.215,
-            hue: 275.0,
-        }
+        Oklch { l: 0.58, chroma: 0.215, hue: 275.0 }
     } else if i == 1 {
-        Oklch {
-            l: 0.65,
-            chroma: 0.24,
-            hue: 335.0,
-        }
+        Oklch { l: 0.65, chroma: 0.24, hue: 335.0 }
     } else if i == 2 {
-        Oklch {
-            l: 0.78,
-            chroma: 0.155,
-            hue: 65.0,
-        }
+        Oklch { l: 0.78, chroma: 0.155, hue: 65.0 }
     } else if i == 3 {
-        Oklch {
-            l: 0.73,
-            chroma: 0.142,
-            hue: 165.0,
-        }
+        Oklch { l: 0.73, chroma: 0.142, hue: 165.0 }
     } else {
-        Oklch {
-            l: 0.65,
-            chroma: 0.127,
-            hue: 235.0,
-        }
+        Oklch { l: 0.65, chroma: 0.127, hue: 235.0 }
     }
 }
 
 pub fn interior() -> u32 {
-    pack_lab(Color {
-        l: 0.14,
-        a: 0.008,
-        b: -0.018,
-    })
+    pack_lab(Color { l: 0.14, a: 0.008, b: -0.018 })
 }
 
 pub fn glitch() -> u32 {
-    pack_lab(Color {
-        l: 0.72,
-        a: 0.18,
-        b: -0.09,
-    })
+    pack_lab(Color { l: 0.72, a: 0.18, b: -0.09 })
 }

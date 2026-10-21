@@ -1,7 +1,10 @@
 //! OKLCH construction, OKLab blending and compact storage, and sRGB display.
 //! Hue uses degrees. Out-of-gamut RGB channels are clipped at display.
+use core::default::Default
 use core::marker::Copy
-use fmath::{from_i32, to_i32, sqrt, mix, cos, sin}
+use core::ops::{Add, Div, Eq, Mul, Sub}
+use algebra::Vec3
+use fmath::{cos, floor, from_i32, sin, sqrt, to_i32}
 
 extern {
     const fn __bitcast<From, To>(_: From) -> To
@@ -10,52 +13,88 @@ extern {
 fn clamp(_ value: f32, _ low: f32, _ high: f32) -> f32 {
     if value < low {
         low
-    } else if value > high {
-        high
-    } else {
-        value
-    }
+    } else if value > high { high } else { value }
 }
 
 /// Polar OKLCH: lightness L, non-negative chroma C, and hue in degrees.
-pub struct Oklch {
-    pub l: f32,
-    pub chroma: f32,
-    pub hue: f32,
-}
+#[derive(Eq)]
+pub struct Oklch { pub l: f32, pub chroma: f32, pub hue: f32 }
 
 impl Copy for Oklch {}
 
 /// Cartesian OKLab: lightness L and signed chromatic axes a/b.
-pub struct Color {
-    pub l: f32,
-    pub a: f32,
-    pub b: f32,
-}
+#[derive(Eq, Default)]
+pub struct Color { pub l: f32, pub a: f32, pub b: f32 }
 
 impl Copy for Color {}
+
+impl Color {
+    /// View Cartesian OKLab coordinates `(l, a, b)` as `Vec3<f32>`.
+    pub fn to_vec(self) -> Vec3<f32> {
+        Vec3 { x: self.l, y: self.a, z: self.b }
+    }
+
+    /// Construct Cartesian OKLab from a 3D coordinate vector `(l, a, b)`.
+    pub fn from_vec(_ v: Vec3<f32>) -> Self {
+        Self { l: v.x, a: v.y, b: v.z }
+    }
+}
+
+impl Add for Color {
+    type Output = Color
+
+    fn add(own self, _ other: own Self) -> Self {
+        Self::from_vec(self.to_vec() + other.to_vec())
+    }
+}
+
+impl Sub for Color {
+    type Output = Color
+
+    fn sub(own self, _ other: own Self) -> Self {
+        Self::from_vec(self.to_vec() - other.to_vec())
+    }
+}
+
+impl Mul<f32> for Color {
+    type Output = Color
+
+    fn mul(own self, _ rhs: own f32) -> Self {
+        Self::from_vec(self.to_vec() * rhs)
+    }
+}
+
+impl Div<f32> for Color {
+    type Output = Color
+
+    fn div(own self, _ rhs: own f32) -> Self {
+        Self::from_vec(self.to_vec() / rhs)
+    }
+}
 
 impl Oklch {
     /// Convert polar OKLCH coordinates (hue in degrees) to Cartesian OKLab.
     pub fn to_color(self) -> Color {
         let radians: f32 = self.hue * 0.017453292519943295
-        Color {
-            l: self.l,
-            a: self.chroma * cos(radians),
-            b: self.chroma * sin(radians),
-        }
+        Color { l: self.l, a: self.chroma * cos(radians), b: self.chroma * sin(radians) }
     }
 
     /// Shortest-arc interpolation in polar OKLCH coordinates.
+    /// Preserves the exact single-turn subtraction/addition and `+-180.0` tie
+    /// behavior for differences in `[-540.0, 540.0]`, while folding unbounded
+    /// multi-turn hue differences into `[-180.0, 180.0]`.
     pub fn interpolate(_ start: Oklch, _ end: Oklch, _ t: f32) -> Oklch {
         let delta: f32 = end.hue - start.hue
-        let arc: f32 = if delta > 180.0 {
+        let arc: f32 = if delta > 540.0 || delta < -540.0 {
+            let wrapped: f32 = delta - 360.0 * floor((delta + 180.0) / 360.0)
+            if wrapped == -180.0 && delta > 0.0 {
+                180.0
+            } else {
+                wrapped
+            }
+        } else if delta > 180.0 {
             delta - 360.0
-        } else if delta < -180.0 {
-            delta + 360.0
-        } else {
-            delta
-        }
+        } else if delta < -180.0 { delta + 360.0 } else { delta }
         Oklch {
             l: start.l + (end.l - start.l) * t,
             chroma: start.chroma + (end.chroma - start.chroma) * t,
@@ -66,11 +105,7 @@ impl Oklch {
 
 /// Construct Cartesian OKLab from lightness, chroma and hue in degrees.
 pub fn oklch(_ lightness: f32, _ chroma: f32, _ hue: f32) -> Color {
-    Oklch {
-        l: lightness,
-        chroma: chroma,
-        hue: hue,
-    }.to_color()
+    Oklch { l: lightness, chroma: chroma, hue: hue }.to_color()
 }
 
 /// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.
@@ -108,7 +143,11 @@ fn srgb(_ linear: f32) -> f32 {
     let s1: f32 = sqrt(x)
     let s2: f32 = sqrt(s1)
     let s3: f32 = sqrt(s2)
-    clamp(0.662002687 * s1 + 0.684122060 * s2 - 0.323583601 * s3 - 0.022541147 * x, 0.0, 1.0)
+    clamp(
+        0.662002687 * s1 + 0.684122060 * s2 - 0.323583601 * s3 - 0.022541147 * x,
+        0.0,
+        1.0,
+    )
 }
 
 /// Bjorn Ottosson's OKLab -> linear sRGB matrix, then display transfer.
@@ -119,10 +158,24 @@ pub fn display_rgba(_ c: Color) -> i32 {
     let l: f32 = lp * lp * lp
     let m: f32 = mp * mp * mp
     let s: f32 = sp * sp * sp
-    let r: u32 = __bitcast<i32, u32>(to_i32(srgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s) * 255.0 + 0.5))
-    let g: u32 = __bitcast<i32, u32>(to_i32(srgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s) * 255.0 + 0.5))
-    let b: u32 = __bitcast<i32, u32>(to_i32(srgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s) * 255.0 + 0.5))
-    __bitcast<u32, i32>((r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | 4278190080)
+    let r: u32 = __bitcast<i32, u32>(
+        to_i32(
+            srgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s) * 255.0 + 0.5,
+        ),
+    )
+    let g: u32 = __bitcast<i32, u32>(
+        to_i32(
+            srgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s) * 255.0 + 0.5,
+        ),
+    )
+    let b: u32 = __bitcast<i32, u32>(
+        to_i32(
+            srgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s) * 255.0 + 0.5,
+        ),
+    )
+    __bitcast<u32, i32>(
+        (r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | 4278190080,
+    )
 }
 
 pub fn rgba(_ c: Color) -> i32 {
@@ -130,9 +183,5 @@ pub fn rgba(_ c: Color) -> i32 {
 }
 
 pub fn blend(_ a: Color, _ b: Color, _ t: f32) -> Color {
-    Color {
-        l: mix(a.l, b.l, t),
-        a: mix(a.a, b.a, t),
-        b: mix(a.b, b.b, t),
-    }
+    a + (b - a) * t
 }

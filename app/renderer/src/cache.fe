@@ -1,9 +1,9 @@
 //! GPU-resident camera and reference metadata.
 //! Epochs invalidate orbit checkpoints without clearing the large buffers.
 use core::marker::Copy
+use algebra::Complex
 use fmath::max
-use ingot::orbit::Complex
-use ingot::policy::{MandelbrotViewState, blur_radius}
+use ingot::policy::{Camera, MandelbrotViewState, RefinementKey, blur_radius}
 use precision::{Expansion, from_quad, to_quad}
 
 pub const ORACLE_GLITCHED_BIT: u32 = 1073741824
@@ -22,14 +22,8 @@ pub fn expansion_delta(_ from: Expansion<4>, _ to: Expansion<4>) -> f32 {
     ((b0 - a0) + (b1 - a1)) + ((b2 - a2) + (b3 - a3))
 }
 
-pub fn center_delta(
-    _ from: Complex<Expansion<4>>,
-    _ to: Complex<Expansion<4>>,
-) -> Complex<f32> {
-    Complex {
-        re: expansion_delta(from.re, to.re),
-        im: expansion_delta(from.im, to.im),
-    }
+pub fn center_delta(_ from: Complex<Expansion<4>>, _ to: Complex<Expansion<4>>) -> Complex<f32> {
+    Complex { re: expansion_delta(from.re, to.re), im: expansion_delta(from.im, to.im) }
 }
 
 pub struct ViewCache {
@@ -84,28 +78,23 @@ impl Copy for ReferenceAnchor {}
 
 /// Persistent numeric history, separate from both color and live checkpoints.
 /// The associated ViewCache records the exact camera and iteration budget.
-pub struct SampleOracle {
-    pub iteration: u32,
-    pub magnitude: f32,
-    pub flags: u32,
-}
+pub struct SampleOracle { pub iteration: u32, pub magnitude: f32, pub flags: u32 }
 
 impl Copy for SampleOracle {}
 
 impl SampleOracle {
     pub fn is_glitched(self) -> bool {
-        (self.flags & ORACLE_GLITCHED_BIT) != 0
+        oracle_is_glitched(self.flags)
     }
-
     pub fn is_usable(self) -> bool {
-        !self.is_glitched()
+        oracle_is_usable(self.flags)
     }
 }
 
 /// Numeric samples can be reused only for the identical sampling lattice.
 /// Reprojected colors alone never establish this identity.
 pub fn same_camera(_ a: ViewCache, _ b: ViewCache) -> bool {
-    a.center() == b.center() && a.zoom == b.zoom && a.res == b.res
+    a.camera() == b.camera()
 }
 
 impl ViewCache {
@@ -115,18 +104,18 @@ impl ViewCache {
             im: from_quad(self.y0, self.y1, self.y2, self.y3),
         }
     }
-
-    pub fn matches_view(self, _ s: MandelbrotViewState) -> bool {
-        self.center() == s.center()
-            && self.zoom == s.zoom
-            && self.res == s.res
-            && self.aa == s.antialias
+    pub fn camera(self) -> Camera {
+        Camera { center: self.center(), zoom: self.zoom, res: self.res }
     }
-
+    pub fn refinement_key(self) -> RefinementKey {
+        RefinementKey { camera: self.camera(), antialias: self.aa }
+    }
+    pub fn matches_view(self, _ s: MandelbrotViewState) -> bool {
+        self.refinement_key() == s.refinement_key()
+    }
     pub fn delta_from(self, _ s: MandelbrotViewState) -> Complex<f32> {
         center_delta(self.center(), s.center())
     }
-
     pub fn sync_with_view(
         self,
         _ s: MandelbrotViewState,
@@ -145,17 +134,20 @@ impl ViewCache {
         } else {
             1
         }
+        let camera: Camera = s.camera()
+        let (x0, x1, x2, x3) = to_quad(camera.center.re)
+        let (y0, y1, y2, y3) = to_quad(camera.center.im)
         ViewCache {
-            x0: s.center_x_w0,
-            x1: s.center_x_w1,
-            x2: s.center_x_w2,
-            x3: s.center_x_w3,
-            y0: s.center_y_w0,
-            y1: s.center_y_w1,
-            y2: s.center_y_w2,
-            y3: s.center_y_w3,
-            zoom: s.zoom,
-            res: s.res,
+            x0: x0,
+            x1: x1,
+            x2: x2,
+            x3: x3,
+            y0: y0,
+            y1: y1,
+            y2: y2,
+            y3: y3,
+            zoom: camera.zoom,
+            res: camera.res,
             cursor: if same { self.cursor } else { 0 },
             aa: s.antialias,
             budget: budget,
@@ -166,7 +158,6 @@ impl ViewCache {
             completed: if same { self.completed } else { 0 },
         }
     }
-
     pub fn invalidate_for_new_reference(self) -> Self {
         let mut next: Self = self
         next.cursor = 0
@@ -176,7 +167,6 @@ impl ViewCache {
         next.completed = 0
         next
     }
-
     pub fn as_published_initial(self) -> Self {
         let mut next: Self = self
         next.preview_dirty = 0
@@ -184,7 +174,6 @@ impl ViewCache {
         next.completed = 1
         next
     }
-
     pub fn advance_cursor(self, _ end: u32) -> Self {
         let mut next: Self = self
         let next_cursor: u32 = self.cursor + 1
@@ -202,15 +191,12 @@ impl ReferenceControl {
             max(0.0, s.clock - max(s.last_input, self.ready_at))
         }
     }
-
     pub fn blur_sigma(self, _ s: MandelbrotViewState) -> f32 {
         blur_radius(self.display_age(s)) * 192.0 / s.res
     }
-
     pub fn can_refine(self, _ s: MandelbrotViewState) -> bool {
         self.pending == 0 && self.active_valid == 1 && s.is_input_settled()
     }
-
     pub fn can_publish_initial(
         self,
         _ s: MandelbrotViewState,
@@ -223,7 +209,6 @@ impl ReferenceControl {
             && s.clock - max(s.last_input, self.ready_at) >= 360.0
             && initial_epoch != current_epoch
     }
-
     pub fn cancel_pending(self) -> Self {
         let mut next: Self = self
         next.pending = 0
@@ -232,7 +217,6 @@ impl ReferenceControl {
         next.zy_s = 0
         next
     }
-
     pub fn start_pending(self) -> Self {
         let mut next: Self = self
         next.pending = 1
@@ -241,7 +225,6 @@ impl ReferenceControl {
         next.zy_s = 0
         next
     }
-
     pub fn advance_pending(self, _ index: u32, _ zx_s: u32, _ zy_s: u32) -> Self {
         let mut next: Self = self
         next.pending = 1
@@ -250,14 +233,7 @@ impl ReferenceControl {
         next.zy_s = zy_s
         next
     }
-
-    pub fn publish(
-        _ bank: u32,
-        _ index: u32,
-        _ zx_s: u32,
-        _ zy_s: u32,
-        _ ready_at: f32,
-    ) -> Self {
+    pub fn publish(_ bank: u32, _ index: u32, _ zx_s: u32, _ zy_s: u32, _ ready_at: f32) -> Self {
         ReferenceControl {
             active: bank,
             active_valid: 1,
@@ -272,27 +248,28 @@ impl ReferenceControl {
 
 impl ReferenceAnchor {
     pub fn from_state(_ s: MandelbrotViewState, _ limit: u32, _ generation: u32) -> Self {
+        let center: Complex<Expansion<4>> = s.center()
+        let (x0, x1, x2, x3) = to_quad(center.re)
+        let (y0, y1, y2, y3) = to_quad(center.im)
         ReferenceAnchor {
-            x0: s.center_x_w0,
-            x1: s.center_x_w1,
-            x2: s.center_x_w2,
-            x3: s.center_x_w3,
-            y0: s.center_y_w0,
-            y1: s.center_y_w1,
-            y2: s.center_y_w2,
-            y3: s.center_y_w3,
+            x0: x0,
+            x1: x1,
+            x2: x2,
+            x3: x3,
+            y0: y0,
+            y1: y1,
+            y2: y2,
+            y3: y3,
             limit: limit,
             generation: generation,
         }
     }
-
     pub fn center(self) -> Complex<Expansion<4>> {
         Complex {
             re: from_quad(self.x0, self.x1, self.x2, self.x3),
             im: from_quad(self.y0, self.y1, self.y2, self.y3),
         }
     }
-
     pub fn delta_from(self, _ s: MandelbrotViewState) -> Complex<f32> {
         center_delta(self.center(), s.center())
     }
