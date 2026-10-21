@@ -4,9 +4,9 @@
   "source_entry": "shade",
   "artifacts": {
     "wasm": "module.wasm",
-    "wasm_bytes": 4889,
+    "wasm_bytes": 5526,
     "wgsl": "shader.wgsl",
-    "wgsl_bytes": 5544,
+    "wgsl_bytes": 7329,
     "canonical_adapters": []
   },
   "layout": {
@@ -89,7 +89,7 @@
     {
       "source_entry": "shade",
       "shader": "shader.wgsl",
-      "shader_bytes": 5544,
+      "shader_bytes": 7329,
       "shader_stages": [
         "fragment"
       ],

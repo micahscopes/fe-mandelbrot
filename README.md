@@ -62,6 +62,8 @@ pinned compiler and all three Fe applications, publishing the site as an artifac
   Its catalog includes Mandelbrot, the color library, the color demo and itself.
   Both demo pages link to it, and it links back to both demos.
 - `app/color_demo`: interactive OKLCH hue, OKLab blending and lightness/chroma demo.
+- `lib/algebra`: shared vectors, matrices and complex values with arithmetic
+  operators, equality, identities and explicit execution capabilities.
 - `lib/perceptual_color`: shared color construction, interpolation, packing and display.
 - `lib`: the matching Fe math/precision and source-inspection dependencies.
 - `web`: layout, styling, and surface lifecycle calls only.
@@ -80,6 +82,12 @@ CSS Color 4 gamut-mapping implementation.
 The current reference uses 91 fractional bits. Persistent numerical and image
 buffers are reused; the finite history is not an unlimited map of visited areas.
 This explorer contains no Mandelbrot proving or protocol implementation.
+
+Color blending uses the algebra library's vector interpolation program under
+`DirectExecution`. The same program can run under `CountedExecution` to inspect
+its operations. Ordinary arithmetic operators keep their pure meaning; execution
+policy is an explicit Fe capability. Matrix composition uses `*`, while
+matrix-vector action uses `.apply(vector)` on the pinned compiler.
 
 ## GitHub Pages
 
