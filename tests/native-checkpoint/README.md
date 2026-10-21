@@ -29,3 +29,21 @@ The induction requires a published immutable reference with at least two samples
 Before promotion, additionally run the actual app at default and deep views through seed/refine batches, cancellation/exhaustion, snapshot restore and anti-aliasing. Compare native/AA/snapshot bytes and `snapshot_oracle` tuples against the baseline, preserving the known numerical baseline rather than treating all oracle approximations as exact. Check unchanged camera ABI and preview continuation tests. These production GPU and browser checks remain required: source reasoning and Wasm cannot certify GPU optimization or presentation timing. Record transient shader/workgroup cost and first-frame allocation; the guaranteed storage reduction alone does not establish a speedup.
 
 No snapshot-oracle packing, AA aliasing, capacity reduction, generic actor renaming, policy or precision changes are included. The source catalog and viewer gain the new module so the published source remains complete.
+
+## Production browser differential
+
+```sh
+PLAYWRIGHT_MODULE=/path/to/playwright-core/index.mjs CDP_URL=http://127.0.0.1:9222 SIDE=128 \
+  node tests/native-checkpoint/production.mjs \
+  /absolute/immutable-baseline-site /absolute/immutable-compact-site /absolute/scratch/production-differential
+```
+
+This runner is authored but has not been executed at its source checkpoint. It uses the existing browser-session teardown helper and opens/closes its own sequential test tabs. Both complete staged sites must include the typed URL and resident-state contracts. It reads the baseline's actual Wasm initial camera and uses Fe's URL restore for the initial fixed backing extent. Later camera/AA changes call the actual resident Fe state replacement export through the runtime; modifying its JavaScript mirror alone is insufficient.
+
+A readback latch holds completion of a real rendered frame while Node captures results or supplies the next test state. This prevents a short partial phase from completing before the test can replace it. Fe still performs the actual state transition, reference generation, dispatch and completion decisions. The instrumentation adds GPU readback/host delay and is not a timing benchmark.
+
+Cases cover default and captured deep camera coefficients; A→partial changed-zoom B→A while the completed A snapshot remains available; AA off/on; replacing an interior deep view after its first native batch with the captured deep view; and real off-viewport suspension/resume. The interior has a budget of at least4096, so unseeded interior pixels remain live after the first2048-iteration batch. Metadata gates require the expected actual camera/AA, native completion, initial-cache completion, full snapshot publication at the current epoch, completed preview, settled input, and a valid non-pending reference before capture. The snapshot return records reuse eligibility; it does not claim a speed measurement of reuse.
+
+Every active-area byte of `native_pixels`, `antialiased_pixels` and `snapshot_oracle` is saved as binary and compared exactly across the builds. Additional within-build comparisons check return/restoration and AA invariants. Private live checkpoint layouts and fade clocks are deliberately excluded. `SIDE=128` bounds workload while retaining each full declared4194304-element allocation; use `SIDE=2048` for the complete maximum-resolution lattice. A128px pass does not certify2048px numeric coverage. Served artifact hashes are recorded and checked for changes during each run. Failures retain partial receipts and already captured binaries.
+
+Actual unknown-device-loss retry is explicitly **unsupported** by this runner: browser WebGPU exposes no safe way to request that loss reason. Calling `GPUDevice.destroy()` produces `Destroyed`, for which `StandardSurfaceRecovery` intentionally does not retry. The test does not fabricate runtime recovery callbacks or pretend visibility resume is device-loss recovery. Normal suspend/resume does verify that the existing buffers survive and the final numeric results remain unchanged.
