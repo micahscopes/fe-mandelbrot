@@ -1,5 +1,5 @@
 {
-  "sourceHash": "4cd8508fcf5277812cedad7f7bb12ea647117c8291650dd4e5a2775565fe8e1d",
+  "sourceHash": "dd1d75ef4c24a7a74c1ce5065ff98d7fecaff14aa45d3852c145929626e982fb",
   "toolchain": {
     "fe": {
       "repository": "https://github.com/micahscopes/fe.git",
@@ -23,7 +23,7 @@
     "colors/manifest.json": "985bdb00fa803e9d724a87495231ea1eedba8626b5e4001f597b487f1f573811",
     "colors/module.wasm": "711988f13f3a92f125b2314ce2177b4d1d24dfc6774072b3101010652ac8def1",
     "colors/shader.wgsl": "86fc97b1e6b55579ef081863ecb16d60149ab7a54a0d7d50c800be707b469f90",
-    "highlight-info.json": "2ce8faee6cfaea189ffb526c058e9e600a5afccd25ab529001bd77f2ae841706",
+    "highlight-info.json": "b7c37097dbbc1e55422e3fe5c5bbdcb8d35652c8205c37d9735983e3386a32b5",
     "highlighted/cache.fe.view": "4e262e5af5dbcb67e4f8293502411f577f156522c57a41ab8237fe84f685bcee",
     "highlighted/color_demo.fe.view": "be6f6e61fc125af4754517b75cd310127a619e0ba3c5e58f0fdf543259506b85",
     "highlighted/color_library.fe.view": "3283b522909af0d817ecc874d256fd541ccd6ae4db8e51bb0207856554e2d2bc",
@@ -33,12 +33,12 @@
     "highlighted/palette.fe.view": "6c52096eb86490df90b56b5c6ac27e0312f738fd56af3f32e50a7648f8d8ffa0",
     "highlighted/partition.fe.view": "c4af6a5bedb59be37be63833e6cc3cc6b41dc8b4b203c90db7c4b87c177b1a55",
     "highlighted/policy.fe.view": "107d191298b12c84fcd01ae73f78419dcf03ed7fa50b43251abbeeec91559389",
-    "highlighted/viewer.fe.view": "cf13bfb6b396379f8fdc7d03f6c2a67cc27aad0071d4b0cabbc52fa3e863cb12",
-    "highlighted/viewer_highlight.fe.view": "4d87d83b6017ae30dc3ce197ce575bab061f2d4f67e21d6938c1f0091239f2d0",
+    "highlighted/viewer.fe.view": "cdd453dd1dc1fdf4784b327cc853fa7bfebd73021bb55aa0f9544a9aa9f802c0",
+    "highlighted/viewer_highlight.fe.view": "ef5a261021921418df525fc8c729a153a44e9aea19d7f87ce2c2c3141e4c4441",
     "indexes/color_demo/docs.json": "b09e6ce9db51495e6f7fe1348e40c3047600c1cd7041f6fd64400e401c3533f9",
     "indexes/perceptual_color/docs.json": "1d503afa77dc73b59c71e7fef64f0b6838d1ed4978427d0a042ae1ca7353513d",
     "indexes/renderer/docs.json": "a7d198faf27863320eacba76e6d8c609e4809b92a98151212d84d574bc8ef691",
-    "indexes/source_viewer/docs.json": "a720c5a1bea550b9f9bc30aa7e118e0634c95481bd97b9f9a6fdcb38895f636a",
+    "indexes/source_viewer/docs.json": "d72e1eac04f3eb9fc7630426b41d878df7cd25026d9ee3b6c2a2ddf376662691",
     "renderer/fe-render-runtime.js": "ff423a391ace5b7e630c92a740b2c646762cf07cc3f6a52a73e11e15e7268329",
     "renderer/index.html": "f99c53c7bdfd6f649ade7ced7c74055428eb63271042c215e833b127b4aae84c",
     "renderer/manifest.json": "990fd708b34e61ab530f94c8b3aa0d661355e325282308cd7cd56bace04bb8af",
@@ -59,13 +59,13 @@
     "renderer/passes/013-compute.wgsl": "5d8dd35f070ad5d2eafc854ae44991dcf27658ee6333e5f7bff1c0b3fc556b01",
     "renderer/passes/014-compute.wgsl": "5f123e042dc10a25aeeba40723ebef960bcd102d1773f48ab1f4f3df20a7efe1",
     "renderer/passes/015-fragment.wgsl": "8db4baace54a184678f15217fd0ee45ac40ad153e91fe19896c302a8f851ecbb",
-    "viewer/assets/fe-3b181e935ea5a6d1.wasm": "3b181e935ea5a6d1b440ac85bd397b3cd2c5ab17bab287e09f10a4235a1b7a44",
-    "viewer/assets/fe-8b279fe3933e865f.json": "8b279fe3933e865f1c918d813dc0d36051ba59363f98d1ffeedca5fa590d5121",
+    "viewer/assets/fe-45cd4157c30756e3.json": "45cd4157c30756e38768060d456c6fbe62689faa9145f28354cc86e37af73700",
     "viewer/assets/fe-adapter-379df86969428ae9.js": "379df86969428ae9872febd8d518f6a42b7c2201bb4da57aafa9bd05715f6697",
     "viewer/assets/fe-bootstrap-4cb87a78ce901629.js": "4cb87a78ce90162979a6502595fabb1adbf4cbdf4b954d72d029e34f29a1035f",
+    "viewer/assets/fe-d6377b89cf20349d.wasm": "d6377b89cf20349dd81c10aa7892621ba03cfac4154ee057e3d275d21a6c75a0",
     "viewer/assets/fe-task-3747de1e041477c4/host-completion.js": "54bc6871a2bf0b4bdf4dad48e8d1aa371ae920dcb418e5406d1d2253a322b8e8",
     "viewer/assets/fe-task-3747de1e041477c4/materialized-task.js": "c6840564dd53aba5d599ba2861e83f38232eefac1e1534cadf9692edcacdff96",
     "viewer/assets/fe-task-3747de1e041477c4/tasks.js": "35c384420ab70902707d0bc8b5b742c8872af39d54ccb34ef6610cf1cbc3d6cc",
-    "viewer/index.html": "6c65cd12dffc8b415a754ff7eb7916cd45ceca2afa81b03c15cec77c51b4a3dc"
+    "viewer/index.html": "f1e84d0a50c5e7de35df26649f9a04bdf2d9fab1b47e374113606f1ab58f4ab5"
   }
 }

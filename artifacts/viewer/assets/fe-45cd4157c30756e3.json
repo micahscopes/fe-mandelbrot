@@ -9,7 +9,7 @@
     "build": "workspace"
   },
   "target": "wasm",
-  "source_set_sha256": "c18da24525b02afc0b380d86218ff7a7f97f48add7fad263b54d228187b5dbf3",
+  "source_set_sha256": "8428e0d96f8f890d6da373f985b75d5f498bc0be0e32becfaf433cf12828e0c1",
   "source_dependencies": {
     "version": 1,
     "root": "file:///lab/argot/worktrees/fe-mandelbrot/elegance-integration-20261020/app/source_viewer/src/lib.fe",
@@ -436,11 +436,11 @@
       },
       {
         "url": "file:///lab/argot/worktrees/fe-mandelbrot/elegance-integration-20261020/app/source_viewer/src/highlight.fe",
-        "sha256": "9fda80f8dde4500ba3a3129f373580613090f2487d86dd024ba10e18d6d81a8f"
+        "sha256": "850e4e0677259eb3e70c34ee227892be215fdd3b5dc21a9c3528ea0b65c0fc51"
       },
       {
         "url": "file:///lab/argot/worktrees/fe-mandelbrot/elegance-integration-20261020/app/source_viewer/src/lib.fe",
-        "sha256": "afc7f2ee57c3458b87b978d946299b1ac41f5ef835f5488d1ab2bbee47e6b1d5"
+        "sha256": "5c60db776e7b7c1a0de7df9e4a258dfbda625e271f4b41e25552e4f077a04796"
       },
       {
         "url": "file:///lab/argot/worktrees/fe-mandelbrot/elegance-integration-20261020/lib/browser_fetch/src/lib.fe",
@@ -637,9 +637,9 @@
       "name": "module.wasm",
       "kind": "wasm_module",
       "media_type": "application/wasm",
-      "sha256": "3b181e935ea5a6d1b440ac85bd397b3cd2c5ab17bab287e09f10a4235a1b7a44",
-      "byte_len": 146769,
-      "url": "assets/fe-3b181e935ea5a6d1.wasm"
+      "sha256": "d6377b89cf20349dd81c10aa7892621ba03cfac4154ee057e3d275d21a6c75a0",
+      "byte_len": 146989,
+      "url": "assets/fe-d6377b89cf20349d.wasm"
     }
   ]
 }

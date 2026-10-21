@@ -38,12 +38,12 @@
       "semanticOccurrences": 116
     },
     "viewer.fe": {
-      "bytes": 20696,
-      "semanticOccurrences": 571
+      "bytes": 20655,
+      "semanticOccurrences": 590
     },
     "viewer_highlight.fe": {
-      "bytes": 10228,
-      "semanticOccurrences": 161
+      "bytes": 9107,
+      "semanticOccurrences": 158
     }
   }
 }
