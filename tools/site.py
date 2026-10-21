@@ -40,9 +40,12 @@ if __name__=='__main__':
     renderer=render_assets(artifacts,'renderer',out,info['files'])
     colors=render_assets(artifacts,'colors',out,info['files'])
     shutil.copytree(artifacts/'viewer',out/'viewer',dirs_exist_ok=True)
+    style=ROOT/'web/style.css'
+    style_version=hashlib.sha256(style.read_bytes()).hexdigest()[:16]
     index=(ROOT/'web/index.html').read_text().replace('renderer/',renderer+'/')
+    index=index.replace('href="style.css"',f'href="style.css?v={style_version}"')
     (out/'index.html').write_text(index)
-    shutil.copy2(ROOT/'web/style.css',out/'style.css')
+    shutil.copy2(style,out/'style.css')
     viewer_sources(artifacts,out,info)
     color_index=(ROOT/'web/colors.html').read_text()
     color_index=color_index.replace('manifest="manifest.json"',f'manifest="{Path(colors).name}/manifest.json"')
