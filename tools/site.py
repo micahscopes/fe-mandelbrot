@@ -16,6 +16,21 @@ def render_assets(artifacts, name, out, hashes):
     return relative.as_posix()
 
 
+def viewer_sources(artifacts, out, info):
+    # The displayed source and its semantic ranges must identify the same
+    # release, just as the render bundle does. Stable source URLs can otherwise
+    # keep showing a cached previous revision after the demo has changed.
+    highlighted={path:digest for path,digest in info['files'].items() if path.startswith('highlighted/')}
+    identity=hashlib.sha256(json.dumps({'source':info['sourceHash'],'highlighted':highlighted},sort_keys=True).encode()).hexdigest()[:24]
+    source=out/'viewer'/identity/'source'
+    source.mkdir(parents=True,exist_ok=True)
+    from source_catalog import SOURCES
+    for alias,(ingot,path) in SOURCES.items():shutil.copy2(ROOT/ingot/path,source/alias)
+    shutil.copytree(artifacts/'highlighted',source,dirs_exist_ok=True)
+    index=out/'viewer/index.html'
+    index.write_text(index.read_text().replace('href="source/',f'href="{identity}/source/'))
+
+
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--out',required=True);parser.add_argument('--artifacts',default=str(ROOT/'artifacts'));args=parser.parse_args()
     artifacts=Path(args.artifacts).resolve();info=json.loads((artifacts/'build-info.json').read_text())
@@ -28,10 +43,7 @@ if __name__=='__main__':
     index=(ROOT/'web/index.html').read_text().replace('renderer/',renderer+'/')
     (out/'index.html').write_text(index)
     shutil.copy2(ROOT/'web/style.css',out/'style.css')
-    source=out/'viewer/source';source.mkdir(exist_ok=True)
-    from source_catalog import SOURCES
-    for alias,(ingot,path) in SOURCES.items():shutil.copy2(ROOT/ingot/path,source/alias)
-    shutil.copytree(artifacts/'highlighted',source,dirs_exist_ok=True)
+    viewer_sources(artifacts,out,info)
     color_index=(ROOT/'web/colors.html').read_text()
     color_index=color_index.replace('manifest="manifest.json"',f'manifest="{Path(colors).name}/manifest.json"')
     color_index=color_index.replace("import './fe-render-runtime.js'",f"import './{Path(colors).name}/fe-render-runtime.js'")
