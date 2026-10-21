@@ -1,5 +1,5 @@
 {
-  "sourceHash": "8aaf49a933c567258ba3de0258f04a4d786717f34330b5102f07166f8fc3f2dc",
+  "sourceHash": "1a0a8a957a653f43c1475e77e4b663953119b789d2a2553e73ce054d31d904dc",
   "toolchain": {
     "fe": {
       "repository": "https://github.com/micahscopes/fe.git",
@@ -18,7 +18,7 @@
     "rust": "nightly-2026-08-17"
   },
   "files": {
-    "colors/fe-render-runtime.js": "d8b909a68aeca161254378c966ed773d68ea82f8e67f4b406a05972c4046aa1b",
+    "colors/fe-render-runtime.js": "cc1ad17c078980d736bf239d51738fdd700d92f818b077dd8bbf6890ea5ecba7",
     "colors/index.html": "f99c53c7bdfd6f649ade7ced7c74055428eb63271042c215e833b127b4aae84c",
     "colors/manifest.json": "3a88d7aca44156caad9251f97c714400cad101a42dd161f0433c5b30c878caf5",
     "colors/module.wasm": "25e67b5d6ff69dffc85f16fee7e629e297606422e77a3ada4f6f787a0989f2d7",
@@ -53,7 +53,7 @@
     "indexes/renderer/docs.json": "9ba670c00e61e0e1333fe8a60fe7d38df01acd471bdc4ffdab0f0a8b5421faf7",
     "indexes/source_inspector/docs.json": "5408d6d2fbbb91d3c6c631e69a3027d2c140196c88575e326d72ff7b9d9b25cf",
     "indexes/source_viewer/docs.json": "535d8ca6fb493ebae99f68b34675e6bdcc7c7339f74d8ab7ac0f43436652c3f0",
-    "renderer/fe-render-runtime.js": "d8b909a68aeca161254378c966ed773d68ea82f8e67f4b406a05972c4046aa1b",
+    "renderer/fe-render-runtime.js": "cc1ad17c078980d736bf239d51738fdd700d92f818b077dd8bbf6890ea5ecba7",
     "renderer/index.html": "f99c53c7bdfd6f649ade7ced7c74055428eb63271042c215e833b127b4aae84c",
     "renderer/manifest.json": "92a8de6945538a13fad6f7971aceeab1395e29a43c84a4359c2d6d9c412c324e",
     "renderer/module.wasm": "18d0b5fb50a8e1d22d8ca7df24b8ad365b4c6b4b02dc2db8614ba67f013a8f80",
