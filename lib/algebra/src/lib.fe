@@ -565,6 +565,21 @@ impl<T: Copy + Add<Output = T> + Mul<Output = T>> VectorExecution<Vec3<T>, T> fo
     }
 }
 
+/// Interpolate as `start + (end - start) * amount`, preserving this order.
+/// The active execution capability owns scaling and addition; subtraction
+/// remains ordinary value algebra. Color blending uses this same program.
+pub fn interpolate<V: Copy + Sub<Output = V>, S: Copy>(
+    _ start: V,
+    _ end: V,
+    _ amount: S,
+) -> V
+uses (executor: mut VectorExecution<V, S>)
+{
+    let offset: V = end - start
+    let weighted: V = executor.scale(offset, amount)
+    executor.add(start, weighted)
+}
+
 /// Evaluate the linear combination `(a * alpha) + (b * beta)` and its inner
 /// product with `direction` under the active `VectorExecution` capability,
 /// returning the combined vector, the scalar projection and the executor's
@@ -744,4 +759,28 @@ fn explicit_execution_capability_preserves_values_and_tracks_scope() {
     assert(counted_seeded.0 == pure_combined)
     assert(counted_seeded.1 == pure_projection)
     assert(counted_seeded.2 == 104)
+}
+
+fn observe_interpolation() -> (Vec3<i32>, u32)
+uses (executor: mut VectorExecution<Vec3<i32>, i32>)
+{
+    let start: Vec3<i32> = Vec3 { x: 2, y: -1, z: 3 }
+    let end: Vec3<i32> = Vec3 { x: -4, y: 5, z: 1 }
+    let value: Vec3<i32> = interpolate(start, end, 2)
+    (value, executor.operations())
+}
+
+#[test]
+fn interpolation_obeys_the_selected_execution_capability() {
+    let expected: Vec3<i32> = Vec3 { x: -10, y: 11, z: -1 }
+    let direct = with (VectorExecution<Vec3<i32>, i32> = DirectExecution {}) {
+        observe_interpolation()
+    }
+    let counted = with (VectorExecution<Vec3<i32>, i32> = CountedExecution { count: 40 }) {
+        observe_interpolation()
+    }
+    assert(direct.0 == expected)
+    assert(counted.0 == expected)
+    assert(direct.1 == 0)
+    assert(counted.1 == 42)
 }

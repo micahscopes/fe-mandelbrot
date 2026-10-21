@@ -3,7 +3,7 @@
 use core::default::Default
 use core::marker::Copy
 use core::ops::{Add, Div, Eq, Mul, Sub}
-use algebra::Vec3
+use algebra::{DirectExecution, Vec3, VectorExecution, interpolate}
 use fmath::{cos, floor, from_i32, sin, sqrt, to_i32}
 
 extern {
@@ -183,5 +183,8 @@ pub fn rgba(_ c: Color) -> i32 {
 }
 
 pub fn blend(_ a: Color, _ b: Color, _ t: f32) -> Color {
-    a + (b - a) * t
+    let coordinates = with (VectorExecution<Vec3<f32>, f32> = DirectExecution {}) {
+        interpolate(a.to_vec(), b.to_vec(), t)
+    }
+    Color::from_vec(coordinates)
 }

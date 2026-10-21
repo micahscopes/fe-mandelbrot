@@ -13,7 +13,7 @@ try{
  }
  await page.goto(new URL('viewer/index.html',base).href);
  await page.waitForFunction(()=>document.querySelector('fe-component')?._active,null,{timeout:30000});
- const files=['lib.fe','policy.fe','orbit.fe','image.fe','cache.fe','palette.fe','partition.fe','color_library.fe','color_demo.fe','viewer.fe','viewer_highlight.fe'];
+ const files=['lib.fe','policy.fe','orbit.fe','image.fe','cache.fe','palette.fe','partition.fe','algebra.fe','color_library.fe','color_demo.fe','viewer.fe','viewer_highlight.fe'];
  assert.equal(await page.locator('.file').count(),files.length);
  async function open(name){await page.locator(`.file[href$="/${name}.view"]`).click();await page.waitForFunction(name=>document.querySelector('.file-heading strong')?.textContent===name && !document.querySelector('.source-lines')?.hidden,name);}
  const stats={};
@@ -27,6 +27,7 @@ try{
   assert.ok(stats[name].keywords>0&&stats[name].comments>0);
  }
  assert.ok(stats['color_library.fe'].types>0&&stats['color_library.fe'].functions>0,'Compiler SCIP symbol colors are missing');
+ assert.ok(stats['algebra.fe'].types>0&&stats['algebra.fe'].functions>0,'Shared algebra must retain compiler symbol highlighting');
  await page.route('**/source/orbit.fe.view',async r=>{await new Promise(resolve=>setTimeout(resolve,350));try{await r.continue();}catch{}});
  await page.locator('.file[href$="/orbit.fe.view"]').click();await open('color_demo.fe');await page.waitForTimeout(450);
  assert.equal(await page.locator('.file-heading strong').textContent(),'color_demo.fe');
