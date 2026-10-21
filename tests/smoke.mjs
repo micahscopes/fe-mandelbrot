@@ -1,10 +1,11 @@
-import { releaseTestPage } from './browser-session.mjs';
+import { releaseTestPage, stageSite } from './browser-session.mjs';
 import assert from 'node:assert/strict';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright-core');
 const browser=await chromium.connectOverCDP(process.env.CDP_URL||'http://127.0.0.1:9222');
 const page=await browser.newPage({viewport:{width:512,height:512},deviceScaleFactor:1});
 const errors=[];page.on('pageerror',e=>errors.push(String(e)));
-const base=process.env.BASE_URL||'https://mb2-preview.argot-lab.calculator.ygg/standalone/';
+const base=process.env.BASE_URL||'https://micahscopes.github.io/fe-mandelbrot/';
+await stageSite(page, base);
 try{
  await page.addInitScript(()=>{const create=GPUDevice.prototype.createBuffer;GPUDevice.prototype.createBuffer=function(o){return create.call(this,{...o,usage:o.usage&GPUBufferUsage.STORAGE?o.usage|GPUBufferUsage.COPY_SRC:o.usage});};});
  await page.goto(new URL('index.html',base).href);
@@ -62,8 +63,8 @@ try{
  await hue.evaluate(input=>{input.value='180';input.dispatchEvent(new Event('input',{bubbles:true}));});
  await page.waitForFunction(()=>document.querySelector('fe-surface')._paramsSnapshot().hue===180);
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Color lab overflows mobile viewport');
- const library=await page.request.get(new URL('colors/source/lib.fe',base).href);
- assert.equal(library.status(),200);assert.ok((await library.text()).includes('pub fn oklch'));
+ const library=await page.evaluate(async url=>{const r=await fetch(url);return {status:r.status,text:await r.text()};},new URL('colors/source/lib.fe',base).href);
+ assert.equal(library.status,200);assert.ok(library.text.includes('pub fn oklch'));
  if(process.env.COLOR_SCREENSHOT)await page.screenshot({path:process.env.COLOR_SCREENSHOT});
  assert.deepEqual(errors,[]);
  console.log(JSON.stringify({live:true,zoom:changed.zoom,magnification:changed.magnification,oracle,colorCheck,sourceFiles:19,colorLab:true,errors}));

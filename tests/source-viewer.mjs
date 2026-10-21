@@ -1,17 +1,18 @@
-import { releaseTestPage } from './browser-session.mjs';
+import { releaseTestPage, stageSite } from './browser-session.mjs';
 import assert from 'node:assert/strict';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright-core');
 const browser=await chromium.connectOverCDP(process.env.CDP_URL||'http://127.0.0.1:9222');
 const page=await browser.newPage({viewport:{width:1200,height:850}}),errors=[];
 page.on('pageerror',e=>errors.push(String(e)));
-const base=process.env.BASE_URL||'https://mb2-preview.argot-lab.calculator.ygg/standalone/';
+const base=process.env.BASE_URL||'https://micahscopes.github.io/fe-mandelbrot/';
+await stageSite(page, base);
 try{
  await page.addInitScript(()=>{window.componentErrors=[];addEventListener('fe-error',e=>componentErrors.push(String(e.detail)),true);});
- for(const route of ['index.html','colors/index.html']){
-  const result=await page.request.get(new URL(route,base).href);assert.equal(result.status(),200);
-  assert.match(await result.text(),/href="(?:\.\.\/)?viewer\/index.html"/);
- }
  await page.goto(new URL('viewer/index.html',base).href);
+ for(const route of ['index.html','colors/index.html']){
+  const result=await page.evaluate(async url=>{const r=await fetch(url);return {status:r.status,text:await r.text()};},new URL(route,base).href);assert.equal(result.status,200);
+  assert.match(result.text,/href="(?:\.\.\/)?viewer\/index.html"/);
+ }
  await page.waitForFunction(()=>document.querySelector('fe-component')?._active,null,{timeout:30000});
  const files=['lib.fe','policy.fe','interaction.fe','url.fe','gestures.fe','orbit.fe','image.fe','cache.fe','palette.fe','partition.fe','algebra.fe','precision.fe','fixed.fe','fmath.fe','source_inspector.fe','color_library.fe','color_demo.fe','viewer.fe','viewer_highlight.fe'];
  assert.equal(await page.locator('.file').count(),files.length);

@@ -1,9 +1,10 @@
-import { releaseTestPage } from './browser-session.mjs';
+import { releaseTestPage, stageSite } from './browser-session.mjs';
 import assert from 'node:assert/strict';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright-core');
-const browser=await chromium.connectOverCDP(process.env.CDP_URL||'http://127.0.0.1:9223');
+const browser=await chromium.connectOverCDP(process.env.CDP_URL||'http://127.0.0.1:9222');
 const page=await browser.newPage({viewport:{width:1200,height:850}});
-const base=process.env.BASE_URL||'http://127.0.0.1:8126/standalone/';
+const base=process.env.BASE_URL||'https://micahscopes.github.io/fe-mandelbrot/';
+await stageSite(page, base);
 try {
  await page.context().grantPermissions(['clipboard-read','clipboard-write'],{origin:new URL(base).origin});
  await page.goto(new URL('viewer/index.html',base).href);
@@ -32,7 +33,7 @@ try {
  assert.ok(selected.length>expected.length);
  await page.keyboard.press('Control+c');
  assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),selected,'Multi-token copy changed source text');
- await page.locator('.file').nth(1).click();
+ await page.locator('.file[href$="/policy.fe.view"]').click();
  await page.waitForFunction(()=>document.querySelector('.file-heading strong')?.textContent==='policy.fe'&&!document.querySelector('.source-lines').hidden);
  assert.ok((await page.locator('.source-code').textContent()).includes('MandelbrotParams'));
  console.log(JSON.stringify({doubleClickSelection:true,copyShortcut:true,multiTokenCopy:true,fileSwitch:true}));
