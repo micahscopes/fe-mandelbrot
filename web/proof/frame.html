@@ -1,0 +1,32 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Point proof engine</title>
+<style>body{margin:0}fe-surface{width:128px;height:128px}fe-surface::part(side){display:none}</style>
+<script type="module">
+import './engine/fe-render-runtime.js';
+const manifest=await(await fetch('./engine/manifest.json')).json();
+let surface,busy=false;
+window.generatePointProof=async(re,im)=>{
+ if(busy)throw Error('Proof engine is busy');
+ if(!Number.isInteger(re)||!Number.isInteger(im)||re< -8192||re>=4096||im< -6144||im>=6144)throw Error('Point outside profile');
+ busy=true;const start=performance.now();
+ try{
+  if(!surface){
+   surface=document.createElement('fe-surface');surface.setAttribute('boot','manual');surface.setAttribute('manifest','./engine/manifest.json');surface.setAttribute('controls','none');surface.setAttribute('state','live');
+   surface.setAttribute('width','128');surface.setAttribute('height','128');
+   const values={tamper:0,res:128,point_re:re,point_im:im};
+   const binding=manifest.layout.bindings.find(x=>x.role==='input');
+   surface._initialOverride=binding.members.map(x=>{if(!(x.name in values))throw Error('Unknown input '+x.name);return values[x.name];});
+   document.body.append(surface);await surface.load();await surface.live();
+  }else{
+   const values={tamper:0,res:128,point_re:re,point_im:im};
+   surface._replaceSurfaceState(surface._members.map(x=>values[x.name]));
+   if(surface.state==='ready'||surface.state==='frozen')await surface.live();else await surface._render();
+  }
+  if(surface.state==='error'||!surface._gpu)throw Error('GPU proof failed');
+  const d=surface._gpu.device,source=surface._gpu.resourceBuffers.get('proof'),size=manifest.resources.find(x=>x.name==='proof').length*4;
+  const b=d.createBuffer({size,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ});
+  try{const e=d.createCommandEncoder();e.copyBufferToBuffer(source,0,b,0,size);d.queue.submit([e.finish()]);await b.mapAsync(GPUMapMode.READ);return {proof:b.getMappedRange().slice(0),generationMs:performance.now()-start,timings:surface._lastProofTimings,adapter:surface._adapterLabel};}finally{b.unmap();b.destroy();}
+ }finally{busy=false;}
+};
+window.proofEngineReady=true;
+window.proofEngineProgress=()=>surface?.shadowRoot?.querySelector('.status-bar')?.textContent||'Preparing proof engine…';
+</script></html>

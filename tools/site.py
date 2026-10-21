@@ -32,7 +32,7 @@ def viewer_sources(artifacts, out, info):
 
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--out',required=True);parser.add_argument('--artifacts',default=str(ROOT/'artifacts'));args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('--out',required=True);parser.add_argument('--artifacts',default=str(ROOT/'artifacts'));parser.add_argument('--proof-artifacts',help='output of tools/proof-build.py');args=parser.parse_args()
     artifacts=Path(args.artifacts).resolve();info=json.loads((artifacts/'build-info.json').read_text())
     assert info['sourceHash']==source_hash(),'Fe sources changed; regenerate the compiled assets with tools/build.py --record'
     assert info['files']==artifact_hashes(artifacts),'Compiled assets do not match their recorded hashes'
@@ -46,6 +46,23 @@ if __name__=='__main__':
     index=index.replace('href="style.css"',f'href="style.css?v={style_version}"')
     (out/'index.html').write_text(index)
     shutil.copy2(style,out/'style.css')
+    if args.proof_artifacts:
+        proof=Path(args.proof_artifacts).resolve();metadata=json.loads((proof/'proof-build-info.json').read_text())
+        assert metadata['profile']=='viewer-capacity-q12-v1','Unsupported proof profile'
+        for name,expected in metadata['files'].items():
+            assert hashlib.sha256((proof/name).read_bytes()).hexdigest()==expected,f'Proof artifact changed: {name}'
+        for name,expected in metadata['checkerSources'].items():
+            assert hashlib.sha256((ROOT/name).read_bytes()).hexdigest()==expected,f'Checker source changed: {name}'
+        host={str(p.relative_to(ROOT/'web/proof')):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((ROOT/'web/proof').rglob('*')) if p.is_file()}
+        identity=hashlib.sha256(json.dumps({'host':host,'artifacts':metadata['files']},sort_keys=True).encode()).hexdigest()[:24]
+        dest=out/'proof'/identity
+        shutil.copytree(ROOT/'web/proof',dest,dirs_exist_ok=True)
+        shutil.copytree(proof,dest,dirs_exist_ok=True)
+        index=out/'index.html'
+        index.write_text(index.read_text().replace('src="proof/integration.mjs"',f'src="proof/{identity}/integration.mjs"'))
+    else:
+        index=out/'index.html'
+        index.write_text(index.read_text().replace('<button id="proof-open"','<button hidden id="proof-open"').replace('<script type="module" src="proof/integration.mjs"></script>',''))
     viewer_sources(artifacts,out,info)
     color_index=(ROOT/'web/colors.html').read_text()
     color_index=color_index.replace('manifest="manifest.json"',f'manifest="{Path(colors).name}/manifest.json"')

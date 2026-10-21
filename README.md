@@ -90,7 +90,7 @@ The current reference uses 91 fractional bits. Camera and history differences us
 reference center actually stored. This does not increase reference recurrence
 precision or establish accuracy at every accepted zoom depth. Persistent numerical and image
 buffers are reused; the finite history is not an unlimited map of visited areas.
-This explorer contains no Mandelbrot proving or protocol implementation.
+The optional point-proof integration is documented below; it checks a separate Q12 calculation.
 
 The coarse preview advances against the valid prefix while a reference orbit is
 still being built. Its persistent 256×256 continuation buffer pauses at the end
@@ -174,3 +174,68 @@ unpublished assets in a remote CDP browser.
 URL lanes directly. `node tests/mobile-url-browser.mjs` exercises real touch,
 restoration before the first frame, resizing and browser history in responsive
 Chrome. `node tests/startup.mjs` checks one GPU graph and stable buffer reuse.
+
+## Selected-point proof experiment
+
+The integration branch adds **Prove a point** to the explorer. Open that panel,
+choose **Show whole set** if needed, then **Pick on fractal**, **Generate proof**,
+and **Test proof**. **Test corrupted copy** changes a copied witness word and
+checks that it is rejected; it preserves the original receipt.
+
+Selection snaps to the nearest 1/4096 coordinate, with ties away from zero.
+The exact signed rational point is shown before generation. All camera expansion
+terms participate in the projection; the pointer is a normalized CSS-coordinate
+sample, rather than a particular backing-pixel center. At deep zoom multiple
+locations can snap to the same point, or the snapped point can be outside the
+visible region. The marker follows the snapped point and is hidden offscreen.
+
+The fixed profile `viewer-capacity-q12-v1` accepts real coordinates in [-2,1),
+imaginary coordinates in [-1.5,1.5), and escape steps at most1023, with a1024-row
+padded domain. It uses the existing integer Q12 recurrence and radius4 escape
+threshold. No escape within the bound is reported without generating a proof;
+it does not establish membership in the exact real-number Mandelbrot set.
+
+The independent Rust/Wasm worker replays every main/auxiliary witness column,
+checks the expected point/public packing/digest and trace commitments, and checks
+experimental transcript, FRI openings/folds and composition degree/root consistency.
+It is a full-witness replay plus selected receipt checks. It does not reconstruct
+LDE roots from the trace or derive the AIR composition, and is not a complete
+succinct cryptographic verifier. Producer flags alone cannot establish acceptance.
+Selections and receipts are frozen by request generation, so changing the selected
+point cannot relabel an earlier check.
+
+The renderer keeps its existing toolchain. The separate proof engine requires Fe
+source commit `4b669c920` (branch `local/mb2-viewer-prover-integration-20261021`),
+which adds a named capacity-padding entry while preserving the old minimal-padding
+API. Build the proof engine/checker separately, then assemble a new site:
+
+```sh
+python3 tools/proof-build.py --fe-source /path/to/fe-checkout \
+  --fe /path/to/compatible/fe --target-dir /local/build/checker \
+  --out /local/build/proof-1
+python3 tools/site.py --proof-artifacts /local/build/proof-1 --out /local/build/site-1
+python3 -m http.server --directory /local/build/site-1 8000
+```
+
+Rust must include `wasm32-unknown-unknown`. The proof build records the exact Fe
+source revision, compiler binary hash, checker source hashes and artifact hashes.
+The publisher verifies these and namespaces the full engine/checker/frontend by
+content identity. Without `--proof-artifacts`, the normal viewer has proof
+integration disabled and does not load its worker.
+
+Run `node tests/proof-selection.mjs` for coordinate/tie/deep-tail checks and
+`cargo test --manifest-path proof-checker/Cargo.toml --release` for profile tests.
+Set `MB2_POINT_PROOF` to the browser test's `proof-early.bin` to additionally run
+captured-receipt mutations (witness, public words, openings, noncanonical LDE-root
+aliases, and a different expected point). With the staged site served securely:
+
+```sh
+PLAYWRIGHT_MODULE=/path/to/playwright-core/index.mjs \
+BASE_URL=https://approved-host/ CDP_URL=http://127.0.0.1:9222 \
+PROOF_OUT=/local/receipts node tests/point-proof-browser.mjs
+```
+
+The browser test owns a background target and closes only that target. It tests
+actual point clicks, early/late escape, generation, independent checking,
+corrupted-copy rejection, bounded nonescape, range rejection and stale-check
+suppression. Timings include readback; driver cache state is uncontrolled.

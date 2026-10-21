@@ -24,3 +24,12 @@ a:focus-visible,button:focus-visible{outline:2px solid oklch(82% .1 290);outline
 #status{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);padding:12px 18px;background:#10151deb;border-radius:12px;max-width:min(440px,80vw)}
 #status[hidden]{display:none}
 @media(max-width:480px){.brand{display:none}nav{justify-content:flex-end;left:10px;right:10px;top:10px;gap:5px}.brand{font-size:12px;padding:8px}a,button{font-size:12px;padding:8px}fe-surface::part(side){bottom:calc((100% - 100dvh)/2 + 12px)}}
+
+nav{z-index:20}
+#proof-panel{position:fixed;z-index:30;right:16px;top:70px;width:min(360px,calc(100vw - 56px));max-height:70dvh;overflow:auto;padding:18px;background:#10151df5;border:1px solid #d0d5ff30;border-radius:16px;box-shadow:0 12px 50px #0008}
+#proof-panel[hidden],#proof-picker[hidden],#proof-marker[hidden]{display:none}
+#proof-panel h2{margin:0;font-size:18px}#proof-panel p{overflow-wrap:anywhere}#proof-panel small{color:#b5bdce}
+.proof-actions{display:flex;flex-wrap:wrap;gap:6px}button:disabled{opacity:.4;cursor:default}
+#proof-picker{position:fixed;inset:0;z-index:40;cursor:crosshair;touch-action:none;background:#ffffff03}
+#proof-marker{position:fixed;z-index:19;width:12px;height:12px;border:2px solid white;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:0 0 0 1px black}
+#proof-engine{position:fixed;width:1px;height:1px;bottom:0;left:0;opacity:.01;border:0;pointer-events:none}

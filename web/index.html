@@ -9,8 +9,15 @@
 </head>
 <body>
 <fe-surface state="live" boot="manual" manifest="renderer/manifest.json"></fe-surface>
-<nav aria-label="Explorer"><span class="brand">Fe Mandelbrot</span><a href="colors/index.html">Colors</a><a href="viewer/index.html" target="_blank" rel="noopener">Source</a><a href="https://github.com/micahscopes/fe-mandelbrot" target="_blank" rel="noopener">GitHub</a><button id="controls" aria-label="Show all controls">Settings</button></nav>
+<nav aria-label="Explorer"><span class="brand">Fe Mandelbrot</span><a href="colors/index.html">Colors</a><a href="viewer/index.html" target="_blank" rel="noopener">Source</a><a href="https://github.com/micahscopes/fe-mandelbrot" target="_blank" rel="noopener">GitHub</a><button id="proof-open" aria-controls="proof-panel">Prove a point</button><button id="controls" aria-label="Show all controls">Settings</button></nav>
 <p id="status" role="status">Preparing the explorer…</p>
+<section id="proof-panel" hidden aria-label="Point proof">
+<h2>Prove a point</h2><p>Select a point to prove its Q12 escape calculation, up to 1,023 steps.</p>
+<a id="proof-whole" href="#v1:bf000000.00000000.00000000.00000000:00000000.00000000.00000000.00000000:3fc00000:44000000:3f800000">Show whole set</a> <button id="proof-pick">Pick on fractal</button><p id="proof-point">Proof coordinates use a 1/4096 grid, coarser than the viewer at deep zoom.</p>
+<div class="proof-actions"><button id="proof-generate" disabled>Generate proof</button><button id="proof-test" disabled>Test proof</button><button id="proof-corrupt" disabled>Test corrupted copy</button></div>
+<p id="proof-result" role="status">Pick a point to begin.</p><small>The check independently replays the witness and checks the experimental receipt. It proves the fixed-point calculation, not exact real-number membership.</small>
+</section><div id="proof-picker" hidden aria-label="Click a point to prove"></div><span id="proof-marker" hidden aria-hidden="true"></span>
+<script type="module" src="proof/integration.mjs"></script>
 <script type="module">
 import './renderer/fe-render-runtime.js';
 const surface=document.querySelector('fe-surface'),status=document.querySelector('#status');
