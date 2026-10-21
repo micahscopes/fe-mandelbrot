@@ -17,6 +17,10 @@ struct FeLocal_fe_shader_private_layout_0_ {
     f15_: u32,
     f16_: u32,
     f17_: u32,
+    f18_: f32,
+    f19_: f32,
+    f20_: f32,
+    f21_: f32,
 }
 
 struct FeLocal_fe_shader_private_layout_2_ {
@@ -77,6 +81,10 @@ struct preview_cache_element {
     budget: u32,
     epoch: u32,
     completed: u32,
+    history_full_re: f32,
+    history_full_im: f32,
+    history_initial_re: f32,
+    history_initial_im: f32,
 }
 
 struct cache_element {
@@ -199,8 +207,8 @@ fn main() {
     if (_e38 == 0u) {
         local_1 = true;
     }
-    let _e161 = local_1;
-    if _e161 {
+    let _e177 = local_1;
+    if _e177 {
     } else {
         let _e48 = preview_cache[i32(0u)].x0_;
         let _e50 = preview_cache[i32(0u)].x1_;
@@ -220,55 +228,63 @@ fn main() {
         let _e78 = preview_cache[i32(0u)].budget;
         let _e80 = preview_cache[i32(0u)].epoch;
         let _e82 = preview_cache[i32(0u)].completed;
+        let _e84 = preview_cache[i32(0u)].history_full_re;
+        let _e86 = preview_cache[i32(0u)].history_full_im;
+        let _e88 = preview_cache[i32(0u)].history_initial_re;
+        let _e90 = preview_cache[i32(0u)].history_initial_im;
         if (_e82 == 1u) {
         } else {
             if (_e74 == 0u) {
                 local_3 = true;
             }
-            let _e159 = local_3;
-            if _e159 {
+            let _e175 = local_3;
+            if _e175 {
             } else {
-                let _e95 = cache[i32(1u)].completed;
-                let _e100 = cache[i32(2u)].completed;
-                let _e101 = is_input_settled(FeLocal_fe_shader_private_layout_1_(_e4, _e6, _e8, _e10, _e12, _e14, _e16, _e18, _e20, _e22, _e24, _e26, _e28, _e30, _e32));
-                if _e101 {
+                let _e103 = cache[i32(1u)].completed;
+                let _e108 = cache[i32(2u)].completed;
+                let _e109 = is_input_settled(FeLocal_fe_shader_private_layout_1_(_e4, _e6, _e8, _e10, _e12, _e14, _e16, _e18, _e20, _e22, _e24, _e26, _e28, _e30, _e32));
+                if _e109 {
                 } else {
-                    if (_e95 == 1u) {
+                    if (_e103 == 1u) {
                         local_3 = true;
                     } else {
-                        if (_e100 == 1u) {
+                        if (_e108 == 1u) {
                             local_3 = true;
                         }
-                        let _e111 = local_3;
-                        if _e111 {
+                        let _e119 = local_3;
+                        if _e119 {
                         }
                     }
-                    let _e113 = local_3;
-                    if _e113 {
+                    let _e121 = local_3;
+                    if _e121 {
                     }
                 }
-                let _e157 = local_3;
-                if _e157 {
+                let _e173 = local_3;
+                if _e173 {
                 } else {
-                    let _e114 = commit_step(FeLocal_fe_shader_private_layout_0_(_e48, _e50, _e52, _e54, _e56, _e58, _e60, _e62, _e64, _e66, _e68, _e70, _e72, _e74, _e76, _e78, _e80, _e82));
-                    preview_cache[i32(0u)].x0_ = _e114.f0_;
-                    preview_cache[i32(0u)].x1_ = _e114.f1_;
-                    preview_cache[i32(0u)].x2_ = _e114.f2_;
-                    preview_cache[i32(0u)].x3_ = _e114.f3_;
-                    preview_cache[i32(0u)].y0_ = _e114.f4_;
-                    preview_cache[i32(0u)].y1_ = _e114.f5_;
-                    preview_cache[i32(0u)].y2_ = _e114.f6_;
-                    preview_cache[i32(0u)].y3_ = _e114.f7_;
-                    preview_cache[i32(0u)].zoom = _e114.f8_;
-                    preview_cache[i32(0u)].res = _e114.f9_;
-                    preview_cache[i32(0u)].reference_generation = _e114.f10_;
-                    preview_cache[i32(0u)].reference_bank = _e114.f11_;
-                    preview_cache[i32(0u)].prefix_only = _e114.f12_;
-                    preview_cache[i32(0u)].step_target = _e114.f13_;
-                    preview_cache[i32(0u)].completed_steps = _e114.f14_;
-                    preview_cache[i32(0u)].budget = _e114.f15_;
-                    preview_cache[i32(0u)].epoch = _e114.f16_;
-                    preview_cache[i32(0u)].completed = _e114.f17_;
+                    let _e122 = commit_step(FeLocal_fe_shader_private_layout_0_(_e48, _e50, _e52, _e54, _e56, _e58, _e60, _e62, _e64, _e66, _e68, _e70, _e72, _e74, _e76, _e78, _e80, _e82, _e84, _e86, _e88, _e90));
+                    preview_cache[i32(0u)].x0_ = _e122.f0_;
+                    preview_cache[i32(0u)].x1_ = _e122.f1_;
+                    preview_cache[i32(0u)].x2_ = _e122.f2_;
+                    preview_cache[i32(0u)].x3_ = _e122.f3_;
+                    preview_cache[i32(0u)].y0_ = _e122.f4_;
+                    preview_cache[i32(0u)].y1_ = _e122.f5_;
+                    preview_cache[i32(0u)].y2_ = _e122.f6_;
+                    preview_cache[i32(0u)].y3_ = _e122.f7_;
+                    preview_cache[i32(0u)].zoom = _e122.f8_;
+                    preview_cache[i32(0u)].res = _e122.f9_;
+                    preview_cache[i32(0u)].reference_generation = _e122.f10_;
+                    preview_cache[i32(0u)].reference_bank = _e122.f11_;
+                    preview_cache[i32(0u)].prefix_only = _e122.f12_;
+                    preview_cache[i32(0u)].step_target = _e122.f13_;
+                    preview_cache[i32(0u)].completed_steps = _e122.f14_;
+                    preview_cache[i32(0u)].budget = _e122.f15_;
+                    preview_cache[i32(0u)].epoch = _e122.f16_;
+                    preview_cache[i32(0u)].completed = _e122.f17_;
+                    preview_cache[i32(0u)].history_full_re = _e122.f18_;
+                    preview_cache[i32(0u)].history_full_im = _e122.f19_;
+                    preview_cache[i32(0u)].history_initial_re = _e122.f20_;
+                    preview_cache[i32(0u)].history_initial_im = _e122.f21_;
                     local_3 = true;
                 }
             }

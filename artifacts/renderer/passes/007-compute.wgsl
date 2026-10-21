@@ -66,6 +66,10 @@ struct FeLocal_fe_shader_private_layout_3_ {
     f15_: u32,
     f16_: u32,
     f17_: u32,
+    f18_: f32,
+    f19_: f32,
+    f20_: f32,
+    f21_: f32,
 }
 
 struct preview_cache_element {
@@ -87,6 +91,10 @@ struct preview_cache_element {
     budget: u32,
     epoch: u32,
     completed: u32,
+    history_full_re: f32,
+    history_full_im: f32,
+    history_initial_re: f32,
+    history_initial_im: f32,
 }
 
 struct cache_element {
