@@ -347,7 +347,9 @@ actor NativeCheckpointProbe uses (
 
     fn save_checkpoints(self) uses (ComputeSurface<Workgroup<1, 1, 1>, FixedDispatch<1, 1, 1>>) {
         let epoch: u32 = 4294967295
-        let clock: f32 = __bitcast<u32, f32>(2147483648)
+        // The GPU fixture supplies -0 through the runtime uniform. A constant
+        // signed zero may be canonicalized before the storage codec runs.
+        let clock: f32 = self.state.result
         self.compact.store(index: 0, value: NativeCheckpoint::from_oracle(stored_sample(), epoch, clock))
         self.legacy.store(index: 0, value: OrbitProgress::from_oracle(stored_sample(), epoch, clock))
         let dc: Complex<f32> = Complex { re: 0.00125, im: -0.000875 }
