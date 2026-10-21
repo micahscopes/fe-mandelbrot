@@ -94,7 +94,11 @@ still being built. Its persistent 256×256 continuation buffer pauses at the end
 of that prefix and resumes as samples arrive. Publishing the same orbit preserves
 its checkpoints; changing camera, orbit generation or bank invalidates them.
 Unfinished samples retain a reusable cached image rather than being classified
-as interior. Final native refinement remains separate from this preview.
+as interior. Final native refinement remains separate from this preview. Its immutable-reference
+checkpoints retain only a complex delta and packed control words while live,
+then reuse the payload for magnitude and fade time when finished. This uses
+16 bytes per native pixel; the growing-prefix preview retains its 32-byte
+continuations because its reference can still grow.
 
 Color blending uses the algebra library's vector interpolation program under
 `DirectExecution`. The same program can run under `CountedExecution` to inspect

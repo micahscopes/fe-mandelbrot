@@ -14,7 +14,7 @@ try{
   assert.match(result.text,/href="(?:\.\.\/)?viewer\/index.html"/);
  }
  await page.waitForFunction(()=>document.querySelector('fe-component')?._active,null,{timeout:30000});
- const files=['lib.fe','policy.fe','interaction.fe','url.fe','gestures.fe','orbit.fe','image.fe','cache.fe','palette.fe','partition.fe','algebra.fe','precision.fe','fixed.fe','fmath.fe','source_inspector.fe','color_library.fe','color_demo.fe','viewer.fe','viewer_highlight.fe'];
+ const files=['lib.fe','policy.fe','interaction.fe','url.fe','gestures.fe','orbit.fe','native_checkpoint.fe','image.fe','cache.fe','palette.fe','partition.fe','algebra.fe','precision.fe','fixed.fe','fmath.fe','source_inspector.fe','color_library.fe','color_demo.fe','viewer.fe','viewer_highlight.fe'];
  assert.equal(await page.locator('.file').count(),files.length);
  async function open(name){await page.locator(`.file[href$="/${name}.view"]`).click();await page.waitForFunction(name=>document.querySelector('.file-heading strong')?.textContent===name && !document.querySelector('.source-lines')?.hidden,name);}
  const stats={};
