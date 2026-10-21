@@ -12,6 +12,16 @@ assert.ok(baselineSite && compactSite && path.isAbsolute(output || ''),
 const side = Number(process.env.SIDE || 128);
 const timeout = Number(process.env.TIMEOUT_MS || 120000);
 assert.ok(Number.isInteger(side) && side >= 128 && side <= 2048);
+const scenario = process.env.SCENARIO_FILE
+  ? JSON.parse(await fs.readFile(process.env.SCENARIO_FILE, 'utf8')) : null;
+function configuredCamera(values, fallback) {
+  if (!values) return fallback;
+  assert.equal(values.length, 10, 'A configured camera contains eight center words, zoom and extent');
+  assert.ok(values.every(Number.isFinite), 'Configured camera values must be finite');
+  const camera = values.map(Math.fround);
+  camera[9] = side;
+  return camera;
+}
 const base = new URL(process.env.BASE_URL || 'https://micahscopes.github.io/fe-mandelbrot/');
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const word = value => new Uint32Array(new Float32Array([value]).buffer)[0];
@@ -20,11 +30,12 @@ const fragment = camera => {
   const hex = [...camera, 1].map(value => word(value).toString(16).padStart(8, '0'));
   return '#v1:' + hex.slice(0, 4).join('.') + ':' + hex.slice(4, 8).join('.') + ':' + hex.slice(8).join(':');
 };
-const deep = [
+const defaultDeep = [
   -1.1723285913467407, -8.896668290958587e-9, 2.6946450701486693e-17, 4.889170563942578e-25,
   0.2958235442638397, -1.0501575165022814e-9, -4.646894217042016e-17, 1.4530940147611347e-24,
   2.325737538549943e-16, side,
 ].map(Math.fround);
+const deep = configuredCamera(scenario?.followupCamera, defaultDeep);
 await fs.mkdir(output, {recursive: true});
 const baselineRoot = path.resolve(baselineSite);
 const initialHtml = await fs.readFile(path.join(baselineRoot, 'index.html'), 'utf8');
@@ -41,7 +52,8 @@ const wasmFile = path.resolve(baselineRoot, decodeURIComponent(wasmUrl.pathname.
 assert.ok(wasmFile.startsWith(baselineRoot + path.sep));
 const initialWasm = await fs.readFile(wasmFile);
 const {instance} = await WebAssembly.instantiate(initialWasm, {});
-const initial = [...instance.exports.fe_surface_initialize_v1()].slice(0, 10);
+const initial = configuredCamera(scenario?.initialCamera,
+  [...instance.exports.fe_surface_initialize_v1()].slice(0, 10));
 initial[9] = side;
 const {chromium} = await import(process.env.PLAYWRIGHT_MODULE || 'playwright-core');
 
@@ -204,7 +216,7 @@ async function measure(label, directory) {
         next[13] = 0;
         surface._replaceSurfaceState(next);
       };
-      h.capture = async side => {
+      h.capture = async (side, captureReference) => {
         if (!h.release) throw Error('Capture requires a completed held frame');
         const surface = document.querySelector('fe-surface'), device = surface._gpu.device;
         if (surface._uniforms[9] !== side || surface._backingWidth !== side || surface._backingHeight !== side) {
@@ -230,6 +242,22 @@ async function measure(label, directory) {
             buffer.unmap();
           } finally { buffer.destroy(); }
         }
+        if (captureReference) {
+          const resource = surface._manifest.resources.find(resource => resource.name === 'orbit');
+          const size = resource.length * resource.stride;
+          const buffer = device.createBuffer({size, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ});
+          try {
+            const encoder = device.createCommandEncoder();
+            encoder.copyBufferToBuffer(surface._gpu.resourceBuffers.get('orbit'), 0, buffer, 0, size);
+            device.queue.submit([encoder.finish()]);
+            await buffer.mapAsync(GPUMapMode.READ);
+            const bytes = new Uint8Array(buffer.getMappedRange());
+            let binary = '';
+            for (let i = 0; i < bytes.length; i += 16384) binary += String.fromCharCode(...bytes.subarray(i, i + 16384));
+            result.reference_orbit = btoa(binary);
+            buffer.unmap();
+          } finally { buffer.destroy(); }
+        }
         if (h.graphSubmissions !== h.heldSubmissions) throw Error('A graph submitted during the capture latch');
         h.stableCaptures++;
         return result;
@@ -248,7 +276,9 @@ async function measure(label, directory) {
     const settled = (camera, aa = 1, transition = true) => gate(
       {kind: 'settled', camera: cameraWords(camera), aa}, transition ? {camera, aa} : null);
     const capture = async (name, metadata) => {
-      const encoded = await page.evaluate(side => window.checkpointProbe.capture(side), side);
+      const encoded = await page.evaluate(({side, captureReference}) =>
+        window.checkpointProbe.capture(side, captureReference),
+        {side, captureReference: process.env.CAPTURE_REFERENCE === '1'});
       const files = {};
       for (const [resource, base64] of Object.entries(encoded)) {
         const bytes = Buffer.from(base64, 'base64');
@@ -324,7 +354,8 @@ async function measure(label, directory) {
 }
 
 const receipt = {side, nativeStride: 2048, activePixels: side * side, actualBrowser: true,
-  capturedDeepSource: 'mobile-deep-rotation-pixel-parity.json camera coefficients; extent selected by SIDE',
+  capturedDeepSource: scenario?.name || 'mobile-deep-rotation-pixel-parity.json camera coefficients; extent selected by SIDE',
+  scenario,
   timingBenchmark: false, deviceLossRecovery: {status: 'unsupported',
     reason: 'No safe browser API requests an authoritative Unknown device loss. GPUDevice.destroy reports Destroyed, which StandardSurfaceRecovery intentionally does not retry. No recovery callbacks are fabricated.'},
   variants: [], comparisons: []};
@@ -333,6 +364,28 @@ try {
   receipt.variants.push(await measure('baseline', baselineSite));
   await fs.writeFile(receiptFile, JSON.stringify(receipt, null, 2) + '\n');
   receipt.variants.push(await measure('compact', compactSite));
+  if (scenario?.independentSample) {
+    const expected = scenario.independentSample;
+    assert.ok(Number.isInteger(expected.x) && expected.x >= 0 && expected.x < side);
+    assert.ok(Number.isInteger(expected.y) && expected.y >= 0 && expected.y < side);
+    assert.equal(typeof expected.escaped, 'boolean');
+    receipt.independentSampleChecks = [];
+    for (const variant of receipt.variants) {
+      for (const name of ['captured-deep', 'deep-after-replacement', 'deep-after-visibility']) {
+        const bytes = await fs.readFile(variant.captures[name].files.snapshot_oracle.file);
+        const offset = (expected.y * side + expected.x) * 12;
+        const iteration = bytes.readUInt32LE(offset);
+        const flags = bytes.readUInt32LE(offset + 8);
+        const escaped = (flags >>> 31) !== 0;
+        const glitched = ((flags >>> 30) & 1) !== 0;
+        receipt.independentSampleChecks.push({variant: variant.label, capture: name,
+          x: expected.x, y: expected.y, iteration, escaped, glitched});
+        assert.equal(iteration, expected.iteration, `${variant.label}/${name}: independent escape iteration`);
+        assert.equal(escaped, expected.escaped, `${variant.label}/${name}: independent escape classification`);
+        assert.equal(glitched, false, `${variant.label}/${name}: unexpected glitch flag`);
+      }
+    }
+  }
   const compare = async (left, right, description) => {
     for (const name of ['native_pixels', 'antialiased_pixels', 'snapshot_oracle']) {
       const a = await fs.readFile(left.files[name].file), b = await fs.readFile(right.files[name].file);

@@ -1,0 +1,6 @@
+{
+  "name": "Minimum-depth reusable pan across a reference lattice boundary near c=i",
+  "initialCamera": [3.635070954961925e-28, 0, 0, 0, 1, 0, 0, 0, 1.0000000272452012e-27, 128],
+  "followupCamera": [4.635071078503624e-28, 0, 0, 0, 1, 0, 0, 0, 1.0000000272452012e-27, 128],
+  "independentSample": {"x": 14, "y": 24, "iteration": 110, "escaped": true, "decimalPrecisions": [100, 180]}
+}
