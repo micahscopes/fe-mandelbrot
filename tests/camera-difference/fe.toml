@@ -1,0 +1,9 @@
+[ingot]
+name = "probe_camera_difference"
+version = "0.1.0"
+[dependencies]
+core = "../../.cache/fe/ingots/core"
+std = "../../.cache/fe/ingots/std"
+algebra = "../../lib/algebra"
+precision = "../../lib/precision"
+renderer = "../../app/renderer"

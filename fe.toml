@@ -2,6 +2,7 @@
 name = "FeMandelbrot"
 version = "0.1.0"
 members = [
+  { path = "tests/camera-difference", name = "probe_camera_difference" },
   { path = "tests/hue-interpolation", name = "probe_hue_interpolation" },
   { path = "tests/native-checkpoint", name = "probe_native_checkpoint" },
   { path = "lib/algebra", name = "algebra" },

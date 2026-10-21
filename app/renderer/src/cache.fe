@@ -61,7 +61,10 @@ pub fn preview_is_completed(_ prefix_only: u32, _ completed_steps: u32, _ budget
 }
 
 pub fn center_delta(_ from: Complex<Expansion<4>>, _ to: Complex<Expansion<4>>) -> Complex<f32> {
-    Complex { re: expansion_difference<8>(from.re, to.re), im: expansion_difference<8>(from.im, to.im) }
+    // 117 fractional bits retain subpixel camera movement at the accepted
+    // minimum zoom. This frame-scope projection does not widen the reference
+    // orbit or change its 91-fractional-bit recurrence/storage contract.
+    Complex { re: expansion_difference<10>(from.re, to.re), im: expansion_difference<10>(from.im, to.im) }
 }
 
 pub struct ViewCache {

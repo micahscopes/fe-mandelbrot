@@ -1,0 +1,112 @@
+use core::marker::Copy
+use std::webgpu::{
+    FragmentSurface,
+    GpuProgram,
+    WebGpuBackend,
+    SurfaceQuality,
+    SurfaceQualityFacts,
+    SurfaceBackingExtent,
+    SurfaceRecovery,
+    StandardSurfaceRecovery,
+    SurfaceTransition,
+    SurfaceScheduling,
+    ContinuousFrames,
+}
+use std::web::view::{
+    ApplyParamBindings,
+    Extent,
+    Param,
+    ParamBindingsProvider,
+    Surface,
+    SurfaceEvent,
+    SurfaceState,
+}
+use algebra::Complex
+use precision::{from_f32, from_quad}
+use renderer::cache::center_delta
+use renderer::orbit::{PackedReference, ReferenceReal}
+extern {
+    const fn __bitcast<From, To>(_: From) -> To
+    const fn __f32_from_i32(_: i32) -> f32
+}
+// Exact for the selected power-of-two encodings; no float bitcast output ABI.
+fn numeric_bits(_ value: f32) -> f32 {
+    __f32_from_i32(__bitcast<f32, i32>(value))
+}
+pub struct Params {
+    pub base: Param,
+    pub tail: Param,
+    pub dx: Param,
+    pub dy: Param,
+    pub residual_x: Param,
+    pub residual_y: Param,
+}
+pub struct State {
+    pub base: f32,
+    pub tail: f32,
+    pub dx: f32,
+    pub dy: f32,
+    pub residual_x: f32,
+    pub residual_y: f32,
+}
+impl Copy for State {}
+impl SurfaceState for State {
+    type Params = Params
+}
+derive ApplyParamBindings for State using ParamBindingsProvider<Params>
+pub struct Envelope { pub state: State }
+impl Copy for Envelope {}
+pub struct Backing {}
+impl Backing {
+    pub fn choose(_ facts: own SurfaceQualityFacts) -> SurfaceBackingExtent {
+        let _ = facts
+        SurfaceBackingExtent { width: 64.0, height: 64.0 }
+    }
+}
+actor Probe uses (GpuProgram<WebGpuBackend>, SurfaceQuality<Backing>, SurfaceRecovery<StandardSurfaceRecovery>) {
+    state: State,
+    fn initial() -> Envelope uses (core::actor::InitialState) {
+        Envelope { state: State {
+            base: 0.0, tail: 0.0, dx: 0.0, dy: 0.0,
+            residual_x: 0.0, residual_y: 0.0,
+        } }
+    }
+    const fn view() -> Surface<Params> {
+        Surface { extent: Extent::square(64), params: Params {
+            base: Param::fixed(0.0), tail: Param::fixed(0.0),
+            dx: Param::fixed(0.0), dy: Param::fixed(0.0),
+            residual_x: Param::fixed(0.0), residual_y: Param::fixed(0.0),
+        } }
+    }
+    fn display(self, px: i32, py: i32) -> i32 uses (FragmentSurface) {
+        let _ = px
+        let _ = py
+        0
+    }
+    fn navigate(self, event: own SurfaceEvent) -> Envelope uses (SurfaceTransition, SurfaceScheduling<ContinuousFrames>) {
+        let _ = event
+        let origin = Complex { re: from_f32<4>(self.state.base), im: from_f32<4>(0.0) }
+        let center = Complex {
+            re: if self.state.base == 0.0 {
+                from_f32<4>(self.state.tail)
+            } else {
+                from_quad(self.state.base, self.state.tail, 0.0, 0.0)
+            },
+            im: from_f32<4>(-self.state.tail),
+        }
+        let movement = center_delta(origin, center)
+        // Exercise the public packed L8 reference boundary independently from
+        // raw anchor reuse policy; this is a fixture, not a policy change.
+        let fixed_center = Complex {
+            re: ReferenceReal::from_expansion(center.re),
+            im: ReferenceReal::from_expansion(center.im),
+        }
+        let quantized = PackedReference::from_fixed(fixed_center).decode()
+        let residual = center_delta(quantized, center)
+        Envelope { state: State {
+            base: self.state.base, tail: self.state.tail,
+            dx: numeric_bits(movement.re), dy: numeric_bits(movement.im),
+            residual_x: numeric_bits(residual.re), residual_y: numeric_bits(residual.im),
+        } }
+    }
+}
