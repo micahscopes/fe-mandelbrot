@@ -11,13 +11,17 @@ def source_hash():
     return digest.hexdigest()
 def artifact_hashes(directory):return{p.relative_to(directory).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(directory.rglob('*')) if p.is_file() and p.name!='build-info.json'}
 def patch_runtime(directory):
-    # Mirror the generic source patch when using a compiler built before it.
+    # Mirror the generic source patches when using a compiler built before them.
     # Fresh bootstrap compilers already emit the corrected adapter unchanged.
-    patch=ROOT/'toolchain/patches/wasm-rgba.patch'
-    command=['patch','--batch','-p5','-d',str(directory),'-i',str(patch)]
-    reverse=subprocess.run([*command,'--force','--reverse','--dry-run'],capture_output=True)
-    if reverse.returncode:
-        subprocess.run([*command,'--forward'],check=True)
+    for patch_name in ['wasm-rgba.patch','surface-location.patch']:
+        patch_text=(ROOT/'toolchain/patches'/patch_name).read_text()
+        js_chunks=[chunk for chunk in patch_text.split('diff --git ') if chunk.startswith('a/crates/codegen/assets/render-runtime/fe-render-runtime.js')]
+        if not js_chunks:continue
+        js_patch='diff --git '+js_chunks[0]
+        command=['patch','--batch','-p5','-d',str(directory)]
+        reverse=subprocess.run([*command,'--force','--reverse','--dry-run'],input=js_patch,text=True,capture_output=True)
+        if reverse.returncode:
+            subprocess.run([*command,'--forward'],input=js_patch,text=True,check=True)
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--fe',default=os.environ.get('FE_BINARY'));parser.add_argument('--out',required=True);parser.add_argument('--record',action='store_true');args=parser.parse_args()
     if not args.fe:raise SystemExit('Run tools/bootstrap.py, then pass --fe /path/to/fe')

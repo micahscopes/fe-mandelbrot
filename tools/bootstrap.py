@@ -21,7 +21,8 @@ def prepare():
         if reverse.returncode:
             run('git','-C',str(source),'apply','--check',str(patch));run('git','-C',str(source),'apply',str(patch))
     changed=output('git','-C',str(source),'diff','--name-only').splitlines()
-    assert changed==['crates/codegen/assets/render-runtime/fe-render-runtime.js'],'Unexpected toolchain edits'
+    expected={'crates/codegen/assets/render-runtime/fe-render-runtime.js','crates/codegen/src/web_bundle.rs','ingots/std/src/web/view.fe'}
+    assert set(changed)<=expected and 'crates/codegen/assets/render-runtime/fe-render-runtime.js' in changed,'Unexpected toolchain edits'
     return source,lock
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--prepare-only',action='store_true');args=parser.parse_args()

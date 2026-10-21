@@ -180,7 +180,10 @@ pub const fn mandelbrot_params() -> MandelbrotParams {
 
 pub struct SharpBacking {}
 impl SharpBacking {
-    pub fn choose(_ facts: own SurfaceQualityFacts) -> SurfaceBackingExtent {
+    pub fn choose(
+        _ facts: own SurfaceQualityFacts,
+        _ state: own SurfaceStateEnvelope,
+    ) -> SurfaceBackingExtent {
         let ratio: f32 = max(1.0, facts.device_pixel_ratio)
         let css: f32 = max(facts.css_width, facts.css_height)
         let declared: f32 = min(facts.declared_width, facts.declared_height)
@@ -190,7 +193,12 @@ impl SharpBacking {
             declared
         }
         let limit: f32 = min(declared, min(2048.0, device))
-        let side: f32 = clamp((css * ratio).round(), 1.0, limit)
+        let requested: f32 = if state.state.res >= 1.0 {
+            state.state.res.round()
+        } else {
+            (css * ratio).round()
+        }
+        let side: f32 = clamp(requested, 1.0, limit)
         SurfaceBackingExtent { width: side, height: side }
     }
 }
@@ -283,7 +291,7 @@ pub fn initial_view() -> MandelbrotViewState {
         center_y_w2: -0.00000000000000021798654948407476,
         center_y_w3: -0.0000000000000000000000037684836019798525,
         zoom: 0.0000000389,
-        res: 512.0,
+        res: 0.0,
         clock: 0.0,
         last_input: 0.0,
         antialias: 1.0,
