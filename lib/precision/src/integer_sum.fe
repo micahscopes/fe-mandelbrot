@@ -1,0 +1,190 @@
+//! Experimental binary32 addition with an integer-defined rounding contract.
+//!
+//! WebGPU may reassociate floating expressions and does not promise a single
+//! rounding mode for ordinary addition. Both outputs here are built as bits:
+//! finite inputs and finite result give a nearest-even head plus exact tail.
+//! Finite overflow yields signed infinity and a NaN tail; nonfinite inputs
+//! yield a canonical NaN pair. Subnormal bits are constructed exactly, but
+//! later GPU floating operations may flush them: this is not a guarantee
+//! that an arbitrary composed expansion operation retains subnormal terms.
+use core::marker::Copy
+
+extern { const fn __bitcast<From, To>(_: From) -> To }
+const RADIX: u32 = 16777216
+const MASK: u32 = 16777215
+const HIDDEN: u32 = 8388608
+const NAN: u32 = 2143289344
+
+/// Two little-endian24-bit limbs. The exact aligned input sum fits here;
+/// addition carries explicitly, without relying on u64 or wrapping overflow.
+struct Magnitude48 { high: u32, low: u32 }
+impl Copy for Magnitude48 {}
+impl Magnitude48 {
+    fn aligned(_ significand: u32, _ shift: u32) -> Self {
+        Self {
+            high: if shift == 0 { 0 } else { significand >> (24 - shift) },
+            low: (significand << shift) & MASK,
+        }
+    }
+    fn plus(self, _ other: Self) -> Self {
+        let low = self.low + other.low
+        Self { high: self.high + other.high + (low >> 24), low: low & MASK }
+    }
+    fn at_least(self, _ other: Self) -> bool {
+        self.high > other.high || (self.high == other.high && self.low >= other.low)
+    }
+    /// Requires self >= other; adding RADIX keeps low subtraction unsigned.
+    fn minus(self, _ other: Self) -> Self {
+        let borrow: u32 = if self.low < other.low { 1 } else { 0 }
+        Self {
+            high: self.high - other.high - borrow,
+            low: (self.low + RADIX - other.low) & MASK,
+        }
+    }
+    fn is_zero(self) -> bool { self.high == 0 && self.low == 0 }
+    fn top_bit(self) -> u32 {
+        if self.high == 0 { highest_bit(self.low) } else { 24 + highest_bit(self.high) }
+    }
+}
+
+struct Binary32 {
+    sign: u32,
+    exponent: u32,
+    significand: u32,
+}
+impl Copy for Binary32 {}
+impl Binary32 {
+    fn decode(_ bits: u32) -> Self {
+        let encoded = (bits >> 23) & 255
+        Self {
+            sign: bits >> 31,
+            exponent: if encoded == 0 { 1 } else { encoded },
+            significand: (bits & 8388607) | (if encoded == 0 { 0 } else { HIDDEN }),
+        }
+    }
+}
+
+fn highest_bit(_ value: u32) -> u32 {
+    let mut rest = value
+    let mut top: u32 = 0
+    if rest >= 65536 {
+        rest = rest >> 16
+        top = top + 16
+    }
+    if rest >= 256 {
+        rest = rest >> 8
+        top = top + 8
+    }
+    if rest >= 16 {
+        rest = rest >> 4
+        top = top + 4
+    }
+    if rest >= 4 {
+        rest = rest >> 2
+        top = top + 2
+    }
+    if rest >= 2 {
+        top = top + 1
+    }
+    top
+}
+
+/// Encode an exactly representable small integer times2^(base-150).
+fn tail_bits(_ sign: u32, _ magnitude: u32, _ base: u32) -> u32 {
+    if magnitude == 0 { return 0 }
+    let top = highest_bit(magnitude)
+    let exponent: i32 = __bitcast<u32, i32>(base) - 150 + __bitcast<u32, i32>(top)
+    if exponent < -126 {
+        // All finite binary32 inputs lie on the2^-149 lattice. Here base>=1
+        // and the exact shifted magnitude fits the23 subnormal fraction bits.
+        return (sign << 31) | (magnitude << (base - 1))
+    }
+    let significand = if top <= 23 {
+        magnitude << (23 - top)
+    } else {
+        magnitude >> (top - 23)
+    }
+    let biased: u32 = __bitcast<i32, u32>(exponent + 127)
+    (sign << 31) | (biased << 23) | (significand & 8388607)
+}
+
+fn round_sum(_ magnitude: Magnitude48, _ sign: u32, _ base: u32) -> (u32, u32) {
+    if magnitude.is_zero() { return (0, 0) }
+    let top = magnitude.top_bit()
+    let mut exponent: i32 = __bitcast<u32, i32>(base) - 150 + __bitcast<u32, i32>(top)
+    if exponent < -126 {
+        return ((sign << 31) | (magnitude.low << (base - 1)), 0)
+    }
+    let shift: u32 = if top > 23 { top - 23 } else { 0 }
+    let mut retained: u32 = if top <= 23 {
+        magnitude.low << (23 - top)
+    } else if shift >= 24 {
+        magnitude.high >> (shift - 24)
+    } else {
+        (magnitude.high << (24 - shift)) | (magnitude.low >> shift)
+    }
+    let discarded: u32 = if shift == 0 {
+        0
+    } else if shift > 24 {
+        ((magnitude.high & ((1 << (shift - 24)) - 1)) << 24) | magnitude.low
+    } else {
+        magnitude.low & ((1 << shift) - 1)
+    }
+    let round_up: bool = if shift == 0 {
+        false
+    } else {
+        let half: u32 = 1 << (shift - 1)
+        discarded > half || (discarded == half && (retained & 1) != 0)
+    }
+    if round_up { retained = retained + 1 }
+    if retained == RADIX {
+        retained = retained >> 1
+        exponent = exponent + 1
+    }
+    if exponent > 127 { return ((sign << 31) | 2139095040, NAN) }
+    let biased: u32 = __bitcast<i32, u32>(exponent + 127)
+    let head: u32 = (sign << 31) | (biased << 23) | (retained & 8388607)
+    let error = if round_up { (1 << shift) - discarded } else { discarded }
+    let error_sign = if round_up { 1 - sign } else { sign }
+    (head, tail_bits(error_sign, error, base))
+}
+
+pub fn sum_bits(_ input_a: u32, _ input_b: u32) -> (u32, u32) {
+    if ((input_a >> 23) & 255) == 255 || ((input_b >> 23) & 255) == 255 {
+        return (NAN, NAN)
+    }
+    let swap: bool = (input_a & 2147483647) < (input_b & 2147483647)
+    let a_bits = if swap { input_b } else { input_a }
+    let b_bits = if swap { input_a } else { input_b }
+    if (a_bits & 2147483647) == 0 {
+        // RNE exact cancellation is+0; two negative zeros retain-0.
+        return ((a_bits & b_bits) & 2147483648, 0)
+    }
+    let a = Binary32::decode(a_bits)
+    let b = Binary32::decode(b_bits)
+    let gap = a.exponent - b.exponent
+    if gap >= 25 {
+        // At gap25, subtraction below an exact power of two can cross its
+        // narrower downward half-ULP. The generic "return smaller" shortcut
+        // would be wrong for1 + (-3*2^-26), whose tail is+2^-26.
+        if gap == 25 && a.sign != b.sign && a.significand == HIDDEN && b.significand > HIDDEN {
+            let head = (a.sign << 31) | ((a_bits & 2147483647) - 1)
+            return (head, tail_bits(a.sign, RADIX - b.significand, b.exponent))
+        }
+        return (a_bits, if b.significand == 0 { 0 } else { b_bits })
+    }
+    let large = Magnitude48::aligned(a.significand, gap)
+    let small = Magnitude48 { high: 0, low: b.significand }
+    if a.sign == b.sign {
+        round_sum(large.plus(small), a.sign, b.exponent)
+    } else if large.at_least(small) {
+        round_sum(large.minus(small), a.sign, b.exponent)
+    } else {
+        round_sum(small.minus(large), b.sign, b.exponent)
+    }
+}
+
+pub fn two_sum(_ a: f32, _ b: f32) -> (f32, f32) {
+    let (head, tail) = sum_bits(__bitcast<f32, u32>(a), __bitcast<f32, u32>(b))
+    (__bitcast<u32, f32>(head), __bitcast<u32, f32>(tail))
+}

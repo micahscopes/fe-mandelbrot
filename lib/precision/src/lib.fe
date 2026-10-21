@@ -1,72 +1,22 @@
-//! `Expansion<N>`: a general, CTFE-derived, length-N non-overlapping FLOAT
-//! EXPANSION (Dekker/Priest/Hida-Li-Bailey/CAMPARY style), parameterized by a
-//! `const N: usize`. `Expansion<2>` IS the hand-written df64 double-single
-//! from `demos/sketches/mandelbrot/src/lib.fe` (bit-identical at N=2, see the
-//! derivation below and the staged oracle in
-//! `demos/sketches/precision/oracle.rs`, destined for
-//! `crates/codegen/tests/precision_expansion2_df64_oracle.rs`), and
-//! `Expansion<3>`/`Expansion<4>` fall out of the SAME generic code, pushing
-//! the zoom floor deeper with zero new hand-written numerics (qf128 territory
-//! at N=4). Rollcall precision axis, P1 (PRECISION_TYPES_RESEARCH.md,
-//! PRECISION_P0_PROBES.md).
+//! Ordered floating expansions specialized by Fe's type-level arithmetic.
 //!
-//! THE PRINCIPLE (ROLLCALL_GOAL.md): this is authored ONCE as a general form;
-//! the N=2/3/4 instantiations are the compiler specializing it, not three
-//! bespoke functions. `two_sum`/`split`/`two_product` are the shared
-//! branch-free primitives (verbatim from df64: only `+`/`-`/`*`, no `if`, no
-//! `select`, relying only on f32 being IEEE round-to-nearest). `add`/`sub`/
-//! `mul`/`sqr`/`from_f32`/`add_f32` are ONE generic definition each, over
-//! `const N`, dispatched through the `Exp` trait's structural recursion.
+//! `Expansion<1>` stores one binary32 term; larger widths recursively retain
+//! less significant terms in `More<T>`. Addition and multiplication fold their
+//! corrections through that order. A linear representation keeps the leading
+//! term explicit; supported widths are small, fixed numerical values.
 //!
-//! REPRESENTATION AND THE BALANCED-TREE MANDATE (read this before touching
-//! the shape). P0's mandatory rule is: materialize every CTFE type-fn as a
-//! balanced `{N/2}` tree, never a linear cons-chain, because a linear chain
-//! consumed by a trait fold hits an undocumented `MAXIMUM_TYPE_DEPTH=256`
-//! solver ceiling at N=255. `Expansion<N>` below is deliberately a LINEAR
-//! chain (`Last | More<Expansion<{N-1}>>`), not a balanced binary tree. This
-//! is a considered, measured exception, not an oversight:
+//! The floating expansion algorithms below assume strict IEEE nearest-even
+//! arithmetic. WebGPU does not provide that complete execution contract:
+//! reassociation can erase their correction terms. They are not certified as
+//! portable GPU expansions merely because their CPU results agree.
 //!
-//!   1. Float-expansion renormalization is inherently POSITION-SENSITIVE, not
-//!      commutative/reassociable like the CGA schedule's polynomial sum. df64's
-//!      own `df_add` treats term 0 (the leading/most-significant limb) with an
-//!      EXACT `two_sum`, and every other term with a cheap approximate lump,
-//!      because term 0 alone can carry a cancellation that changes the exponent;
-//!      lower terms cannot. A symmetric balanced split (`Branch<L, R>`, each
-//!      holding half the terms) has no way to single out "the most significant
-//!      term" without degenerating into a linear-on-one-side shape anyway (a
-//!      left-leaning `Branch<Leaf, Branch<Leaf, ...>>` IS this same linear
-//!      chain, just spelled differently). A true symmetric split was tried by
-//!      hand (see the design log in the task report) and could not reproduce
-//!      df64's op sequence bit-for-bit; the linear chain can, exactly.
-//!   2. The measured wall is N=255 for a LINEAR chain under a trait fold (P0
-//!      Probe 1); `Expansion<N>` here targets N=2..~8 (df64 through octuple-
-//!      double). P0 Probe 3 independently proved an near-identical linear
-//!      `Cell<Storage<N-1>>` HList safe up to N=64 with wide headroom. This
-//!      chain is nowhere near the measured wall.
-//!   3. The mandate's actual target is large-N shapes consumed by a trait fold
-//!      (Field<p> at L=20, Poseidon-scale ~800-term schedules): THAT is where
-//!      balanced `{N/2}` materialization stays mandatory and unwaived.
-//!
-//! Flagged explicitly for review, per the task's own guardrail ("if you hit a
-//! wall, report it, don't work around it silently").
-//!
-//! WHY `Last | More<T>` AND NOT `Nil | Cell<T>` (the CGA fixture's own
-//! shape): the algorithm needs to know, AT THE TYPE LEVEL, whether "this is
-//! the last (least-significant, lump-only) term" versus "there is more after
-//! this term (needs its own exact combine step)". A `Nil | Cell<T>` chain
-//! only exposes that distinction by inspecting whether `T = Nil`, which two
-//! non-overlapping trait impls (`impl Exp for Cell<T>` for ALL `T`) cannot
-//! discriminate without specialization. Making "am I last" a distinct
-//! constructor (`Last` vs `More<T>`) turns it into ordinary, non-overlapping
-//! trait dispatch.
-//!
-//! P2 (`field.fe` / `bn254_fr.fe`, re-exported below as namespaced
-//! submodules, NOT globbed: `field::mul` would otherwise collide with this
-//! module's own `Expansion` `mul`) adds `Field<p>`, the general CTFE-derived
-//! Montgomery modular-multiplication engine; see `field.fe`'s own module doc.
-//! Callers reach it as `precision::field::{mul, Modulus, ...}` and the BN254
-//! Fr instance as `precision::bn254_fr::Bn254Fr`.
+//! `integer_sum` separately defines binary32 addition and its exact residual
+//! through integer bits, including nearest-even rounding and explicit exceptional
+//! cases. Its primitive GPU tests pass; composed expansion and renderer accuracy
+//! remain separate requirements. Fixed-point reference arithmetic lives in
+//! `fixed`; modular fields and polynomial operations have their own modules.
 
+pub use integer_sum
 pub use field
 pub use bn254_fr
 pub use word_field
