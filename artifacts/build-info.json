@@ -1,5 +1,5 @@
 {
-  "sourceHash": "0dcfca1dae6400ccb0969447d4b27c928a5f74b808a720a86368aceb90eda7bd",
+  "sourceHash": "fff78b7d253b7b8daf144610054b912805815d7d647479784edb465b2522b97d",
   "toolchain": {
     "fe": {
       "repository": "https://github.com/micahscopes/fe.git",
@@ -18,7 +18,7 @@
     "rust": "nightly-2026-08-17"
   },
   "files": {
-    "colors/fe-render-runtime.js": "b631b8af0ef2d6fd45c926bfe69bfc3ffd7ca9b7866407510657d7ecc2cdb45e",
+    "colors/fe-render-runtime.js": "e11d895cace32a70d24ba74231ebf952557f202fa866f59c0399d2e468985add",
     "colors/index.html": "f99c53c7bdfd6f649ade7ced7c74055428eb63271042c215e833b127b4aae84c",
     "colors/manifest.json": "1f410ccd5fb520c3d5ac04e75d808d102a0544437404c82961201dac051ed864",
     "colors/module.wasm": "c325d4460b5380946629d0de0513a634a801a4bd9401d23b158cf520aca3a2d5",
@@ -41,7 +41,7 @@
     "indexes/perceptual_color/docs.json": "db9ad8332bbb3d615812f7fc42d100e39201d5b4976977b403c6431d56b7d682",
     "indexes/renderer/docs.json": "5558a1f7f514258908560bd574815679d521d5136f973b9f70f5609ea1cf2680",
     "indexes/source_viewer/docs.json": "42200900cd1fd24db0106c7cafbfac069769b4fdc747f819d20246630582c816",
-    "renderer/fe-render-runtime.js": "b631b8af0ef2d6fd45c926bfe69bfc3ffd7ca9b7866407510657d7ecc2cdb45e",
+    "renderer/fe-render-runtime.js": "e11d895cace32a70d24ba74231ebf952557f202fa866f59c0399d2e468985add",
     "renderer/index.html": "f99c53c7bdfd6f649ade7ced7c74055428eb63271042c215e833b127b4aae84c",
     "renderer/manifest.json": "4c71ac9f3dc6dd1831a57df1dc195df014a48943f482ad20816802672a26d07c",
     "renderer/module.wasm": "7629ae1cb29cdd079b7d607698cf119fab1cba6493528abb60a0444add107c86",
@@ -64,12 +64,12 @@
     "renderer/passes/016-compute.wgsl": "38efdffed991b5b9384d2f3c8279e64105da74ac8bde3b1f4ace0b57e593bfcc",
     "renderer/passes/017-fragment.wgsl": "0e1f5acf63ea0f48c1dd957df8b912089fb9033e025a8fa5a3f91778a1ef9c50",
     "viewer/assets/fe-7d5a50b961e715bc.wasm": "7d5a50b961e715bc7ccf8610bbcb6bbbee44f7a535f66daddf58c6d50e7483c1",
-    "viewer/assets/fe-8d0560c011457732.json": "8d0560c0114577326d8d12848c973c6678a7233c4d4de4d394ba9cd3cc8f2ae2",
     "viewer/assets/fe-adapter-379df86969428ae9.js": "379df86969428ae9872febd8d518f6a42b7c2201bb4da57aafa9bd05715f6697",
     "viewer/assets/fe-bootstrap-4cb87a78ce901629.js": "4cb87a78ce90162979a6502595fabb1adbf4cbdf4b954d72d029e34f29a1035f",
+    "viewer/assets/fe-d6286485e83040e8.json": "d6286485e83040e837e0f3048bf153aaf456a5370d1dfaab5cd81ef5d4531e6c",
     "viewer/assets/fe-task-3747de1e041477c4/host-completion.js": "54bc6871a2bf0b4bdf4dad48e8d1aa371ae920dcb418e5406d1d2253a322b8e8",
     "viewer/assets/fe-task-3747de1e041477c4/materialized-task.js": "c6840564dd53aba5d599ba2861e83f38232eefac1e1534cadf9692edcacdff96",
     "viewer/assets/fe-task-3747de1e041477c4/tasks.js": "35c384420ab70902707d0bc8b5b742c8872af39d54ccb34ef6610cf1cbc3d6cc",
-    "viewer/index.html": "5bf6de25449ca0e591326afbee4392ef503157a019184572d3144cdfef49a9d8"
+    "viewer/index.html": "7ef93676e47f141398512db163c379250777528dccd1ee5e7a817eb9ec25c473"
   }
 }
