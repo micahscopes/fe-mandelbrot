@@ -1,12 +1,26 @@
 //! Perturbation arithmetic and resumable pixel checkpoints.
 //! Escape and cancellation rules are shared by preview, refinement and AA.
+use core::default::Default
 use core::marker::Copy
+use core::ops::{Add, Eq, Sub}
 use std::webgpu::StorageBuffer as OrbitBuffer
 use fmath::{abs, max, PixelSample}
-use ingot::cache::SampleOracle
+use ingot::cache::{ReferenceAnchor, ReferenceControl, SampleOracle}
 use ingot::palette::{escape_palette, interior, glitch}
 use ingot::policy::Camera
-use precision::{Expansion, from_quad, sub, to_quad, two_sum}
+use precision::{Expansion, from_quad, to_quad, two_sum}
+use precision::field::{Limbs, Zero}
+use precision::fixed::{
+    add as fixed_add,
+    escaped as fixed_escaped,
+    fixed_magnitude_from_words,
+    fixed_magnitude_to_words,
+    from_qf_offset,
+    mul as fixed_mul,
+    sqr as fixed_sqr,
+    sub as fixed_sub,
+    to_f32_quad_bits,
+}
 
 extern {
     const fn __bitcast<From, To>(_: From) -> To
@@ -46,7 +60,9 @@ pub fn progress_has_outcome(_ reference_i: u32) -> bool {
 }
 
 pub fn progress_is_terminal(_ reference_i: u32, _ iteration: u32, _ limit: u32) -> bool {
-    iteration >= limit || progress_has_outcome(reference_i)
+    iteration >= limit
+        || progress_has_outcome(reference_i)
+        || progress_is_presentable(reference_i)
 }
 
 pub fn progress_outcome_flags(_ reference_i: u32) -> u32 {
@@ -61,7 +77,266 @@ pub fn pack_progress_reference(_ reference_i: u32, _ escaped: u32, _ glitched: u
     (reference_i & PROGRESS_REF_MASK) | (escaped << 31) | (glitched << 30)
 }
 
-pub struct ComplexQF32Bits {
+/// A complex value over any real representation `T`.
+pub struct Complex<T> {
+    pub re: T,
+    pub im: T,
+}
+
+impl<T: Copy> Copy for Complex<T> {}
+
+impl<T: Default> Default for Complex<T> {
+    fn default() -> Self {
+        Self {
+            re: T::default(),
+            im: T::default(),
+        }
+    }
+}
+
+impl<T: Eq> Eq for Complex<T> {
+    fn eq(self, _ other: Self) -> bool {
+        self.re == other.re && self.im == other.im
+    }
+}
+
+impl<T: Add<Output = T>> Add for Complex<T> {
+    fn add(own self, _ other: own Self) -> Self {
+        Self {
+            re: self.re + other.re,
+            im: self.im + other.im,
+        }
+    }
+}
+
+impl<T: Sub<Output = T>> Sub for Complex<T> {
+    fn sub(own self, _ other: own Self) -> Self {
+        Self {
+            re: self.re - other.re,
+            im: self.im - other.im,
+        }
+    }
+}
+
+impl Complex<f32> {
+    pub fn norm_squared(self) -> f32 {
+        self.re * self.re + self.im * self.im
+    }
+
+    pub fn is_non_finite(self) -> bool {
+        non_finite(self.re) || non_finite(self.im)
+    }
+}
+
+/// Exact sign-magnitude `Fixed<8>` coordinate used in the reference recurrence.
+/// Keeping recursive `Limbs<8>` inside the value avoids per-operation array
+/// conversions while preserving exact sign and negative-zero semantics.
+pub struct ReferenceReal {
+    pub sign: u32,
+    pub magnitude: Limbs<8>,
+}
+
+impl Copy for ReferenceReal {}
+
+impl Default for ReferenceReal {
+    fn default() -> Self {
+        Self {
+            sign: 0,
+            magnitude: <Limbs<8> as Zero>::zero(),
+        }
+    }
+}
+
+impl ReferenceReal {
+    pub fn zero() -> Self {
+        Self::default()
+    }
+
+    pub fn from_quad(_ w0: f32, _ w1: f32, _ w2: f32, _ w3: f32) -> Self {
+        let (sign, magnitude) = from_qf_offset<8>(w0, w1, w2, w3, 0.0)
+        Self {
+            sign: sign,
+            magnitude: magnitude,
+        }
+    }
+
+    pub fn from_expansion(_ value: Expansion<4>) -> Self {
+        let (w0, w1, w2, w3) = to_quad(value)
+        Self::from_quad(w0, w1, w2, w3)
+    }
+
+    pub fn from_words(_ sign: u32, _ words: [u32; 8]) -> Self {
+        Self {
+            sign: sign,
+            magnitude: fixed_magnitude_from_words<8>(words),
+        }
+    }
+
+    pub fn to_words(self) -> [u32; 8] {
+        fixed_magnitude_to_words<8>(self.magnitude)
+    }
+
+    pub fn to_quad_bits(self) -> (u32, u32, u32, u32) {
+        to_f32_quad_bits<8>(self.sign, self.magnitude)
+    }
+
+    pub fn square(self) -> Self {
+        let (sign, magnitude) = fixed_sqr<8>(self.sign, self.magnitude)
+        Self {
+            sign: sign,
+            magnitude: magnitude,
+        }
+    }
+
+    pub fn multiply(self, _ other: Self) -> Self {
+        let (sign, magnitude) = fixed_mul<8>(
+            self.sign,
+            self.magnitude,
+            other.sign,
+            other.magnitude,
+        )
+        Self {
+            sign: sign,
+            magnitude: magnitude,
+        }
+    }
+
+    pub fn escaped(self) -> bool {
+        fixed_escaped<8>(self.magnitude) == 1
+    }
+}
+
+impl Add for ReferenceReal {
+    fn add(own self, _ other: own Self) -> Self {
+        let (sign, magnitude) = fixed_add<Limbs<8>>(
+            self.sign,
+            self.magnitude,
+            other.sign,
+            other.magnitude,
+        )
+        Self {
+            sign: sign,
+            magnitude: magnitude,
+        }
+    }
+}
+
+impl Sub for ReferenceReal {
+    fn sub(own self, _ other: own Self) -> Self {
+        let (sign, magnitude) = fixed_sub<Limbs<8>>(
+            self.sign,
+            self.magnitude,
+            other.sign,
+            other.magnitude,
+        )
+        Self {
+            sign: sign,
+            magnitude: magnitude,
+        }
+    }
+}
+
+pub struct ReferenceStep {
+    pub value: Complex<ReferenceReal>,
+    pub escaped: bool,
+}
+
+impl Copy for ReferenceStep {}
+
+/// Advance one exact `Complex<ReferenceReal>` orbit sample by `z^2 + center`,
+/// returning the input `z` unchanged when `|z|^2 > 4`.
+pub fn reference_step(
+    _ z: Complex<ReferenceReal>,
+    _ center: Complex<ReferenceReal>,
+) -> ReferenceStep {
+    let xx: ReferenceReal = z.re.square()
+    let yy: ReferenceReal = z.im.square()
+    if (xx + yy).escaped() {
+        ReferenceStep {
+            value: z,
+            escaped: true,
+        }
+    } else {
+        let xy: ReferenceReal = z.re.multiply(z.im)
+        let real: ReferenceReal = (xx - yy) + center.re
+        let imag: ReferenceReal = (xy + xy) + center.im
+        ReferenceStep {
+            value: Complex {
+                re: real,
+                im: imag,
+            },
+            escaped: false,
+        }
+    }
+}
+
+pub fn reference_center(_ anchor: ReferenceAnchor) -> Complex<ReferenceReal> {
+    Complex {
+        re: ReferenceReal::from_quad(
+            anchor.x0,
+            anchor.x1,
+            anchor.x2,
+            anchor.x3,
+        ),
+        im: ReferenceReal::from_quad(
+            anchor.y0,
+            anchor.y1,
+            anchor.y2,
+            anchor.y3,
+        ),
+    }
+}
+
+pub fn clear_reference_checkpoint(_ words: OrbitBuffer<u32, 16>) {
+    let mut slot: u32 = 0
+    while slot < 16 {
+        words.store(index: slot, value: 0)
+        slot = slot + 1
+    }
+}
+
+pub fn load_reference_checkpoint(
+    _ words: OrbitBuffer<u32, 16>,
+    _ control: ReferenceControl,
+) -> Complex<ReferenceReal> {
+    let mut re_words: [u32; 8] = [0; 8]
+    let mut im_words: [u32; 8] = [0; 8]
+    let mut i: usize = 0
+    while i < 8 {
+        let slot: u32 = i.downcast_truncate()
+        re_words[i] = words.load(index: slot)
+        im_words[i] = words.load(index: slot + 8)
+        i = i + 1
+    }
+    Complex {
+        re: ReferenceReal::from_words(control.zx_s, re_words),
+        im: ReferenceReal::from_words(control.zy_s, im_words),
+    }
+}
+
+pub fn store_reference_checkpoint(
+    _ words: OrbitBuffer<u32, 16>,
+    _ z: Complex<ReferenceReal>,
+) {
+    let re_words: [u32; 8] = z.re.to_words()
+    let im_words: [u32; 8] = z.im.to_words()
+    let mut i: usize = 0
+    while i < 8 {
+        let slot: u32 = i.downcast_truncate()
+        words.store(index: slot, value: re_words[i])
+        words.store(index: slot + 8, value: im_words[i])
+        i = i + 1
+    }
+}
+
+pub struct ReferenceMetadata {
+    pub valid_samples: u32,
+    pub limit: u32,
+}
+
+impl Copy for ReferenceMetadata {}
+
+pub struct PackedReference {
     pub re_w0_bits: u32,
     pub re_w1_bits: u32,
     pub re_w2_bits: u32,
@@ -72,23 +347,20 @@ pub struct ComplexQF32Bits {
     pub im_w3_bits: u32,
 }
 
-impl Copy for ComplexQF32Bits {}
+impl Copy for PackedReference {}
 
-impl ComplexQF32Bits {
+impl Default for PackedReference {
+    fn default() -> Self {
+        Self::from_words(0, 0, 0, 0, 0, 0, 0, 0)
+    }
+}
+
+impl PackedReference {
     pub fn zero() -> Self {
-        ComplexQF32Bits {
-            re_w0_bits: 0,
-            re_w1_bits: 0,
-            re_w2_bits: 0,
-            re_w3_bits: 0,
-            im_w0_bits: 0,
-            im_w1_bits: 0,
-            im_w2_bits: 0,
-            im_w3_bits: 0,
-        }
+        Self::default()
     }
 
-    pub fn from_quad_bits(
+    pub fn from_words(
         _ rx0: u32,
         _ rx1: u32,
         _ rx2: u32,
@@ -98,7 +370,7 @@ impl ComplexQF32Bits {
         _ iy2: u32,
         _ iy3: u32,
     ) -> Self {
-        ComplexQF32Bits {
+        PackedReference {
             re_w0_bits: rx0,
             re_w1_bits: rx1,
             re_w2_bits: rx2,
@@ -110,45 +382,67 @@ impl ComplexQF32Bits {
         }
     }
 
-    pub fn metadata(_ valid_samples: u32, _ limit: u32) -> Self {
-        ComplexQF32Bits {
-            re_w0_bits: valid_samples,
-            re_w1_bits: limit,
-            re_w2_bits: 0,
-            re_w3_bits: 0,
-            im_w0_bits: 0,
-            im_w1_bits: 0,
-            im_w2_bits: 0,
-            im_w3_bits: 0,
+    pub fn from_fixed(_ value: Complex<ReferenceReal>) -> Self {
+        let (rx0, rx1, rx2, rx3) = value.re.to_quad_bits()
+        let (iy0, iy1, iy2, iy3) = value.im.to_quad_bits()
+        Self::from_words(rx0, rx1, rx2, rx3, iy0, iy1, iy2, iy3)
+    }
+
+    pub fn from_metadata(_ valid_samples: u32, _ limit: u32) -> Self {
+        let mut packed: Self = Self::default()
+        packed.re_w0_bits = valid_samples
+        packed.re_w1_bits = limit
+        packed
+    }
+
+    pub fn decode_metadata(self) -> ReferenceMetadata {
+        ReferenceMetadata {
+            valid_samples: self.re_w0_bits,
+            limit: self.re_w1_bits,
         }
     }
 
-    pub fn re_expansion(self) -> Expansion<4> {
-        from_quad(
-            __bitcast(self.re_w0_bits),
-            __bitcast(self.re_w1_bits),
-            __bitcast(self.re_w2_bits),
-            __bitcast(self.re_w3_bits),
-        )
+    pub fn is_invalid(self) -> bool {
+        self.re_w0_bits == INVALID_REFERENCE || self.im_w0_bits == INVALID_REFERENCE
     }
 
-    pub fn im_expansion(self) -> Expansion<4> {
-        from_quad(
-            __bitcast(self.im_w0_bits),
-            __bitcast(self.im_w1_bits),
-            __bitcast(self.im_w2_bits),
-            __bitcast(self.im_w3_bits),
-        )
+    pub fn decode(self) -> Complex<Expansion<4>> {
+        Complex {
+            re: from_quad(
+                __bitcast(self.re_w0_bits),
+                __bitcast(self.re_w1_bits),
+                __bitcast(self.re_w2_bits),
+                __bitcast(self.re_w3_bits),
+            ),
+            im: from_quad(
+                __bitcast(self.im_w0_bits),
+                __bitcast(self.im_w1_bits),
+                __bitcast(self.im_w2_bits),
+                __bitcast(self.im_w3_bits),
+            ),
+        }
+    }
+
+    pub fn word(self, _ slot: u32) -> u32 {
+        match slot & 7 {
+            0 => self.re_w0_bits,
+            1 => self.re_w1_bits,
+            2 => self.re_w2_bits,
+            3 => self.re_w3_bits,
+            4 => self.im_w0_bits,
+            5 => self.im_w1_bits,
+            6 => self.im_w2_bits,
+            _ => self.im_w3_bits,
+        }
     }
 }
 
 pub fn offset_sample(_ px: i32, _ py: i32, _ ox: f32, _ oy: f32) -> PixelSample {
     let base: PixelSample = PixelSample::ordered_2x2(px, py)
-    PixelSample { x: base.x + ox, y: base.y + oy }
-}
-
-fn invalid_reference(_ sample: ComplexQF32Bits) -> bool {
-    sample.re_w0_bits == INVALID_REFERENCE || sample.im_w0_bits == INVALID_REFERENCE
+    PixelSample {
+        x: base.x + ox,
+        y: base.y + oy,
+    }
 }
 
 fn non_finite(_ value: f32) -> bool {
@@ -167,41 +461,82 @@ fn reference_plus_delta(_ w0: f32, _ w1: f32, _ w2: f32, _ w3: f32, _ delta: f32
     s3 + (((e3 + e2) + e1) + e0)
 }
 
+pub fn expansion_plus_delta(_ reference: Expansion<4>, _ delta: f32) -> f32 {
+    let (w0, w1, w2, w3) = to_quad(reference)
+    reference_plus_delta(w0, w1, w2, w3, delta)
+}
+
+pub fn reference_with_delta(
+    _ reference: Complex<Expansion<4>>,
+    _ delta: Complex<f32>,
+) -> Complex<f32> {
+    Complex {
+        re: expansion_plus_delta(reference.re, delta.re),
+        im: expansion_plus_delta(reference.im, delta.im),
+    }
+}
+
+/// Advance the single-precision orbit perturbation `delta` around `reference`
+/// by `2 * reference * delta + delta^2 + dc`, preserving the exact ordered
+/// head/tail association across the four-word reference expansion.
+pub fn perturb(
+    _ reference: Complex<Expansion<4>>,
+    _ delta: Complex<f32>,
+    _ dc: Complex<f32>,
+) -> Complex<f32> {
+    let (ref_re_w0, ref_re_w1, ref_re_w2, ref_re_w3) = to_quad(reference.re)
+    let (ref_im_w0, ref_im_w1, ref_im_w2, ref_im_w3) = to_quad(reference.im)
+    let linear_re_w0: f32 = ref_re_w0 * delta.re - ref_im_w0 * delta.im
+    let linear_re_tail: f32 = ref_re_w1 * delta.re - ref_im_w1 * delta.im
+        + ref_re_w2 * delta.re - ref_im_w2 * delta.im
+        + ref_re_w3 * delta.re - ref_im_w3 * delta.im
+    let linear_im_w0: f32 = ref_re_w0 * delta.im + ref_im_w0 * delta.re
+    let linear_im_tail: f32 = ref_re_w1 * delta.im
+        + ref_im_w1 * delta.re
+        + ref_re_w2 * delta.im
+        + ref_im_w2 * delta.re
+        + ref_re_w3 * delta.im
+        + ref_im_w3 * delta.re
+    Complex {
+        re: 2.0 * linear_re_w0
+            + 2.0 * linear_re_tail
+            + (delta.re * delta.re - delta.im * delta.im)
+            + dc.re,
+        im: 2.0 * linear_im_w0
+            + 2.0 * linear_im_tail
+            + 2.0 * delta.re * delta.im
+            + dc.im,
+    }
+}
+
 /// Compute the initial complex perturbation `dc` for a sample relative to the
 /// active reference center stored at `base + ORBIT_CENTER_INDEX`.
 fn pixel_delta_from_reference(
-    _ orbit: OrbitBuffer<ComplexQF32Bits, ORBIT_CAPACITY>,
+    _ orbit: OrbitBuffer<PackedReference, ORBIT_CAPACITY>,
     _ base: u32,
     _ camera: Camera,
     _ sample: PixelSample,
-) -> (f32, f32) {
+) -> Complex<f32> {
     let point = sample.plane(camera.res)
-    let center_reference: ComplexQF32Bits = orbit.load(index: base + ORBIT_CENTER_INDEX)
-    let center_remainder_re = sub<4>(camera.center_x, center_reference.re_expansion())
-    let center_remainder_im = sub<4>(camera.center_y, center_reference.im_expansion())
-    let (dc_re_w0, dc_re_w1, dc_re_w2, dc_re_w3) = to_quad(center_remainder_re)
-    let (dc_im_w0, dc_im_w1, dc_im_w2, dc_im_w3) = to_quad(center_remainder_im)
-    let dc_re: f32 = reference_plus_delta(
-        dc_re_w0,
-        dc_re_w1,
-        dc_re_w2,
-        dc_re_w3,
-        point.u * camera.zoom,
-    )
-    let dc_im: f32 = reference_plus_delta(
-        dc_im_w0,
-        dc_im_w1,
-        dc_im_w2,
-        dc_im_w3,
-        point.v * camera.zoom,
-    )
-    (dc_re, dc_im)
+    let center_reference: Complex<Expansion<4>> = orbit
+        .load(index: base + ORBIT_CENTER_INDEX)
+        .decode()
+    let camera_center: Complex<Expansion<4>> = Complex {
+        re: camera.center_x,
+        im: camera.center_y,
+    }
+    let center_remainder: Complex<Expansion<4>> = camera_center - center_reference
+    let plane_offset: Complex<f32> = Complex {
+        re: point.u * camera.zoom,
+        im: point.v * camera.zoom,
+    }
+    reference_with_delta(center_remainder, plane_offset)
 }
 
 /// A uniform iteration budget computed once by the reference pass. The pixel
 /// pass reads the result from orbit metadata and does no depth probing.
 pub fn sample_pixel(
-    _ orbit: OrbitBuffer<ComplexQF32Bits, ORBIT_CAPACITY>,
+    _ orbit: OrbitBuffer<PackedReference, ORBIT_CAPACITY>,
     _ base: u32,
     _ camera: Camera,
     _ sample: PixelSample,
@@ -211,7 +546,7 @@ pub fn sample_pixel(
 }
 
 pub fn sample_progress(
-    _ orbit: OrbitBuffer<ComplexQF32Bits, ORBIT_CAPACITY>,
+    _ orbit: OrbitBuffer<PackedReference, ORBIT_CAPACITY>,
     _ base: u32,
     _ camera: Camera,
     _ sample: PixelSample,
@@ -220,14 +555,16 @@ pub fn sample_progress(
     // The same one-orbit ordered refinement as the exact renderer. This is
     // deliberately not naive 4x supersampling: escaped samples terminate
     // early, and unfinished native samples resume from GPU checkpoints.
-    let (dc_re, dc_im) = pixel_delta_from_reference(orbit, base, camera, sample)
-    let metadata: ComplexQF32Bits = orbit.load(index: base + ORBIT_META_INDEX)
-    let max_iter: u32 = if budget < metadata.re_w1_bits {
+    let dc: Complex<f32> = pixel_delta_from_reference(orbit, base, camera, sample)
+    let metadata: ReferenceMetadata = orbit
+        .load(index: base + ORBIT_META_INDEX)
+        .decode_metadata()
+    let max_iter: u32 = if budget < metadata.limit {
         budget
     } else {
-        metadata.re_w1_bits
+        metadata.limit
     }
-    advance_progress(orbit, base, dc_re, dc_im, max_iter, max_iter, empty_progress(0))
+    advance_progress(orbit, base, dc, max_iter, max_iter, empty_progress(0))
 }
 
 pub struct OrbitProgress {
@@ -244,6 +581,40 @@ pub struct OrbitProgress {
 impl Copy for OrbitProgress {}
 
 impl OrbitProgress {
+    pub fn delta(self) -> Complex<f32> {
+        Complex {
+            re: self.dz_re,
+            im: self.dz_im,
+        }
+    }
+
+    pub fn position(self) -> Complex<f32> {
+        Complex {
+            re: self.z_re,
+            im: self.z_im,
+        }
+    }
+
+    pub fn from_continuation(
+        _ delta: Complex<f32>,
+        _ position: Complex<f32>,
+        _ reference_i: u32,
+        _ iteration: u32,
+        _ epoch: u32,
+        _ magnitude: f32,
+    ) -> Self {
+        OrbitProgress {
+            dz_re: delta.re,
+            dz_im: delta.im,
+            z_re: position.re,
+            z_im: position.im,
+            reference_i: reference_i,
+            iteration: iteration,
+            epoch: epoch,
+            magnitude: magnitude,
+        }
+    }
+
     pub fn reference_index(self) -> u32 {
         progress_reference_index(self.reference_i)
     }
@@ -298,115 +669,67 @@ impl OrbitProgress {
     }
 
     pub fn from_oracle(_ oracle: SampleOracle, _ epoch: u32, _ clock: f32) -> Self {
-        OrbitProgress {
-            dz_re: 0.0,
-            dz_im: 0.0,
-            z_re: clock,
-            z_im: 0.0,
-            reference_i: progress_with_presentable(oracle.flags),
-            iteration: oracle.iteration,
-            epoch: epoch,
-            magnitude: oracle.magnitude,
-        }
+        OrbitProgress::from_continuation(
+            Complex::default(),
+            Complex::default(),
+            oracle.flags,
+            oracle.iteration,
+            epoch,
+            oracle.magnitude,
+        ).with_fade_start(clock)
     }
 }
 
 pub fn empty_progress(_ epoch: u32) -> OrbitProgress {
-    OrbitProgress {
-        dz_re: 0.0,
-        dz_im: 0.0,
-        z_re: 0.0,
-        z_im: 0.0,
-        reference_i: 0,
-        iteration: 0,
-        epoch: epoch,
-        magnitude: 4.0,
-    }
+    OrbitProgress::from_continuation(
+        Complex::default(),
+        Complex::default(),
+        0,
+        0,
+        epoch,
+        4.0,
+    )
 }
 
 fn advance_progress(
-    _ orbit: OrbitBuffer<ComplexQF32Bits, ORBIT_CAPACITY>,
+    _ orbit: OrbitBuffer<PackedReference, ORBIT_CAPACITY>,
     _ base: u32,
-    _ dc_re: f32,
-    _ dc_im: f32,
+    _ dc: Complex<f32>,
     _ max_iter: u32,
     _ batch: u32,
     _ saved: OrbitProgress,
 ) -> OrbitProgress {
-    let valid_samples: u32 = orbit.load(index: base + ORBIT_META_INDEX).re_w0_bits
-    let mut dz_re = saved.dz_re
-    let mut dz_im = saved.dz_im
-    let mut z_re = saved.z_re
-    let mut z_im = saved.z_im
-    let mut reference_i = saved.reference_index()
-    let mut escaped: u32 = if saved.is_escaped() { 1 } else { 0 }
-    let mut glitched: u32 = if saved.is_glitched() { 1 } else { 0 }
-    let mut escape_magnitude = saved.magnitude
-    let mut i = saved.iteration
-    let mut steps: u32 = 0
-    while i < max_iter && steps < batch && escaped == 0 && glitched == 0 {
-        if escaped == 0 && glitched == 0 {
+    if saved.is_presentable() {
+        saved
+    } else {
+        let valid_samples: u32 = orbit
+            .load(index: base + ORBIT_META_INDEX)
+            .decode_metadata()
+            .valid_samples
+        let mut delta: Complex<f32> = saved.delta()
+        let mut z: Complex<f32> = saved.position()
+        let mut reference_i: u32 = saved.reference_index()
+        let mut escaped: u32 = if saved.is_escaped() { 1 } else { 0 }
+        let mut glitched: u32 = if saved.is_glitched() { 1 } else { 0 }
+        let mut escape_magnitude: f32 = saved.magnitude
+        let mut i: u32 = saved.iteration
+        let mut steps: u32 = 0
+        while i < max_iter && steps < batch && escaped == 0 && glitched == 0 {
             if reference_i + 1 >= valid_samples {
                 reference_i = 0
-                dz_re = z_re
-                dz_im = z_im
+                delta = z
             }
-            let reference: ComplexQF32Bits = orbit.load(index: base + reference_i)
-            let next_reference: ComplexQF32Bits = orbit.load(index: base + reference_i + 1)
-            if invalid_reference(reference) || invalid_reference(next_reference) {
+            let packed_reference: PackedReference = orbit.load(index: base + reference_i)
+            let packed_next: PackedReference = orbit.load(index: base + reference_i + 1)
+            if packed_reference.is_invalid() || packed_next.is_invalid() {
                 glitched = 1
             } else {
-                let ref_re_w0: f32 = __bitcast(reference.re_w0_bits)
-                let ref_re_w1: f32 = __bitcast(reference.re_w1_bits)
-                let ref_re_w2: f32 = __bitcast(reference.re_w2_bits)
-                let ref_re_w3: f32 = __bitcast(reference.re_w3_bits)
-                let ref_im_w0: f32 = __bitcast(reference.im_w0_bits)
-                let ref_im_w1: f32 = __bitcast(reference.im_w1_bits)
-                let ref_im_w2: f32 = __bitcast(reference.im_w2_bits)
-                let ref_im_w3: f32 = __bitcast(reference.im_w3_bits)
-                let next_ref_re_w0: f32 = __bitcast(next_reference.re_w0_bits)
-                let next_ref_re_w1: f32 = __bitcast(next_reference.re_w1_bits)
-                let next_ref_re_w2: f32 = __bitcast(next_reference.re_w2_bits)
-                let next_ref_re_w3: f32 = __bitcast(next_reference.re_w3_bits)
-                let next_ref_im_w0: f32 = __bitcast(next_reference.im_w0_bits)
-                let next_ref_im_w1: f32 = __bitcast(next_reference.im_w1_bits)
-                let next_ref_im_w2: f32 = __bitcast(next_reference.im_w2_bits)
-                let next_ref_im_w3: f32 = __bitcast(next_reference.im_w3_bits)
-                let linear_re_w0: f32 = ref_re_w0 * dz_re - ref_im_w0 * dz_im
-                let linear_re_tail: f32 = ref_re_w1 * dz_re - ref_im_w1 * dz_im
-                    + ref_re_w2 * dz_re - ref_im_w2 * dz_im
-                    + ref_re_w3 * dz_re - ref_im_w3 * dz_im
-                let linear_im_w0: f32 = ref_re_w0 * dz_im + ref_im_w0 * dz_re
-                let linear_im_tail: f32 = ref_re_w1 * dz_im
-                    + ref_im_w1 * dz_re
-                    + ref_re_w2 * dz_im
-                    + ref_im_w2 * dz_re
-                    + ref_re_w3 * dz_im
-                    + ref_im_w3 * dz_re
-                let next_dz_re: f32 = 2.0 * linear_re_w0
-                    + 2.0 * linear_re_tail
-                    + (dz_re * dz_re - dz_im * dz_im)
-                    + dc_re
-                let next_dz_im: f32 = 2.0 * linear_im_w0
-                    + 2.0 * linear_im_tail
-                    + 2.0 * dz_re * dz_im
-                    + dc_im
-                let target_re: f32 = reference_plus_delta(
-                    next_ref_re_w0,
-                    next_ref_re_w1,
-                    next_ref_re_w2,
-                    next_ref_re_w3,
-                    next_dz_re,
-                )
-                let target_im: f32 = reference_plus_delta(
-                    next_ref_im_w0,
-                    next_ref_im_w1,
-                    next_ref_im_w2,
-                    next_ref_im_w3,
-                    next_dz_im,
-                )
-                let magnitude: f32 = target_re * target_re + target_im * target_im
-                let delta_magnitude: f32 = next_dz_re * next_dz_re + next_dz_im * next_dz_im
+                let reference: Complex<Expansion<4>> = packed_reference.decode()
+                let next_reference: Complex<Expansion<4>> = packed_next.decode()
+                let next_delta: Complex<f32> = perturb(reference, delta, dc)
+                let target: Complex<f32> = reference_with_delta(next_reference, next_delta)
+                let magnitude: f32 = target.norm_squared()
+                let delta_magnitude: f32 = next_delta.norm_squared()
                 // Rebase whenever the absolute orbit is smaller than its
                 // current perturbation. This keeps the next delta small
                 // and is the useful cancellation condition, rather than
@@ -415,61 +738,51 @@ fn advance_progress(
                 let ambiguous_escape: bool = magnitude > 4.0
                     && abs(magnitude - 4.0) <= 0.000004 * max(1.0, magnitude)
 
-                if non_finite(next_dz_re)
-                    || non_finite(next_dz_im)
+                if next_delta.is_non_finite()
                     || non_finite(magnitude)
                     || ambiguous_escape {
                     glitched = 1
                 } else {
-                    dz_re = next_dz_re
-                    dz_im = next_dz_im
-                    z_re = target_re
-                    z_im = target_im
+                    delta = next_delta
+                    z = target
                     if magnitude > 4.0 {
                         escaped = 1
                         escape_magnitude = magnitude
+                    } else if cancellation {
+                        reference_i = 0
+                        delta = z
                     } else {
-                        if cancellation {
-                            reference_i = 0
-                            dz_re = z_re
-                            dz_im = z_im
-                        } else {
-                            reference_i = reference_i + 1
-                        }
+                        reference_i = reference_i + 1
                     }
                 }
             }
+            i = i + 1
+            steps = steps + 1
         }
-        i = i + 1
-        steps = steps + 1
-    }
 
-    OrbitProgress {
-        dz_re: dz_re,
-        dz_im: dz_im,
-        z_re: z_re,
-        z_im: z_im,
-        reference_i: pack_progress_reference(reference_i, escaped, glitched),
-        iteration: i,
-        epoch: saved.epoch,
-        magnitude: escape_magnitude,
+        OrbitProgress::from_continuation(
+            delta,
+            z,
+            pack_progress_reference(reference_i, escaped, glitched),
+            i,
+            saved.epoch,
+            escape_magnitude,
+        )
     }
 }
 
 pub fn progress_color(_ saved: OrbitProgress) -> i32 {
     if saved.is_glitched() {
         glitch()
+    } else if saved.is_escaped() {
+        escape_palette(saved.iteration.downcast_truncate(), saved.magnitude)
     } else {
-        if saved.is_escaped() {
-            escape_palette(saved.iteration.downcast_truncate(), saved.magnitude)
-        } else {
-            interior()
-        }
+        interior()
     }
 }
 
 pub fn continue_pixel(
-    _ orbit: OrbitBuffer<ComplexQF32Bits, ORBIT_CAPACITY>,
+    _ orbit: OrbitBuffer<PackedReference, ORBIT_CAPACITY>,
     _ base: u32,
     _ camera: Camera,
     _ sample: PixelSample,
@@ -477,6 +790,6 @@ pub fn continue_pixel(
     _ steps: u32,
     _ saved: OrbitProgress,
 ) -> OrbitProgress {
-    let (dc_re, dc_im) = pixel_delta_from_reference(orbit, base, camera, sample)
-    advance_progress(orbit, base, dc_re, dc_im, budget, steps, saved)
+    let dc: Complex<f32> = pixel_delta_from_reference(orbit, base, camera, sample)
+    advance_progress(orbit, base, dc, budget, steps, saved)
 }
