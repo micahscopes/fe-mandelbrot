@@ -524,6 +524,23 @@ pub fn from_qf_offset<const L: usize>(_ w0: f32, _ w1: f32, _ w2: f32, _ w3: f32
     add<Limbs<L>>(s3, m3, o_s, o)
 }
 
+/// Project `to - from` after exact fixed-point subtraction. Error-free float
+/// transforms are unsuitable on a GPU; perform this conversion at frame scope,
+/// then share the resulting small binary32 displacement with pixel work.
+pub fn expansion_difference<const L: usize>(
+    _ from: super::Expansion<4>,
+    _ to: super::Expansion<4>,
+) -> f32
+    where Limbs<L>: FromReal + Mac + SubBorrow + Select + Binary32View + Copy,
+{
+    let (a0, a1, a2, a3) = super::to_quad(from)
+    let (b0, b1, b2, b3) = super::to_quad(to)
+    let (a_sign, a) = from_qf_offset<L>(a0, a1, a2, a3, 0.0)
+    let (b_sign, b) = from_qf_offset<L>(b0, b1, b2, b3, 0.0)
+    let (sign, magnitude) = sub<Limbs<L>>(b_sign, b, a_sign, a)
+    __bitcast<u32, f32>(to_f32_bits<L>(sign, magnitude))
+}
+
 // -----------------------------------------------------------------------------
 // Deterministic binary32 projection.
 //

@@ -276,6 +276,17 @@ impl PackedReference {
     pub fn decode_metadata(self) -> ReferenceMetadata {
         ReferenceMetadata { valid_samples: self.re_w0_bits, limit: self.re_w1_bits }
     }
+    /// The reference header's spare words carry this frame's camera delta.
+    /// The valid-count and limit words retain their existing ABI positions.
+    pub fn with_center_offset(self, _ offset: Complex<f32>) -> Self {
+        let mut next = self
+        next.re_w2_bits = __bitcast<f32, u32>(offset.re)
+        next.re_w3_bits = __bitcast<f32, u32>(offset.im)
+        next
+    }
+    pub fn center_offset(self) -> Complex<f32> {
+        Complex { re: __bitcast(self.re_w2_bits), im: __bitcast(self.re_w3_bits) }
+    }
     pub fn is_invalid(self) -> bool {
         self.re_w0_bits == INVALID_REFERENCE || self.im_w0_bits == INVALID_REFERENCE
     }
@@ -378,14 +389,12 @@ fn pixel_delta_from_reference(
     _ sample: PixelSample,
 ) -> Complex<f32> {
     let point = sample.plane(camera.res)
-    let center_reference: Complex<Expansion<4>> = orbit
-        .load(index: base + ORBIT_CENTER_INDEX)
-        .decode()
+    let offset = orbit.load(index: base + ORBIT_META_INDEX).center_offset()
     let plane_offset: Complex<f32> = Complex {
         re: point.u * camera.zoom,
         im: point.v * camera.zoom,
     }
-    reference_with_delta(camera.center - center_reference, plane_offset)
+    offset + plane_offset
 }
 
 /// A uniform iteration budget computed once by the reference pass. The pixel

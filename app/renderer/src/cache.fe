@@ -7,6 +7,7 @@ use fmath::from_i32
 use ingot::image::max
 use ingot::policy::{Camera, MandelbrotViewState, PreviewKey, RefinementKey, ZOOM_MIN, blur_radius}
 use precision::{Expansion, from_quad, to_quad}
+use precision::fixed::expansion_difference
 
 pub const ORACLE_GLITCHED_BIT: u32 = 1073741824
 pub const PREVIEW_BATCH: u32 = 256
@@ -59,14 +60,8 @@ pub fn preview_is_completed(_ prefix_only: u32, _ completed_steps: u32, _ budget
     prefix_only == 0 && budget > 0 && completed_steps >= budget
 }
 
-pub fn expansion_delta(_ from: Expansion<4>, _ to: Expansion<4>) -> f32 {
-    let (a0, a1, a2, a3) = to_quad(from)
-    let (b0, b1, b2, b3) = to_quad(to)
-    ((b0 - a0) + (b1 - a1)) + ((b2 - a2) + (b3 - a3))
-}
-
 pub fn center_delta(_ from: Complex<Expansion<4>>, _ to: Complex<Expansion<4>>) -> Complex<f32> {
-    Complex { re: expansion_delta(from.re, to.re), im: expansion_delta(from.im, to.im) }
+    Complex { re: expansion_difference<8>(from.re, to.re), im: expansion_difference<8>(from.im, to.im) }
 }
 
 pub struct ViewCache {
@@ -429,11 +424,31 @@ pub struct PreviewCache {
     pub budget: u32,
     pub epoch: u32,
     pub completed: u32,
+    // Scalar POD wire fields; the typed-storage integration groups this
+    // projection as HistoryOffsets without changing these leaf offsets.
+    pub history_full_re: f32,
+    pub history_full_im: f32,
+    pub history_initial_re: f32,
+    pub history_initial_im: f32,
 }
 
 impl Copy for PreviewCache {}
 
 impl PreviewCache {
+    pub fn with_history(self, _ offsets: HistoryOffsets) -> Self {
+        let mut next = self
+        next.history_full_re = offsets.full.re
+        next.history_full_im = offsets.full.im
+        next.history_initial_re = offsets.initial.re
+        next.history_initial_im = offsets.initial.im
+        next
+    }
+    pub fn history_offsets(self) -> HistoryOffsets {
+        HistoryOffsets {
+            full: Complex { re: self.history_full_re, im: self.history_full_im },
+            initial: Complex { re: self.history_initial_re, im: self.history_initial_im },
+        }
+    }
     pub fn center(self) -> Complex<Expansion<4>> {
         Complex {
             re: from_quad(self.x0, self.x1, self.x2, self.x3),
@@ -500,6 +515,10 @@ impl PreviewCache {
                 self.epoch + 1
             },
             completed: completed,
+            history_full_re: self.history_full_re,
+            history_full_im: self.history_full_im,
+            history_initial_re: self.history_initial_re,
+            history_initial_im: self.history_initial_im,
         }
     }
     pub fn commit_step(self) -> Self {
@@ -511,6 +530,28 @@ impl PreviewCache {
             0
         }
         next
+    }
+}
+
+/// Current-camera displacements shared by every pixel in this frame.
+/// Computed once and stored with the coarse preview schedule.
+pub struct HistoryOffsets {
+    pub full: Complex<f32>,
+    pub initial: Complex<f32>,
+}
+
+impl Copy for HistoryOffsets {}
+
+impl HistoryOffsets {
+    pub fn for_view(
+        _ s: MandelbrotViewState,
+        _ full: ViewCache,
+        _ initial: ViewCache,
+    ) -> Self {
+        Self {
+            full: if full.completed == 1 { full.delta_from(s) } else { Complex::default() },
+            initial: if initial.completed == 1 { initial.delta_from(s) } else { Complex::default() },
+        }
     }
 }
 
@@ -528,12 +569,13 @@ pub fn reproject_coarse_pixel(
     _ s: MandelbrotViewState,
     _ full: ViewCache,
     _ initial: ViewCache,
+    _ offsets: HistoryOffsets,
     _ px: i32,
     _ py: i32,
 ) -> ReprojectionTap {
     let use_full: bool = full.completed == 1 && full.epoch >= initial.epoch
     let old: ViewCache = if use_full { full } else { initial }
-    let delta: Complex<f32> = old.delta_from(s)
+    let delta: Complex<f32> = if use_full { offsets.full } else { offsets.initial }
     let u: f32 = (from_i32(px) + 0.5) * 2.0 / s.res - 1.0
     let v: f32 = 1.0 - (from_i32(py) + 0.5) * 2.0 / s.res
     let span: f32 = max(old.zoom, ZOOM_MIN)
