@@ -256,7 +256,7 @@ fn oracle_bits() -> bool {
     ok
 }
 
-fn run_suite() -> u32 {
+fn run_suite(_ seed: u32) -> u32 {
     let ordinary: Complex<f32> = Complex { re: 0.00125, im: -0.000875 }
     let zero: Complex<f32> = Complex::default()
     let mut mask: u32 = 0
@@ -284,7 +284,10 @@ fn run_suite() -> u32 {
     if outcome_reached(3, zero, false) && differential(3, 2, zero, 32, 1) {
         mask = mask | 32
     }
-    let infinite: Complex<f32> = Complex { re: __bitcast<u32, f32>(2139095040), im: 0.0 }
+    // WebGPU rejects an infinite constant-expression value. The sign comes
+    // from an actual input lane so this exercises runtime nonfinite handling.
+    let infinite_bits: u32 = 2139095040 | (seed & 2147483648)
+    let infinite: Complex<f32> = Complex { re: __bitcast<u32, f32>(infinite_bits), im: 0.0 }
     if outcome_reached(5, infinite, false) && differential(5, 2, infinite, 32, 1) {
         mask = mask | 64
     }
@@ -335,7 +338,7 @@ actor NativeCheckpointProbe uses (
     state: ProbeState,
 
     fn initial() -> ProbeEnvelope uses (core::actor::InitialState) {
-        ProbeEnvelope { state: ProbeState { result: __bitcast<u32, f32>(run_suite()) } }
+        ProbeEnvelope { state: ProbeState { result: __bitcast<u32, f32>(run_suite(0)) } }
     }
 
     const fn view() -> Surface<ProbeParams> {
@@ -359,7 +362,7 @@ actor NativeCheckpointProbe uses (
         let ok: bool = equivalent(self.legacy.load(index: 0), self.compact.load(index: 0), 3, 8192)
             && equivalent(old, live, 3, 96)
             && equivalent(old_batch(old, 0, 3, dc, 96, 94), compact_batch(live, 0, 3, dc, 96, 94), 3, 96)
-        self.results.store(index: 0, value: run_suite())
+        self.results.store(index: 0, value: run_suite(__bitcast<f32, u32>(self.state.result)))
         self.results.store(index: 1, value: if ok { 1 } else { 0 })
     }
 
