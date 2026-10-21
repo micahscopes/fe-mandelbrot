@@ -612,6 +612,10 @@ fn orbit_progress_and_oracle_flags_roundtrip() {
 
     let glitched_flags: u32 = progress_outcome_flags(PROGRESS_GLITCHED_BIT)
     assert(!oracle_is_usable(glitched_flags))
+
+    let presentable_interior: u32 = progress_with_presentable(0)
+    assert(progress_is_presentable(presentable_interior))
+    assert(progress_is_terminal(presentable_interior, 10, 256))
 }
 
 #[test]
