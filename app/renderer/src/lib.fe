@@ -60,7 +60,6 @@ use ingot::orbit::{
     ReferenceReal,
     ReferenceStep,
     clear_reference_checkpoint,
-    continue_pixel,
     continue_preview_pixel,
     empty_progress,
     load_reference_checkpoint,
@@ -85,6 +84,7 @@ use ingot::orbit::{
     ORBIT_CENTER_INDEX,
     ORBIT_META_INDEX,
 }
+use ingot::native_checkpoint::{NativeCheckpoint, continue_native_pixel}
 use ingot::palette::interior
 use ingot::partition::{
     CohortPixel,
@@ -147,7 +147,7 @@ actor SmoothPerturbationalMandelbrot uses (
     reference_words: StorageBuffer<u32, 16>,
     native_pixels: StorageBuffer<u32, 4194304>,
     antialiased_pixels: StorageBuffer<u32, 4194304>,
-    progress_pixels: StorageBuffer<OrbitProgress, 4194304>,
+    progress_pixels: StorageBuffer<NativeCheckpoint, 4194304>,
     snapshot_pixels: StorageBuffer<u32, 4194304>,
     state: MandelbrotViewState,
 
@@ -574,7 +574,7 @@ actor SmoothPerturbationalMandelbrot uses (
             return
         }
         let index: u32 = pixel.index()
-        let saved: OrbitProgress = self.progress_pixels.load(index: index)
+        let saved: NativeCheckpoint = self.progress_pixels.load(index: index)
         if saved.is_presentable_in(c.epoch) {
             return
         }
@@ -582,8 +582,8 @@ actor SmoothPerturbationalMandelbrot uses (
         if !deep.is_usable() {
             return
         }
-        let preserved: OrbitProgress = OrbitProgress::from_oracle(deep, c.epoch, s.clock)
-        let base: u32 = progress_color(preserved)
+        let preserved: NativeCheckpoint = NativeCheckpoint::from_oracle(deep, c.epoch, s.clock)
+        let base: u32 = preserved.color()
         self.progress_pixels.store(index: index, value: preserved)
         self.native_pixels.store(index: index, value: base)
         let antialiased: u32 = if history.aa == s.antialias {
@@ -622,17 +622,17 @@ actor SmoothPerturbationalMandelbrot uses (
             return
         }
         let index: u32 = pixel.index()
-        let old: OrbitProgress = self.progress_pixels.load(index: index)
+        let old: NativeCheckpoint = self.progress_pixels.load(index: index)
         if old.is_presentable_in(c.epoch) {
             return
         }
-        let saved: OrbitProgress = if old.epoch == c.epoch {
+        let saved: NativeCheckpoint = if old.epoch == c.epoch {
             old
         } else {
-            empty_progress(c.epoch)
+            NativeCheckpoint::initial(c.epoch)
         }
         let limit: u32 = iteration_limit(s.camera.zoom)
-        let next: OrbitProgress = continue_pixel(
+        let next: NativeCheckpoint = continue_native_pixel(
             self.orbit,
             ref_state.active * 8195,
             s.camera,
@@ -645,7 +645,7 @@ actor SmoothPerturbationalMandelbrot uses (
             index: index,
             value: next.with_fade_start(s.clock),
         )
-        let bits: u32 = progress_color(next)
+        let bits: u32 = next.color()
         self.native_pixels.store(index: index, value: bits)
         self.antialiased_pixels.store(index: index, value: bits)
     }
@@ -670,16 +670,16 @@ actor SmoothPerturbationalMandelbrot uses (
             return
         }
         let index: u32 = pixel.index()
-        let old: OrbitProgress = self.progress_pixels.load(index: index)
-        let saved: OrbitProgress = if old.epoch == c.epoch {
+        let old: NativeCheckpoint = self.progress_pixels.load(index: index)
+        let saved: NativeCheckpoint = if old.epoch == c.epoch {
             old
         } else {
-            empty_progress(c.epoch)
+            NativeCheckpoint::initial(c.epoch)
         }
         if saved.is_terminal(schedule.limit) {
             return
         }
-        let next: OrbitProgress = continue_pixel(
+        let next: NativeCheckpoint = continue_native_pixel(
             self.orbit,
             ref_state.active * 8195,
             s.camera,
@@ -688,14 +688,14 @@ actor SmoothPerturbationalMandelbrot uses (
             2048,
             saved,
         )
-        // Once terminal, z_re is free to hold the pixel's fade start time.
-        let stored: OrbitProgress = if next.is_terminal(schedule.limit) {
+        // The finished checkpoint carries the exact magnitude and fade start time.
+        let stored: NativeCheckpoint = if next.is_terminal(schedule.limit) {
             next.with_fade_start(s.clock)
         } else {
             next
         }
         self.progress_pixels.store(index: index, value: stored)
-        let bits: u32 = progress_color(next)
+        let bits: u32 = next.color()
         self.native_pixels.store(index: index, value: bits)
         self.antialiased_pixels.store(index: index, value: bits)
     }
@@ -798,7 +798,7 @@ actor SmoothPerturbationalMandelbrot uses (
                     index: index,
                     value: self.antialiased_pixels.load(index: index),
                 )
-                let result: OrbitProgress = self.progress_pixels.load(index: index)
+                let result: NativeCheckpoint = self.progress_pixels.load(index: index)
                 self.snapshot_oracle.store(index: index, value: result.to_oracle())
             }
             strip = strip + 1
@@ -824,7 +824,7 @@ actor SmoothPerturbationalMandelbrot uses (
         let c: ViewCache = self.cache.load(index: 0)
         let reference_state: ReferenceControl = self.reference.load(index: 0)
         let reveal: f32 = sharpness(reference_state.display_age(s))
-        let saved: OrbitProgress = self.progress_pixels.load(index: index)
+        let saved: NativeCheckpoint = self.progress_pixels.load(index: index)
         if saved.is_presentable_in(c.epoch) {
             let bits: u32 = self.antialiased_pixels.load(index: index)
             let amount: f32 = progress(s.clock - saved.fade_started_at(), 0.0, 350.0) * reveal
@@ -845,10 +845,10 @@ actor SmoothPerturbationalMandelbrot uses (
         )
         let stride: f32 = from_i32(to_i32((s.camera.res + 511.0) / 512.0))
         let tap: BilinearTap = lattice_tap(px, py, stride, s.camera.res - 1.0)
-        let a: OrbitProgress = self.progress_pixels.load(index: tap.i00)
-        let b: OrbitProgress = self.progress_pixels.load(index: tap.i10)
-        let d: OrbitProgress = self.progress_pixels.load(index: tap.i01)
-        let e: OrbitProgress = self.progress_pixels.load(index: tap.i11)
+        let a: NativeCheckpoint = self.progress_pixels.load(index: tap.i00)
+        let b: NativeCheckpoint = self.progress_pixels.load(index: tap.i10)
+        let d: NativeCheckpoint = self.progress_pixels.load(index: tap.i01)
+        let e: NativeCheckpoint = self.progress_pixels.load(index: tap.i11)
         let ready: bool = a.is_presentable_in(c.epoch)
             && b.is_presentable_in(c.epoch)
             && d.is_presentable_in(c.epoch)

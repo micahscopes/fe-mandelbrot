@@ -350,6 +350,7 @@ actor FeSourceViewer {
         let page = file_link(page, "gestures.fe", "Typed touch gestures")
         let page = file_link(page, "policy.fe", "Camera and quality policy")
         let page = file_link(page, "orbit.fe", "Resumable perturbation")
+        let page = file_link(page, "native_checkpoint.fe", "Compact native checkpoints")
         let page = file_link(page, "image.fe", "Color, sampling and Gaussian")
         let page = file_link(page, "cache.fe", "GPU cache metadata")
         let page = file_link(page, "palette.fe", "Rich OKLCH palette")

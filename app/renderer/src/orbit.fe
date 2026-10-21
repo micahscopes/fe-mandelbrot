@@ -382,7 +382,7 @@ pub fn perturb(
 
 /// Compute the initial complex perturbation `dc` for a sample relative to the
 /// active reference center stored at `base + ORBIT_CENTER_INDEX`.
-fn pixel_delta_from_reference(
+pub fn pixel_delta_from_reference(
     _ orbit: StorageBuffer<PackedReference, ORBIT_CAPACITY>,
     _ base: u32,
     _ camera: Camera,

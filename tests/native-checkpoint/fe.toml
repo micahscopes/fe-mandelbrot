@@ -1,0 +1,10 @@
+[ingot]
+name = "probe_native_checkpoint"
+version = "0.1.0"
+
+[dependencies]
+core = "../../.cache/fe/ingots/core"
+std = "../../.cache/fe/ingots/std"
+fmath = "../../lib/fmath"
+precision = "../../lib/precision"
+renderer = "../../app/renderer"

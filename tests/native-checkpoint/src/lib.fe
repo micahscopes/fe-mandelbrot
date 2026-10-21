@@ -1,0 +1,368 @@
+//! Actual binary32 continuation differential, executable on Wasm and WebGPU.
+use core::default::Default
+use core::marker::Copy
+use std::webgpu::{
+    ComputeSurface as Compute,
+    FixedDispatch as Once,
+    Workgroup as Threads,
+    StorageBuffer,
+    FragmentSurface as Display,
+    GpuProgram as PassGraph,
+    ContinuousFrames,
+    StandardSurfaceRecovery,
+    SurfaceQuality,
+    SurfaceRecovery,
+    SurfaceScheduling,
+    SurfaceTransition,
+    WebGpuBackend,
+}
+use std::web::view::{
+    ApplyParamBindings, Extent, Param, ParamBindingsProvider,
+    Surface, SurfaceEvent, SurfaceState,
+}
+use renderer::cache::SampleOracle
+use renderer::native_checkpoint::NativeCheckpoint
+use renderer::orbit::{
+    Complex, INVALID_REFERENCE, OrbitProgress, PackedReference,
+    advance_progress_step, empty_progress, prepare_reference_step, progress_color,
+}
+use renderer::policy::SharpBacking
+
+extern { const fn __bitcast<From, To>(_: From) -> To }
+
+fn pack_f32_quad(
+    _ rx0: f32,
+    _ rx1: f32,
+    _ rx2: f32,
+    _ rx3: f32,
+    _ iy0: f32,
+    _ iy1: f32,
+    _ iy2: f32,
+    _ iy3: f32,
+) -> PackedReference {
+    PackedReference::from_words(
+        __bitcast(rx0),
+        __bitcast(rx1),
+        __bitcast(rx2),
+        __bitcast(rx3),
+        __bitcast(iy0),
+        __bitcast(iy1),
+        __bitcast(iy2),
+        __bitcast(iy3),
+    )
+}
+
+fn table_sample(_ table_id: u32, _ index: u32) -> PackedReference {
+    if table_id == 0 {
+        match index {
+            0 => pack_f32_quad(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+            1 => pack_f32_quad(
+                -0.7436439, 0.000000014901161, -0.00000000000000355, 0.00000000000000000001,
+                0.13182591, -0.000000007450581, 0.00000000000000177, -0.00000000000000000002,
+            ),
+            2 => pack_f32_quad(
+                -0.20801577, -0.000000011175871, 0.00000000000000222, -0.00000000000000000001,
+                -0.06423426, 0.00000000372529, -0.00000000000000088, 0.00000000000000000001,
+            ),
+            3 => pack_f32_quad(
+                -0.7044994, 0.000000022351742, -0.00000000000000444, 0.00000000000000000003,
+                0.15854928, -0.000000005587935, 0.00000000000000111, -0.00000000000000000001,
+            ),
+            4 => pack_f32_quad(
+                -0.2724621, 0.000000009313226, -0.00000000000000155, 0.0,
+                -0.09159011, 0.000000001862645, -0.00000000000000044, 0.0,
+            ),
+            5 => pack_f32_quad(
+                -0.6778012, -0.000000018626451, 0.00000000000000222, 0.0,
+                0.1817254, 0.000000007450581, -0.00000000000000088, 0.0,
+            ),
+            _ => pack_f32_quad(
+                -0.3172408, 0.000000011175871, -0.00000000000000111, 0.0,
+                -0.1144123, -0.00000000372529, 0.00000000000000044, 0.0,
+            ),
+        }
+    } else if table_id == 5 {
+        PackedReference::default()
+    } else if table_id == 4 {
+        if index == 0 { PackedReference::default() } else {
+            pack_f32_quad(3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+        }
+    } else if table_id == 2 {
+        match index {
+            0 => pack_f32_quad(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+            1 => pack_f32_quad(0.25, 0.0, 0.0, 0.0, 0.125, 0.0, 0.0, 0.0),
+            _ => pack_f32_quad(
+                -0.5001, 0.000000014901161, -0.00000000000000088, 0.0,
+                -0.0002, -0.000000007450581, 0.00000000000000044, 0.0,
+            ),
+        }
+    } else if table_id == 3 {
+        match index {
+            0 => pack_f32_quad(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+            _ => pack_f32_quad(2.000001, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+        }
+    } else {
+        match index {
+            0 => pack_f32_quad(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+            _ => PackedReference::from_words(INVALID_REFERENCE, 0, 0, 0, 0, 0, 0, 0),
+        }
+    }
+}
+
+
+fn same_f32(_ a: f32, _ b: f32) -> bool {
+    __bitcast<f32, u32>(a) == __bitcast<f32, u32>(b)
+}
+
+fn same_complex(_ a: Complex<f32>, _ b: Complex<f32>) -> bool {
+    same_f32(a.re, b.re) && same_f32(a.im, b.im)
+}
+
+// Compare denotations: the old state may still have an exhausted reference
+// index, so prepare its next step before comparing live deltas bit for bit.
+fn equivalent(
+    _ old: OrbitProgress,
+    _ compact: NativeCheckpoint,
+    _ valid: u32,
+    _ limit: u32,
+) -> bool {
+    if old.iteration != compact.iteration() || old.epoch != compact.epoch
+        || old.outcome_flags() != compact.outcome_flags()
+        || old.is_presentable() != compact.is_presentable()
+        || old.is_terminal(limit) != compact.is_terminal(limit)
+        || !same_f32(old.magnitude, compact.magnitude())
+        || progress_color(old) != compact.color() {
+        return false
+    }
+    if old.is_presentable() {
+        return same_f32(old.fade_started_at(), compact.fade_started_at())
+    }
+    if old.is_terminal(limit) {
+        return true
+    }
+    let prepared = prepare_reference_step(old, limit, valid, false)
+    prepared.active
+        && prepared.progress.reference_index() == compact.reference_index()
+        && compact.reference_index() + 1 < valid
+        && same_complex(prepared.progress.delta(), compact.delta())
+}
+
+fn old_batch(
+    _ saved: OrbitProgress,
+    _ table: u32,
+    _ valid: u32,
+    _ dc: Complex<f32>,
+    _ limit: u32,
+    _ batch: u32,
+) -> OrbitProgress {
+    let mut current: OrbitProgress = saved
+    let mut i: u32 = 0
+    while i < batch && !current.is_terminal(limit) {
+        let prepared = prepare_reference_step(current, limit, valid, false)
+        let index: u32 = prepared.progress.reference_index()
+        current = advance_progress_step(
+            prepared.progress, dc, table_sample(table, index), table_sample(table, index + 1),
+        )
+        i = i + 1
+    }
+    current
+}
+
+fn compact_batch(
+    _ saved: NativeCheckpoint,
+    _ table: u32,
+    _ valid: u32,
+    _ dc: Complex<f32>,
+    _ limit: u32,
+    _ batch: u32,
+) -> NativeCheckpoint {
+    let mut current: NativeCheckpoint = saved
+    let mut i: u32 = 0
+    while i < batch && !current.is_terminal(limit) {
+        let index: u32 = current.reference_index()
+        current = current.advance(dc, table_sample(table, index), table_sample(table, index + 1), valid, limit)
+        i = i + 1
+    }
+    current
+}
+
+fn differential(
+    _ table: u32,
+    _ valid: u32,
+    _ dc: Complex<f32>,
+    _ limit: u32,
+    _ batch: u32,
+) -> bool {
+    let epoch: u32 = 4294967295
+    let mut old: OrbitProgress = empty_progress(epoch)
+    let mut compact: NativeCheckpoint = NativeCheckpoint::initial(epoch)
+    let mut ok: bool = equivalent(old, compact, valid, limit)
+    while !old.is_terminal(limit) {
+        old = old_batch(old, table, valid, dc, limit, batch)
+        compact = compact_batch(compact, table, valid, dc, limit, batch)
+        ok = ok && equivalent(old, compact, valid, limit)
+    }
+    let oneshot = compact_batch(NativeCheckpoint::initial(epoch), table, valid, dc, limit, limit)
+    ok = ok && equivalent(old, oneshot, valid, limit)
+    let clock: f32 = __bitcast<u32, f32>(2147483648)
+    old = old.with_fade_start(clock)
+    compact = compact.with_fade_start(clock)
+    // Neither terminal state may execute even an invalid reference step.
+    compact = compact.advance(dc, table_sample(1, 1), table_sample(1, 1), valid, limit)
+    ok && equivalent(old, compact, valid, limit)
+        && compact.is_presentable_in(epoch)
+        && !compact.is_presentable_in(2147483647)
+}
+
+fn cancellation_happened() -> bool {
+    let dc: Complex<f32> = Complex { re: 0.5, im: 0.0 }
+    let first = compact_batch(NativeCheckpoint::initial(9), 2, 4, dc, 8, 1)
+    let second = compact_batch(first, 2, 4, dc, 8, 1)
+    first.reference_index() == 1 && second.reference_index() == 0
+        && !second.is_terminal(8)
+}
+
+fn outcome_reached(_ table: u32, _ dc: Complex<f32>, _ escaped: bool) -> bool {
+    let result = compact_batch(NativeCheckpoint::initial(1), table, 2, dc, 8, 8)
+    if escaped { result.is_escaped() && !result.is_glitched() } else { result.is_glitched() }
+}
+
+fn oracle_bits() -> bool {
+    let mut flag: u32 = 0
+    let mut ok: bool = true
+    while flag < 4 {
+        let magnitude_bits: u32 = match flag {
+            0 => 2147483648,
+            1 => 1082130433,
+            2 => 1065353216,
+            _ => 2139095039,
+        }
+        let sample: SampleOracle = SampleOracle {
+            iteration: 8192,
+            magnitude: __bitcast<u32, f32>(magnitude_bits),
+            flags: flag << 30,
+        }
+        let clock: f32 = __bitcast<u32, f32>(2147483648 | (flag << 24))
+        let compact = NativeCheckpoint::from_oracle(sample, 4294967295, clock)
+        let restored = compact.to_oracle()
+        ok = ok && restored.iteration == sample.iteration
+            && restored.flags == sample.flags && same_f32(restored.magnitude, sample.magnitude)
+            && same_f32(compact.fade_started_at(), clock)
+            && compact.is_presentable_in(4294967295)
+            && !compact.is_presentable_in(1073741823)
+        flag = flag + 1
+    }
+    ok
+}
+
+fn run_suite() -> u32 {
+    let ordinary: Complex<f32> = Complex { re: 0.00125, im: -0.000875 }
+    let zero: Complex<f32> = Complex::default()
+    let mut mask: u32 = 0
+    let mut split: u32 = 1
+    let mut split_ok: bool = true
+    while split <= 17 {
+        split_ok = split_ok && differential(0, 7, ordinary, 96, split)
+        split = split + 1
+    }
+    if split_ok { mask = mask | 1 }
+    // Exhaustion exactly at a pause and across repeated two-point references.
+    if differential(0, 3, ordinary, 96, 2) && differential(0, 2, ordinary, 96, 1) {
+        mask = mask | 2
+    }
+    if cancellation_happened()
+        && differential(2, 4, Complex { re: 0.5, im: 0.0 }, 32, 1) {
+        mask = mask | 4
+    }
+    if outcome_reached(4, zero, true) && differential(4, 2, zero, 32, 3) {
+        mask = mask | 8
+    }
+    if outcome_reached(1, zero, false) && differential(1, 2, zero, 32, 3) {
+        mask = mask | 16
+    }
+    if outcome_reached(3, zero, false) && differential(3, 2, zero, 32, 1) {
+        mask = mask | 32
+    }
+    let infinite: Complex<f32> = Complex { re: __bitcast<u32, f32>(2139095040), im: 0.0 }
+    if outcome_reached(5, infinite, false) && differential(5, 2, infinite, 32, 1) {
+        mask = mask | 64
+    }
+    // Largest counters, including index8192, plus repeated exhaustion while
+    // continuing to8192. Test production2048 batches and deliberately odd splits.
+    if differential(5, 8193, zero, 8192, 2048)
+        && differential(5, 8193, zero, 8192, 257)
+        && differential(5, 3, zero, 8192, 2048) {
+        mask = mask | 128
+    }
+    if oracle_bits() { mask = mask | 256 }
+    let initial = NativeCheckpoint::initial(2147483648)
+    if equivalent(empty_progress(2147483648), compact_batch(initial, 0, 7, ordinary, 96, 0), 7, 96) {
+        mask = mask | 512
+    }
+    mask
+}
+
+pub struct ProbeParams { pub result: Param }
+pub struct ProbeState { pub result: f32 }
+impl Copy for ProbeState {}
+impl SurfaceState for ProbeState { type Params = ProbeParams }
+derive ApplyParamBindings for ProbeState using ParamBindingsProvider<ProbeParams>
+pub struct ProbeEnvelope { pub state: ProbeState }
+impl Copy for ProbeEnvelope {}
+
+fn stored_sample() -> SampleOracle {
+    SampleOracle { iteration: 8192, magnitude: __bitcast<u32, f32>(1082130433), flags: 2147483648 }
+}
+
+actor NativeCheckpointProbe uses (
+    PassGraph<WebGpuBackend>,
+    SurfaceQuality<SharpBacking>,
+    SurfaceRecovery<StandardSurfaceRecovery>,
+) {
+    compact: StorageBuffer<NativeCheckpoint, 2>,
+    legacy: StorageBuffer<OrbitProgress, 2>,
+    results: StorageBuffer<u32, 2>,
+    state: ProbeState,
+
+    fn initial() -> ProbeEnvelope uses (core::actor::InitialState) {
+        ProbeEnvelope { state: ProbeState { result: __bitcast<u32, f32>(run_suite()) } }
+    }
+
+    const fn view() -> Surface<ProbeParams> {
+        Surface { extent: Extent::square(64), params: ProbeParams { result: Param::fixed(0.0) } }
+    }
+
+    fn save_checkpoints(self) uses (Compute<Threads<1, 1, 1>, Once<1, 1, 1>>) {
+        let epoch: u32 = 4294967295
+        let clock: f32 = __bitcast<u32, f32>(2147483648)
+        self.compact.store(index: 0, value: NativeCheckpoint::from_oracle(stored_sample(), epoch, clock))
+        self.legacy.store(index: 0, value: OrbitProgress::from_oracle(stored_sample(), epoch, clock))
+        let dc: Complex<f32> = Complex { re: 0.00125, im: -0.000875 }
+        self.compact.store(index: 1, value: compact_batch(NativeCheckpoint::initial(epoch), 0, 3, dc, 96, 2))
+        self.legacy.store(index: 1, value: old_batch(empty_progress(epoch), 0, 3, dc, 96, 2))
+    }
+
+    fn verify_checkpoints(self) uses (Compute<Threads<1, 1, 1>, Once<1, 1, 1>>) {
+        let dc: Complex<f32> = Complex { re: 0.00125, im: -0.000875 }
+        let live: NativeCheckpoint = self.compact.load(index: 1)
+        let old: OrbitProgress = self.legacy.load(index: 1)
+        let ok: bool = equivalent(self.legacy.load(index: 0), self.compact.load(index: 0), 3, 8192)
+            && equivalent(old, live, 3, 96)
+            && equivalent(old_batch(old, 0, 3, dc, 96, 94), compact_batch(live, 0, 3, dc, 96, 94), 3, 96)
+        self.results.store(index: 0, value: run_suite())
+        self.results.store(index: 1, value: if ok { 1 } else { 0 })
+    }
+
+    fn display_probe(self, px: i32, py: i32) -> i32 uses (Display) {
+        let _ = px
+        let _ = py
+        __bitcast<f32, i32>(self.state.result)
+    }
+
+    fn navigate(self, event: own SurfaceEvent) -> ProbeEnvelope
+        uses (SurfaceTransition, SurfaceScheduling<ContinuousFrames>)
+    {
+        let _ = event
+        ProbeEnvelope { state: self.state }
+    }
+}

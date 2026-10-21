@@ -1,0 +1,216 @@
+//! Compact continuations for an immutable, published reference orbit.
+//!
+//! A live checkpoint carries only its delta. A finished checkpoint carries
+//! magnitude and fade time instead. Exhaustion rebases before suspension,
+//! using the exact target already computed by the shared perturbation step.
+//! Growing preview prefixes must keep their separate OrbitProgress state.
+use core::default::Default
+use core::marker::Copy
+use std::webgpu::StorageBuffer as OrbitBuffer
+use fmath::PixelSample
+use ingot::cache::SampleOracle
+use ingot::orbit::{
+    Complex,
+    OrbitProgress,
+    PackedReference,
+    ORBIT_CAPACITY,
+    ORBIT_META_INDEX,
+    PROGRESS_PRESENTABLE_BIT,
+    advance_progress_step,
+    pixel_delta_from_reference,
+    progress_is_escaped,
+    progress_is_glitched,
+    progress_is_presentable,
+    progress_outcome_flags,
+}
+use ingot::palette::{escape_palette, glitch, interior}
+use ingot::policy::Camera
+
+// Both counters include 8192. The full epoch remains a separate u32.
+const INDEX_MASK: u32 = 16383
+const ITERATION_SHIFT: u32 = 14
+const SAMPLE_PAYLOAD: u32 = 268435456
+
+pub struct NativeCheckpoint {
+    control: u32,
+    pub epoch: u32,
+    payload: Complex<f32>,
+}
+
+impl Copy for NativeCheckpoint {}
+
+impl NativeCheckpoint {
+    pub fn initial(_ epoch: u32) -> Self {
+        NativeCheckpoint {
+            control: 0,
+            epoch: epoch,
+            payload: Complex::default(),
+        }
+    }
+
+    pub fn iteration(self) -> u32 {
+        (self.control >> ITERATION_SHIFT) & INDEX_MASK
+    }
+
+    pub fn reference_index(self) -> u32 {
+        self.control & INDEX_MASK
+    }
+
+    /// The prepared perturbation delta of a live (non-terminal) checkpoint.
+    pub fn delta(self) -> Complex<f32> {
+        self.payload
+    }
+
+    pub fn is_presentable(self) -> bool {
+        progress_is_presentable(self.control)
+    }
+
+    pub fn is_presentable_in(self, _ epoch: u32) -> bool {
+        self.epoch == epoch && self.is_presentable()
+    }
+
+    pub fn is_terminal(self, _ limit: u32) -> bool {
+        self.iteration() >= limit || (self.control & SAMPLE_PAYLOAD) != 0
+    }
+
+    pub fn is_escaped(self) -> bool {
+        progress_is_escaped(self.control)
+    }
+
+    pub fn is_glitched(self) -> bool {
+        progress_is_glitched(self.control)
+    }
+
+    pub fn outcome_flags(self) -> u32 {
+        progress_outcome_flags(self.control)
+    }
+
+    pub fn magnitude(self) -> f32 {
+        if (self.control & SAMPLE_PAYLOAD) != 0 {
+            self.payload.re
+        } else {
+            4.0
+        }
+    }
+
+    pub fn fade_started_at(self) -> f32 {
+        self.payload.im
+    }
+
+    pub fn with_fade_start(self, _ clock: f32) -> Self {
+        NativeCheckpoint {
+            control: self.control | SAMPLE_PAYLOAD | PROGRESS_PRESENTABLE_BIT,
+            epoch: self.epoch,
+            payload: Complex { re: self.magnitude(), im: clock },
+        }
+    }
+
+    pub fn to_oracle(self) -> SampleOracle {
+        SampleOracle {
+            iteration: self.iteration(),
+            magnitude: self.magnitude(),
+            flags: self.outcome_flags(),
+        }
+    }
+
+    pub fn from_oracle(_ sample: SampleOracle, _ epoch: u32, _ clock: f32) -> Self {
+        NativeCheckpoint {
+            control: (sample.iteration << ITERATION_SHIFT)
+                | progress_outcome_flags(sample.flags) | SAMPLE_PAYLOAD | PROGRESS_PRESENTABLE_BIT,
+            epoch: epoch,
+            payload: Complex { re: sample.magnitude, im: clock },
+        }
+    }
+
+    pub fn color(self) -> u32 {
+        if self.is_glitched() {
+            glitch()
+        } else if self.is_escaped() {
+            escape_palette(self.iteration(), self.magnitude())
+        } else {
+            interior()
+        }
+    }
+
+    /// Advance around the published reference pair at reference_index().
+    /// Requires an immutable reference with at least two valid samples and
+    /// a fixed limit <= 8192 for this epoch. Terminal values never resume.
+    pub fn advance(
+        self,
+        _ dc: Complex<f32>,
+        _ reference: PackedReference,
+        _ next_reference: PackedReference,
+        _ valid_samples: u32,
+        _ limit: u32,
+    ) -> Self {
+        if self.is_terminal(limit) {
+            return self
+        }
+        // The shared step does not read the previous absolute position on
+        // successful progress. Failed steps become terminal, so their old
+        // position is dead too. No floating reconstruction is necessary.
+        let step: OrbitProgress = advance_progress_step(
+            OrbitProgress::from_continuation(
+                self.delta(),
+                Complex::default(),
+                self.reference_index(),
+                self.iteration(),
+                self.epoch,
+                4.0,
+            ),
+            dc,
+            reference,
+            next_reference,
+        )
+        let counters: u32 = (step.iteration << ITERATION_SHIFT) | step.reference_index()
+        if step.is_terminal(limit) {
+            NativeCheckpoint {
+                control: counters | step.outcome_flags() | SAMPLE_PAYLOAD,
+                epoch: self.epoch,
+                payload: Complex { re: step.magnitude, im: 0.0 },
+            }
+        } else if step.reference_index() + 1 >= valid_samples {
+            // The old continuation would perform this same assignment at
+            // the start of its next step. Do it before dropping the target.
+            NativeCheckpoint {
+                control: step.iteration << ITERATION_SHIFT,
+                epoch: self.epoch,
+                payload: step.position(),
+            }
+        } else {
+            NativeCheckpoint {
+                control: counters,
+                epoch: self.epoch,
+                payload: step.delta(),
+            }
+        }
+    }
+}
+
+pub fn continue_native_pixel(
+    _ orbit: OrbitBuffer<PackedReference, ORBIT_CAPACITY>,
+    _ base: u32,
+    _ camera: Camera,
+    _ sample: PixelSample,
+    _ limit: u32,
+    _ batch: u32,
+    _ saved: NativeCheckpoint,
+) -> NativeCheckpoint {
+    let dc: Complex<f32> = pixel_delta_from_reference(orbit, base, camera, sample)
+    let valid_samples: u32 = orbit.load(index: base + ORBIT_META_INDEX)
+        .decode_metadata().valid_samples
+    let mut current: NativeCheckpoint = saved
+    let mut steps: u32 = 0
+    while steps < batch && !current.is_terminal(limit) {
+        let index: u32 = base + current.reference_index()
+        current = current.advance(
+            dc,
+            orbit.load(index: index),
+            orbit.load(index: index + 1),
+            valid_samples,
+            limit,
+        )
+        steps = steps + 1
+    }
+    current
+}
