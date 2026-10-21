@@ -10,8 +10,10 @@ extern {
 fn clamp(_ value: f32, _ low: f32, _ high: f32) -> f32 {
     if value < low {
         low
+    } else if value > high {
+        high
     } else {
-        if value > high { high } else { value }
+        value
     }
 }
 
@@ -49,8 +51,10 @@ impl Oklch {
         let delta: f32 = end.hue - start.hue
         let arc: f32 = if delta > 180.0 {
             delta - 360.0
+        } else if delta < -180.0 {
+            delta + 360.0
         } else {
-            if delta < -180.0 { delta + 360.0 } else { delta }
+            delta
         }
         Oklch {
             l: start.l + (end.l - start.l) * t,
@@ -62,7 +66,11 @@ impl Oklch {
 
 /// Construct Cartesian OKLab from lightness, chroma and hue in degrees.
 pub fn oklch(_ lightness: f32, _ chroma: f32, _ hue: f32) -> Color {
-    Oklch { l: lightness, chroma: chroma, hue: hue }.to_color()
+    Oklch {
+        l: lightness,
+        chroma: chroma,
+        hue: hue,
+    }.to_color()
 }
 
 /// Internal pixels pack L:12, a:10, b:10. They are not sRGB bytes.
@@ -75,18 +83,18 @@ pub fn unpack_lab(_ bits: u32) -> Color {
     }
 }
 
-pub fn pack_lab(_ c: Color) -> i32 {
+pub fn pack_lab(_ c: Color) -> u32 {
     let l: u32 = __bitcast<i32, u32>(to_i32(clamp(c.l, 0.0, 1.0) * 4095.0 + 0.5))
     let a: u32 = __bitcast<i32, u32>(to_i32(clamp(c.a * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))
     let b: u32 = __bitcast<i32, u32>(to_i32(clamp(c.b * 2048.0 + 512.0, 0.0, 1023.0) + 0.5))
-    __bitcast<u32, i32>((l & 4095) | ((a & 1023) << 12) | ((b & 1023) << 22))
+    (l & 4095) | ((a & 1023) << 12) | ((b & 1023) << 22)
 }
 
 pub fn color(_ bits: u32) -> Color {
     unpack_lab(bits)
 }
 
-pub fn packed(_ c: Color) -> i32 {
+pub fn packed(_ c: Color) -> u32 {
     pack_lab(c)
 }
 
