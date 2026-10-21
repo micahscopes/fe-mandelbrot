@@ -32,7 +32,7 @@ The exact dependency revisions live in `toolchain.lock.json`:
 
 | Dependency | Branch | Revision |
 | --- | --- | --- |
-| Fe | `mb2` | `51133fb1572c9e3f385855001d1f1b041ed63433` |
+| Fe | `feat/mb2-nested-param-bindings-20261020` (from `mb2`) | `51ccb9bd7db1e81a85f78e30c41f2806c96d33b3` |
 | Sonatina | `mb2-task-borrows` | `f0ae3f5501cd8a51a6ba53f05ab5c43cd0091e47` |
 | Naga | pinned by MB2 | `854ed576fa186d19b9f7d5a5bb5a1f2fa533dde1` |
 

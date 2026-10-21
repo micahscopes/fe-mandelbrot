@@ -385,7 +385,7 @@ fn pixel_delta_from_reference(
         re: point.u * camera.zoom,
         im: point.v * camera.zoom,
     }
-    reference_with_delta(camera.center - center_reference, plane_offset)
+    reference_with_delta(camera.center_value() - center_reference, plane_offset)
 }
 
 /// A uniform iteration budget computed once by the reference pass. The pixel

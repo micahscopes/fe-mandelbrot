@@ -171,8 +171,8 @@ actor SmoothPerturbationalMandelbrot uses (
         let bank: u32 = if control.active == 0 { 1 } else { 0 }
         let candidate: ReferenceAnchor = self.anchor.load(index: bank)
         let delta: Complex<f32> = candidate.delta_from(s)
-        if candidate.limit < iteration_limit(s.zoom)
-            || max(abs(delta.re), abs(delta.im)) > s.zoom * 0.5
+        if candidate.limit < iteration_limit(s.camera.zoom)
+            || max(abs(delta.re), abs(delta.im)) > s.camera.zoom * 0.5
         {
             self.reference.store(index: 0, value: control.cancel_pending())
         }
@@ -184,7 +184,7 @@ actor SmoothPerturbationalMandelbrot uses (
         let s: MandelbrotViewState = self.state
         let previous: ViewCache = self.cache.load(index: 0)
         let age: f32 = s.input_age()
-        let budget: u32 = preview_budget(s.zoom)
+        let budget: u32 = preview_budget(s.camera.zoom)
         let control: ReferenceControl = self.reference.load(index: 0)
         let display_age: f32 = control.display_age(s)
         let radius: f32 = blur_radius(display_age)
@@ -194,11 +194,11 @@ actor SmoothPerturbationalMandelbrot uses (
         )
         let active_anchor: ReferenceAnchor = self.anchor.load(index: control.active)
         let delta: Complex<f32> = active_anchor.delta_from(s)
-        let target: u32 = iteration_limit(s.zoom)
+        let target: u32 = iteration_limit(s.camera.zoom)
         let reusable: bool = control.active_valid == 1
             && active_anchor.limit >= target
-            && abs(delta.re) <= s.zoom * 0.125
-            && abs(delta.im) <= s.zoom * 0.125
+            && abs(delta.re) <= s.camera.zoom * 0.125
+            && abs(delta.im) <= s.camera.zoom * 0.125
         if control.pending == 0 && reusable {
             return
         }
@@ -283,18 +283,18 @@ actor SmoothPerturbationalMandelbrot uses (
         }
         let x: u32 = invocation.global.x
         let y: u32 = invocation.global.y
-        let px: i32 = to_i32(from_i32(__bitcast<u32, i32>(x)) * s.res / 256.0)
-        let py: i32 = to_i32(from_i32(__bitcast<u32, i32>(y)) * s.res / 256.0)
+        let px: i32 = to_i32(from_i32(__bitcast<u32, i32>(x)) * s.camera.res / 256.0)
+        let py: i32 = to_i32(from_i32(__bitcast<u32, i32>(y)) * s.camera.res / 256.0)
         let full: ViewCache = self.cache.load(index: 1)
         let initial: ViewCache = self.cache.load(index: 2)
         let use_full: bool = full.completed == 1 && full.epoch >= initial.epoch
         let old: ViewCache = if use_full { full } else { initial }
         let delta: Complex<f32> = old.delta_from(s)
-        let u: f32 = (from_i32(px) + 0.5) * 2.0 / s.res - 1.0
-        let v: f32 = 1.0 - (from_i32(py) + 0.5) * 2.0 / s.res
+        let u: f32 = (from_i32(px) + 0.5) * 2.0 / s.camera.res - 1.0
+        let v: f32 = 1.0 - (from_i32(py) + 0.5) * 2.0 / s.camera.res
         let span: f32 = max(old.zoom, ZOOM_MIN)
-        let sx: f32 = ((delta.re + u * s.zoom) / span + 1.0) * old.res * 0.5 - 0.5
-        let sy: f32 = (1.0 - (delta.im + v * s.zoom) / span) * old.res * 0.5 - 0.5
+        let sx: f32 = ((delta.re + u * s.camera.zoom) / span + 1.0) * old.res * 0.5 - 0.5
+        let sy: f32 = (1.0 - (delta.im + v * s.camera.zoom) / span) * old.res * 0.5 - 0.5
         let reusable: bool = old.completed == 1
             && sx >= 0.0
             && sy >= 0.0
@@ -314,9 +314,9 @@ actor SmoothPerturbationalMandelbrot uses (
         let computed: OrbitProgress = sample_progress(
             self.orbit,
             ref_state.active * 8195,
-            s.camera(),
+            s.camera,
             PixelSample::ordered_2x2(px, py),
-            preview_budget(s.zoom),
+            preview_budget(s.camera.zoom),
         )
         let current: Color = unpack_lab(progress_color(computed))
         let result: Color = if reusable {
@@ -408,7 +408,7 @@ actor SmoothPerturbationalMandelbrot uses (
         }
         let c: ViewCache = self.cache.load(index: 0)
         let history: ViewCache = self.cache.load(index: 1)
-        let schedule: RefinementSchedule = RefinementSchedule::for_view(s.zoom, s.res)
+        let schedule: RefinementSchedule = RefinementSchedule::for_view(s.camera.zoom, s.camera.res)
         if history.completed == 0 || history.budget < schedule.limit {
             return
         }
@@ -419,7 +419,7 @@ actor SmoothPerturbationalMandelbrot uses (
             c.cursor,
             invocation.global.x,
             invocation.global.y,
-            s.res,
+            s.camera.res,
         )
         if !pixel.active {
             return
@@ -467,7 +467,7 @@ actor SmoothPerturbationalMandelbrot uses (
             rank,
             invocation.global.x,
             invocation.global.y,
-            s.res,
+            s.camera.res,
         )
         if !pixel.active {
             return
@@ -482,11 +482,11 @@ actor SmoothPerturbationalMandelbrot uses (
         } else {
             empty_progress(c.epoch)
         }
-        let limit: u32 = iteration_limit(s.zoom)
+        let limit: u32 = iteration_limit(s.camera.zoom)
         let next: OrbitProgress = continue_pixel(
             self.orbit,
             ref_state.active * 8195,
-            s.camera(),
+            s.camera,
             pixel.sample(),
             limit,
             limit,
@@ -510,12 +510,12 @@ actor SmoothPerturbationalMandelbrot uses (
             return
         }
         let c: ViewCache = self.cache.load(index: 0)
-        let schedule: RefinementSchedule = RefinementSchedule::for_view(s.zoom, s.res)
+        let schedule: RefinementSchedule = RefinementSchedule::for_view(s.camera.zoom, s.camera.res)
         let pixel: CohortPixel = schedule.rect_pixel(
             c.cursor,
             invocation.global.x,
             invocation.global.y,
-            s.res,
+            s.camera.res,
         )
         if !pixel.active {
             return
@@ -533,7 +533,7 @@ actor SmoothPerturbationalMandelbrot uses (
         let next: OrbitProgress = continue_pixel(
             self.orbit,
             ref_state.active * 8195,
-            s.camera(),
+            s.camera,
             pixel.sample(),
             schedule.limit,
             2048,
@@ -560,12 +560,12 @@ actor SmoothPerturbationalMandelbrot uses (
             return
         }
         let c: ViewCache = self.cache.load(index: 0)
-        let schedule: RefinementSchedule = RefinementSchedule::for_view(s.zoom, s.res)
+        let schedule: RefinementSchedule = RefinementSchedule::for_view(s.camera.zoom, s.camera.res)
         let pixel: CohortPixel = schedule.aa_pixel(
             c.cursor,
             invocation.global.x,
             invocation.global.y,
-            s.res,
+            s.camera.res,
         )
         if !pixel.active {
             return
@@ -573,7 +573,7 @@ actor SmoothPerturbationalMandelbrot uses (
         let index: u32 = pixel.index()
         let bits: u32 = self.native_pixels.load(index: index)
         let center: Color = unpack_lab(bits)
-        let (left_i, right_i, up_i, down_i) = pixel.pixel.clamped_neighbor_indices(s.res)
+        let (left_i, right_i, up_i, down_i) = pixel.pixel.clamped_neighbor_indices(s.camera.res)
         let edge: f32 = max(
             max(
                 contrast(center, unpack_lab(self.native_pixels.load(index: left_i))),
@@ -585,7 +585,7 @@ actor SmoothPerturbationalMandelbrot uses (
             ),
         )
         if s.antialias >= 0.5 && edge > 0.12 {
-            let camera: Camera = s.camera()
+            let camera: Camera = s.camera
             let base: u32 = ref_state.active * 8195
             let a: Color = unpack_lab(sample_pixel(
                 self.orbit,
@@ -618,7 +618,7 @@ actor SmoothPerturbationalMandelbrot uses (
             return
         }
         let c: ViewCache = self.cache.load(index: 0)
-        let end: u32 = RefinementSchedule::for_view(s.zoom, s.res).total_steps()
+        let end: u32 = RefinementSchedule::for_view(s.camera.zoom, s.camera.res).total_steps()
         if c.cursor >= end {
             return
         }
@@ -644,7 +644,7 @@ actor SmoothPerturbationalMandelbrot uses (
                 x: index & 2047,
                 y: index >> 11,
             }
-            if pixel.in_extent(s.res) {
+            if pixel.in_extent(s.camera.res) {
                 self.snapshot_pixels.store(
                     index: index,
                     value: self.antialiased_pixels.load(index: index),
@@ -684,18 +684,18 @@ actor SmoothPerturbationalMandelbrot uses (
             }
             let coarse: Color = sample(
                 self.blurred,
-                from_i32(px) * 256.0 / s.res,
-                from_i32(py) * 256.0 / s.res,
+                from_i32(px) * 256.0 / s.camera.res,
+                from_i32(py) * 256.0 / s.camera.res,
             )
             return display_rgba(blend(coarse, unpack_lab(bits), amount))
         }
         let coarse: Color = sample(
             self.blurred,
-            from_i32(px) * 256.0 / s.res,
-            from_i32(py) * 256.0 / s.res,
+            from_i32(px) * 256.0 / s.camera.res,
+            from_i32(py) * 256.0 / s.camera.res,
         )
-        let stride: f32 = from_i32(to_i32((s.res + 511.0) / 512.0))
-        let tap: BilinearTap = lattice_tap(px, py, stride, s.res - 1.0)
+        let stride: f32 = from_i32(to_i32((s.camera.res + 511.0) / 512.0))
+        let tap: BilinearTap = lattice_tap(px, py, stride, s.camera.res - 1.0)
         let a: OrbitProgress = self.progress_pixels.load(index: tap.i00)
         let b: OrbitProgress = self.progress_pixels.load(index: tap.i10)
         let d: OrbitProgress = self.progress_pixels.load(index: tap.i01)

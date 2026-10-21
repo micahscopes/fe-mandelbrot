@@ -5,6 +5,7 @@ use std::webgpu::{SurfaceQualityFacts, SurfaceBackingExtent}
 use std::web::view::{
     Param,
     ParamReadout,
+    ParamValue,
     SurfaceEvent,
     ApplyParamBindings,
     ParamBindingsProvider,
@@ -12,7 +13,7 @@ use std::web::view::{
 }
 use algebra::Complex
 use fmath::{clamp, min, max}
-use precision::{Expansion, add_f32, from_quad, to_quad}
+use precision::{Exp, Expansion, add_f32, from_f32, from_quad, to_quad}
 
 pub const MAX_ITER_BASE: u32 = 256
 pub const MAX_ITER_CAP: u32 = 8192
@@ -41,37 +42,14 @@ pub fn clamp_f(_ value: f32, _ lower: f32, _ upper: f32) -> f32 {
     } else if value > upper { upper } else { value }
 }
 
-pub fn clamp_quad(_ w0: f32, _ w1: f32, _ w2: f32, _ w3: f32, _ lower: f32, _ upper: f32) -> (
-    f32,
-    f32,
-    f32,
-    f32,
-) {
-    if w0 < lower {
-        (lower, 0.0, 0.0, 0.0)
-    } else if w0 > upper {
-        (upper, 0.0, 0.0, 0.0)
-    } else {
-        (w0, w1, w2, w3)
-    }
+pub fn translate_center(_ center: Complex<Coordinate>, _ offset: Complex<f32>) -> Complex<Coordinate> {
+    Complex { re: center.re.shifted(offset.re), im: center.im.shifted(offset.im) }
 }
 
-pub fn clamp_expansion(_ value: Expansion<4>, _ lower: f32, _ upper: f32) -> Expansion<4> {
-    let (w0, w1, w2, w3) = to_quad(value)
-    let (c0, c1, c2, c3) = clamp_quad(w0, w1, w2, w3, lower, upper)
-    from_quad(c0, c1, c2, c3)
-}
-
-pub fn translate_center(_ center: Complex<Expansion<4>>, _ offset: Complex<f32>) -> Complex<
-    Expansion<4>,
-> {
-    Complex { re: add_f32<4>(center.re, offset.re), im: add_f32<4>(center.im, offset.im) }
-}
-
-pub fn clamp_center(_ center: Complex<Expansion<4>>) -> Complex<Expansion<4>> {
+pub fn clamp_center(_ center: Complex<Coordinate>) -> Complex<Coordinate> {
     Complex {
-        re: clamp_expansion(center.re, CENTER_X_MIN, CENTER_X_MAX),
-        im: clamp_expansion(center.im, CENTER_Y_MIN, CENTER_Y_MAX),
+        re: center.re.bounded(CENTER_X_MIN, CENTER_X_MAX),
+        im: center.im.bounded(CENTER_Y_MIN, CENTER_Y_MAX),
     }
 }
 
@@ -94,11 +72,64 @@ pub fn iteration_limit(_ zoom: f32) -> u32 {
     }
 }
 
+/// Exact view coordinate with an optional scalar browser-control projection.
+/// The wrapper gives the application lawful ownership of that projection while
+/// retaining the precision library's private, recursively typed expansion.
+#[derive(Eq)]
+pub struct Coordinate {
+    pub value: Expansion<4>,
+}
+
+impl Copy for Coordinate {}
+
+impl Coordinate {
+    pub const fn leading(self) -> f32 {
+        let (leading, _, _, _) = to_quad(self.value)
+        leading
+    }
+
+    pub fn shifted(self, _ amount: f32) -> Self {
+        Self { value: add_f32<4>(self.value, amount) }
+    }
+
+    pub fn bounded(self, _ lower: f32, _ upper: f32) -> Self {
+        let leading: f32 = self.value.head()
+        if leading < lower {
+            Self { value: from_f32<4>(lower) }
+        } else if leading > upper {
+            Self { value: from_f32<4>(upper) }
+        } else {
+            self
+        }
+    }
+}
+
+impl ParamValue for Coordinate {
+    fn param_value(self) -> f32 {
+        self.leading()
+    }
+
+    fn with_param_value(self, _ value: f32) -> Self {
+        Self { value: self.value.with_head(value) }
+    }
+}
+
 /// Complete camera projection in complex-plane and backing-store coordinates.
 #[derive(Eq)]
-pub struct Camera { pub center: Complex<Expansion<4>>, pub zoom: f32, pub res: f32 }
+pub struct Camera {
+    pub center: Complex<Coordinate>,
+    pub zoom: f32,
+    pub res: f32,
+}
 
 impl Copy for Camera {}
+
+impl Camera {
+    pub fn center_value(self) -> Complex<Expansion<4>> {
+        Complex { re: self.center.re.value, im: self.center.im.value }
+    }
+}
+
 
 /// Identity of a refinement epoch: the sampling camera plus anti-aliasing mode.
 /// Excludes clock, cursor and transient gesture state.
@@ -107,38 +138,22 @@ pub struct RefinementKey { pub camera: Camera, pub antialias: f32 }
 
 impl Copy for RefinementKey {}
 
-pub struct MandelbrotParams {
-    pub center_x_w0: Param,
-    pub center_x_w1: Param,
-    pub center_x_w2: Param,
-    pub center_x_w3: Param,
-    pub center_y_w0: Param,
-    pub center_y_w1: Param,
-    pub center_y_w2: Param,
-    pub center_y_w3: Param,
+/// Visible controls mirror the camera's semantic structure. Each center
+/// control edits the leading coefficient through the expansion adapter.
+pub struct CameraControls {
+    pub center: Complex<Param>,
     pub zoom: Param,
     pub res: Param,
-    pub clock: Param,
-    pub last_input: Param,
+}
+
+pub struct MandelbrotParams {
+    pub camera: CameraControls,
     pub antialias: Param,
-    pub drag_active: Param,
     pub magnification: Param,
 }
 
 pub struct MandelbrotViewState {
-    /// Most-significant word of a four-word center expansion. Fe gesture math
-    /// updates this and the three hidden low words together.
-    pub center_x_w0: f32,
-    pub center_x_w1: f32,
-    pub center_x_w2: f32,
-    pub center_x_w3: f32,
-    /// Most-significant word of the four-word vertical center expansion.
-    pub center_y_w0: f32,
-    pub center_y_w1: f32,
-    pub center_y_w2: f32,
-    pub center_y_w3: f32,
-    pub zoom: f32,
-    pub res: f32,
+    pub camera: Camera,
     pub clock: f32,
     pub last_input: f32,
     pub antialias: f32,
@@ -161,50 +176,54 @@ pub struct SurfaceStateEnvelope { pub state: MandelbrotViewState }
 impl Copy for SurfaceStateEnvelope {}
 
 pub const fn initial_view() -> MandelbrotViewState {
-    MandelbrotViewState {
-        center_x_w0: -1.1723285913467407,
-        center_x_w1: -0.000000008653259442326089,
-        center_x_w2: 0.00000000000000016498233784400384,
-        center_x_w3: 0.0000000000000000000000010576053052462748,
-        center_y_w0: 0.29582354426383972,
-        center_y_w1: -0.000000004263839503693134,
-        center_y_w2: -0.00000000000000021798654948407476,
-        center_y_w3: -0.0000000000000000000000037684836019798525,
+    let camera = Camera {
+        center: Complex {
+            re: Coordinate { value: from_quad(
+                -1.1723285913467407,
+                -0.000000008653259442326089,
+                0.00000000000000016498233784400384,
+                0.0000000000000000000000010576053052462748,
+            ) },
+            im: Coordinate { value: from_quad(
+                0.29582354426383972,
+                -0.000000004263839503693134,
+                -0.00000000000000021798654948407476,
+                -0.0000000000000000000000037684836019798525,
+            ) },
+        },
         zoom: 0.0000000389,
         res: 512.0,
+    }
+    MandelbrotViewState {
+        camera: camera,
         clock: 0.0,
         last_input: 0.0,
         antialias: 1.0,
         drag_active: 0.0,
-        magnification: 3.0 / 0.0000000389,
+        magnification: 3.0 / camera.zoom,
     }
 }
 
 pub const fn mandelbrot_params() -> MandelbrotParams {
     let initial: MandelbrotViewState = initial_view()
     MandelbrotParams {
-        center_x_w0: Param::range(
-            min: CENTER_X_MIN,
-            max: CENTER_X_MAX,
-            init: initial.center_x_w0,
-        ),
-        center_x_w1: Param::fixed(initial.center_x_w1),
-        center_x_w2: Param::fixed(initial.center_x_w2),
-        center_x_w3: Param::fixed(initial.center_x_w3),
-        center_y_w0: Param::range(
-            min: CENTER_Y_MIN,
-            max: CENTER_Y_MAX,
-            init: initial.center_y_w0,
-        ),
-        center_y_w1: Param::fixed(initial.center_y_w1),
-        center_y_w2: Param::fixed(initial.center_y_w2),
-        center_y_w3: Param::fixed(initial.center_y_w3),
-        zoom: Param::log(min: ZOOM_MIN, max: ZOOM_MAX, init: initial.zoom),
-        res: Param::extent_x(),
-        clock: Param::fixed(initial.clock),
-        last_input: Param::fixed(initial.last_input),
+        camera: CameraControls {
+            center: Complex {
+                re: Param::range(
+                    min: CENTER_X_MIN,
+                    max: CENTER_X_MAX,
+                    init: initial.camera.center.re.leading(),
+                ).projected("value.lead"),
+                im: Param::range(
+                    min: CENTER_Y_MIN,
+                    max: CENTER_Y_MAX,
+                    init: initial.camera.center.im.leading(),
+                ).projected("value.lead"),
+            },
+            zoom: Param::log(min: ZOOM_MIN, max: ZOOM_MAX, init: initial.camera.zoom),
+            res: Param::extent_x(),
+        },
         antialias: Param::range(min: 0.0, max: 1.0, init: initial.antialias),
-        drag_active: Param::fixed(initial.drag_active),
         magnification: Param::readout(ParamReadout::Scalar),
     }
 }
@@ -257,48 +276,18 @@ impl MandelbrotViewState {
     pub fn is_input_settled(self) -> bool {
         self.drag_active < 0.5 && self.clock - self.last_input >= 60.0
     }
-    pub fn center(self) -> Complex<Expansion<4>> {
-        Complex {
-            re: from_quad(
-                self.center_x_w0,
-                self.center_x_w1,
-                self.center_x_w2,
-                self.center_x_w3,
-            ),
-            im: from_quad(
-                self.center_y_w0,
-                self.center_y_w1,
-                self.center_y_w2,
-                self.center_y_w3,
-            ),
-        }
-    }
-    pub fn camera(self) -> Camera {
-        Camera { center: self.center(), zoom: self.zoom, res: self.res }
-    }
     pub fn refinement_key(self) -> RefinementKey {
-        RefinementKey { camera: self.camera(), antialias: self.antialias }
+        RefinementKey { camera: self.camera, antialias: self.antialias }
     }
     pub fn with_camera(self, _ camera: Camera) -> Self {
-        let (cx0, cx1, cx2, cx3) = to_quad(camera.center.re)
-        let (cy0, cy1, cy2, cy3) = to_quad(camera.center.im)
         let mut next: Self = self
-        next.center_x_w0 = cx0
-        next.center_x_w1 = cx1
-        next.center_x_w2 = cx2
-        next.center_x_w3 = cx3
-        next.center_y_w0 = cy0
-        next.center_y_w1 = cy1
-        next.center_y_w2 = cy2
-        next.center_y_w3 = cy3
-        next.zoom = camera.zoom
-        next.res = camera.res
+        next.camera = camera
         next.magnification = 3.0 / camera.zoom
         next
     }
     pub fn refresh_readout(self) -> Self {
         let mut next: Self = self
-        next.magnification = 3.0 / self.zoom
+        next.magnification = 3.0 / self.camera.zoom
         next
     }
 }
@@ -325,11 +314,11 @@ pub fn transition(_ state: MandelbrotViewState, _ event: own SurfaceEvent) -> Ma
             .apply_param_bindings(mandelbrot_params(), event)
             .refresh_readout()
     }
-    let camera: Camera = state.camera()
+    let camera: Camera = state.camera
     let res: f32 = event.width
     let step: f32 = 2.0 * camera.zoom / res
     let pan_offset: Complex<f32> = Complex { re: -event.delta_x * step, im: event.delta_y * step }
-    let panned: Complex<Expansion<4>> = translate_center(camera.center, pan_offset)
+    let panned: Complex<Coordinate> = translate_center(camera.center, pan_offset)
     let next_zoom: f32 = clamp_f(
         zoom_step(
             camera.zoom,
@@ -344,7 +333,7 @@ pub fn transition(_ state: MandelbrotViewState, _ event: own SurfaceEvent) -> Ma
     let v: f32 = 1.0 - (event.pointer_y + 0.5) * 2.0 / res
     let zoom_span_delta: f32 = camera.zoom - next_zoom
     let anchor_offset: Complex<f32> = Complex { re: u * zoom_span_delta, im: v * zoom_span_delta }
-    let anchored: Complex<Expansion<4>> = translate_center(panned, anchor_offset)
+    let anchored: Complex<Coordinate> = translate_center(panned, anchor_offset)
     next.with_camera(
         Camera { center: clamp_center(anchored), zoom: next_zoom, res: res },
     )

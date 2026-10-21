@@ -1,8 +1,8 @@
 {
   "fe": {
     "repository": "https://github.com/micahscopes/fe.git",
-    "branch": "mb2",
-    "revision": "51133fb1572c9e3f385855001d1f1b041ed63433"
+    "branch": "feat/mb2-nested-param-bindings-20261020",
+    "revision": "51ccb9bd7db1e81a85f78e30c41f2806c96d33b3"
   },
   "sonatina": {
     "repository": "https://github.com/micahscopes/sonatina.git",

@@ -3,7 +3,7 @@
 use core::marker::Copy
 use algebra::Complex
 use ingot::image::max
-use ingot::policy::{Camera, MandelbrotViewState, RefinementKey, blur_radius}
+use ingot::policy::{Camera, Coordinate, MandelbrotViewState, RefinementKey, blur_radius}
 use precision::{Expansion, from_quad, to_quad}
 
 pub const ORACLE_GLITCHED_BIT: u32 = 1073741824
@@ -105,7 +105,14 @@ impl ViewCache {
         }
     }
     pub fn camera(self) -> Camera {
-        Camera { center: self.center(), zoom: self.zoom, res: self.res }
+        Camera {
+            center: Complex {
+                re: Coordinate { value: self.center().re },
+                im: Coordinate { value: self.center().im },
+            },
+            zoom: self.zoom,
+            res: self.res,
+        }
     }
     pub fn refinement_key(self) -> RefinementKey {
         RefinementKey { camera: self.camera(), antialias: self.aa }
@@ -114,7 +121,7 @@ impl ViewCache {
         self.refinement_key() == s.refinement_key()
     }
     pub fn delta_from(self, _ s: MandelbrotViewState) -> Complex<f32> {
-        center_delta(self.center(), s.center())
+        center_delta(self.center(), s.camera.center_value())
     }
     pub fn sync_with_view(
         self,
@@ -134,9 +141,9 @@ impl ViewCache {
         } else {
             1
         }
-        let camera: Camera = s.camera()
-        let (x0, x1, x2, x3) = to_quad(camera.center.re)
-        let (y0, y1, y2, y3) = to_quad(camera.center.im)
+        let camera: Camera = s.camera
+        let (x0, x1, x2, x3) = to_quad(camera.center.re.value)
+        let (y0, y1, y2, y3) = to_quad(camera.center.im.value)
         ViewCache {
             x0: x0,
             x1: x1,
@@ -192,7 +199,7 @@ impl ReferenceControl {
         }
     }
     pub fn blur_sigma(self, _ s: MandelbrotViewState) -> f32 {
-        blur_radius(self.display_age(s)) * 192.0 / s.res
+        blur_radius(self.display_age(s)) * 192.0 / s.camera.res
     }
     pub fn can_refine(self, _ s: MandelbrotViewState) -> bool {
         self.pending == 0 && self.active_valid == 1 && s.is_input_settled()
@@ -248,7 +255,7 @@ impl ReferenceControl {
 
 impl ReferenceAnchor {
     pub fn from_state(_ s: MandelbrotViewState, _ limit: u32, _ generation: u32) -> Self {
-        let center: Complex<Expansion<4>> = s.center()
+        let center: Complex<Expansion<4>> = s.camera.center_value()
         let (x0, x1, x2, x3) = to_quad(center.re)
         let (y0, y1, y2, y3) = to_quad(center.im)
         ReferenceAnchor {
@@ -271,6 +278,6 @@ impl ReferenceAnchor {
         }
     }
     pub fn delta_from(self, _ s: MandelbrotViewState) -> Complex<f32> {
-        center_delta(self.center(), s.center())
+        center_delta(self.center(), s.camera.center_value())
     }
 }
