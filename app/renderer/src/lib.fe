@@ -46,20 +46,21 @@ use ingot::policy::{
     iteration_limit,
     progress,
     preview_budget,
-    blur_radius,
     sharpness,
-    ZOOM_MIN,
 }
 use ingot::orbit::{
     Complex,
     OrbitProgress,
     PackedReference,
+    PrefixIndices,
     ReferenceReal,
     ReferenceStep,
     clear_reference_checkpoint,
     continue_pixel,
+    continue_preview_pixel,
     empty_progress,
     load_reference_checkpoint,
+    pack_progress_reference,
     progress_color,
     progress_has_outcome,
     progress_is_escaped,
@@ -72,15 +73,15 @@ use ingot::orbit::{
     pack_progress_reference,
     reference_center,
     reference_step,
+    resolve_prefix_step,
     sample_pixel,
-    sample_progress,
     store_reference_checkpoint,
+    INVALID_REFERENCE,
     ORBIT_CAPACITY,
     ORBIT_CENTER_INDEX,
     ORBIT_META_INDEX,
-    PROGRESS_ESCAPED_BIT,
-    PROGRESS_GLITCHED_BIT,
 }
+use ingot::palette::interior
 use ingot::partition::{
     CohortPixel,
     Pixel,
@@ -105,13 +106,21 @@ use ingot::image::{
     gaussian,
 }
 use ingot::cache::{
+    PreviewCache,
+    ReprojectionTap,
     ViewCache,
     ReferenceControl,
     ReferenceAnchor,
     SampleOracle,
+    next_preview_step_target,
     oracle_is_glitched,
     oracle_is_usable,
+    preview_has_reference,
+    preview_is_completed,
+    preview_uses_pending,
+    reproject_coarse_pixel,
     same_camera,
+    select_preview_bank,
 }
 
 actor SmoothPerturbationalMandelbrot uses (
@@ -122,6 +131,8 @@ actor SmoothPerturbationalMandelbrot uses (
     orbit: OrbitBuffer<PackedReference, ORBIT_CAPACITY>,
     pixels: OrbitBuffer<Color, 65536>,
     initial_pixels: OrbitBuffer<Color, 65536>,
+    preview_progress: OrbitBuffer<OrbitProgress, 65536>,
+    preview_cache: OrbitBuffer<PreviewCache, 1>,
     snapshot_oracle: OrbitBuffer<SampleOracle, 4194304>,
     horizontal: OrbitBuffer<Color, 65536>,
     blurred: OrbitBuffer<Color, 65536>,
@@ -165,7 +176,7 @@ actor SmoothPerturbationalMandelbrot uses (
     {
         let s: MandelbrotViewState = self.state
         let control: ReferenceControl = self.reference.load(index: 0)
-        if control.pending == 0 || !s.is_input_settled() {
+        if control.pending == 0 {
             return
         }
         let bank: u32 = if control.active == 0 { 1 } else { 0 }
@@ -183,15 +194,11 @@ actor SmoothPerturbationalMandelbrot uses (
     {
         let s: MandelbrotViewState = self.state
         let previous: ViewCache = self.cache.load(index: 0)
+        let initial: ViewCache = self.cache.load(index: 2)
+        let previous_preview: PreviewCache = self.preview_cache.load(index: 0)
         let age: f32 = s.input_age()
         let budget: u32 = preview_budget(s.camera.zoom)
         let control: ReferenceControl = self.reference.load(index: 0)
-        let display_age: f32 = control.display_age(s)
-        let radius: f32 = blur_radius(display_age)
-        self.cache.store(
-            index: 0,
-            value: previous.sync_with_view(s, budget, radius, display_age),
-        )
         let active_anchor: ReferenceAnchor = self.anchor.load(index: control.active)
         let delta: Complex<f32> = active_anchor.delta_from(s)
         let target: u32 = iteration_limit(s.camera.zoom)
@@ -199,48 +206,64 @@ actor SmoothPerturbationalMandelbrot uses (
             && active_anchor.limit >= target
             && abs(delta.re) <= s.camera.zoom * 0.125
             && abs(delta.im) <= s.camera.zoom * 0.125
-        if control.pending == 0 && reusable {
-            return
-        }
         // Keep the active orbit available while a replacement advances in
         // bounded exact-integer batches. Pointer input never queues behind
         // an entire multi-thousand-step reference recurrence.
-        if control.active_valid == 1 && age < 60.0 {
-            return
-        }
-        let bank: u32 = 1 - control.active
-        let base: u32 = bank * 8195
-        if control.pending == 0 {
-            self.anchor.store(
-                index: bank,
-                value: ReferenceAnchor::from_state(s, target, active_anchor.generation + 1),
+        let keep_active: bool = if control.pending == 0 { reusable } else { false }
+        let defer_rebuild: bool = if control.active_valid == 1 { age < 60.0 } else { false }
+        let skip_build: bool = if keep_active { true } else { defer_rebuild }
+        if skip_build {
+            let preview_bank: u32 = control.preview_bank(s)
+            let preview_anchor: ReferenceAnchor = self.anchor.load(index: preview_bank)
+            let next_preview: PreviewCache = previous_preview.sync_with_view(
+                s,
+                control,
+                preview_anchor.generation,
+                budget,
             )
-            clear_reference_checkpoint(self.reference_words)
-            self.orbit.store(index: base, value: PackedReference::zero())
-            self.reference.store(index: 0, value: control.start_pending())
-            return
-        }
-        let pending_anchor: ReferenceAnchor = self.anchor.load(index: bank)
-        let center: Complex<ReferenceReal> = reference_center(pending_anchor)
-        let mut z: Complex<ReferenceReal> = load_reference_checkpoint(
-            self.reference_words,
-            control,
-        )
-        let mut i: u32 = control.index
-        let mut step: u32 = 0
-        let mut escaped: bool = false
-        while step < 64 && i < pending_anchor.limit && !escaped {
-            let result: ReferenceStep = reference_step(z, center)
-            z = result.value
-            escaped = result.escaped
-            self.orbit.store(
-                index: base + i + 1,
-                value: PackedReference::from_fixed(z),
+            self.preview_cache.store(index: 0, value: next_preview)
+            self.cache.store(
+                index: 0,
+                value: previous.sync_for_frame(s, control, next_preview, initial),
             )
-            i = i + 1
-            step = step + 1
-        }
-        if escaped || i >= pending_anchor.limit {
+        } else {
+            let bank: u32 = 1 - control.active
+            let base: u32 = bank * 8195
+            let existing_pending: ReferenceAnchor = self.anchor.load(index: bank)
+            let next_gen: u32 = (if active_anchor.generation > existing_pending.generation {
+                active_anchor.generation
+            } else {
+                existing_pending.generation
+            }) + 1
+            let pending_anchor: ReferenceAnchor = if control.pending == 0 {
+                let created: ReferenceAnchor = ReferenceAnchor::from_state(s, target, next_gen)
+                self.anchor.store(index: bank, value: created)
+                clear_reference_checkpoint(self.reference_words)
+                self.orbit.store(index: base, value: PackedReference::zero())
+                created
+            } else {
+                existing_pending
+            }
+            let center: Complex<ReferenceReal> = reference_center(pending_anchor)
+            let mut z: Complex<ReferenceReal> = if control.pending == 0 {
+                Complex::default()
+            } else {
+                load_reference_checkpoint(self.reference_words, control)
+            }
+            let mut i: u32 = if control.pending == 0 { 0 } else { control.index }
+            let mut step: u32 = 0
+            let mut escaped: bool = false
+            while step < 64 && i < pending_anchor.limit && !escaped {
+                let result: ReferenceStep = reference_step(z, center)
+                z = result.value
+                escaped = result.escaped
+                self.orbit.store(
+                    index: base + i + 1,
+                    value: PackedReference::from_fixed(z),
+                )
+                i = i + 1
+                step = step + 1
+            }
             self.orbit.store(
                 index: base + ORBIT_CENTER_INDEX,
                 value: PackedReference::from_fixed(center),
@@ -249,82 +272,176 @@ actor SmoothPerturbationalMandelbrot uses (
                 index: base + ORBIT_META_INDEX,
                 value: PackedReference::from_metadata(i + 1, pending_anchor.limit),
             )
-            self.reference.store(
-                index: 0,
-                value: ReferenceControl::publish(
-                    bank,
-                    i,
-                    z.re.sign,
-                    z.im.sign,
-                    s.clock,
-                ),
+            let published: bool = escaped || i >= pending_anchor.limit
+            let next_control: ReferenceControl = if published {
+                ReferenceControl::publish(bank, i, z.re.sign, z.im.sign, s.clock)
+            } else {
+                store_reference_checkpoint(self.reference_words, z)
+                control.advance_pending(i, z.re.sign, z.im.sign)
+            }
+            self.reference.store(index: 0, value: next_control)
+            // Checkpoints belong to the orbit actually selected for preview.
+            // During live input that can still be the active bank while its
+            // replacement is being built in the other bank.
+            let preview_bank: u32 = next_control.preview_bank(s)
+            let preview_anchor: ReferenceAnchor = self.anchor.load(index: preview_bank)
+            let next_preview: PreviewCache = previous_preview.sync_with_view(
+                s,
+                next_control,
+                preview_anchor.generation,
+                budget,
             )
-            let view: ViewCache = self.cache.load(index: 0)
-            self.cache.store(index: 0, value: view.invalidate_for_new_reference())
+            self.preview_cache.store(index: 0, value: next_preview)
+            let synced_view: ViewCache = previous.sync_for_frame(
+                s,
+                next_control,
+                next_preview,
+                initial,
+            )
+            let next_view: ViewCache = if published {
+                synced_view.invalidate_for_new_reference()
+            } else {
+                synced_view
+            }
+            self.cache.store(index: 0, value: next_view)
+        }
+    }
+
+    fn advance_preview(self, invocation: ComputeInvocation)
+        uses (ReferencePass<Threads<8, 8, 1>, Once<32, 32, 1>>)
+    {
+        if self.cache.load(index: 0).preview_dirty == 0 {
+            return
+        }
+        let preview: PreviewCache = self.preview_cache.load(index: 0)
+        if preview.completed == 1 || preview.step_target == 0 {
+            return
+        }
+        let s: MandelbrotViewState = self.state
+        let x: u32 = invocation.global.x
+        let y: u32 = invocation.global.y
+        let px: i32 = to_i32(from_i32(__bitcast<u32, i32>(x)) * s.camera.res / 256.0)
+        let py: i32 = to_i32(from_i32(__bitcast<u32, i32>(y)) * s.camera.res / 256.0)
+        if !s.is_input_settled() {
+            let tap: ReprojectionTap = reproject_coarse_pixel(
+                s,
+                self.cache.load(index: 1),
+                self.cache.load(index: 2),
+                px,
+                py,
+            )
+            if tap.reusable {
+                return
+            }
+        }
+        let index: u32 = (y << 8) | x
+        let old: OrbitProgress = self.preview_progress.load(index: index)
+        let saved: OrbitProgress = if old.epoch == preview.epoch {
+            old
         } else {
-            store_reference_checkpoint(self.reference_words, z)
-            self.reference.store(
-                index: 0,
-                value: control.advance_pending(i, z.re.sign, z.im.sign),
+            empty_progress(preview.epoch)
+        }
+        let done_for_chunk: bool = if saved.is_terminal(preview.budget) {
+            true
+        } else {
+            saved.iteration >= preview.step_target
+        }
+        if done_for_chunk {
+            if old.epoch != preview.epoch {
+                self.preview_progress.store(index: index, value: saved)
+            }
+        } else {
+            let next: OrbitProgress = continue_preview_pixel(
+                self.orbit,
+                preview.reference_bank * 8195,
+                s.camera,
+                PixelSample::ordered_2x2(px, py),
+                preview.step_target,
+                preview.step_target,
+                preview.prefix_only == 1,
+                saved,
             )
+            self.preview_progress.store(index: index, value: next)
         }
     }
 
     fn render_preview(self, invocation: ComputeInvocation)
         uses (ReferencePass<Threads<8, 8, 1>, Once<32, 32, 1>>)
     {
-        let s: MandelbrotViewState = self.state
-        let ref_state: ReferenceControl = self.reference.load(index: 0)
-        if ref_state.active_valid == 0 {
-            return
-        }
         if self.cache.load(index: 0).preview_dirty == 0 {
             return
         }
-        let x: u32 = invocation.global.x
-        let y: u32 = invocation.global.y
-        let px: i32 = to_i32(from_i32(__bitcast<u32, i32>(x)) * s.camera.res / 256.0)
-        let py: i32 = to_i32(from_i32(__bitcast<u32, i32>(y)) * s.camera.res / 256.0)
-        let full: ViewCache = self.cache.load(index: 1)
-        let initial: ViewCache = self.cache.load(index: 2)
-        let use_full: bool = full.completed == 1 && full.epoch >= initial.epoch
-        let old: ViewCache = if use_full { full } else { initial }
-        let delta: Complex<f32> = old.delta_from(s)
-        let u: f32 = (from_i32(px) + 0.5) * 2.0 / s.camera.res - 1.0
-        let v: f32 = 1.0 - (from_i32(py) + 0.5) * 2.0 / s.camera.res
-        let span: f32 = max(old.zoom, ZOOM_MIN)
-        let sx: f32 = ((delta.re + u * s.camera.zoom) / span + 1.0) * old.res * 0.5 - 0.5
-        let sy: f32 = (1.0 - (delta.im + v * s.camera.zoom) / span) * old.res * 0.5 - 0.5
-        let reusable: bool = old.completed == 1
-            && sx >= 0.0
-            && sy >= 0.0
-            && sx < old.res - 1.0
-            && sy < old.res - 1.0
-        let cached: Color = if use_full {
-            sample_snapshot(self.snapshot_pixels, sx, sy, old.res)
-        } else {
-            let scale: f32 = 256.0 / max(old.res, 1.0)
-            sample(self.initial_pixels, sx * scale, sy * scale)
-        }
-        let age: f32 = ref_state.display_age(s)
-        if reusable && age < 60.0 {
-            self.pixels.store(index: (y << 8) | x, value: cached)
+        let preview: PreviewCache = self.preview_cache.load(index: 0)
+        if preview.step_target == 0 {
             return
         }
-        let computed: OrbitProgress = sample_progress(
-            self.orbit,
-            ref_state.active * 8195,
-            s.camera,
-            PixelSample::ordered_2x2(px, py),
-            preview_budget(s.camera.zoom),
+        let s: MandelbrotViewState = self.state
+        let x: u32 = invocation.global.x
+        let y: u32 = invocation.global.y
+        let index: u32 = (y << 8) | x
+        let px: i32 = to_i32(from_i32(__bitcast<u32, i32>(x)) * s.camera.res / 256.0)
+        let py: i32 = to_i32(from_i32(__bitcast<u32, i32>(y)) * s.camera.res / 256.0)
+        let tap: ReprojectionTap = reproject_coarse_pixel(
+            s,
+            self.cache.load(index: 1),
+            self.cache.load(index: 2),
+            px,
+            py,
         )
-        let current: Color = unpack_lab(progress_color(computed))
-        let result: Color = if reusable {
-            blend(cached, current, progress(age, 60.0, 300.0))
+        let cached: Color = if tap.use_full {
+            sample_snapshot(self.snapshot_pixels, tap.sx, tap.sy, tap.old_res)
         } else {
-            current
+            let scale: f32 = 256.0 / max(tap.old_res, 1.0)
+            sample(self.initial_pixels, tap.sx * scale, tap.sy * scale)
         }
-        self.pixels.store(index: (y << 8) | x, value: result)
+        let live_reusable: bool = if tap.reusable { !s.is_input_settled() } else { false }
+        if live_reusable {
+            self.pixels.store(index: index, value: cached)
+        } else {
+            let computed: OrbitProgress = self.preview_progress.load(index: index)
+            let known_escaped: bool = computed.epoch == preview.epoch
+                && computed.is_escaped()
+                && !computed.is_glitched()
+            let proven_interior: bool = computed.epoch == preview.epoch
+                && !computed.is_escaped()
+                && !computed.is_glitched()
+                && preview.prefix_only == 0
+                && computed.iteration >= preview.budget
+            if known_escaped || proven_interior {
+                let current: Color = unpack_lab(progress_color(computed))
+                let result: Color = if tap.reusable {
+                    blend(cached, current, progress(s.input_age(), 60.0, 300.0))
+                } else {
+                    current
+                }
+                self.pixels.store(index: index, value: result)
+            } else if tap.reusable {
+                self.pixels.store(index: index, value: cached)
+            } else if preview.prefix_only == 0 && computed.is_glitched() {
+                self.pixels.store(index: index, value: unpack_lab(interior()))
+            } else {
+                self.pixels.store(index: index, value: Color::default())
+            }
+        }
+    }
+
+    fn finish_preview(self)
+        uses (ReferencePass<Threads<1, 1, 1>, Once<1, 1, 1>>)
+    {
+        if self.cache.load(index: 0).preview_dirty == 0 {
+            return
+        }
+        let preview: PreviewCache = self.preview_cache.load(index: 0)
+        if preview.completed == 1 || preview.step_target == 0 {
+            return
+        }
+        let s: MandelbrotViewState = self.state
+        let full: ViewCache = self.cache.load(index: 1)
+        let initial: ViewCache = self.cache.load(index: 2)
+        if !s.is_input_settled() && (full.completed == 1 || initial.completed == 1) {
+            return
+        }
+        self.preview_cache.store(index: 0, value: preview.commit_step())
     }
 
     // Preserve the first settled preview before native refinement finishes.
@@ -336,7 +453,8 @@ actor SmoothPerturbationalMandelbrot uses (
         let c: ViewCache = self.cache.load(index: 0)
         let old: ViewCache = self.cache.load(index: 2)
         let ref_state: ReferenceControl = self.reference.load(index: 0)
-        if !ref_state.can_publish_initial(s, c.epoch, old.epoch) {
+        let preview: PreviewCache = self.preview_cache.load(index: 0)
+        if preview.completed == 0 || !ref_state.can_publish_initial(s, c.epoch, old.epoch) {
             return
         }
         let index: u32 = (invocation.global.y << 8) | invocation.global.x
@@ -353,7 +471,8 @@ actor SmoothPerturbationalMandelbrot uses (
         let c: ViewCache = self.cache.load(index: 0)
         let old: ViewCache = self.cache.load(index: 2)
         let ref_state: ReferenceControl = self.reference.load(index: 0)
-        if !ref_state.can_publish_initial(s, c.epoch, old.epoch) {
+        let preview: PreviewCache = self.preview_cache.load(index: 0)
+        if preview.completed == 0 || !ref_state.can_publish_initial(s, c.epoch, old.epoch) {
             return
         }
         self.cache.store(index: 2, value: c.as_published_initial())
@@ -779,6 +898,96 @@ fn orbit_progress_and_oracle_flags_roundtrip() {
     let presentable_interior: u32 = progress_with_presentable(0)
     assert(progress_is_presentable(presentable_interior))
     assert(progress_is_terminal(presentable_interior, 10, 256))
+}
+
+#[test]
+fn prefix_step_preparation_and_invalid_reference_glitch() {
+    // When prefix_only is true and valid_samples == 65 (indices 0..=64),
+    // reference_i = 64 has reached the prefix end (64 + 1 >= 65) and must
+    // pause without rebasing reference_i to 0.
+    let paused: PrefixIndices = resolve_prefix_step(64, 64, 256, 65, true)
+    let expected_paused = PrefixIndices { active: false, rebases: false, reference_i: 64 }
+    assert(paused == expected_paused)
+
+    // Once the prefix extends to valid_samples == 129, step 64 is active
+    // without rebasing.
+    let extended: PrefixIndices = resolve_prefix_step(64, 64, 256, 129, true)
+    let expected_extended = PrefixIndices { active: true, rebases: false, reference_i: 64 }
+    assert(extended == expected_extended)
+
+    // When prefix_only is false (complete reference that escaped at 64, so
+    // valid_samples == 65), reaching 64 rebases reference_i to 0.
+    let rebased: PrefixIndices = resolve_prefix_step(64, 64, 256, 65, false)
+    let expected_rebased = PrefixIndices { active: true, rebases: true, reference_i: 0 }
+    assert(rebased == expected_rebased)
+
+    // Terminal or escaped states never advance further.
+    let escaped_bits: u32 = pack_progress_reference(23, 1, 0)
+    let terminal: PrefixIndices = resolve_prefix_step(escaped_bits, 23, 256, 129, true)
+    let expected_terminal = PrefixIndices { active: false, rebases: false, reference_i: 23 }
+    assert(terminal == expected_terminal)
+
+    // Invalid reference sentinel is recognized on both real and imag head words.
+    let invalid_re: PackedReference = PackedReference::from_words(
+        INVALID_REFERENCE,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    )
+    let invalid_im: PackedReference = PackedReference::from_words(
+        0,
+        0,
+        0,
+        0,
+        INVALID_REFERENCE,
+        0,
+        0,
+        0,
+    )
+    assert(invalid_re.is_invalid())
+    assert(invalid_im.is_invalid())
+    assert(!PackedReference::zero().is_invalid())
+}
+
+#[test]
+fn preview_control_and_commit_preserve_handoff() {
+    // Empty startup state has no preview reference until the first batch advances.
+    assert(!preview_has_reference(0, 0, 0))
+    assert(!preview_has_reference(0, 1, 0))
+    assert(preview_has_reference(0, 1, 64))
+    assert(preview_has_reference(1, 0, 1287))
+
+    // Cold pending reference (active == 0, active_valid == 0, pending == 1, index == 64)
+    // selects pending bank 1.
+    assert(preview_uses_pending(0, 1, 64, false))
+    assert(select_preview_bank(0, 0, 1, 64, false) == 1)
+
+    // When pending bank 1 publishes (active == 1, active_valid == 1, pending == 0),
+    // select_preview_bank continues returning bank 1 without bank switch.
+    assert(!preview_uses_pending(1, 0, 1287, true))
+    assert(select_preview_bank(1, 1, 0, 1287, true) == 1)
+
+    // While user input is live (!input_settled) and active bank 1 is valid,
+    // preview preserves active bank 1; once settled, a pending replacement in
+    // bank 0 is selected.
+    assert(select_preview_bank(1, 1, 1, 64, false) == 1)
+    assert(select_preview_bank(1, 1, 1, 64, true) == 0)
+
+    // Bounded chunk step targets clamp to available prefix steps while pending,
+    // then advance in 256-step chunks up to budget after publication.
+    assert(next_preview_step_target(0, 64) == 64)
+    assert(next_preview_step_target(64, 128) == 128)
+    assert(next_preview_step_target(1280, 1728) == 1536)
+    assert(next_preview_step_target(1536, 1728) == 1728)
+
+    assert(!preview_is_completed(1, 1728, 1728))
+    assert(!preview_is_completed(0, 1536, 1728))
+    assert(preview_is_completed(0, 1728, 1728))
+    assert(preview_is_completed(0, 8192, 8192))
 }
 
 #[test]

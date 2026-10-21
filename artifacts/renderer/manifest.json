@@ -4,8 +4,8 @@
   "source_entry": "display_preview",
   "artifacts": {
     "wasm": "module.wasm",
-    "wasm_bytes": 18667,
-    "wgsl": "passes/015-fragment.wgsl",
+    "wasm_bytes": 18669,
+    "wgsl": "passes/017-fragment.wgsl",
     "wgsl_bytes": 19084,
     "canonical_adapters": []
   },
@@ -113,7 +113,7 @@
           {
             "name": "center_x_w0",
             "doc": null,
-            "arg_index": 16,
+            "arg_index": 18,
             "offset": 0,
             "width": 4,
             "scalar": "f32"
@@ -121,7 +121,7 @@
           {
             "name": "center_x_w1",
             "doc": null,
-            "arg_index": 17,
+            "arg_index": 19,
             "offset": 4,
             "width": 4,
             "scalar": "f32"
@@ -129,7 +129,7 @@
           {
             "name": "center_x_w2",
             "doc": null,
-            "arg_index": 18,
+            "arg_index": 20,
             "offset": 8,
             "width": 4,
             "scalar": "f32"
@@ -137,7 +137,7 @@
           {
             "name": "center_x_w3",
             "doc": null,
-            "arg_index": 19,
+            "arg_index": 21,
             "offset": 12,
             "width": 4,
             "scalar": "f32"
@@ -145,7 +145,7 @@
           {
             "name": "center_y_w0",
             "doc": null,
-            "arg_index": 20,
+            "arg_index": 22,
             "offset": 16,
             "width": 4,
             "scalar": "f32"
@@ -153,7 +153,7 @@
           {
             "name": "center_y_w1",
             "doc": null,
-            "arg_index": 21,
+            "arg_index": 23,
             "offset": 20,
             "width": 4,
             "scalar": "f32"
@@ -161,7 +161,7 @@
           {
             "name": "center_y_w2",
             "doc": null,
-            "arg_index": 22,
+            "arg_index": 24,
             "offset": 24,
             "width": 4,
             "scalar": "f32"
@@ -169,7 +169,7 @@
           {
             "name": "center_y_w3",
             "doc": null,
-            "arg_index": 23,
+            "arg_index": 25,
             "offset": 28,
             "width": 4,
             "scalar": "f32"
@@ -177,7 +177,7 @@
           {
             "name": "zoom",
             "doc": null,
-            "arg_index": 24,
+            "arg_index": 26,
             "offset": 32,
             "width": 4,
             "scalar": "f32"
@@ -185,7 +185,7 @@
           {
             "name": "res",
             "doc": null,
-            "arg_index": 25,
+            "arg_index": 27,
             "offset": 36,
             "width": 4,
             "scalar": "f32"
@@ -193,7 +193,7 @@
           {
             "name": "clock",
             "doc": null,
-            "arg_index": 26,
+            "arg_index": 28,
             "offset": 40,
             "width": 4,
             "scalar": "f32"
@@ -201,7 +201,7 @@
           {
             "name": "last_input",
             "doc": null,
-            "arg_index": 27,
+            "arg_index": 29,
             "offset": 44,
             "width": 4,
             "scalar": "f32"
@@ -209,7 +209,7 @@
           {
             "name": "antialias",
             "doc": null,
-            "arg_index": 28,
+            "arg_index": 30,
             "offset": 48,
             "width": 4,
             "scalar": "f32"
@@ -217,7 +217,7 @@
           {
             "name": "drag_active",
             "doc": null,
-            "arg_index": 29,
+            "arg_index": 31,
             "offset": 52,
             "width": 4,
             "scalar": "f32"
@@ -225,7 +225,7 @@
           {
             "name": "magnification",
             "doc": null,
-            "arg_index": 30,
+            "arg_index": 32,
             "offset": 56,
             "width": 4,
             "scalar": "f32"
@@ -400,6 +400,181 @@
     {
       "group": 0,
       "binding": 3,
+      "name": "preview_progress",
+      "length": 65536,
+      "stride": 32,
+      "span": 32,
+      "element": {
+        "Record": {
+          "fields": [
+            {
+              "name": "dz_re",
+              "offset": 0,
+              "scalar": "f32"
+            },
+            {
+              "name": "dz_im",
+              "offset": 4,
+              "scalar": "f32"
+            },
+            {
+              "name": "z_re",
+              "offset": 8,
+              "scalar": "f32"
+            },
+            {
+              "name": "z_im",
+              "offset": 12,
+              "scalar": "f32"
+            },
+            {
+              "name": "reference_i",
+              "offset": 16
+            },
+            {
+              "name": "iteration",
+              "offset": 20
+            },
+            {
+              "name": "epoch",
+              "offset": 24
+            },
+            {
+              "name": "magnitude",
+              "offset": 28,
+              "scalar": "f32"
+            }
+          ],
+          "span": 32
+        }
+      },
+      "buffer_usage": [
+        "storage"
+      ],
+      "policy": {
+        "access": "read_write",
+        "initialization": {
+          "kind": "zeroed"
+        },
+        "kind": "storage",
+        "recovery": "replay_recipe",
+        "residency": "actor_resident",
+        "visibility": "all"
+      }
+    },
+    {
+      "group": 0,
+      "binding": 4,
+      "name": "preview_cache",
+      "length": 1,
+      "stride": 72,
+      "span": 72,
+      "element": {
+        "Record": {
+          "fields": [
+            {
+              "name": "x0",
+              "offset": 0,
+              "scalar": "f32"
+            },
+            {
+              "name": "x1",
+              "offset": 4,
+              "scalar": "f32"
+            },
+            {
+              "name": "x2",
+              "offset": 8,
+              "scalar": "f32"
+            },
+            {
+              "name": "x3",
+              "offset": 12,
+              "scalar": "f32"
+            },
+            {
+              "name": "y0",
+              "offset": 16,
+              "scalar": "f32"
+            },
+            {
+              "name": "y1",
+              "offset": 20,
+              "scalar": "f32"
+            },
+            {
+              "name": "y2",
+              "offset": 24,
+              "scalar": "f32"
+            },
+            {
+              "name": "y3",
+              "offset": 28,
+              "scalar": "f32"
+            },
+            {
+              "name": "zoom",
+              "offset": 32,
+              "scalar": "f32"
+            },
+            {
+              "name": "res",
+              "offset": 36,
+              "scalar": "f32"
+            },
+            {
+              "name": "reference_generation",
+              "offset": 40
+            },
+            {
+              "name": "reference_bank",
+              "offset": 44
+            },
+            {
+              "name": "prefix_only",
+              "offset": 48
+            },
+            {
+              "name": "step_target",
+              "offset": 52
+            },
+            {
+              "name": "completed_steps",
+              "offset": 56
+            },
+            {
+              "name": "budget",
+              "offset": 60
+            },
+            {
+              "name": "epoch",
+              "offset": 64
+            },
+            {
+              "name": "completed",
+              "offset": 68
+            }
+          ],
+          "span": 72
+        }
+      },
+      "buffer_usage": [
+        "storage"
+      ],
+      "policy": {
+        "access": "read_write",
+        "initialization": {
+          "kind": "zeroed"
+        },
+        "kind": "storage",
+        "recovery": "replay_recipe",
+        "residency": "actor_resident",
+        "visibility": "all"
+      }
+    },
+    {
+      "group": 0,
+      "binding": 5,
       "name": "snapshot_oracle",
       "length": 4194304,
       "stride": 12,
@@ -440,7 +615,7 @@
     },
     {
       "group": 0,
-      "binding": 4,
+      "binding": 6,
       "name": "horizontal",
       "length": 65536,
       "stride": 12,
@@ -483,7 +658,7 @@
     },
     {
       "group": 0,
-      "binding": 5,
+      "binding": 7,
       "name": "blurred",
       "length": 65536,
       "stride": 12,
@@ -526,7 +701,7 @@
     },
     {
       "group": 0,
-      "binding": 6,
+      "binding": 8,
       "name": "cache",
       "length": 3,
       "stride": 72,
@@ -638,7 +813,7 @@
     },
     {
       "group": 0,
-      "binding": 7,
+      "binding": 9,
       "name": "anchor",
       "length": 2,
       "stride": 40,
@@ -714,7 +889,7 @@
     },
     {
       "group": 0,
-      "binding": 8,
+      "binding": 10,
       "name": "reference",
       "length": 1,
       "stride": 28,
@@ -771,7 +946,7 @@
     },
     {
       "group": 0,
-      "binding": 9,
+      "binding": 11,
       "name": "reference_words",
       "length": 16,
       "stride": 4,
@@ -793,7 +968,7 @@
     },
     {
       "group": 0,
-      "binding": 10,
+      "binding": 12,
       "name": "native_pixels",
       "length": 4194304,
       "stride": 4,
@@ -815,7 +990,7 @@
     },
     {
       "group": 0,
-      "binding": 11,
+      "binding": 13,
       "name": "antialiased_pixels",
       "length": 4194304,
       "stride": 4,
@@ -837,7 +1012,7 @@
     },
     {
       "group": 0,
-      "binding": 12,
+      "binding": 14,
       "name": "progress_pixels",
       "length": 4194304,
       "stride": 32,
@@ -902,7 +1077,7 @@
     },
     {
       "group": 0,
-      "binding": 13,
+      "binding": 15,
       "name": "snapshot_pixels",
       "length": 4194304,
       "stride": 4,
@@ -988,7 +1163,7 @@
               {
                 "name": "center_x_w0",
                 "doc": null,
-                "arg_index": 27,
+                "arg_index": 29,
                 "offset": 0,
                 "width": 4,
                 "scalar": "f32"
@@ -996,7 +1171,7 @@
               {
                 "name": "center_x_w1",
                 "doc": null,
-                "arg_index": 28,
+                "arg_index": 30,
                 "offset": 4,
                 "width": 4,
                 "scalar": "f32"
@@ -1004,7 +1179,7 @@
               {
                 "name": "center_x_w2",
                 "doc": null,
-                "arg_index": 29,
+                "arg_index": 31,
                 "offset": 8,
                 "width": 4,
                 "scalar": "f32"
@@ -1012,7 +1187,7 @@
               {
                 "name": "center_x_w3",
                 "doc": null,
-                "arg_index": 30,
+                "arg_index": 32,
                 "offset": 12,
                 "width": 4,
                 "scalar": "f32"
@@ -1020,7 +1195,7 @@
               {
                 "name": "center_y_w0",
                 "doc": null,
-                "arg_index": 31,
+                "arg_index": 33,
                 "offset": 16,
                 "width": 4,
                 "scalar": "f32"
@@ -1028,7 +1203,7 @@
               {
                 "name": "center_y_w1",
                 "doc": null,
-                "arg_index": 32,
+                "arg_index": 34,
                 "offset": 20,
                 "width": 4,
                 "scalar": "f32"
@@ -1036,7 +1211,7 @@
               {
                 "name": "center_y_w2",
                 "doc": null,
-                "arg_index": 33,
+                "arg_index": 35,
                 "offset": 24,
                 "width": 4,
                 "scalar": "f32"
@@ -1044,7 +1219,7 @@
               {
                 "name": "center_y_w3",
                 "doc": null,
-                "arg_index": 34,
+                "arg_index": 36,
                 "offset": 28,
                 "width": 4,
                 "scalar": "f32"
@@ -1052,7 +1227,7 @@
               {
                 "name": "zoom",
                 "doc": null,
-                "arg_index": 35,
+                "arg_index": 37,
                 "offset": 32,
                 "width": 4,
                 "scalar": "f32"
@@ -1060,7 +1235,7 @@
               {
                 "name": "res",
                 "doc": null,
-                "arg_index": 36,
+                "arg_index": 38,
                 "offset": 36,
                 "width": 4,
                 "scalar": "f32"
@@ -1068,7 +1243,7 @@
               {
                 "name": "clock",
                 "doc": null,
-                "arg_index": 37,
+                "arg_index": 39,
                 "offset": 40,
                 "width": 4,
                 "scalar": "f32"
@@ -1076,7 +1251,7 @@
               {
                 "name": "last_input",
                 "doc": null,
-                "arg_index": 38,
+                "arg_index": 40,
                 "offset": 44,
                 "width": 4,
                 "scalar": "f32"
@@ -1084,7 +1259,7 @@
               {
                 "name": "antialias",
                 "doc": null,
-                "arg_index": 39,
+                "arg_index": 41,
                 "offset": 48,
                 "width": 4,
                 "scalar": "f32"
@@ -1092,7 +1267,7 @@
               {
                 "name": "drag_active",
                 "doc": null,
-                "arg_index": 40,
+                "arg_index": 42,
                 "offset": 52,
                 "width": 4,
                 "scalar": "f32"
@@ -1100,7 +1275,7 @@
               {
                 "name": "magnification",
                 "doc": null,
-                "arg_index": 41,
+                "arg_index": 43,
                 "offset": 56,
                 "width": 4,
                 "scalar": "f32"
@@ -1203,7 +1378,7 @@
     {
       "source_entry": "discard_stale_reference",
       "shader": "passes/001-compute.wgsl",
-      "shader_bytes": 10631,
+      "shader_bytes": 10089,
       "shader_stages": [
         "compute"
       ],
@@ -1264,7 +1439,7 @@
               {
                 "name": "center_x_w0",
                 "doc": null,
-                "arg_index": 14,
+                "arg_index": 16,
                 "offset": 0,
                 "width": 4,
                 "scalar": "f32"
@@ -1272,7 +1447,7 @@
               {
                 "name": "center_x_w1",
                 "doc": null,
-                "arg_index": 15,
+                "arg_index": 17,
                 "offset": 4,
                 "width": 4,
                 "scalar": "f32"
@@ -1280,7 +1455,7 @@
               {
                 "name": "center_x_w2",
                 "doc": null,
-                "arg_index": 16,
+                "arg_index": 18,
                 "offset": 8,
                 "width": 4,
                 "scalar": "f32"
@@ -1288,7 +1463,7 @@
               {
                 "name": "center_x_w3",
                 "doc": null,
-                "arg_index": 17,
+                "arg_index": 19,
                 "offset": 12,
                 "width": 4,
                 "scalar": "f32"
@@ -1296,7 +1471,7 @@
               {
                 "name": "center_y_w0",
                 "doc": null,
-                "arg_index": 18,
+                "arg_index": 20,
                 "offset": 16,
                 "width": 4,
                 "scalar": "f32"
@@ -1304,7 +1479,7 @@
               {
                 "name": "center_y_w1",
                 "doc": null,
-                "arg_index": 19,
+                "arg_index": 21,
                 "offset": 20,
                 "width": 4,
                 "scalar": "f32"
@@ -1312,7 +1487,7 @@
               {
                 "name": "center_y_w2",
                 "doc": null,
-                "arg_index": 20,
+                "arg_index": 22,
                 "offset": 24,
                 "width": 4,
                 "scalar": "f32"
@@ -1320,7 +1495,7 @@
               {
                 "name": "center_y_w3",
                 "doc": null,
-                "arg_index": 21,
+                "arg_index": 23,
                 "offset": 28,
                 "width": 4,
                 "scalar": "f32"
@@ -1328,7 +1503,7 @@
               {
                 "name": "zoom",
                 "doc": null,
-                "arg_index": 22,
+                "arg_index": 24,
                 "offset": 32,
                 "width": 4,
                 "scalar": "f32"
@@ -1336,7 +1511,7 @@
               {
                 "name": "res",
                 "doc": null,
-                "arg_index": 23,
+                "arg_index": 25,
                 "offset": 36,
                 "width": 4,
                 "scalar": "f32"
@@ -1344,7 +1519,7 @@
               {
                 "name": "clock",
                 "doc": null,
-                "arg_index": 24,
+                "arg_index": 26,
                 "offset": 40,
                 "width": 4,
                 "scalar": "f32"
@@ -1352,7 +1527,7 @@
               {
                 "name": "last_input",
                 "doc": null,
-                "arg_index": 25,
+                "arg_index": 27,
                 "offset": 44,
                 "width": 4,
                 "scalar": "f32"
@@ -1360,7 +1535,7 @@
               {
                 "name": "antialias",
                 "doc": null,
-                "arg_index": 26,
+                "arg_index": 28,
                 "offset": 48,
                 "width": 4,
                 "scalar": "f32"
@@ -1368,7 +1543,7 @@
               {
                 "name": "drag_active",
                 "doc": null,
-                "arg_index": 27,
+                "arg_index": 29,
                 "offset": 52,
                 "width": 4,
                 "scalar": "f32"
@@ -1376,7 +1551,7 @@
               {
                 "name": "magnification",
                 "doc": null,
-                "arg_index": 28,
+                "arg_index": 30,
                 "offset": 56,
                 "width": 4,
                 "scalar": "f32"
@@ -1413,7 +1588,7 @@
     {
       "source_entry": "build_reference",
       "shader": "passes/002-compute.wgsl",
-      "shader_bytes": 148721,
+      "shader_bytes": 155639,
       "shader_stages": [
         "compute"
       ],
@@ -1449,7 +1624,7 @@
           {
             "group": 0,
             "binding": 1,
-            "name": "cache",
+            "name": "preview_cache",
             "access": "read_write",
             "role": "resource",
             "shader_stages": [
@@ -1462,6 +1637,19 @@
           {
             "group": 0,
             "binding": 2,
+            "name": "cache",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 72,
+            "span": 72,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 3,
             "name": "anchor",
             "access": "read_write",
             "role": "resource",
@@ -1474,7 +1662,7 @@
           },
           {
             "group": 0,
-            "binding": 3,
+            "binding": 4,
             "name": "reference",
             "access": "read_write",
             "role": "resource",
@@ -1487,7 +1675,7 @@
           },
           {
             "group": 0,
-            "binding": 4,
+            "binding": 5,
             "name": "reference_words",
             "access": "read_write",
             "role": "resource",
@@ -1500,7 +1688,7 @@
           },
           {
             "group": 0,
-            "binding": 5,
+            "binding": 6,
             "name": "params",
             "access": "read",
             "role": "input",
@@ -1513,7 +1701,7 @@
               {
                 "name": "center_x_w0",
                 "doc": null,
-                "arg_index": 14,
+                "arg_index": 16,
                 "offset": 0,
                 "width": 4,
                 "scalar": "f32"
@@ -1521,7 +1709,7 @@
               {
                 "name": "center_x_w1",
                 "doc": null,
-                "arg_index": 15,
+                "arg_index": 17,
                 "offset": 4,
                 "width": 4,
                 "scalar": "f32"
@@ -1529,7 +1717,7 @@
               {
                 "name": "center_x_w2",
                 "doc": null,
-                "arg_index": 16,
+                "arg_index": 18,
                 "offset": 8,
                 "width": 4,
                 "scalar": "f32"
@@ -1537,7 +1725,7 @@
               {
                 "name": "center_x_w3",
                 "doc": null,
-                "arg_index": 17,
+                "arg_index": 19,
                 "offset": 12,
                 "width": 4,
                 "scalar": "f32"
@@ -1545,7 +1733,7 @@
               {
                 "name": "center_y_w0",
                 "doc": null,
-                "arg_index": 18,
+                "arg_index": 20,
                 "offset": 16,
                 "width": 4,
                 "scalar": "f32"
@@ -1553,7 +1741,7 @@
               {
                 "name": "center_y_w1",
                 "doc": null,
-                "arg_index": 19,
+                "arg_index": 21,
                 "offset": 20,
                 "width": 4,
                 "scalar": "f32"
@@ -1561,7 +1749,7 @@
               {
                 "name": "center_y_w2",
                 "doc": null,
-                "arg_index": 20,
+                "arg_index": 22,
                 "offset": 24,
                 "width": 4,
                 "scalar": "f32"
@@ -1569,7 +1757,7 @@
               {
                 "name": "center_y_w3",
                 "doc": null,
-                "arg_index": 21,
+                "arg_index": 23,
                 "offset": 28,
                 "width": 4,
                 "scalar": "f32"
@@ -1577,7 +1765,7 @@
               {
                 "name": "zoom",
                 "doc": null,
-                "arg_index": 22,
+                "arg_index": 24,
                 "offset": 32,
                 "width": 4,
                 "scalar": "f32"
@@ -1585,7 +1773,7 @@
               {
                 "name": "res",
                 "doc": null,
-                "arg_index": 23,
+                "arg_index": 25,
                 "offset": 36,
                 "width": 4,
                 "scalar": "f32"
@@ -1593,7 +1781,7 @@
               {
                 "name": "clock",
                 "doc": null,
-                "arg_index": 24,
+                "arg_index": 26,
                 "offset": 40,
                 "width": 4,
                 "scalar": "f32"
@@ -1601,7 +1789,7 @@
               {
                 "name": "last_input",
                 "doc": null,
-                "arg_index": 25,
+                "arg_index": 27,
                 "offset": 44,
                 "width": 4,
                 "scalar": "f32"
@@ -1609,7 +1797,7 @@
               {
                 "name": "antialias",
                 "doc": null,
-                "arg_index": 26,
+                "arg_index": 28,
                 "offset": 48,
                 "width": 4,
                 "scalar": "f32"
@@ -1617,7 +1805,7 @@
               {
                 "name": "drag_active",
                 "doc": null,
-                "arg_index": 27,
+                "arg_index": 29,
                 "offset": 52,
                 "width": 4,
                 "scalar": "f32"
@@ -1625,7 +1813,7 @@
               {
                 "name": "magnification",
                 "doc": null,
-                "arg_index": 28,
+                "arg_index": 30,
                 "offset": 56,
                 "width": 4,
                 "scalar": "f32"
@@ -1634,7 +1822,7 @@
           },
           {
             "group": 0,
-            "binding": 6,
+            "binding": 7,
             "name": "trap",
             "access": "read_write",
             "role": "output",
@@ -1650,7 +1838,7 @@
         "result": null,
         "trap": {
           "group": 0,
-          "binding": 6,
+          "binding": 7,
           "offset": 0,
           "width": 4
         },
@@ -1660,9 +1848,9 @@
       }
     },
     {
-      "source_entry": "render_preview",
+      "source_entry": "advance_preview",
       "shader": "passes/003-compute.wgsl",
-      "shader_bytes": 57072,
+      "shader_bytes": 41847,
       "shader_stages": [
         "compute"
       ],
@@ -1698,27 +1886,27 @@
           {
             "group": 0,
             "binding": 1,
-            "name": "pixels",
+            "name": "preview_progress",
             "access": "read_write",
             "role": "resource",
             "shader_stages": [
               "compute"
             ],
-            "stride": 12,
-            "span": 12,
+            "stride": 32,
+            "span": 32,
             "members": []
           },
           {
             "group": 0,
             "binding": 2,
-            "name": "initial_pixels",
+            "name": "preview_cache",
             "access": "read_write",
             "role": "resource",
             "shader_stages": [
               "compute"
             ],
-            "stride": 12,
-            "span": 12,
+            "stride": 72,
+            "span": 72,
             "members": []
           },
           {
@@ -1737,14 +1925,316 @@
           {
             "group": 0,
             "binding": 4,
-            "name": "reference",
+            "name": "params",
+            "access": "read",
+            "role": "input",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 60,
+            "span": 60,
+            "members": [
+              {
+                "name": "center_x_w0",
+                "doc": null,
+                "arg_index": 29,
+                "offset": 0,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w1",
+                "doc": null,
+                "arg_index": 30,
+                "offset": 4,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w2",
+                "doc": null,
+                "arg_index": 31,
+                "offset": 8,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w3",
+                "doc": null,
+                "arg_index": 32,
+                "offset": 12,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w0",
+                "doc": null,
+                "arg_index": 33,
+                "offset": 16,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w1",
+                "doc": null,
+                "arg_index": 34,
+                "offset": 20,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w2",
+                "doc": null,
+                "arg_index": 35,
+                "offset": 24,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w3",
+                "doc": null,
+                "arg_index": 36,
+                "offset": 28,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "zoom",
+                "doc": null,
+                "arg_index": 37,
+                "offset": 32,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "res",
+                "doc": null,
+                "arg_index": 38,
+                "offset": 36,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "clock",
+                "doc": null,
+                "arg_index": 39,
+                "offset": 40,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "last_input",
+                "doc": null,
+                "arg_index": 40,
+                "offset": 44,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "antialias",
+                "doc": null,
+                "arg_index": 41,
+                "offset": 48,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "drag_active",
+                "doc": null,
+                "arg_index": 42,
+                "offset": 52,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "magnification",
+                "doc": null,
+                "arg_index": 43,
+                "offset": 56,
+                "width": 4,
+                "scalar": "f32"
+              }
+            ]
+          },
+          {
+            "group": 0,
+            "binding": 5,
+            "name": "trap",
+            "access": "read_write",
+            "role": "output",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 4,
+            "span": 262144,
+            "members": []
+          }
+        ],
+        "builtin_inputs": [
+          {
+            "arg_index": 0,
+            "source": "global_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 1,
+            "source": "global_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 2,
+            "source": "global_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 3,
+            "source": "local_invocation_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 4,
+            "source": "local_invocation_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 5,
+            "source": "local_invocation_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 6,
+            "source": "workgroup_id_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 7,
+            "source": "workgroup_id_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 8,
+            "source": "workgroup_id_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 9,
+            "source": "num_workgroups_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 10,
+            "source": "num_workgroups_y",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 11,
+            "source": "num_workgroups_z",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 12,
+            "source": "local_invocation_index",
+            "scalar": "i32"
+          }
+        ],
+        "result": null,
+        "trap": {
+          "group": 0,
+          "binding": 5,
+          "offset": 0,
+          "width": 262144
+        },
+        "vertex_entry": null,
+        "fragment_entry": null,
+        "color_target_format": null
+      }
+    },
+    {
+      "source_entry": "render_preview",
+      "shader": "passes/004-compute.wgsl",
+      "shader_bytes": 30183,
+      "shader_stages": [
+        "compute"
+      ],
+      "dispatch": [
+        32,
+        32,
+        1
+      ],
+      "layout": {
+        "entry_point": "main",
+        "mode": "compute",
+        "workgroup_size": [
+          8,
+          8,
+          1
+        ],
+        "word": "u32",
+        "word_bytes": 4,
+        "bindings": [
+          {
+            "group": 0,
+            "binding": 0,
+            "name": "pixels",
             "access": "read_write",
             "role": "resource",
             "shader_stages": [
               "compute"
             ],
-            "stride": 28,
-            "span": 28,
+            "stride": 12,
+            "span": 12,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 1,
+            "name": "initial_pixels",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 12,
+            "span": 12,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 2,
+            "name": "preview_progress",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 32,
+            "span": 32,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 3,
+            "name": "preview_cache",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 72,
+            "span": 72,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 4,
+            "name": "cache",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 72,
+            "span": 72,
             "members": []
           },
           {
@@ -1775,7 +2265,7 @@
               {
                 "name": "center_x_w0",
                 "doc": null,
-                "arg_index": 27,
+                "arg_index": 29,
                 "offset": 0,
                 "width": 4,
                 "scalar": "f32"
@@ -1783,7 +2273,7 @@
               {
                 "name": "center_x_w1",
                 "doc": null,
-                "arg_index": 28,
+                "arg_index": 30,
                 "offset": 4,
                 "width": 4,
                 "scalar": "f32"
@@ -1791,7 +2281,7 @@
               {
                 "name": "center_x_w2",
                 "doc": null,
-                "arg_index": 29,
+                "arg_index": 31,
                 "offset": 8,
                 "width": 4,
                 "scalar": "f32"
@@ -1799,7 +2289,7 @@
               {
                 "name": "center_x_w3",
                 "doc": null,
-                "arg_index": 30,
+                "arg_index": 32,
                 "offset": 12,
                 "width": 4,
                 "scalar": "f32"
@@ -1807,7 +2297,7 @@
               {
                 "name": "center_y_w0",
                 "doc": null,
-                "arg_index": 31,
+                "arg_index": 33,
                 "offset": 16,
                 "width": 4,
                 "scalar": "f32"
@@ -1815,7 +2305,7 @@
               {
                 "name": "center_y_w1",
                 "doc": null,
-                "arg_index": 32,
+                "arg_index": 34,
                 "offset": 20,
                 "width": 4,
                 "scalar": "f32"
@@ -1823,7 +2313,7 @@
               {
                 "name": "center_y_w2",
                 "doc": null,
-                "arg_index": 33,
+                "arg_index": 35,
                 "offset": 24,
                 "width": 4,
                 "scalar": "f32"
@@ -1831,7 +2321,7 @@
               {
                 "name": "center_y_w3",
                 "doc": null,
-                "arg_index": 34,
+                "arg_index": 36,
                 "offset": 28,
                 "width": 4,
                 "scalar": "f32"
@@ -1839,7 +2329,7 @@
               {
                 "name": "zoom",
                 "doc": null,
-                "arg_index": 35,
+                "arg_index": 37,
                 "offset": 32,
                 "width": 4,
                 "scalar": "f32"
@@ -1847,7 +2337,7 @@
               {
                 "name": "res",
                 "doc": null,
-                "arg_index": 36,
+                "arg_index": 38,
                 "offset": 36,
                 "width": 4,
                 "scalar": "f32"
@@ -1855,7 +2345,7 @@
               {
                 "name": "clock",
                 "doc": null,
-                "arg_index": 37,
+                "arg_index": 39,
                 "offset": 40,
                 "width": 4,
                 "scalar": "f32"
@@ -1863,7 +2353,7 @@
               {
                 "name": "last_input",
                 "doc": null,
-                "arg_index": 38,
+                "arg_index": 40,
                 "offset": 44,
                 "width": 4,
                 "scalar": "f32"
@@ -1871,7 +2361,7 @@
               {
                 "name": "antialias",
                 "doc": null,
-                "arg_index": 39,
+                "arg_index": 41,
                 "offset": 48,
                 "width": 4,
                 "scalar": "f32"
@@ -1879,7 +2369,7 @@
               {
                 "name": "drag_active",
                 "doc": null,
-                "arg_index": 40,
+                "arg_index": 42,
                 "offset": 52,
                 "width": 4,
                 "scalar": "f32"
@@ -1887,7 +2377,7 @@
               {
                 "name": "magnification",
                 "doc": null,
-                "arg_index": 41,
+                "arg_index": 43,
                 "offset": 56,
                 "width": 4,
                 "scalar": "f32"
@@ -1988,9 +2478,200 @@
       }
     },
     {
+      "source_entry": "finish_preview",
+      "shader": "passes/005-compute.wgsl",
+      "shader_bytes": 7413,
+      "shader_stages": [
+        "compute"
+      ],
+      "dispatch": [
+        1,
+        1,
+        1
+      ],
+      "layout": {
+        "entry_point": "main",
+        "mode": "compute",
+        "workgroup_size": [
+          1,
+          1,
+          1
+        ],
+        "word": "u32",
+        "word_bytes": 4,
+        "bindings": [
+          {
+            "group": 0,
+            "binding": 0,
+            "name": "preview_cache",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 72,
+            "span": 72,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 1,
+            "name": "cache",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 72,
+            "span": 72,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 2,
+            "name": "params",
+            "access": "read",
+            "role": "input",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 60,
+            "span": 60,
+            "members": [
+              {
+                "name": "center_x_w0",
+                "doc": null,
+                "arg_index": 16,
+                "offset": 0,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w1",
+                "doc": null,
+                "arg_index": 17,
+                "offset": 4,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w2",
+                "doc": null,
+                "arg_index": 18,
+                "offset": 8,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_x_w3",
+                "doc": null,
+                "arg_index": 19,
+                "offset": 12,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w0",
+                "doc": null,
+                "arg_index": 20,
+                "offset": 16,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w1",
+                "doc": null,
+                "arg_index": 21,
+                "offset": 20,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w2",
+                "doc": null,
+                "arg_index": 22,
+                "offset": 24,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "center_y_w3",
+                "doc": null,
+                "arg_index": 23,
+                "offset": 28,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "zoom",
+                "doc": null,
+                "arg_index": 24,
+                "offset": 32,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "res",
+                "doc": null,
+                "arg_index": 25,
+                "offset": 36,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "clock",
+                "doc": null,
+                "arg_index": 26,
+                "offset": 40,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "last_input",
+                "doc": null,
+                "arg_index": 27,
+                "offset": 44,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "antialias",
+                "doc": null,
+                "arg_index": 28,
+                "offset": 48,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "drag_active",
+                "doc": null,
+                "arg_index": 29,
+                "offset": 52,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "magnification",
+                "doc": null,
+                "arg_index": 30,
+                "offset": 56,
+                "width": 4,
+                "scalar": "f32"
+              }
+            ]
+          }
+        ],
+        "builtin_inputs": [],
+        "result": null,
+        "vertex_entry": null,
+        "fragment_entry": null,
+        "color_target_format": null
+      }
+    },
+    {
       "source_entry": "cache_initial",
-      "shader": "passes/004-compute.wgsl",
-      "shader_bytes": 4876,
+      "shader": "passes/006-compute.wgsl",
+      "shader_bytes": 5750,
       "shader_stages": [
         "compute"
       ],
@@ -2039,7 +2720,7 @@
           {
             "group": 0,
             "binding": 2,
-            "name": "cache",
+            "name": "preview_cache",
             "access": "read_write",
             "role": "resource",
             "shader_stages": [
@@ -2052,6 +2733,19 @@
           {
             "group": 0,
             "binding": 3,
+            "name": "cache",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 72,
+            "span": 72,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 4,
             "name": "reference",
             "access": "read_write",
             "role": "resource",
@@ -2064,7 +2758,7 @@
           },
           {
             "group": 0,
-            "binding": 4,
+            "binding": 5,
             "name": "params",
             "access": "read",
             "role": "input",
@@ -2077,7 +2771,7 @@
               {
                 "name": "center_x_w0",
                 "doc": null,
-                "arg_index": 27,
+                "arg_index": 29,
                 "offset": 0,
                 "width": 4,
                 "scalar": "f32"
@@ -2085,7 +2779,7 @@
               {
                 "name": "center_x_w1",
                 "doc": null,
-                "arg_index": 28,
+                "arg_index": 30,
                 "offset": 4,
                 "width": 4,
                 "scalar": "f32"
@@ -2093,7 +2787,7 @@
               {
                 "name": "center_x_w2",
                 "doc": null,
-                "arg_index": 29,
+                "arg_index": 31,
                 "offset": 8,
                 "width": 4,
                 "scalar": "f32"
@@ -2101,7 +2795,7 @@
               {
                 "name": "center_x_w3",
                 "doc": null,
-                "arg_index": 30,
+                "arg_index": 32,
                 "offset": 12,
                 "width": 4,
                 "scalar": "f32"
@@ -2109,7 +2803,7 @@
               {
                 "name": "center_y_w0",
                 "doc": null,
-                "arg_index": 31,
+                "arg_index": 33,
                 "offset": 16,
                 "width": 4,
                 "scalar": "f32"
@@ -2117,7 +2811,7 @@
               {
                 "name": "center_y_w1",
                 "doc": null,
-                "arg_index": 32,
+                "arg_index": 34,
                 "offset": 20,
                 "width": 4,
                 "scalar": "f32"
@@ -2125,7 +2819,7 @@
               {
                 "name": "center_y_w2",
                 "doc": null,
-                "arg_index": 33,
+                "arg_index": 35,
                 "offset": 24,
                 "width": 4,
                 "scalar": "f32"
@@ -2133,7 +2827,7 @@
               {
                 "name": "center_y_w3",
                 "doc": null,
-                "arg_index": 34,
+                "arg_index": 36,
                 "offset": 28,
                 "width": 4,
                 "scalar": "f32"
@@ -2141,7 +2835,7 @@
               {
                 "name": "zoom",
                 "doc": null,
-                "arg_index": 35,
+                "arg_index": 37,
                 "offset": 32,
                 "width": 4,
                 "scalar": "f32"
@@ -2149,7 +2843,7 @@
               {
                 "name": "res",
                 "doc": null,
-                "arg_index": 36,
+                "arg_index": 38,
                 "offset": 36,
                 "width": 4,
                 "scalar": "f32"
@@ -2157,7 +2851,7 @@
               {
                 "name": "clock",
                 "doc": null,
-                "arg_index": 37,
+                "arg_index": 39,
                 "offset": 40,
                 "width": 4,
                 "scalar": "f32"
@@ -2165,7 +2859,7 @@
               {
                 "name": "last_input",
                 "doc": null,
-                "arg_index": 38,
+                "arg_index": 40,
                 "offset": 44,
                 "width": 4,
                 "scalar": "f32"
@@ -2173,7 +2867,7 @@
               {
                 "name": "antialias",
                 "doc": null,
-                "arg_index": 39,
+                "arg_index": 41,
                 "offset": 48,
                 "width": 4,
                 "scalar": "f32"
@@ -2181,7 +2875,7 @@
               {
                 "name": "drag_active",
                 "doc": null,
-                "arg_index": 40,
+                "arg_index": 42,
                 "offset": 52,
                 "width": 4,
                 "scalar": "f32"
@@ -2189,7 +2883,7 @@
               {
                 "name": "magnification",
                 "doc": null,
-                "arg_index": 41,
+                "arg_index": 43,
                 "offset": 56,
                 "width": 4,
                 "scalar": "f32"
@@ -2272,8 +2966,8 @@
     },
     {
       "source_entry": "publish_initial",
-      "shader": "passes/005-compute.wgsl",
-      "shader_bytes": 5722,
+      "shader": "passes/007-compute.wgsl",
+      "shader_bytes": 6649,
       "shader_stages": [
         "compute"
       ],
@@ -2296,7 +2990,7 @@
           {
             "group": 0,
             "binding": 0,
-            "name": "cache",
+            "name": "preview_cache",
             "access": "read_write",
             "role": "resource",
             "shader_stages": [
@@ -2309,6 +3003,19 @@
           {
             "group": 0,
             "binding": 1,
+            "name": "cache",
+            "access": "read_write",
+            "role": "resource",
+            "shader_stages": [
+              "compute"
+            ],
+            "stride": 72,
+            "span": 72,
+            "members": []
+          },
+          {
+            "group": 0,
+            "binding": 2,
             "name": "reference",
             "access": "read_write",
             "role": "resource",
@@ -2321,7 +3028,7 @@
           },
           {
             "group": 0,
-            "binding": 2,
+            "binding": 3,
             "name": "params",
             "access": "read",
             "role": "input",
@@ -2334,7 +3041,7 @@
               {
                 "name": "center_x_w0",
                 "doc": null,
-                "arg_index": 14,
+                "arg_index": 16,
                 "offset": 0,
                 "width": 4,
                 "scalar": "f32"
@@ -2342,7 +3049,7 @@
               {
                 "name": "center_x_w1",
                 "doc": null,
-                "arg_index": 15,
+                "arg_index": 17,
                 "offset": 4,
                 "width": 4,
                 "scalar": "f32"
@@ -2350,7 +3057,7 @@
               {
                 "name": "center_x_w2",
                 "doc": null,
-                "arg_index": 16,
+                "arg_index": 18,
                 "offset": 8,
                 "width": 4,
                 "scalar": "f32"
@@ -2358,7 +3065,7 @@
               {
                 "name": "center_x_w3",
                 "doc": null,
-                "arg_index": 17,
+                "arg_index": 19,
                 "offset": 12,
                 "width": 4,
                 "scalar": "f32"
@@ -2366,7 +3073,7 @@
               {
                 "name": "center_y_w0",
                 "doc": null,
-                "arg_index": 18,
+                "arg_index": 20,
                 "offset": 16,
                 "width": 4,
                 "scalar": "f32"
@@ -2374,7 +3081,7 @@
               {
                 "name": "center_y_w1",
                 "doc": null,
-                "arg_index": 19,
+                "arg_index": 21,
                 "offset": 20,
                 "width": 4,
                 "scalar": "f32"
@@ -2382,7 +3089,7 @@
               {
                 "name": "center_y_w2",
                 "doc": null,
-                "arg_index": 20,
+                "arg_index": 22,
                 "offset": 24,
                 "width": 4,
                 "scalar": "f32"
@@ -2390,7 +3097,7 @@
               {
                 "name": "center_y_w3",
                 "doc": null,
-                "arg_index": 21,
+                "arg_index": 23,
                 "offset": 28,
                 "width": 4,
                 "scalar": "f32"
@@ -2398,7 +3105,7 @@
               {
                 "name": "zoom",
                 "doc": null,
-                "arg_index": 22,
+                "arg_index": 24,
                 "offset": 32,
                 "width": 4,
                 "scalar": "f32"
@@ -2406,7 +3113,7 @@
               {
                 "name": "res",
                 "doc": null,
-                "arg_index": 23,
+                "arg_index": 25,
                 "offset": 36,
                 "width": 4,
                 "scalar": "f32"
@@ -2414,7 +3121,7 @@
               {
                 "name": "clock",
                 "doc": null,
-                "arg_index": 24,
+                "arg_index": 26,
                 "offset": 40,
                 "width": 4,
                 "scalar": "f32"
@@ -2422,7 +3129,7 @@
               {
                 "name": "last_input",
                 "doc": null,
-                "arg_index": 25,
+                "arg_index": 27,
                 "offset": 44,
                 "width": 4,
                 "scalar": "f32"
@@ -2430,7 +3137,7 @@
               {
                 "name": "antialias",
                 "doc": null,
-                "arg_index": 26,
+                "arg_index": 28,
                 "offset": 48,
                 "width": 4,
                 "scalar": "f32"
@@ -2438,7 +3145,7 @@
               {
                 "name": "drag_active",
                 "doc": null,
-                "arg_index": 27,
+                "arg_index": 29,
                 "offset": 52,
                 "width": 4,
                 "scalar": "f32"
@@ -2446,7 +3153,7 @@
               {
                 "name": "magnification",
                 "doc": null,
-                "arg_index": 28,
+                "arg_index": 30,
                 "offset": 56,
                 "width": 4,
                 "scalar": "f32"
@@ -2463,7 +3170,7 @@
     },
     {
       "source_entry": "blur_horizontal",
-      "shader": "passes/006-compute.wgsl",
+      "shader": "passes/008-compute.wgsl",
       "shader_bytes": 13845,
       "shader_stages": [
         "compute"
@@ -2551,7 +3258,7 @@
               {
                 "name": "center_x_w0",
                 "doc": null,
-                "arg_index": 27,
+                "arg_index": 29,
                 "offset": 0,
                 "width": 4,
                 "scalar": "f32"
@@ -2559,7 +3266,7 @@
               {
                 "name": "center_x_w1",
                 "doc": null,
-                "arg_index": 28,
+                "arg_index": 30,
                 "offset": 4,
                 "width": 4,
                 "scalar": "f32"
@@ -2567,7 +3274,7 @@
               {
                 "name": "center_x_w2",
                 "doc": null,
-                "arg_index": 29,
+                "arg_index": 31,
                 "offset": 8,
                 "width": 4,
                 "scalar": "f32"
@@ -2575,7 +3282,7 @@
               {
                 "name": "center_x_w3",
                 "doc": null,
-                "arg_index": 30,
+                "arg_index": 32,
                 "offset": 12,
                 "width": 4,
                 "scalar": "f32"
@@ -2583,7 +3290,7 @@
               {
                 "name": "center_y_w0",
                 "doc": null,
-                "arg_index": 31,
+                "arg_index": 33,
                 "offset": 16,
                 "width": 4,
                 "scalar": "f32"
@@ -2591,7 +3298,7 @@
               {
                 "name": "center_y_w1",
                 "doc": null,
-                "arg_index": 32,
+                "arg_index": 34,
                 "offset": 20,
                 "width": 4,
                 "scalar": "f32"
@@ -2599,7 +3306,7 @@
               {
                 "name": "center_y_w2",
                 "doc": null,
-                "arg_index": 33,
+                "arg_index": 35,
                 "offset": 24,
                 "width": 4,
                 "scalar": "f32"
@@ -2607,7 +3314,7 @@
               {
                 "name": "center_y_w3",
                 "doc": null,
-                "arg_index": 34,
+                "arg_index": 36,
                 "offset": 28,
                 "width": 4,
                 "scalar": "f32"
@@ -2615,7 +3322,7 @@
               {
                 "name": "zoom",
                 "doc": null,
-                "arg_index": 35,
+                "arg_index": 37,
                 "offset": 32,
                 "width": 4,
                 "scalar": "f32"
@@ -2623,7 +3330,7 @@
               {
                 "name": "res",
                 "doc": null,
-                "arg_index": 36,
+                "arg_index": 38,
                 "offset": 36,
                 "width": 4,
                 "scalar": "f32"
@@ -2631,7 +3338,7 @@
               {
                 "name": "clock",
                 "doc": null,
-                "arg_index": 37,
+                "arg_index": 39,
                 "offset": 40,
                 "width": 4,
                 "scalar": "f32"
@@ -2639,7 +3346,7 @@
               {
                 "name": "last_input",
                 "doc": null,
-                "arg_index": 38,
+                "arg_index": 40,
                 "offset": 44,
                 "width": 4,
                 "scalar": "f32"
@@ -2647,7 +3354,7 @@
               {
                 "name": "antialias",
                 "doc": null,
-                "arg_index": 39,
+                "arg_index": 41,
                 "offset": 48,
                 "width": 4,
                 "scalar": "f32"
@@ -2655,7 +3362,7 @@
               {
                 "name": "drag_active",
                 "doc": null,
-                "arg_index": 40,
+                "arg_index": 42,
                 "offset": 52,
                 "width": 4,
                 "scalar": "f32"
@@ -2663,7 +3370,7 @@
               {
                 "name": "magnification",
                 "doc": null,
-                "arg_index": 41,
+                "arg_index": 43,
                 "offset": 56,
                 "width": 4,
                 "scalar": "f32"
@@ -2765,7 +3472,7 @@
     },
     {
       "source_entry": "blur_vertical",
-      "shader": "passes/007-compute.wgsl",
+      "shader": "passes/009-compute.wgsl",
       "shader_bytes": 13874,
       "shader_stages": [
         "compute"
@@ -2853,7 +3560,7 @@
               {
                 "name": "center_x_w0",
                 "doc": null,
-                "arg_index": 27,
+                "arg_index": 29,
                 "offset": 0,
                 "width": 4,
                 "scalar": "f32"
@@ -2861,7 +3568,7 @@
               {
                 "name": "center_x_w1",
                 "doc": null,
-                "arg_index": 28,
+                "arg_index": 30,
                 "offset": 4,
                 "width": 4,
                 "scalar": "f32"
@@ -2869,7 +3576,7 @@
               {
                 "name": "center_x_w2",
                 "doc": null,
-                "arg_index": 29,
+                "arg_index": 31,
                 "offset": 8,
                 "width": 4,
                 "scalar": "f32"
@@ -2877,7 +3584,7 @@
               {
                 "name": "center_x_w3",
                 "doc": null,
-                "arg_index": 30,
+                "arg_index": 32,
                 "offset": 12,
                 "width": 4,
                 "scalar": "f32"
@@ -2885,7 +3592,7 @@
               {
                 "name": "center_y_w0",
                 "doc": null,
-                "arg_index": 31,
+                "arg_index": 33,
                 "offset": 16,
                 "width": 4,
                 "scalar": "f32"
@@ -2893,7 +3600,7 @@
               {
                 "name": "center_y_w1",
                 "doc": null,
-                "arg_index": 32,
+                "arg_index": 34,
                 "offset": 20,
                 "width": 4,
                 "scalar": "f32"
@@ -2901,7 +3608,7 @@
               {
                 "name": "center_y_w2",
                 "doc": null,
-                "arg_index": 33,
+                "arg_index": 35,
                 "offset": 24,
                 "width": 4,
                 "scalar": "f32"
@@ -2909,7 +3616,7 @@
               {
                 "name": "center_y_w3",
                 "doc": null,
-                "arg_index": 34,
+                "arg_index": 36,
                 "offset": 28,
                 "width": 4,
                 "scalar": "f32"
@@ -2917,7 +3624,7 @@
               {
                 "name": "zoom",
                 "doc": null,
-                "arg_index": 35,
+                "arg_index": 37,
                 "offset": 32,
                 "width": 4,
                 "scalar": "f32"
@@ -2925,7 +3632,7 @@
               {
                 "name": "res",
                 "doc": null,
-                "arg_index": 36,
+                "arg_index": 38,
                 "offset": 36,
                 "width": 4,
                 "scalar": "f32"
@@ -2933,7 +3640,7 @@
               {
                 "name": "clock",
                 "doc": null,
-                "arg_index": 37,
+                "arg_index": 39,
                 "offset": 40,
                 "width": 4,
                 "scalar": "f32"
@@ -2941,7 +3648,7 @@
               {
                 "name": "last_input",
                 "doc": null,
-                "arg_index": 38,
+                "arg_index": 40,
                 "offset": 44,
                 "width": 4,
                 "scalar": "f32"
@@ -2949,7 +3656,7 @@
               {
                 "name": "antialias",
                 "doc": null,
-                "arg_index": 39,
+                "arg_index": 41,
                 "offset": 48,
                 "width": 4,
                 "scalar": "f32"
@@ -2957,7 +3664,7 @@
               {
                 "name": "drag_active",
                 "doc": null,
-                "arg_index": 40,
+                "arg_index": 42,
                 "offset": 52,
                 "width": 4,
                 "scalar": "f32"
@@ -2965,7 +3672,7 @@
               {
                 "name": "magnification",
                 "doc": null,
-                "arg_index": 41,
+                "arg_index": 43,
                 "offset": 56,
                 "width": 4,
                 "scalar": "f32"
@@ -3067,7 +3774,7 @@
     },
     {
       "source_entry": "restore_oracle",
-      "shader": "passes/008-compute.wgsl",
+      "shader": "passes/010-compute.wgsl",
       "shader_bytes": 31809,
       "shader_stages": [
         "compute"
@@ -3181,7 +3888,7 @@
               {
                 "name": "center_x_w0",
                 "doc": null,
-                "arg_index": 27,
+                "arg_index": 29,
                 "offset": 0,
                 "width": 4,
                 "scalar": "f32"
@@ -3189,7 +3896,7 @@
               {
                 "name": "center_x_w1",
                 "doc": null,
-                "arg_index": 28,
+                "arg_index": 30,
                 "offset": 4,
                 "width": 4,
                 "scalar": "f32"
@@ -3197,7 +3904,7 @@
               {
                 "name": "center_x_w2",
                 "doc": null,
-                "arg_index": 29,
+                "arg_index": 31,
                 "offset": 8,
                 "width": 4,
                 "scalar": "f32"
@@ -3205,7 +3912,7 @@
               {
                 "name": "center_x_w3",
                 "doc": null,
-                "arg_index": 30,
+                "arg_index": 32,
                 "offset": 12,
                 "width": 4,
                 "scalar": "f32"
@@ -3213,7 +3920,7 @@
               {
                 "name": "center_y_w0",
                 "doc": null,
-                "arg_index": 31,
+                "arg_index": 33,
                 "offset": 16,
                 "width": 4,
                 "scalar": "f32"
@@ -3221,7 +3928,7 @@
               {
                 "name": "center_y_w1",
                 "doc": null,
-                "arg_index": 32,
+                "arg_index": 34,
                 "offset": 20,
                 "width": 4,
                 "scalar": "f32"
@@ -3229,7 +3936,7 @@
               {
                 "name": "center_y_w2",
                 "doc": null,
-                "arg_index": 33,
+                "arg_index": 35,
                 "offset": 24,
                 "width": 4,
                 "scalar": "f32"
@@ -3237,7 +3944,7 @@
               {
                 "name": "center_y_w3",
                 "doc": null,
-                "arg_index": 34,
+                "arg_index": 36,
                 "offset": 28,
                 "width": 4,
                 "scalar": "f32"
@@ -3245,7 +3952,7 @@
               {
                 "name": "zoom",
                 "doc": null,
-                "arg_index": 35,
+                "arg_index": 37,
                 "offset": 32,
                 "width": 4,
                 "scalar": "f32"
@@ -3253,7 +3960,7 @@
               {
                 "name": "res",
                 "doc": null,
-                "arg_index": 36,
+                "arg_index": 38,
                 "offset": 36,
                 "width": 4,
                 "scalar": "f32"
@@ -3261,7 +3968,7 @@
               {
                 "name": "clock",
                 "doc": null,
-                "arg_index": 37,
+                "arg_index": 39,
                 "offset": 40,
                 "width": 4,
                 "scalar": "f32"
@@ -3269,7 +3976,7 @@
               {
                 "name": "last_input",
                 "doc": null,
-                "arg_index": 38,
+                "arg_index": 40,
                 "offset": 44,
                 "width": 4,
                 "scalar": "f32"
@@ -3277,7 +3984,7 @@
               {
                 "name": "antialias",
                 "doc": null,
-                "arg_index": 39,
+                "arg_index": 41,
                 "offset": 48,
                 "width": 4,
                 "scalar": "f32"
@@ -3285,7 +3992,7 @@
               {
                 "name": "drag_active",
                 "doc": null,
-                "arg_index": 40,
+                "arg_index": 42,
                 "offset": 52,
                 "width": 4,
                 "scalar": "f32"
@@ -3293,7 +4000,7 @@
               {
                 "name": "magnification",
                 "doc": null,
-                "arg_index": 41,
+                "arg_index": 43,
                 "offset": 56,
                 "width": 4,
                 "scalar": "f32"
@@ -3395,7 +4102,7 @@
     },
     {
       "source_entry": "seed_refinement",
-      "shader": "passes/009-compute.wgsl",
+      "shader": "passes/011-compute.wgsl",
       "shader_bytes": 58123,
       "shader_stages": [
         "compute"
@@ -3509,7 +4216,7 @@
               {
                 "name": "center_x_w0",
                 "doc": null,
-                "arg_index": 27,
+                "arg_index": 29,
                 "offset": 0,
                 "width": 4,
                 "scalar": "f32"
@@ -3517,7 +4224,7 @@
               {
                 "name": "center_x_w1",
                 "doc": null,
-                "arg_index": 28,
+                "arg_index": 30,
                 "offset": 4,
                 "width": 4,
                 "scalar": "f32"
@@ -3525,7 +4232,7 @@
               {
                 "name": "center_x_w2",
                 "doc": null,
-                "arg_index": 29,
+                "arg_index": 31,
                 "offset": 8,
                 "width": 4,
                 "scalar": "f32"
@@ -3533,7 +4240,7 @@
               {
                 "name": "center_x_w3",
                 "doc": null,
-                "arg_index": 30,
+                "arg_index": 32,
                 "offset": 12,
                 "width": 4,
                 "scalar": "f32"
@@ -3541,7 +4248,7 @@
               {
                 "name": "center_y_w0",
                 "doc": null,
-                "arg_index": 31,
+                "arg_index": 33,
                 "offset": 16,
                 "width": 4,
                 "scalar": "f32"
@@ -3549,7 +4256,7 @@
               {
                 "name": "center_y_w1",
                 "doc": null,
-                "arg_index": 32,
+                "arg_index": 34,
                 "offset": 20,
                 "width": 4,
                 "scalar": "f32"
@@ -3557,7 +4264,7 @@
               {
                 "name": "center_y_w2",
                 "doc": null,
-                "arg_index": 33,
+                "arg_index": 35,
                 "offset": 24,
                 "width": 4,
                 "scalar": "f32"
@@ -3565,7 +4272,7 @@
               {
                 "name": "center_y_w3",
                 "doc": null,
-                "arg_index": 34,
+                "arg_index": 36,
                 "offset": 28,
                 "width": 4,
                 "scalar": "f32"
@@ -3573,7 +4280,7 @@
               {
                 "name": "zoom",
                 "doc": null,
-                "arg_index": 35,
+                "arg_index": 37,
                 "offset": 32,
                 "width": 4,
                 "scalar": "f32"
@@ -3581,7 +4288,7 @@
               {
                 "name": "res",
                 "doc": null,
-                "arg_index": 36,
+                "arg_index": 38,
                 "offset": 36,
                 "width": 4,
                 "scalar": "f32"
@@ -3589,7 +4296,7 @@
               {
                 "name": "clock",
                 "doc": null,
-                "arg_index": 37,
+                "arg_index": 39,
                 "offset": 40,
                 "width": 4,
                 "scalar": "f32"
@@ -3597,7 +4304,7 @@
               {
                 "name": "last_input",
                 "doc": null,
-                "arg_index": 38,
+                "arg_index": 40,
                 "offset": 44,
                 "width": 4,
                 "scalar": "f32"
@@ -3605,7 +4312,7 @@
               {
                 "name": "antialias",
                 "doc": null,
-                "arg_index": 39,
+                "arg_index": 41,
                 "offset": 48,
                 "width": 4,
                 "scalar": "f32"
@@ -3613,7 +4320,7 @@
               {
                 "name": "drag_active",
                 "doc": null,
-                "arg_index": 40,
+                "arg_index": 42,
                 "offset": 52,
                 "width": 4,
                 "scalar": "f32"
@@ -3621,7 +4328,7 @@
               {
                 "name": "magnification",
                 "doc": null,
-                "arg_index": 41,
+                "arg_index": 43,
                 "offset": 56,
                 "width": 4,
                 "scalar": "f32"
@@ -3723,7 +4430,7 @@
     },
     {
       "source_entry": "refine_pixels",
-      "shader": "passes/010-compute.wgsl",
+      "shader": "passes/012-compute.wgsl",
       "shader_bytes": 54792,
       "shader_stages": [
         "compute"
@@ -3837,7 +4544,7 @@
               {
                 "name": "center_x_w0",
                 "doc": null,
-                "arg_index": 27,
+                "arg_index": 29,
                 "offset": 0,
                 "width": 4,
                 "scalar": "f32"
@@ -3845,7 +4552,7 @@
               {
                 "name": "center_x_w1",
                 "doc": null,
-                "arg_index": 28,
+                "arg_index": 30,
                 "offset": 4,
                 "width": 4,
                 "scalar": "f32"
@@ -3853,7 +4560,7 @@
               {
                 "name": "center_x_w2",
                 "doc": null,
-                "arg_index": 29,
+                "arg_index": 31,
                 "offset": 8,
                 "width": 4,
                 "scalar": "f32"
@@ -3861,7 +4568,7 @@
               {
                 "name": "center_x_w3",
                 "doc": null,
-                "arg_index": 30,
+                "arg_index": 32,
                 "offset": 12,
                 "width": 4,
                 "scalar": "f32"
@@ -3869,7 +4576,7 @@
               {
                 "name": "center_y_w0",
                 "doc": null,
-                "arg_index": 31,
+                "arg_index": 33,
                 "offset": 16,
                 "width": 4,
                 "scalar": "f32"
@@ -3877,7 +4584,7 @@
               {
                 "name": "center_y_w1",
                 "doc": null,
-                "arg_index": 32,
+                "arg_index": 34,
                 "offset": 20,
                 "width": 4,
                 "scalar": "f32"
@@ -3885,7 +4592,7 @@
               {
                 "name": "center_y_w2",
                 "doc": null,
-                "arg_index": 33,
+                "arg_index": 35,
                 "offset": 24,
                 "width": 4,
                 "scalar": "f32"
@@ -3893,7 +4600,7 @@
               {
                 "name": "center_y_w3",
                 "doc": null,
-                "arg_index": 34,
+                "arg_index": 36,
                 "offset": 28,
                 "width": 4,
                 "scalar": "f32"
@@ -3901,7 +4608,7 @@
               {
                 "name": "zoom",
                 "doc": null,
-                "arg_index": 35,
+                "arg_index": 37,
                 "offset": 32,
                 "width": 4,
                 "scalar": "f32"
@@ -3909,7 +4616,7 @@
               {
                 "name": "res",
                 "doc": null,
-                "arg_index": 36,
+                "arg_index": 38,
                 "offset": 36,
                 "width": 4,
                 "scalar": "f32"
@@ -3917,7 +4624,7 @@
               {
                 "name": "clock",
                 "doc": null,
-                "arg_index": 37,
+                "arg_index": 39,
                 "offset": 40,
                 "width": 4,
                 "scalar": "f32"
@@ -3925,7 +4632,7 @@
               {
                 "name": "last_input",
                 "doc": null,
-                "arg_index": 38,
+                "arg_index": 40,
                 "offset": 44,
                 "width": 4,
                 "scalar": "f32"
@@ -3933,7 +4640,7 @@
               {
                 "name": "antialias",
                 "doc": null,
-                "arg_index": 39,
+                "arg_index": 41,
                 "offset": 48,
                 "width": 4,
                 "scalar": "f32"
@@ -3941,7 +4648,7 @@
               {
                 "name": "drag_active",
                 "doc": null,
-                "arg_index": 40,
+                "arg_index": 42,
                 "offset": 52,
                 "width": 4,
                 "scalar": "f32"
@@ -3949,7 +4656,7 @@
               {
                 "name": "magnification",
                 "doc": null,
-                "arg_index": 41,
+                "arg_index": 43,
                 "offset": 56,
                 "width": 4,
                 "scalar": "f32"
@@ -4051,7 +4758,7 @@
     },
     {
       "source_entry": "antialias_pixels",
-      "shader": "passes/011-compute.wgsl",
+      "shader": "passes/013-compute.wgsl",
       "shader_bytes": 60392,
       "shader_stages": [
         "compute"
@@ -4152,7 +4859,7 @@
               {
                 "name": "center_x_w0",
                 "doc": null,
-                "arg_index": 27,
+                "arg_index": 29,
                 "offset": 0,
                 "width": 4,
                 "scalar": "f32"
@@ -4160,7 +4867,7 @@
               {
                 "name": "center_x_w1",
                 "doc": null,
-                "arg_index": 28,
+                "arg_index": 30,
                 "offset": 4,
                 "width": 4,
                 "scalar": "f32"
@@ -4168,7 +4875,7 @@
               {
                 "name": "center_x_w2",
                 "doc": null,
-                "arg_index": 29,
+                "arg_index": 31,
                 "offset": 8,
                 "width": 4,
                 "scalar": "f32"
@@ -4176,7 +4883,7 @@
               {
                 "name": "center_x_w3",
                 "doc": null,
-                "arg_index": 30,
+                "arg_index": 32,
                 "offset": 12,
                 "width": 4,
                 "scalar": "f32"
@@ -4184,7 +4891,7 @@
               {
                 "name": "center_y_w0",
                 "doc": null,
-                "arg_index": 31,
+                "arg_index": 33,
                 "offset": 16,
                 "width": 4,
                 "scalar": "f32"
@@ -4192,7 +4899,7 @@
               {
                 "name": "center_y_w1",
                 "doc": null,
-                "arg_index": 32,
+                "arg_index": 34,
                 "offset": 20,
                 "width": 4,
                 "scalar": "f32"
@@ -4200,7 +4907,7 @@
               {
                 "name": "center_y_w2",
                 "doc": null,
-                "arg_index": 33,
+                "arg_index": 35,
                 "offset": 24,
                 "width": 4,
                 "scalar": "f32"
@@ -4208,7 +4915,7 @@
               {
                 "name": "center_y_w3",
                 "doc": null,
-                "arg_index": 34,
+                "arg_index": 36,
                 "offset": 28,
                 "width": 4,
                 "scalar": "f32"
@@ -4216,7 +4923,7 @@
               {
                 "name": "zoom",
                 "doc": null,
-                "arg_index": 35,
+                "arg_index": 37,
                 "offset": 32,
                 "width": 4,
                 "scalar": "f32"
@@ -4224,7 +4931,7 @@
               {
                 "name": "res",
                 "doc": null,
-                "arg_index": 36,
+                "arg_index": 38,
                 "offset": 36,
                 "width": 4,
                 "scalar": "f32"
@@ -4232,7 +4939,7 @@
               {
                 "name": "clock",
                 "doc": null,
-                "arg_index": 37,
+                "arg_index": 39,
                 "offset": 40,
                 "width": 4,
                 "scalar": "f32"
@@ -4240,7 +4947,7 @@
               {
                 "name": "last_input",
                 "doc": null,
-                "arg_index": 38,
+                "arg_index": 40,
                 "offset": 44,
                 "width": 4,
                 "scalar": "f32"
@@ -4248,7 +4955,7 @@
               {
                 "name": "antialias",
                 "doc": null,
-                "arg_index": 39,
+                "arg_index": 41,
                 "offset": 48,
                 "width": 4,
                 "scalar": "f32"
@@ -4256,7 +4963,7 @@
               {
                 "name": "drag_active",
                 "doc": null,
-                "arg_index": 40,
+                "arg_index": 42,
                 "offset": 52,
                 "width": 4,
                 "scalar": "f32"
@@ -4264,7 +4971,7 @@
               {
                 "name": "magnification",
                 "doc": null,
-                "arg_index": 41,
+                "arg_index": 43,
                 "offset": 56,
                 "width": 4,
                 "scalar": "f32"
@@ -4366,7 +5073,7 @@
     },
     {
       "source_entry": "finish_refinement",
-      "shader": "passes/012-compute.wgsl",
+      "shader": "passes/014-compute.wgsl",
       "shader_bytes": 10527,
       "shader_stages": [
         "compute"
@@ -4428,7 +5135,7 @@
               {
                 "name": "center_x_w0",
                 "doc": null,
-                "arg_index": 14,
+                "arg_index": 16,
                 "offset": 0,
                 "width": 4,
                 "scalar": "f32"
@@ -4436,7 +5143,7 @@
               {
                 "name": "center_x_w1",
                 "doc": null,
-                "arg_index": 15,
+                "arg_index": 17,
                 "offset": 4,
                 "width": 4,
                 "scalar": "f32"
@@ -4444,7 +5151,7 @@
               {
                 "name": "center_x_w2",
                 "doc": null,
-                "arg_index": 16,
+                "arg_index": 18,
                 "offset": 8,
                 "width": 4,
                 "scalar": "f32"
@@ -4452,7 +5159,7 @@
               {
                 "name": "center_x_w3",
                 "doc": null,
-                "arg_index": 17,
+                "arg_index": 19,
                 "offset": 12,
                 "width": 4,
                 "scalar": "f32"
@@ -4460,7 +5167,7 @@
               {
                 "name": "center_y_w0",
                 "doc": null,
-                "arg_index": 18,
+                "arg_index": 20,
                 "offset": 16,
                 "width": 4,
                 "scalar": "f32"
@@ -4468,7 +5175,7 @@
               {
                 "name": "center_y_w1",
                 "doc": null,
-                "arg_index": 19,
+                "arg_index": 21,
                 "offset": 20,
                 "width": 4,
                 "scalar": "f32"
@@ -4476,7 +5183,7 @@
               {
                 "name": "center_y_w2",
                 "doc": null,
-                "arg_index": 20,
+                "arg_index": 22,
                 "offset": 24,
                 "width": 4,
                 "scalar": "f32"
@@ -4484,7 +5191,7 @@
               {
                 "name": "center_y_w3",
                 "doc": null,
-                "arg_index": 21,
+                "arg_index": 23,
                 "offset": 28,
                 "width": 4,
                 "scalar": "f32"
@@ -4492,7 +5199,7 @@
               {
                 "name": "zoom",
                 "doc": null,
-                "arg_index": 22,
+                "arg_index": 24,
                 "offset": 32,
                 "width": 4,
                 "scalar": "f32"
@@ -4500,7 +5207,7 @@
               {
                 "name": "res",
                 "doc": null,
-                "arg_index": 23,
+                "arg_index": 25,
                 "offset": 36,
                 "width": 4,
                 "scalar": "f32"
@@ -4508,7 +5215,7 @@
               {
                 "name": "clock",
                 "doc": null,
-                "arg_index": 24,
+                "arg_index": 26,
                 "offset": 40,
                 "width": 4,
                 "scalar": "f32"
@@ -4516,7 +5223,7 @@
               {
                 "name": "last_input",
                 "doc": null,
-                "arg_index": 25,
+                "arg_index": 27,
                 "offset": 44,
                 "width": 4,
                 "scalar": "f32"
@@ -4524,7 +5231,7 @@
               {
                 "name": "antialias",
                 "doc": null,
-                "arg_index": 26,
+                "arg_index": 28,
                 "offset": 48,
                 "width": 4,
                 "scalar": "f32"
@@ -4532,7 +5239,7 @@
               {
                 "name": "drag_active",
                 "doc": null,
-                "arg_index": 27,
+                "arg_index": 29,
                 "offset": 52,
                 "width": 4,
                 "scalar": "f32"
@@ -4540,7 +5247,7 @@
               {
                 "name": "magnification",
                 "doc": null,
-                "arg_index": 28,
+                "arg_index": 30,
                 "offset": 56,
                 "width": 4,
                 "scalar": "f32"
@@ -4576,7 +5283,7 @@
     },
     {
       "source_entry": "cache_snapshot",
-      "shader": "passes/013-compute.wgsl",
+      "shader": "passes/015-compute.wgsl",
       "shader_bytes": 6284,
       "shader_stages": [
         "compute"
@@ -4677,7 +5384,7 @@
               {
                 "name": "center_x_w0",
                 "doc": null,
-                "arg_index": 27,
+                "arg_index": 29,
                 "offset": 0,
                 "width": 4,
                 "scalar": "f32"
@@ -4685,7 +5392,7 @@
               {
                 "name": "center_x_w1",
                 "doc": null,
-                "arg_index": 28,
+                "arg_index": 30,
                 "offset": 4,
                 "width": 4,
                 "scalar": "f32"
@@ -4693,7 +5400,7 @@
               {
                 "name": "center_x_w2",
                 "doc": null,
-                "arg_index": 29,
+                "arg_index": 31,
                 "offset": 8,
                 "width": 4,
                 "scalar": "f32"
@@ -4701,7 +5408,7 @@
               {
                 "name": "center_x_w3",
                 "doc": null,
-                "arg_index": 30,
+                "arg_index": 32,
                 "offset": 12,
                 "width": 4,
                 "scalar": "f32"
@@ -4709,7 +5416,7 @@
               {
                 "name": "center_y_w0",
                 "doc": null,
-                "arg_index": 31,
+                "arg_index": 33,
                 "offset": 16,
                 "width": 4,
                 "scalar": "f32"
@@ -4717,7 +5424,7 @@
               {
                 "name": "center_y_w1",
                 "doc": null,
-                "arg_index": 32,
+                "arg_index": 34,
                 "offset": 20,
                 "width": 4,
                 "scalar": "f32"
@@ -4725,7 +5432,7 @@
               {
                 "name": "center_y_w2",
                 "doc": null,
-                "arg_index": 33,
+                "arg_index": 35,
                 "offset": 24,
                 "width": 4,
                 "scalar": "f32"
@@ -4733,7 +5440,7 @@
               {
                 "name": "center_y_w3",
                 "doc": null,
-                "arg_index": 34,
+                "arg_index": 36,
                 "offset": 28,
                 "width": 4,
                 "scalar": "f32"
@@ -4741,7 +5448,7 @@
               {
                 "name": "zoom",
                 "doc": null,
-                "arg_index": 35,
+                "arg_index": 37,
                 "offset": 32,
                 "width": 4,
                 "scalar": "f32"
@@ -4749,7 +5456,7 @@
               {
                 "name": "res",
                 "doc": null,
-                "arg_index": 36,
+                "arg_index": 38,
                 "offset": 36,
                 "width": 4,
                 "scalar": "f32"
@@ -4757,7 +5464,7 @@
               {
                 "name": "clock",
                 "doc": null,
-                "arg_index": 37,
+                "arg_index": 39,
                 "offset": 40,
                 "width": 4,
                 "scalar": "f32"
@@ -4765,7 +5472,7 @@
               {
                 "name": "last_input",
                 "doc": null,
-                "arg_index": 38,
+                "arg_index": 40,
                 "offset": 44,
                 "width": 4,
                 "scalar": "f32"
@@ -4773,7 +5480,7 @@
               {
                 "name": "antialias",
                 "doc": null,
-                "arg_index": 39,
+                "arg_index": 41,
                 "offset": 48,
                 "width": 4,
                 "scalar": "f32"
@@ -4781,7 +5488,7 @@
               {
                 "name": "drag_active",
                 "doc": null,
-                "arg_index": 40,
+                "arg_index": 42,
                 "offset": 52,
                 "width": 4,
                 "scalar": "f32"
@@ -4789,7 +5496,7 @@
               {
                 "name": "magnification",
                 "doc": null,
-                "arg_index": 41,
+                "arg_index": 43,
                 "offset": 56,
                 "width": 4,
                 "scalar": "f32"
@@ -4891,7 +5598,7 @@
     },
     {
       "source_entry": "publish_snapshot",
-      "shader": "passes/014-compute.wgsl",
+      "shader": "passes/016-compute.wgsl",
       "shader_bytes": 2444,
       "shader_stages": [
         "compute"
@@ -4940,7 +5647,7 @@
               {
                 "name": "center_x_w0",
                 "doc": null,
-                "arg_index": 14,
+                "arg_index": 16,
                 "offset": 0,
                 "width": 4,
                 "scalar": "f32"
@@ -4948,7 +5655,7 @@
               {
                 "name": "center_x_w1",
                 "doc": null,
-                "arg_index": 15,
+                "arg_index": 17,
                 "offset": 4,
                 "width": 4,
                 "scalar": "f32"
@@ -4956,7 +5663,7 @@
               {
                 "name": "center_x_w2",
                 "doc": null,
-                "arg_index": 16,
+                "arg_index": 18,
                 "offset": 8,
                 "width": 4,
                 "scalar": "f32"
@@ -4964,7 +5671,7 @@
               {
                 "name": "center_x_w3",
                 "doc": null,
-                "arg_index": 17,
+                "arg_index": 19,
                 "offset": 12,
                 "width": 4,
                 "scalar": "f32"
@@ -4972,7 +5679,7 @@
               {
                 "name": "center_y_w0",
                 "doc": null,
-                "arg_index": 18,
+                "arg_index": 20,
                 "offset": 16,
                 "width": 4,
                 "scalar": "f32"
@@ -4980,7 +5687,7 @@
               {
                 "name": "center_y_w1",
                 "doc": null,
-                "arg_index": 19,
+                "arg_index": 21,
                 "offset": 20,
                 "width": 4,
                 "scalar": "f32"
@@ -4988,7 +5695,7 @@
               {
                 "name": "center_y_w2",
                 "doc": null,
-                "arg_index": 20,
+                "arg_index": 22,
                 "offset": 24,
                 "width": 4,
                 "scalar": "f32"
@@ -4996,7 +5703,7 @@
               {
                 "name": "center_y_w3",
                 "doc": null,
-                "arg_index": 21,
+                "arg_index": 23,
                 "offset": 28,
                 "width": 4,
                 "scalar": "f32"
@@ -5004,7 +5711,7 @@
               {
                 "name": "zoom",
                 "doc": null,
-                "arg_index": 22,
+                "arg_index": 24,
                 "offset": 32,
                 "width": 4,
                 "scalar": "f32"
@@ -5012,7 +5719,7 @@
               {
                 "name": "res",
                 "doc": null,
-                "arg_index": 23,
+                "arg_index": 25,
                 "offset": 36,
                 "width": 4,
                 "scalar": "f32"
@@ -5020,7 +5727,7 @@
               {
                 "name": "clock",
                 "doc": null,
-                "arg_index": 24,
+                "arg_index": 26,
                 "offset": 40,
                 "width": 4,
                 "scalar": "f32"
@@ -5028,7 +5735,7 @@
               {
                 "name": "last_input",
                 "doc": null,
-                "arg_index": 25,
+                "arg_index": 27,
                 "offset": 44,
                 "width": 4,
                 "scalar": "f32"
@@ -5036,7 +5743,7 @@
               {
                 "name": "antialias",
                 "doc": null,
-                "arg_index": 26,
+                "arg_index": 28,
                 "offset": 48,
                 "width": 4,
                 "scalar": "f32"
@@ -5044,7 +5751,7 @@
               {
                 "name": "drag_active",
                 "doc": null,
-                "arg_index": 27,
+                "arg_index": 29,
                 "offset": 52,
                 "width": 4,
                 "scalar": "f32"
@@ -5052,7 +5759,7 @@
               {
                 "name": "magnification",
                 "doc": null,
-                "arg_index": 28,
+                "arg_index": 30,
                 "offset": 56,
                 "width": 4,
                 "scalar": "f32"
@@ -5069,7 +5776,7 @@
     },
     {
       "source_entry": "display_preview",
-      "shader": "passes/015-fragment.wgsl",
+      "shader": "passes/017-fragment.wgsl",
       "shader_bytes": 19084,
       "shader_stages": [
         "fragment"
@@ -5178,7 +5885,7 @@
               {
                 "name": "center_x_w0",
                 "doc": null,
-                "arg_index": 16,
+                "arg_index": 18,
                 "offset": 0,
                 "width": 4,
                 "scalar": "f32"
@@ -5186,7 +5893,7 @@
               {
                 "name": "center_x_w1",
                 "doc": null,
-                "arg_index": 17,
+                "arg_index": 19,
                 "offset": 4,
                 "width": 4,
                 "scalar": "f32"
@@ -5194,7 +5901,7 @@
               {
                 "name": "center_x_w2",
                 "doc": null,
-                "arg_index": 18,
+                "arg_index": 20,
                 "offset": 8,
                 "width": 4,
                 "scalar": "f32"
@@ -5202,7 +5909,7 @@
               {
                 "name": "center_x_w3",
                 "doc": null,
-                "arg_index": 19,
+                "arg_index": 21,
                 "offset": 12,
                 "width": 4,
                 "scalar": "f32"
@@ -5210,7 +5917,7 @@
               {
                 "name": "center_y_w0",
                 "doc": null,
-                "arg_index": 20,
+                "arg_index": 22,
                 "offset": 16,
                 "width": 4,
                 "scalar": "f32"
@@ -5218,7 +5925,7 @@
               {
                 "name": "center_y_w1",
                 "doc": null,
-                "arg_index": 21,
+                "arg_index": 23,
                 "offset": 20,
                 "width": 4,
                 "scalar": "f32"
@@ -5226,7 +5933,7 @@
               {
                 "name": "center_y_w2",
                 "doc": null,
-                "arg_index": 22,
+                "arg_index": 24,
                 "offset": 24,
                 "width": 4,
                 "scalar": "f32"
@@ -5234,7 +5941,7 @@
               {
                 "name": "center_y_w3",
                 "doc": null,
-                "arg_index": 23,
+                "arg_index": 25,
                 "offset": 28,
                 "width": 4,
                 "scalar": "f32"
@@ -5242,7 +5949,7 @@
               {
                 "name": "zoom",
                 "doc": null,
-                "arg_index": 24,
+                "arg_index": 26,
                 "offset": 32,
                 "width": 4,
                 "scalar": "f32"
@@ -5250,7 +5957,7 @@
               {
                 "name": "res",
                 "doc": null,
-                "arg_index": 25,
+                "arg_index": 27,
                 "offset": 36,
                 "width": 4,
                 "scalar": "f32"
@@ -5258,7 +5965,7 @@
               {
                 "name": "clock",
                 "doc": null,
-                "arg_index": 26,
+                "arg_index": 28,
                 "offset": 40,
                 "width": 4,
                 "scalar": "f32"
@@ -5266,7 +5973,7 @@
               {
                 "name": "last_input",
                 "doc": null,
-                "arg_index": 27,
+                "arg_index": 29,
                 "offset": 44,
                 "width": 4,
                 "scalar": "f32"
@@ -5274,7 +5981,7 @@
               {
                 "name": "antialias",
                 "doc": null,
-                "arg_index": 28,
+                "arg_index": 30,
                 "offset": 48,
                 "width": 4,
                 "scalar": "f32"
@@ -5282,7 +5989,7 @@
               {
                 "name": "drag_active",
                 "doc": null,
-                "arg_index": 29,
+                "arg_index": 31,
                 "offset": 52,
                 "width": 4,
                 "scalar": "f32"
@@ -5290,7 +5997,7 @@
               {
                 "name": "magnification",
                 "doc": null,
-                "arg_index": 30,
+                "arg_index": 32,
                 "offset": 56,
                 "width": 4,
                 "scalar": "f32"

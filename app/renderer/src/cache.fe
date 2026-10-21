@@ -1,12 +1,15 @@
 //! GPU-resident camera and reference metadata.
 //! Epochs invalidate orbit checkpoints without clearing the large buffers.
+use core::default::Default
 use core::marker::Copy
 use algebra::Complex
+use fmath::from_i32
 use ingot::image::max
-use ingot::policy::{Camera, Coordinate, MandelbrotViewState, RefinementKey, blur_radius}
-use precision::{Expansion, from_quad, to_quad}
+use ingot::policy::{Camera, MandelbrotViewState, PreviewKey, RefinementKey, ZOOM_MIN, blur_radius}
+use precision::{Expansion, to_quad}
 
 pub const ORACLE_GLITCHED_BIT: u32 = 1073741824
+pub const PREVIEW_BATCH: u32 = 256
 
 pub fn oracle_is_glitched(_ flags: u32) -> bool {
     (flags & ORACLE_GLITCHED_BIT) != 0
@@ -14,6 +17,46 @@ pub fn oracle_is_glitched(_ flags: u32) -> bool {
 
 pub fn oracle_is_usable(_ flags: u32) -> bool {
     !oracle_is_glitched(flags)
+}
+
+pub fn preview_has_reference(_ active_valid: u32, _ pending: u32, _ index: u32) -> bool {
+    active_valid == 1 || (pending == 1 && index > 0)
+}
+
+pub fn preview_uses_pending(
+    _ active_valid: u32,
+    _ pending: u32,
+    _ index: u32,
+    _ input_settled: bool,
+) -> bool {
+    pending == 1 && index > 0 && (active_valid == 0 || input_settled)
+}
+
+pub fn select_preview_bank(
+    _ active: u32,
+    _ active_valid: u32,
+    _ pending: u32,
+    _ index: u32,
+    _ input_settled: bool,
+) -> u32 {
+    if preview_uses_pending(active_valid, pending, index, input_settled) {
+        1 - active
+    } else {
+        active
+    }
+}
+
+pub fn next_preview_step_target(_ completed_steps: u32, _ available_steps: u32) -> u32 {
+    let next_unclamped: u32 = completed_steps + PREVIEW_BATCH
+    if next_unclamped < available_steps {
+        next_unclamped
+    } else {
+        available_steps
+    }
+}
+
+pub fn preview_is_completed(_ prefix_only: u32, _ completed_steps: u32, _ budget: u32) -> bool {
+    prefix_only == 0 && budget > 0 && completed_steps >= budget
 }
 
 pub fn expansion_delta(_ from: Expansion<4>, _ to: Expansion<4>) -> f32 {
@@ -27,16 +70,7 @@ pub fn center_delta(_ from: Complex<Expansion<4>>, _ to: Complex<Expansion<4>>) 
 }
 
 pub struct ViewCache {
-    pub x0: f32,
-    pub x1: f32,
-    pub x2: f32,
-    pub x3: f32,
-    pub y0: f32,
-    pub y1: f32,
-    pub y2: f32,
-    pub y3: f32,
-    pub zoom: f32,
-    pub res: f32,
+    pub camera: Camera,
     pub cursor: u32,
     pub aa: f32,
     pub budget: u32,
@@ -62,14 +96,7 @@ pub struct ReferenceControl {
 impl Copy for ReferenceControl {}
 
 pub struct ReferenceAnchor {
-    pub x0: f32,
-    pub x1: f32,
-    pub x2: f32,
-    pub x3: f32,
-    pub y0: f32,
-    pub y1: f32,
-    pub y2: f32,
-    pub y3: f32,
+    pub center: Complex<Expansion<4>>,
     pub limit: u32,
     pub generation: u32,
 }
@@ -94,76 +121,15 @@ impl SampleOracle {
 /// Numeric samples can be reused only for the identical sampling lattice.
 /// Reprojected colors alone never establish this identity.
 pub fn same_camera(_ a: ViewCache, _ b: ViewCache) -> bool {
-    a.camera() == b.camera()
+    a.camera == b.camera
 }
 
 impl ViewCache {
-    pub fn center(self) -> Complex<Expansion<4>> {
-        Complex {
-            re: from_quad(self.x0, self.x1, self.x2, self.x3),
-            im: from_quad(self.y0, self.y1, self.y2, self.y3),
-        }
-    }
-    pub fn camera(self) -> Camera {
-        Camera {
-            center: Complex {
-                re: Coordinate { value: self.center().re },
-                im: Coordinate { value: self.center().im },
-            },
-            zoom: self.zoom,
-            res: self.res,
-        }
-    }
     pub fn refinement_key(self) -> RefinementKey {
-        RefinementKey { camera: self.camera(), antialias: self.aa }
-    }
-    pub fn matches_view(self, _ s: MandelbrotViewState) -> bool {
-        self.refinement_key() == s.refinement_key()
+        RefinementKey { camera: self.camera, antialias: self.aa }
     }
     pub fn delta_from(self, _ s: MandelbrotViewState) -> Complex<f32> {
-        center_delta(self.center(), s.camera.center_value())
-    }
-    pub fn sync_with_view(
-        self,
-        _ s: MandelbrotViewState,
-        _ budget: u32,
-        _ radius: f32,
-        _ display_age: f32,
-    ) -> Self {
-        let same: bool = self.matches_view(s)
-        let preview_dirty: u32 = if same && self.budget == budget && display_age >= 360.0 {
-            0
-        } else {
-            1
-        }
-        let blur_dirty: u32 = if preview_dirty == 0 && self.radius == radius {
-            0
-        } else {
-            1
-        }
-        let camera: Camera = s.camera
-        let (x0, x1, x2, x3) = to_quad(camera.center.re.value)
-        let (y0, y1, y2, y3) = to_quad(camera.center.im.value)
-        ViewCache {
-            x0: x0,
-            x1: x1,
-            x2: x2,
-            x3: x3,
-            y0: y0,
-            y1: y1,
-            y2: y2,
-            y3: y3,
-            zoom: camera.zoom,
-            res: camera.res,
-            cursor: if same { self.cursor } else { 0 },
-            aa: s.antialias,
-            budget: budget,
-            radius: radius,
-            preview_dirty: preview_dirty,
-            blur_dirty: blur_dirty,
-            epoch: if same { self.epoch } else { self.epoch + 1 },
-            completed: if same { self.completed } else { 0 },
-        }
+        center_delta(self.camera.center_value(), s.camera.center_value())
     }
     pub fn invalidate_for_new_reference(self) -> Self {
         let mut next: Self = self
@@ -188,9 +154,85 @@ impl ViewCache {
         next.completed = if next_cursor >= end { 1 } else { 0 }
         next
     }
+    pub fn sync_for_frame(
+        self,
+        _ s: MandelbrotViewState,
+        _ control: ReferenceControl,
+        _ preview: PreviewCache,
+        _ initial: ViewCache,
+    ) -> Self {
+        let budget: u32 = preview.budget
+        let display_age: f32 = control.display_age(s)
+        let radius: f32 = blur_radius(display_age)
+        let same: bool = self.refinement_key() == s.refinement_key()
+        let settled_initial: bool = initial.completed == 1 && initial.epoch == self.epoch
+        let preview_dirty: u32 = if !control.has_preview_reference() {
+            0
+        } else if same
+            && self.budget == budget
+            && preview.completed == 1
+            && display_age >= 360.0
+            && settled_initial {
+            0
+        } else {
+            1
+        }
+        let blur_dirty: u32 = if !control.has_preview_reference() {
+            0
+        } else if preview_dirty == 0 && self.radius == radius {
+            0
+        } else {
+            1
+        }
+        let camera: Camera = s.camera
+        ViewCache {
+            camera: camera,
+            cursor: if same { self.cursor } else { 0 },
+            aa: s.antialias,
+            budget: budget,
+            radius: radius,
+            preview_dirty: preview_dirty,
+            blur_dirty: blur_dirty,
+            epoch: if same { self.epoch } else { self.epoch + 1 },
+            completed: if same { self.completed } else { 0 },
+        }
+    }
 }
 
 impl ReferenceControl {
+    pub fn has_preview_reference(self) -> bool {
+        preview_has_reference(self.active_valid, self.pending, self.index)
+    }
+    pub fn uses_pending_for_preview(self, _ s: MandelbrotViewState) -> bool {
+        preview_uses_pending(
+            self.active_valid,
+            self.pending,
+            self.index,
+            s.is_input_settled(),
+        )
+    }
+    pub fn preview_bank(self, _ s: MandelbrotViewState) -> u32 {
+        select_preview_bank(
+            self.active,
+            self.active_valid,
+            self.pending,
+            self.index,
+            s.is_input_settled(),
+        )
+    }
+    pub fn available_preview_steps(self, _ s: MandelbrotViewState, _ budget: u32) -> u32 {
+        if !self.has_preview_reference() {
+            0
+        } else if self.uses_pending_for_preview(s) {
+            if self.index < budget {
+                self.index
+            } else {
+                budget
+            }
+        } else {
+            budget
+        }
+    }
     pub fn display_age(self, _ s: MandelbrotViewState) -> f32 {
         if s.drag_active >= 0.5 || self.pending == 1 {
             0.0
@@ -255,29 +297,122 @@ impl ReferenceControl {
 
 impl ReferenceAnchor {
     pub fn from_state(_ s: MandelbrotViewState, _ limit: u32, _ generation: u32) -> Self {
-        let center: Complex<Expansion<4>> = s.camera.center_value()
-        let (x0, x1, x2, x3) = to_quad(center.re)
-        let (y0, y1, y2, y3) = to_quad(center.im)
-        ReferenceAnchor {
-            x0: x0,
-            x1: x1,
-            x2: x2,
-            x3: x3,
-            y0: y0,
-            y1: y1,
-            y2: y2,
-            y3: y3,
-            limit: limit,
-            generation: generation,
-        }
-    }
-    pub fn center(self) -> Complex<Expansion<4>> {
-        Complex {
-            re: from_quad(self.x0, self.x1, self.x2, self.x3),
-            im: from_quad(self.y0, self.y1, self.y2, self.y3),
-        }
+        Self { center: s.camera.center_value(), limit: limit, generation: generation }
     }
     pub fn delta_from(self, _ s: MandelbrotViewState) -> Complex<f32> {
-        center_delta(self.center(), s.camera.center_value())
+        center_delta(self.center, s.camera.center_value())
     }
+}
+
+/// GPU-resident state for the progressive 256x256 coarse preview schedule.
+/// Keyed by `(camera, reference_generation)` so pending-to-active handoff
+/// preserves completed coarse iterations while camera or reference changes
+/// invalidate stale checkpoints.
+#[derive(Default)]
+pub struct PreviewCache {
+    pub camera: Camera,
+    pub reference_generation: u32,
+    pub reference_bank: u32,
+    pub prefix_only: u32,
+    pub step_target: u32,
+    pub completed_steps: u32,
+    pub budget: u32,
+    pub epoch: u32,
+    pub completed: u32,
+}
+
+impl Copy for PreviewCache {}
+
+impl PreviewCache {
+    pub fn key(self) -> PreviewKey {
+        PreviewKey {
+            camera: self.camera,
+            reference_generation: self.reference_generation,
+            reference_bank: self.reference_bank,
+        }
+    }
+    pub fn sync_with_view(
+        self,
+        _ s: MandelbrotViewState,
+        _ control: ReferenceControl,
+        _ reference_generation: u32,
+        _ budget: u32,
+    ) -> Self {
+        let camera: Camera = s.camera
+        let next_key: PreviewKey = PreviewKey {
+            camera: camera,
+            reference_generation: reference_generation,
+            reference_bank: control.preview_bank(s),
+        }
+        let same_key: bool = self.key() == next_key && self.budget == budget && self.epoch != 0
+        let uses_pending: bool = control.uses_pending_for_preview(s)
+        let prefix_only: u32 = if uses_pending { 1 } else { 0 }
+        let available_steps: u32 = control.available_preview_steps(s, budget)
+        let completed_steps: u32 = if same_key { self.completed_steps } else { 0 }
+        let step_target: u32 = next_preview_step_target(completed_steps, available_steps)
+        let completed: u32 = if same_key
+            && preview_is_completed(prefix_only, completed_steps, budget) {
+            self.completed
+        } else {
+            0
+        }
+        PreviewCache {
+            camera: camera,
+            reference_generation: reference_generation,
+            reference_bank: control.preview_bank(s),
+            prefix_only: prefix_only,
+            step_target: step_target,
+            completed_steps: completed_steps,
+            budget: budget,
+            epoch: if same_key {
+                self.epoch
+            } else {
+                self.epoch + 1
+            },
+            completed: completed,
+        }
+    }
+    pub fn commit_step(self) -> Self {
+        let mut next: Self = self
+        next.completed_steps = self.step_target
+        next.completed = if preview_is_completed(self.prefix_only, self.step_target, self.budget) {
+            1
+        } else {
+            0
+        }
+        next
+    }
+}
+
+pub struct ReprojectionTap {
+    pub use_full: bool,
+    pub reusable: bool,
+    pub sx: f32,
+    pub sy: f32,
+    pub old_res: f32,
+}
+
+impl Copy for ReprojectionTap {}
+
+pub fn reproject_coarse_pixel(
+    _ s: MandelbrotViewState,
+    _ full: ViewCache,
+    _ initial: ViewCache,
+    _ px: i32,
+    _ py: i32,
+) -> ReprojectionTap {
+    let use_full: bool = full.completed == 1 && full.epoch >= initial.epoch
+    let old: ViewCache = if use_full { full } else { initial }
+    let delta: Complex<f32> = old.delta_from(s)
+    let u: f32 = (from_i32(px) + 0.5) * 2.0 / s.camera.res - 1.0
+    let v: f32 = 1.0 - (from_i32(py) + 0.5) * 2.0 / s.camera.res
+    let span: f32 = max(old.camera.zoom, ZOOM_MIN)
+    let sx: f32 = ((delta.re + u * s.camera.zoom) / span + 1.0) * old.camera.res * 0.5 - 0.5
+    let sy: f32 = (1.0 - (delta.im + v * s.camera.zoom) / span) * old.camera.res * 0.5 - 0.5
+    let reusable: bool = old.completed == 1
+        && sx >= 0.0
+        && sy >= 0.0
+        && sx < old.camera.res - 1.0
+        && sy < old.camera.res - 1.0
+    ReprojectionTap { use_full: use_full, reusable: reusable, sx: sx, sy: sy, old_res: old.camera.res }
 }

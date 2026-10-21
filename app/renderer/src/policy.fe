@@ -1,4 +1,5 @@
 //! Fe camera state, backing extent, iteration and presentation policies.
+use core::default::Default
 use core::marker::Copy
 use core::ops::Eq
 use std::webgpu::{SurfaceQualityFacts, SurfaceBackingExtent}
@@ -124,6 +125,10 @@ pub struct Camera {
 
 impl Copy for Camera {}
 
+impl Default for Camera {
+    fn default() -> Self { initial_camera() }
+}
+
 impl Camera {
     pub fn center_value(self) -> Complex<Expansion<4>> {
         Complex { re: self.center.re.value, im: self.center.im.value }
@@ -137,6 +142,16 @@ impl Camera {
 pub struct RefinementKey { pub camera: Camera, pub antialias: f32 }
 
 impl Copy for RefinementKey {}
+
+/// Identity of a progressive preview: sampling camera and exact reference source.
+#[derive(Eq)]
+pub struct PreviewKey {
+    pub camera: Camera,
+    pub reference_generation: u32,
+    pub reference_bank: u32,
+}
+
+impl Copy for PreviewKey {}
 
 /// Visible controls mirror the camera's semantic structure. Each center
 /// control edits the leading coefficient through the expansion adapter.
@@ -175,8 +190,8 @@ pub struct SurfaceStateEnvelope { pub state: MandelbrotViewState }
 
 impl Copy for SurfaceStateEnvelope {}
 
-pub const fn initial_view() -> MandelbrotViewState {
-    let camera = Camera {
+pub const fn initial_camera() -> Camera {
+    Camera {
         center: Complex {
             re: Coordinate { value: from_quad(
                 -1.1723285913467407,
@@ -194,6 +209,10 @@ pub const fn initial_view() -> MandelbrotViewState {
         zoom: 0.0000000389,
         res: 512.0,
     }
+}
+
+pub const fn initial_view() -> MandelbrotViewState {
+    let camera = initial_camera()
     MandelbrotViewState {
         camera: camera,
         clock: 0.0,
