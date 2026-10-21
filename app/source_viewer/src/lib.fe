@@ -1,4 +1,5 @@
 use core::ops::Eq
+use core::default::Default
 //! Readable source browsing as a resident Fe component.
 //!
 //! The existing inspector task owns fetch/cancellation and stale responses.
@@ -48,6 +49,7 @@ use source_inspector::{
     TextLoadTask,
     load_latest_text,
     publish_load_command,
+    LoadCommand,
     URL_CAPACITY,
     CONTENT_CAPACITY,
     CONTROL_CAPACITY,
@@ -124,6 +126,19 @@ pub struct SourceStateEnvelope { state: SourceState }
 impl Copy for SourceStateEnvelope {}
 
 impl SourceState {
+    fn load_command(self) -> LoadCommand {
+        LoadCommand {
+            revision: if self.connected {
+                self.request
+            } else {
+                self.request + 1
+            },
+            request: self.request,
+            url_len: self.url_len,
+            active: self.connected,
+        }
+    }
+
     fn idle(self) -> Self {
         let mut next = self
         next.project_source = false
@@ -312,15 +327,23 @@ actor FeSourceViewer {
             .open(element: PageElement::Header)
             .open(element: PageElement::Anchor)
             .attribute(value: PageAttribute::href(value: label("../index.html")))
-            .text(value: label("← Mandelbrot")).close()
+            .text(value: label("← Mandelbrot"))
+            .close()
             .open(element: PageElement::Anchor)
             .attribute(value: PageAttribute::href(value: label("../colors/index.html")))
-            .text(value: label("← Color lab")).close()
-            .open(element: PageElement::Heading1).text(value: label("Fe source")).close()
-            .open(element: PageElement::Paragraph).text(value: label("Renderer, colors and viewer")).close()
+            .text(value: label("← Color lab"))
             .close()
-            .open(element: PageElement::Div).attribute(value: PageAttribute::class(value: "workspace"))
-            .open(element: PageElement::Section).attribute(value: PageAttribute::class(value: "files"))
+            .open(element: PageElement::Heading1)
+            .text(value: label("Fe source"))
+            .close()
+            .open(element: PageElement::Paragraph)
+            .text(value: label("Renderer, colors and viewer"))
+            .close()
+            .close()
+            .open(element: PageElement::Div)
+            .attribute(value: PageAttribute::class(value: "workspace"))
+            .open(element: PageElement::Section)
+            .attribute(value: PageAttribute::class(value: "files"))
         let page = file_link(page, "lib.fe", "Actor and pass graph")
         let page = file_link(page, "policy.fe", "Camera and quality policy")
         let page = file_link(page, "orbit.fe", "Resumable perturbation")
@@ -334,32 +357,53 @@ actor FeSourceViewer {
         let page = file_link(page, "viewer_highlight.fe", "Fe lexical and semantic colors")
         page.close()
             .open(element: PageElement::Main)
-            .open(element: PageElement::Div).attribute(value: PageAttribute::class(value: "file-heading"))
-            .open(element: PageElement::Strong).attribute(value: PageAttribute::node(value: ui.title))
-            .text(value: label("Choose a file")).close()
-            .open(element: PageElement::Anchor).attribute(value: PageAttribute::node(value: ui.raw))
+            .open(element: PageElement::Div)
+            .attribute(value: PageAttribute::class(value: "file-heading"))
+            .open(element: PageElement::Strong)
+            .attribute(value: PageAttribute::node(value: ui.title))
+            .text(value: label("Choose a file"))
+            .close()
+            .open(element: PageElement::Anchor)
+            .attribute(value: PageAttribute::node(value: ui.raw))
             .attribute(value: PageAttribute::target(value: "_blank"))
             .attribute(value: PageAttribute::rel(value: "noopener"))
-            .text(value: label("Raw source ↗")).close().close()
-            .open(element: PageElement::Paragraph).attribute(value: PageAttribute::view(value: ui.empty))
+            .text(value: label("Raw source ↗"))
+            .close()
+            .close()
+            .open(element: PageElement::Paragraph)
+            .attribute(value: PageAttribute::view(value: ui.empty))
             .attribute(value: PageAttribute::class(value: "message"))
-            .text(value: label("Choose a module to explore.")).close()
-            .open(element: PageElement::Paragraph).attribute(value: PageAttribute::view(value: ui.loading))
+            .text(value: label("Choose a module to explore."))
+            .close()
+            .open(element: PageElement::Paragraph)
+            .attribute(value: PageAttribute::view(value: ui.loading))
             .attribute(value: PageAttribute::class(value: "message"))
-            .text(value: label("Loading source…")).close()
-            .open(element: PageElement::Pre).attribute(value: PageAttribute::view(value: ui.error))
+            .text(value: label("Loading source…"))
+            .close()
+            .open(element: PageElement::Pre)
+            .attribute(value: PageAttribute::view(value: ui.error))
             .attribute(value: PageAttribute::node(value: ui.error_text))
-            .attribute(value: PageAttribute::class(value: "message error")).close()
-            .open(element: PageElement::Div).attribute(value: PageAttribute::class(value: "source-lines"))
+            .attribute(value: PageAttribute::class(value: "message error"))
+            .close()
+            .open(element: PageElement::Div)
+            .attribute(value: PageAttribute::class(value: "source-lines"))
             .attribute(value: PageAttribute::view(value: ui.ready))
-            .open(element: PageElement::Pre).attribute(value: PageAttribute::class(value: "line-numbers"))
-            .attribute(value: PageAttribute::node(value: ui.gutter)).close()
-            .open(element: PageElement::Pre).attribute(value: PageAttribute::class(value: "source-code"))
-            .attribute(value: PageAttribute::node(value: ui.code)).close()
-            .close().close().close()
-            .open(element: PageElement::Template).attribute(value: PageAttribute::template(value: ui.code))
+            .open(element: PageElement::Pre)
+            .attribute(value: PageAttribute::class(value: "line-numbers"))
+            .attribute(value: PageAttribute::node(value: ui.gutter))
+            .close()
+            .open(element: PageElement::Pre)
+            .attribute(value: PageAttribute::class(value: "source-code"))
+            .attribute(value: PageAttribute::node(value: ui.code))
+            .close()
+            .close()
+            .close()
+            .close()
+            .open(element: PageElement::Template)
+            .attribute(value: PageAttribute::template(value: ui.code))
             .open(element: PageElement::Span)
-            .open(element: PageElement::Span).attribute(value: PageAttribute::node(value: ui.token))
+            .open(element: PageElement::Span)
+            .attribute(value: PageAttribute::node(value: ui.token))
             .attribute(value: PageAttribute::class_token(slot: ui.ty, value: "hl-ty"))
             .attribute(value: PageAttribute::class_token(slot: ui.function, value: "hl-function"))
             .attribute(value: PageAttribute::class_token(slot: ui.property, value: "hl-property"))
@@ -368,7 +412,10 @@ actor FeSourceViewer {
             .attribute(value: PageAttribute::class_token(slot: ui.comment, value: "hl-comment"))
             .attribute(value: PageAttribute::class_token(slot: ui.string, value: "hl-string"))
             .attribute(value: PageAttribute::class_token(slot: ui.number, value: "hl-number"))
-            .close().close().close().finish_component()
+            .close()
+            .close()
+            .close()
+            .finish_component()
     }
 
     fn initial() -> SourceStateEnvelope uses (InitialState) {
@@ -377,13 +424,7 @@ actor FeSourceViewer {
         let url = allocate_component_buffer(capacity: URL_CAPACITY)
         let content = allocate_component_buffer(capacity: CONTENT_CAPACITY)
         let gutter = allocate_component_buffer(capacity: GUTTER_CAPACITY)
-        publish_load_command(
-            control: control.ptr,
-            revision: 0,
-            request: 0,
-            url_len: 0,
-            active: false,
-        )
+        publish_load_command(control: control.ptr, command: LoadCommand::default())
         SourceStateEnvelope {
             state: SourceState {
                 patch_ptr: patch.ptr,
@@ -429,13 +470,7 @@ actor FeSourceViewer {
             }
             ComponentEventKind::Disconnected => {
                 next = self.state.disconnected()
-                publish_load_command(
-                    control: next.control_ptr,
-                    revision: next.request + 1,
-                    request: next.request,
-                    url_len: next.url_len,
-                    active: false,
-                )
+                publish_load_command(control: next.control_ptr, command: next.load_command())
                 BrowserActorNotifications::new().notify()
             }
             ComponentEventKind::Activate => {
@@ -450,10 +485,7 @@ actor FeSourceViewer {
                                 next = self.state.begin_load(url_len: copied.buffer.len())
                                 publish_load_command(
                                     control: next.control_ptr,
-                                    revision: next.request,
-                                    request: next.request,
-                                    url_len: next.url_len,
-                                    active: true,
+                                    command: next.load_command(),
                                 )
                                 BrowserActorNotifications::new().notify()
                             }

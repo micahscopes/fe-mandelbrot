@@ -1,41 +1,19 @@
+use core::default::Default
 //! Bounded latest-text resource loader for resident Fe components.
 //!
 //! Anchors provide untouched same-origin URLs. Fe owns stale response
 //! rejection, loading/error policy, and cancellation. Generated standards
 //! bindings realize fetch; the fixed browser host only holds ABI lifetimes.
 
-use std::web::component::{
-    BrowserPtr,
-    BrowserString,
-    ComponentEvent,
-}
+use std::web::component::{BrowserPtr, BrowserString, ComponentEvent}
 use std::text::Utf8Buffer
 use core::actor::ActorSink
-use core::pending::{
-    Pending,
-    PendingCancellation,
-    Select,
-    SelectOutcome,
-    Suspend,
-    TaskOutcome,
-}
-use std::actor::{
-    ActorMessage,
-    ActorNotification,
-}
-use std::reactive::{
-    AsyncEventSource,
-    Subscription,
-}
+use core::pending::{Pending, PendingCancellation, Select, SelectOutcome, Suspend, TaskOutcome}
+use std::actor::{ActorMessage, ActorNotification}
+use std::reactive::{AsyncEventSource, Subscription}
 use std::wasm::WasmBackend
-use std::web::identity::{
-    ComponentAction,
-    ComponentActionProvider,
-}
-use browser_fetch::{
-    Response,
-    fetch_begin,
-}
+use std::web::identity::{ComponentAction, ComponentActionProvider}
+use browser_fetch::{Response, fetch_begin}
 
 /// Narrow 4-variant action vocabulary for bounded latest-text loading.
 pub enum TextLoadAction {
@@ -58,73 +36,45 @@ const CONTROL_REQUEST: u32 = 4
 const CONTROL_URL_LEN: u32 = 8
 const CONTROL_ACTIVE: u32 = 12
 
-/// Typed 4-word payload shared by compiler-materialized text-loader tasks.
+/// Typed 3-word payload shared by compiler-materialized text-loader tasks.
 /// Browser events receive the compiler-derived zero value for these lanes;
 /// fixed JavaScript never interprets them.
-pub struct TextLoadTask {
-    pub request: u32,
-    pub status: u32,
-    pub byte_len: u32,
-    pub content_len: u32,
-}
+pub struct TextLoadTask { pub request: u32, pub status: u32, pub content_len: u32 }
 
 impl Copy for TextLoadTask {}
 
 impl TextLoadTask {
     pub fn completed(_ request: u32, _ status: u32, _ content_len: u32) -> Self {
-        Self {
-            request: request,
-            status: status,
-            byte_len: content_len,
-            content_len: content_len,
-        }
+        Self { request: request, status: status, content_len: content_len }
     }
-
     pub fn failed(_ request: u32, _ status: u32, _ content_len: u32) -> Self {
-        Self {
-            request: request,
-            status: status,
-            byte_len: 0,
-            content_len: content_len,
-        }
+        Self { request: request, status: status, content_len: content_len }
     }
-
     pub fn is_http_success(self) -> bool {
         self.status >= 200 && self.status < 300
     }
-
     pub fn matches_request(self, connected: bool, active_request: u32) -> bool {
         connected && self.request == active_request
     }
 }
 
-struct LoadCommand {
-    revision: u32,
-    request: u32,
-    url_len: u32,
-    active: bool,
-}
+pub struct LoadCommand { pub revision: u32, pub request: u32, pub url_len: u32, pub active: bool }
 
 impl Copy for LoadCommand {}
+derive Default for LoadCommand
 
 fn control_word(ptr: u32, offset: u32) -> BrowserPtr<u32> {
     BrowserPtr::from_u32(ptr + offset)
 }
 
-pub fn publish_load_command(
-    control: u32,
-    revision: u32,
-    request: u32,
-    url_len: u32,
-    active: bool,
-) {
-    control_word(ptr: control, offset: CONTROL_REQUEST).write(request)
-    control_word(ptr: control, offset: CONTROL_URL_LEN).write(url_len)
-    control_word(ptr: control, offset: CONTROL_ACTIVE).write(if active { 1 } else { 0 })
+pub fn publish_load_command(control: u32, command: LoadCommand) {
+    control_word(ptr: control, offset: CONTROL_REQUEST).write(command.request)
+    control_word(ptr: control, offset: CONTROL_URL_LEN).write(command.url_len)
+    control_word(ptr: control, offset: CONTROL_ACTIVE).write(if command.active { 1 } else { 0 })
     // Publish the revision last. Wasm entrypoints are single-threaded today,
     // but this ordering also gives a future atomic implementation one commit
     // word instead of a partially visible application record.
-    control_word(ptr: control, offset: CONTROL_REVISION).write(revision)
+    control_word(ptr: control, offset: CONTROL_REVISION).write(command.revision)
 }
 
 fn read_load_command(control: u32) -> LoadCommand {
@@ -138,34 +88,37 @@ fn read_load_command(control: u32) -> LoadCommand {
 
 fn failure_content<const N: usize>(destination: u32, value: own [u8; N]) -> u32 {
     Utf8Buffer::empty(ptr: destination, capacity: CONTENT_CAPACITY)
-        .replace_literal(value).buffer.len()
+        .replace_literal(value)
+        .buffer
+        .len()
 }
 
 fn report_text_load_state(target: TextLoadAction, payload: TextLoadTask) -> bool
-    uses (
-        sink: mut ActorSink<WasmBackend, ComponentEvent<TextLoadAction, TextLoadTask>>,
-        suspend: Suspend<WasmBackend, u32>,
-    )
+uses (
+    sink: mut ActorSink<WasmBackend, ComponentEvent<TextLoadAction, TextLoadTask>>,
+    suspend: Suspend<WasmBackend, u32>,
+)
 {
-    let event: ComponentEvent<TextLoadAction, TextLoadTask> =
-        ComponentEvent<TextLoadAction, TextLoadTask>::task_payload(
-            target: target,
-            payload: payload,
-        )
-    let message: ActorMessage<ComponentEvent<TextLoadAction, TextLoadTask>> =
-        ActorMessage::new(event)
+    let event: ComponentEvent<TextLoadAction, TextLoadTask> = ComponentEvent<
+        TextLoadAction,
+        TextLoadTask,
+    >::task_payload(target: target, payload: payload)
+    let message: ActorMessage<ComponentEvent<TextLoadAction, TextLoadTask>> = ActorMessage::new(
+        event,
+    )
     let outcome: TaskOutcome<u32, ()> = message.send()
     match outcome {
-        TaskOutcome::Success(_) => true
-        TaskOutcome::Failure(_) => false
-        TaskOutcome::Cancelled => false
+        TaskOutcome::Success(_,) => true,
+        TaskOutcome::Failure(_,) => false,
+        TaskOutcome::Cancelled => false,
     }
 }
 
-fn arm_notification(
-    subscription: own Subscription<ActorNotification>,
-) -> (Subscription<ActorNotification>, Pending<WasmBackend, ActorNotification>)
-    uses (notifications: mut AsyncEventSource<WasmBackend, ActorNotification>)
+fn arm_notification(subscription: own Subscription<ActorNotification>) -> (
+    Subscription<ActorNotification>,
+    Pending<WasmBackend, ActorNotification>,
+)
+uses (notifications: mut AsyncEventSource<WasmBackend, ActorNotification>)
 {
     notifications.next_begin(subscription)
 }
@@ -179,13 +132,13 @@ fn arm_notification(
 /// Browser strings are copied into owned bounded UTF-8 memory before a second
 /// suspension, and every acquired `Response` is released explicitly.
 pub fn load_latest_text(control: u32, url: u32, content: u32) -> u32
-    uses (
-        notifications: mut AsyncEventSource<WasmBackend, ActorNotification>,
-        select: mut Select<WasmBackend, u32>,
-        cancellation: mut PendingCancellation<WasmBackend>,
-        sink: mut ActorSink<WasmBackend, ComponentEvent<TextLoadAction, TextLoadTask>>,
-        suspend: Suspend<WasmBackend, u32>,
-    )
+uses (
+    notifications: mut AsyncEventSource<WasmBackend, ActorNotification>,
+    select: mut Select<WasmBackend, u32>,
+    cancellation: mut PendingCancellation<WasmBackend>,
+    sink: mut ActorSink<WasmBackend, ComponentEvent<TextLoadAction, TextLoadTask>>,
+    suspend: Suspend<WasmBackend, u32>,
+)
 {
     let mut subscription = notifications.subscribe()
     let first = arm_notification(subscription: subscription)
@@ -196,7 +149,7 @@ pub fn load_latest_text(control: u32, url: u32, content: u32) -> u32
     while true {
         let wake: TaskOutcome<u32, ActorNotification> = suspend.suspend(notification)
         match wake {
-            TaskOutcome::Success(_) => {
+            TaskOutcome::Success(_,) => {
                 let next = arm_notification(subscription: subscription)
                 subscription = next.0
                 notification = next.1
@@ -210,22 +163,18 @@ pub fn load_latest_text(control: u32, url: u32, content: u32) -> u32
                             ptr: url,
                             len: command.url_len,
                             capacity: URL_CAPACITY,
-                        ).browser_string()
+                        )
+                            .browser_string()
                         let fetching = fetch_begin(input: request_url)
                         let selected = select.select(fetching, notification)
                         let fetched: TaskOutcome<
                             u32,
-                            SelectOutcome<
-                                WasmBackend,
-                                u32,
-                                Response,
-                                ActorNotification,
-                            >,
+                            SelectOutcome<WasmBackend, u32, Response, ActorNotification>,
                         > = suspend.suspend(selected)
                         match fetched {
-                            TaskOutcome::Success(fetch_selection) => {
+                            TaskOutcome::Success(fetch_selection,) => {
                                 match fetch_selection {
-                                    SelectOutcome::Left(fetch_winner) => {
+                                    SelectOutcome::Left(fetch_winner,) => {
                                         let response = fetch_winner.value
                                         notification = fetch_winner.right
                                         let status = response.status()
@@ -241,14 +190,15 @@ pub fn load_latest_text(control: u32, url: u32, content: u32) -> u32
                                             >,
                                         > = suspend.suspend(selected_body)
                                         match loaded {
-                                            TaskOutcome::Success(body_selection) => {
+                                            TaskOutcome::Success(body_selection,) => {
                                                 match body_selection {
-                                                    SelectOutcome::Left(body_winner) => {
+                                                    SelectOutcome::Left(body_winner,) => {
                                                         notification = body_winner.right
                                                         let write = Utf8Buffer::empty(
                                                             ptr: content,
                                                             capacity: CONTENT_CAPACITY,
-                                                        ).replace_browser(body_winner.value)
+                                                        )
+                                                            .replace_browser(body_winner.value)
                                                         let mut target = TextLoadAction::TextLoaded
                                                         let mut content_len = write.buffer.len()
                                                         let mut payload = TextLoadTask::completed(
@@ -277,11 +227,12 @@ pub fn load_latest_text(control: u32, url: u32, content: u32) -> u32
                                                             return handled
                                                         }
                                                         handled = handled + 1
-                                                    }
-                                                    SelectOutcome::Right(notification_winner) => {
-                                                        cancellation.cancel_pending(
-                                                            notification_winner.left,
-                                                        )
+                                                    },
+                                                    SelectOutcome::Right(notification_winner,) => {
+                                                        cancellation
+                                                            .cancel_pending(
+                                                                notification_winner.left,
+                                                            )
                                                         response.release()
                                                         let next = arm_notification(
                                                             subscription: subscription,
@@ -289,8 +240,8 @@ pub fn load_latest_text(control: u32, url: u32, content: u32) -> u32
                                                         subscription = next.0
                                                         notification = next.1
                                                         command_ready = true
-                                                    }
-                                                    SelectOutcome::LeftFailure(_) => {
+                                                    },
+                                                    SelectOutcome::LeftFailure(_,) => {
                                                         response.release()
                                                         let content_len = failure_content(
                                                             destination: content,
@@ -313,34 +264,34 @@ pub fn load_latest_text(control: u32, url: u32, content: u32) -> u32
                                                             return handled
                                                         }
                                                         handled = handled + 1
-                                                    }
-                                                    SelectOutcome::RightFailure(_) => {
+                                                    },
+                                                    SelectOutcome::RightFailure(_,) => {
                                                         response.release()
                                                         notifications.cancel(subscription)
                                                         return handled
-                                                    }
+                                                    },
                                                     SelectOutcome::LeftCancelled => {
                                                         response.release()
                                                         notifications.cancel(subscription)
                                                         return handled
-                                                    }
+                                                    },
                                                     SelectOutcome::RightCancelled => {
                                                         response.release()
                                                         notifications.cancel(subscription)
                                                         return handled
-                                                    }
+                                                    },
                                                 }
-                                            }
-                                            TaskOutcome::Failure(_) => {
+                                            },
+                                            TaskOutcome::Failure(_,) => {
                                                 response.release()
                                                 notifications.cancel(subscription)
                                                 return handled
-                                            }
+                                            },
                                             TaskOutcome::Cancelled => {
                                                 response.release()
                                                 notifications.cancel(subscription)
                                                 return handled
-                                            }
+                                            },
                                         }
 
                                         if !command_ready {
@@ -355,15 +306,15 @@ pub fn load_latest_text(control: u32, url: u32, content: u32) -> u32
                                                 command_ready = true
                                             }
                                         }
-                                    }
-                                    SelectOutcome::Right(notification_winner) => {
+                                    },
+                                    SelectOutcome::Right(notification_winner,) => {
                                         cancellation.cancel_pending(notification_winner.left)
                                         let next = arm_notification(subscription: subscription)
                                         subscription = next.0
                                         notification = next.1
                                         command_ready = true
-                                    }
-                                    SelectOutcome::LeftFailure(_) => {
+                                    },
+                                    SelectOutcome::LeftFailure(_,) => {
                                         let content_len = failure_content(
                                             destination: content,
                                             value: "Resource request failed",
@@ -393,41 +344,41 @@ pub fn load_latest_text(control: u32, url: u32, content: u32) -> u32
                                             notification = newest.1
                                             command_ready = true
                                         }
-                                    }
-                                    SelectOutcome::RightFailure(_) => {
+                                    },
+                                    SelectOutcome::RightFailure(_,) => {
                                         notifications.cancel(subscription)
                                         return handled
-                                    }
+                                    },
                                     SelectOutcome::LeftCancelled => {
                                         notifications.cancel(subscription)
                                         return handled
-                                    }
+                                    },
                                     SelectOutcome::RightCancelled => {
                                         notifications.cancel(subscription)
                                         return handled
-                                    }
+                                    },
                                 }
-                            }
-                            TaskOutcome::Failure(_) => {
+                            },
+                            TaskOutcome::Failure(_,) => {
                                 notifications.cancel(subscription)
                                 return handled
-                            }
+                            },
                             TaskOutcome::Cancelled => {
                                 notifications.cancel(subscription)
                                 return handled
-                            }
+                            },
                         }
                     }
                 }
-            }
-            TaskOutcome::Failure(_) => {
+            },
+            TaskOutcome::Failure(_,) => {
                 notifications.cancel(subscription)
                 return handled
-            }
+            },
             TaskOutcome::Cancelled => {
                 notifications.cancel(subscription)
                 return handled
-            }
+            },
         }
     }
     handled
@@ -437,14 +388,24 @@ pub fn load_latest_text(control: u32, url: u32, content: u32) -> u32
 fn text_load_action_and_task_matching_laws() {
     assert(cond: TextLoadAction::Idle.component_action_id() == 0)
     assert(cond: TextLoadAction::Select.component_action_id() == 1)
-    assert(cond: TextLoadAction::TextLoaded.component_action_id() == 2)
-    assert(cond: TextLoadAction::TextFailed.component_action_id() == 3)
+    assert(
+        cond: TextLoadAction::TextLoaded.component_action_id() == 2,
+    )
+    assert(
+        cond: TextLoadAction::TextFailed.component_action_id() == 3,
+    )
 
     let ok = TextLoadTask::completed(7, 200, 512)
     assert(cond: ok.is_http_success())
-    assert(cond: ok.matches_request(connected: true, active_request: 7))
-    assert(cond: !ok.matches_request(connected: true, active_request: 8))
-    assert(cond: !ok.matches_request(connected: false, active_request: 7))
+    assert(
+        cond: ok.matches_request(connected: true, active_request: 7),
+    )
+    assert(
+        cond: !ok.matches_request(connected: true, active_request: 8),
+    )
+    assert(
+        cond: !ok.matches_request(connected: false, active_request: 7),
+    )
 
     let missing = TextLoadTask::completed(7, 404, 19)
     assert(cond: !missing.is_http_success())
