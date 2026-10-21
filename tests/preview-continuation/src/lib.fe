@@ -1,0 +1,486 @@
+use core::default::Default
+use core::marker::Copy
+use std::webgpu::{
+    FragmentSurface as Display,
+    GpuProgram as PassGraph,
+    ContinuousFrames,
+    StandardSurfaceRecovery,
+    SurfaceQuality,
+    SurfaceRecovery,
+    SurfaceScheduling,
+    SurfaceTransition,
+    WebGpuBackend,
+}
+use std::web::view::{
+    ApplyParamBindings,
+    Extent,
+    Param,
+    ParamBindingsProvider,
+    Surface,
+    SurfaceEvent,
+    SurfaceState,
+}
+use renderer::cache::{PreviewCache, ReferenceControl, ViewCache}
+use renderer::orbit::{
+    Complex,
+    INVALID_REFERENCE,
+    OrbitProgress,
+    PackedReference,
+    PrefixStep,
+    advance_progress_step,
+    empty_progress,
+    prepare_reference_step,
+    progress_color,
+}
+use renderer::partition::RefinementSchedule
+use renderer::policy::{
+    MandelbrotViewState,
+    MAX_ITER_CAP,
+    PreviewKey,
+    SharpBacking,
+    ZOOM_MIN,
+    initial_view,
+}
+
+extern {
+    const fn __bitcast<From, To>(_: From) -> To
+}
+
+fn pack_f32_quad(
+    _ rx0: f32,
+    _ rx1: f32,
+    _ rx2: f32,
+    _ rx3: f32,
+    _ iy0: f32,
+    _ iy1: f32,
+    _ iy2: f32,
+    _ iy3: f32,
+) -> PackedReference {
+    PackedReference::from_words(
+        __bitcast(rx0),
+        __bitcast(rx1),
+        __bitcast(rx2),
+        __bitcast(rx3),
+        __bitcast(iy0),
+        __bitcast(iy1),
+        __bitcast(iy2),
+        __bitcast(iy3),
+    )
+}
+
+fn table_sample(_ table_id: u32, _ index: u32) -> PackedReference {
+    if table_id == 0 {
+        match index {
+            0 => pack_f32_quad(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+            1 => pack_f32_quad(
+                -0.7436439, 0.000000014901161, -0.00000000000000355, 0.00000000000000000001,
+                0.13182591, -0.000000007450581, 0.00000000000000177, -0.00000000000000000002,
+            ),
+            2 => pack_f32_quad(
+                -0.20801577, -0.000000011175871, 0.00000000000000222, -0.00000000000000000001,
+                -0.06423426, 0.00000000372529, -0.00000000000000088, 0.00000000000000000001,
+            ),
+            3 => pack_f32_quad(
+                -0.7044994, 0.000000022351742, -0.00000000000000444, 0.00000000000000000003,
+                0.15854928, -0.000000005587935, 0.00000000000000111, -0.00000000000000000001,
+            ),
+            4 => pack_f32_quad(
+                -0.2724621, 0.000000009313226, -0.00000000000000155, 0.0,
+                -0.09159011, 0.000000001862645, -0.00000000000000044, 0.0,
+            ),
+            5 => pack_f32_quad(
+                -0.6778012, -0.000000018626451, 0.00000000000000222, 0.0,
+                0.1817254, 0.000000007450581, -0.00000000000000088, 0.0,
+            ),
+            _ => pack_f32_quad(
+                -0.3172408, 0.000000011175871, -0.00000000000000111, 0.0,
+                -0.1144123, -0.00000000372529, 0.00000000000000044, 0.0,
+            ),
+        }
+    } else if table_id == 2 {
+        match index {
+            0 => pack_f32_quad(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+            1 => pack_f32_quad(0.25, 0.0, 0.0, 0.0, 0.125, 0.0, 0.0, 0.0),
+            _ => pack_f32_quad(
+                -0.5001, 0.000000014901161, -0.00000000000000088, 0.0,
+                -0.0002, -0.000000007450581, 0.00000000000000044, 0.0,
+            ),
+        }
+    } else if table_id == 3 {
+        match index {
+            0 => pack_f32_quad(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+            _ => pack_f32_quad(2.000001, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+        }
+    } else {
+        match index {
+            0 => pack_f32_quad(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+            _ => PackedReference::from_words(INVALID_REFERENCE, 0, 0, 0, 0, 0, 0, 0),
+        }
+    }
+}
+
+fn advance_table_steps(
+    _ table_id: u32,
+    _ valid_samples: u32,
+    _ dc: Complex<f32>,
+    _ max_iter: u32,
+    _ batch: u32,
+    _ prefix_only: bool,
+    _ saved: OrbitProgress,
+) -> OrbitProgress {
+    let mut current: OrbitProgress = saved
+    let mut steps: u32 = 0
+    while steps < batch {
+        let prepared: PrefixStep = prepare_reference_step(
+            current,
+            max_iter,
+            valid_samples,
+            prefix_only,
+        )
+        if !prepared.active {
+            steps = batch
+        } else {
+            let state: OrbitProgress = prepared.progress
+            let ref_i: u32 = state.reference_index()
+            current = advance_progress_step(
+                state,
+                dc,
+                table_sample(table_id, ref_i),
+                table_sample(table_id, ref_i + 1),
+            )
+            steps = steps + 1
+        }
+    }
+    current
+}
+
+fn progress_bits_eq(_ a: OrbitProgress, _ b: OrbitProgress) -> bool {
+    __bitcast<f32, u32>(a.dz_re) == __bitcast<f32, u32>(b.dz_re)
+        && __bitcast<f32, u32>(a.dz_im) == __bitcast<f32, u32>(b.dz_im)
+        && __bitcast<f32, u32>(a.z_re) == __bitcast<f32, u32>(b.z_re)
+        && __bitcast<f32, u32>(a.z_im) == __bitcast<f32, u32>(b.z_im)
+        && a.reference_i == b.reference_i
+        && a.iteration == b.iteration
+        && a.epoch == b.epoch
+        && __bitcast<f32, u32>(a.magnitude) == __bitcast<f32, u32>(b.magnitude)
+}
+
+pub struct ProbeParams {
+    pub case_mask: Param,
+    pub chunked_z_re: Param,
+    pub chunked_z_im: Param,
+    pub paused_ref_i: Param,
+    pub handoff_step: Param,
+    pub deep_final_step: Param,
+    pub deep_final_res: Param,
+    pub deep_batches: Param,
+}
+
+pub struct ProbeState {
+    pub case_mask: f32,
+    pub chunked_z_re: f32,
+    pub chunked_z_im: f32,
+    pub paused_ref_i: f32,
+    pub handoff_step: f32,
+    pub deep_final_step: f32,
+    pub deep_final_res: f32,
+    pub deep_batches: f32,
+}
+
+impl Copy for ProbeState {}
+
+impl SurfaceState for ProbeState {
+    type Params = ProbeParams
+}
+
+derive ApplyParamBindings for ProbeState using ParamBindingsProvider<ProbeParams>
+
+pub struct ProbeStateEnvelope {
+    pub state: ProbeState,
+}
+
+impl Copy for ProbeStateEnvelope {}
+
+pub const fn probe_params() -> ProbeParams {
+    ProbeParams {
+        case_mask: Param::fixed(0.0),
+        chunked_z_re: Param::fixed(0.0),
+        chunked_z_im: Param::fixed(0.0),
+        paused_ref_i: Param::fixed(0.0),
+        handoff_step: Param::fixed(0.0),
+        deep_final_step: Param::fixed(0.0),
+        deep_final_res: Param::fixed(0.0),
+        deep_batches: Param::fixed(0.0),
+    }
+}
+
+pub fn run_probe_suite() -> ProbeStateEnvelope {
+    let dc1: Complex<f32> = Complex { re: 0.00125, im: -0.000875 }
+    let s0: OrbitProgress = empty_progress(11)
+
+    // Case 1 (bit 0): Ordinary 6-step trajectory across 3 prefix chunks vs one-shot
+    let oneshot_6: OrbitProgress = advance_table_steps(0, 7, dc1, 6, 6, false, s0)
+    let c1_a: OrbitProgress = advance_table_steps(0, 3, dc1, 6, 2, true, s0)
+    let c1_b: OrbitProgress = advance_table_steps(0, 5, dc1, 6, 2, true, c1_a)
+    let c1_c: OrbitProgress = advance_table_steps(0, 7, dc1, 6, 2, false, c1_b)
+    let ok1: u32 = if progress_bits_eq(oneshot_6, c1_c)
+        && progress_color(oneshot_6) == progress_color(c1_c)
+        && !c1_b.has_outcome()
+        && !c1_b.is_terminal(6)
+        && c1_c.is_terminal(6) {
+        1
+    } else {
+        0
+    }
+
+    // Case 2 (bit 1): Prefix exhaustion pauses without false rebase, then resumes identically to one-shot
+    // With valid_samples = 3 and batch = 6, prefix_only = true stops at iteration = 2, reference_i = 2 (not 0!).
+    let exhausted_a: OrbitProgress = advance_table_steps(0, 3, dc1, 6, 6, true, s0)
+    let paused_ref_i: u32 = exhausted_a.reference_index()
+    // Calling again with same valid_samples = 3 is a pure no-op
+    let exhausted_again: OrbitProgress = advance_table_steps(0, 3, dc1, 6, 6, true, exhausted_a)
+    // Extending valid_samples to 5 advances 2 more steps and pauses at iteration = 4, reference_i = 4
+    let exhausted_b: OrbitProgress = advance_table_steps(0, 5, dc1, 6, 6, true, exhausted_again)
+    // Completing reference (valid_samples = 7, prefix_only = false) finishes to iteration = 6
+    let resumed_complete: OrbitProgress = advance_table_steps(0, 7, dc1, 6, 6, false, exhausted_b)
+    let ok2: u32 = if paused_ref_i == 2
+        && exhausted_a.iteration == 2
+        && progress_bits_eq(exhausted_a, exhausted_again)
+        && exhausted_b.reference_index() == 4
+        && exhausted_b.iteration == 4
+        && progress_bits_eq(resumed_complete, oneshot_6) {
+        1
+    } else {
+        0
+    }
+
+    // Case 3 (bit 2): Mid-orbit cancellation rebase across prefix chunks matches one-shot
+    let dc3: Complex<f32> = Complex { re: 0.5, im: 0.0 }
+    let s3: OrbitProgress = OrbitProgress::from_continuation(
+        Complex::default(),
+        Complex::default(),
+        1,
+        0,
+        5,
+        4.0,
+    )
+    let oneshot_cancel: OrbitProgress = advance_table_steps(2, 4, dc3, 2, 2, false, s3)
+    let chunk_cancel_1: OrbitProgress = advance_table_steps(2, 4, dc3, 2, 1, true, s3)
+    let chunk_cancel_2: OrbitProgress = advance_table_steps(2, 4, dc3, 2, 1, false, chunk_cancel_1)
+    let ok3: u32 = if chunk_cancel_1.reference_index() == 0
+        && progress_bits_eq(oneshot_cancel, chunk_cancel_2)
+        && chunk_cancel_2.reference_index() == 1 {
+        1
+    } else {
+        0
+    }
+
+    // Case 4 (bit 3): Post-reference-escape rebase when reference is complete (prefix_only = false)
+    let oneshot_rebase: OrbitProgress = advance_table_steps(0, 3, dc1, 6, 6, false, s0)
+    let chunk_rebase_1: OrbitProgress = advance_table_steps(0, 3, dc1, 6, 2, true, s0)
+    // Now reference is complete at valid_samples = 3 (escaped at index 2); next 4 steps rebase and continue
+    let chunk_rebase_2: OrbitProgress = advance_table_steps(0, 3, dc1, 6, 2, false, chunk_rebase_1)
+    let chunk_rebase_3: OrbitProgress = advance_table_steps(0, 3, dc1, 6, 2, false, chunk_rebase_2)
+    let ok4: u32 = if progress_bits_eq(oneshot_rebase, chunk_rebase_3) { 1 } else { 0 }
+
+    // Case 5 (bit 4): Early escape during prefix chunk vs complete
+    let dc_escape: Complex<f32> = Complex { re: 2.25, im: 0.5 }
+    let esc_prefix: OrbitProgress = advance_table_steps(0, 3, dc_escape, 6, 2, true, s0)
+    let esc_resumed: OrbitProgress = advance_table_steps(0, 7, dc_escape, 6, 4, false, esc_prefix)
+    let esc_oneshot: OrbitProgress = advance_table_steps(0, 7, dc_escape, 6, 6, false, s0)
+    let ok5: u32 = if esc_prefix.is_escaped()
+        && esc_prefix.has_outcome()
+        && progress_bits_eq(esc_prefix, esc_resumed)
+        && progress_bits_eq(esc_resumed, esc_oneshot)
+        && progress_color(esc_prefix) == progress_color(esc_oneshot) {
+        1
+    } else {
+        0
+    }
+
+    // Case 6 (bit 5): Glitch on INVALID_REFERENCE and ambiguous escape
+    let dc_ambig: Complex<f32> = Complex { re: 0.0000005, im: 0.0 }
+    let glitch_ambig_1: OrbitProgress = advance_table_steps(3, 4, dc_ambig, 4, 2, true, s0)
+    let glitch_ambig_2: OrbitProgress = advance_table_steps(3, 4, dc_ambig, 4, 2, false, glitch_ambig_1)
+    let glitch_invalid: OrbitProgress = advance_table_steps(4, 4, dc1, 4, 2, true, s0)
+    let ok6: u32 = if glitch_ambig_1.is_glitched()
+        && progress_bits_eq(glitch_ambig_1, glitch_ambig_2)
+        && glitch_invalid.is_glitched()
+        && glitch_invalid.has_outcome() {
+        1
+    } else {
+        0
+    }
+
+    // Case 7 (bit 6): PreviewCache preserves progress across pending -> active handoff, and resets on camera/generation change
+    let mut view: MandelbrotViewState = initial_view()
+    view.clock = 100.0
+    let pending_ctrl: ReferenceControl = ReferenceControl {
+        active: 0,
+        active_valid: 0,
+        pending: 1,
+        index: 320,
+        zx_s: 0,
+        zy_s: 0,
+        ready_at: 0.0,
+    }
+    let mut pcache: PreviewCache = PreviewCache::default()
+    pcache = pcache.sync_with_view(view, pending_ctrl, 1, 2048).commit_step()
+    pcache = pcache.sync_with_view(view, pending_ctrl, 1, 2048).commit_step()
+    let step_before_handoff: u32 = pcache.completed_steps
+    // Pending reference finishes at 1287 and publishes to active bank 1 with the same generation (1)
+    let published_ctrl: ReferenceControl = ReferenceControl::publish(1, 1287, 0, 0, 100.0)
+    pcache = pcache.sync_with_view(view, published_ctrl, 1, 2048)
+    let step_after_handoff: u32 = pcache.completed_steps
+    let key_expected = PreviewKey { camera: view.camera(), reference_generation: 1, reference_bank: 1 }
+    let key_matches: bool = pcache.key() == key_expected
+    // Advancing another batch on the published active reference
+    pcache = pcache.commit_step()
+    let step_three_batches: u32 = pcache.completed_steps
+    // Changing camera resets preview cache
+    let mut moved_view: MandelbrotViewState = view
+    moved_view.center_x_w0 = view.center_x_w0 + 0.001
+    let moved_cache: PreviewCache = pcache.sync_with_view(moved_view, published_ctrl, 1, 2048)
+    // Changing reference generation resets preview cache
+    let new_gen_cache: PreviewCache = pcache.sync_with_view(view, published_ctrl, 2, 2048)
+    // Even a malformed caller reusing a generation cannot carry a checkpoint
+    // across different banks. A genuine pending-to-active publication above
+    // keeps the same bank and must preserve its checkpoint.
+    let other_bank_control: ReferenceControl = ReferenceControl::publish(0, 1287, 0, 0, 100.0)
+    let other_bank_cache: PreviewCache = pcache.sync_with_view(view, other_bank_control, 1, 2048)
+    let ok7: u32 = if other_bank_cache.completed_steps == 0
+        && other_bank_cache.epoch != pcache.epoch
+        && step_before_handoff == 320
+        && step_after_handoff == 320
+        && pcache.reference_bank == 1
+        && pcache.prefix_only == 0
+        && key_matches
+        && step_three_batches == 576
+        && moved_cache.completed_steps == 0
+        && moved_cache.completed == 0
+        && new_gen_cache.completed_steps == 0
+        && new_gen_cache.completed == 0 {
+        1
+    } else {
+        0
+    }
+
+    // Case 8 (bit 7): Deep 8192-iteration / 2048-resolution schedule and PreviewCache advance to completion without stopping early
+    let mut deep_view: MandelbrotViewState = initial_view()
+    deep_view.zoom = ZOOM_MIN
+    deep_view.res = 2048.0
+    deep_view.clock = 500.0
+    let zoom_min_sched: RefinementSchedule = RefinementSchedule::for_view(deep_view.zoom, deep_view.res)
+    let deep_sched: RefinementSchedule = RefinementSchedule {
+        limit: MAX_ITER_CAP,
+        rounds: (MAX_ITER_CAP + 2047) / 2048,
+        sx: zoom_min_sched.sx,
+        sy: zoom_min_sched.sy,
+        phases: zoom_min_sched.phases,
+        aa_stride: zoom_min_sched.aa_stride,
+    }
+    let deep_ctrl: ReferenceControl = ReferenceControl::publish(1, MAX_ITER_CAP, 0, 0, 100.0)
+    let mut deep_pcache: PreviewCache = PreviewCache::default()
+    let mut preview_batches: u32 = 0
+    while deep_pcache.completed == 0 && preview_batches < 64 {
+        deep_pcache = deep_pcache
+            .sync_with_view(deep_view, deep_ctrl, 1, deep_sched.limit)
+            .commit_step()
+        preview_batches = preview_batches + 1
+    }
+    let mut vcache: ViewCache = ViewCache {
+        x0: 0.0,
+        x1: 0.0,
+        x2: 0.0,
+        x3: 0.0,
+        y0: 0.0,
+        y1: 0.0,
+        y2: 0.0,
+        y3: 0.0,
+        zoom: deep_view.zoom,
+        res: deep_view.res,
+        cursor: 0,
+        aa: 1.0,
+        budget: deep_sched.limit,
+        radius: 0.0,
+        preview_dirty: 0,
+        blur_dirty: 0,
+        epoch: 1,
+        completed: 0,
+    }
+    let mut refine_batches: u32 = 0
+    let total_steps: u32 = deep_sched.total_steps()
+    while vcache.completed == 0 && refine_batches < 1024 {
+        vcache = vcache.advance_cursor(total_steps)
+        refine_batches = refine_batches + 1
+    }
+    let ok8: u32 = if zoom_min_sched.limit == 6016
+        && zoom_min_sched.total_steps() == 448
+        && deep_sched.limit == MAX_ITER_CAP
+        && deep_sched.refine_steps() == 512
+        && deep_sched.total_steps() == 576
+        && deep_pcache.completed == 1
+        && deep_pcache.completed_steps == MAX_ITER_CAP
+        && preview_batches == 32
+        && vcache.completed == 1
+        && vcache.cursor == 576
+        && refine_batches == 576 {
+        1
+    } else {
+        0
+    }
+
+    let mask: u32 = ok1
+        | (ok2 << 1)
+        | (ok3 << 2)
+        | (ok4 << 3)
+        | (ok5 << 4)
+        | (ok6 << 5)
+        | (ok7 << 6)
+        | (ok8 << 7)
+
+    ProbeStateEnvelope {
+        state: ProbeState {
+            case_mask: __bitcast<u32, f32>(mask),
+            chunked_z_re: c1_c.z_re,
+            chunked_z_im: c1_c.z_im,
+            paused_ref_i: __bitcast<u32, f32>(paused_ref_i),
+            handoff_step: __bitcast<u32, f32>(step_after_handoff),
+            deep_final_step: __bitcast<u32, f32>(deep_pcache.completed_steps),
+            deep_final_res: __bitcast<u32, f32>(vcache.cursor),
+            deep_batches: __bitcast<u32, f32>(refine_batches),
+        },
+    }
+}
+
+actor PreviewContinuationProbe uses (
+    PassGraph<WebGpuBackend>,
+    SurfaceQuality<SharpBacking>,
+    SurfaceRecovery<StandardSurfaceRecovery>,
+) {
+    state: ProbeState,
+
+    fn initial() -> ProbeStateEnvelope uses (core::actor::InitialState) {
+        run_probe_suite()
+    }
+
+    const fn view() -> Surface<ProbeParams> {
+        Surface {
+            extent: Extent::square(64),
+            params: probe_params(),
+        }
+    }
+
+    fn display_probe(self, px: i32, py: i32) -> i32 uses (Display) {
+        let _ = px
+        let _ = py
+        __bitcast<f32, i32>(self.state.case_mask)
+    }
+
+    fn navigate(self, event: own SurfaceEvent) -> ProbeStateEnvelope
+        uses (SurfaceTransition, SurfaceScheduling<ContinuousFrames>)
+    {
+        let _ = event
+        ProbeStateEnvelope { state: self.state }
+    }
+}

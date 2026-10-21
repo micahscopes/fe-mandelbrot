@@ -83,6 +83,13 @@ The current reference uses 91 fractional bits. Persistent numerical and image
 buffers are reused; the finite history is not an unlimited map of visited areas.
 This explorer contains no Mandelbrot proving or protocol implementation.
 
+The coarse preview advances against the valid prefix while a reference orbit is
+still being built. Its persistent 256×256 continuation buffer pauses at the end
+of that prefix and resumes as samples arrive. Publishing the same orbit preserves
+its checkpoints; changing camera, orbit generation or bank invalidates them.
+Unfinished samples retain a reusable cached image rather than being classified
+as interior. Final native refinement remains separate from this preview.
+
 Color blending uses the algebra library's vector interpolation program under
 `DirectExecution`. The same program can run under `CountedExecution` to inspect
 its operations. Ordinary arithmetic operators keep their pure meaning; execution
@@ -120,6 +127,14 @@ The test creates and closes its own page, checks the zoom slider and Fe readout,
 verifies the unchanged numerical refinement digest, and opens the Fe source
 viewer at desktop and phone sizes. `PLAYWRIGHT_MODULE` and `CDP_URL` can override
 the module path and browser endpoint.
+
+`node tests/refinement-preview.mjs` checks distinct resident camera positions,
+early preview output, reference publication and drag recovery. Readback adds
+measurement overhead, so its timings are observations rather than GPU benchmarks.
+The binary32 continuation fixture is documented in
+[`tests/preview-continuation`](tests/preview-continuation/README.md).
+`node tests/pipeline-preparation.mjs` checks bounded, memoized pipeline preparation
+and waits for in-flight preparation to finish before reporting failure.
 
 Run just the color demo check with `node tests/colors.mjs`. Its ingot lives in
 `app/color_demo` and depends on `lib/perceptual_color`, the same library used by

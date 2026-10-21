@@ -2031,6 +2031,28 @@ export function realizePassPipeline(device, record) {
   return pending;
 }
 
+/** Compile independent active pipelines concurrently, with bounded host work.
+ * Pass execution remains ordered by the Fe graph. On failure, stop starting
+ * new work and join all in-flight compilations before releasing the graph. */
+export async function realizePassPipelines(device, records) {
+  let cursor = 0;
+  let failed = false;
+  let failure;
+  const worker = async () => {
+    while (!failed && cursor < records.length) {
+      const record = records[cursor++];
+      try {
+        await realizePassPipeline(device, record);
+      } catch (error) {
+        if (!failed) failure = error;
+        failed = true;
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(4, records.length) }, worker));
+  if (failed) throw failure;
+}
+
 /** The initial uniform vector from the declared surface. Protocol v9 consumes
  * the explicit Fe value source; earlier versions retain their isolated
  * compatibility interpretation. */
@@ -3458,7 +3480,7 @@ export class FeSurfaceElement extends HTMLElement {
         this._passActivationKernels,
         uniforms,
       );
-      for (const record of activePassRecords) await realizePassPipeline(device, record);
+      await realizePassPipelines(device, activePassRecords);
       this._runWasmArenaEpoch(() => this._bufferPublications?.write(gpu, uniforms));
       if (activePassRecords.some(record => record.pass.layout.mode !== "compute")) {
         ensureRasterAttachments(gpu, this._backingWidth, this._backingHeight);

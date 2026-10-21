@@ -47,8 +47,6 @@ struct reference_element {
 }
 
 struct Params {
-    p27_: f32,
-    p28_: f32,
     p29_: f32,
     p30_: f32,
     p31_: f32,
@@ -62,6 +60,8 @@ struct Params {
     p39_: f32,
     p40_: f32,
     p41_: f32,
+    p42_: f32,
+    p43_: f32,
 }
 
 @group(0) @binding(0)

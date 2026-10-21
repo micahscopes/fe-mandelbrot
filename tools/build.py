@@ -4,20 +4,21 @@ import argparse,hashlib,json,os,shutil,subprocess
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 def source_hash():
-    files=[ROOT/'tools/source_catalog.py',ROOT/'fe.toml',ROOT/'toolchain.lock.json',ROOT/'web/source.html',*sorted((ROOT/'toolchain/patches').glob('*.patch'))]
+    files=[ROOT/'tools/build.py',ROOT/'tools/bootstrap.py',ROOT/'tools/source_catalog.py',ROOT/'fe.toml',ROOT/'toolchain.lock.json',ROOT/'web/source.html',*sorted((ROOT/'toolchain/patches').glob('*.patch'))]
     files+=sorted(p for base in ['app','lib'] for p in (ROOT/base).rglob('*') if p.is_file() and p.suffix in ['.fe','.toml'])
     digest=hashlib.sha256()
     for p in files:digest.update(p.relative_to(ROOT).as_posix().encode()+b'\0'+p.read_bytes()+b'\0')
     return digest.hexdigest()
 def artifact_hashes(directory):return{p.relative_to(directory).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(directory.rglob('*')) if p.is_file() and p.name!='build-info.json'}
 def patch_runtime(directory):
-    # Mirror the generic source patch when using a compiler built before it.
-    # Fresh bootstrap compilers already emit the corrected adapter unchanged.
-    patch=ROOT/'toolchain/patches/wasm-rgba.patch'
-    command=['patch','--batch','-p5','-d',str(directory),'-i',str(patch)]
-    reverse=subprocess.run([*command,'--force','--reverse','--dry-run'],capture_output=True)
-    if reverse.returncode:
-        subprocess.run([*command,'--forward'],check=True)
+    # Mirror generic runtime-only source patches for an older compatible
+    # compiler. Preserve the compiler-injected host-runtime prelude.
+    for name in ['wasm-rgba.patch', 'active-pipeline-preparation.patch']:
+        patch=ROOT/'toolchain/patches'/name
+        command=['patch','--batch','--no-backup-if-mismatch','-p5','-d',str(directory),'-i',str(patch)]
+        reverse=subprocess.run([*command,'--force','--reverse','--dry-run'],capture_output=True)
+        if reverse.returncode:
+            subprocess.run([*command,'--forward'],check=True)
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--fe',default=os.environ.get('FE_BINARY'));parser.add_argument('--out',required=True);parser.add_argument('--record',action='store_true');args=parser.parse_args()
     if not args.fe:raise SystemExit('Run tools/bootstrap.py, then pass --fe /path/to/fe')

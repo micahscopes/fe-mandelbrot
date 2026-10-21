@@ -107,6 +107,17 @@ pub struct RefinementKey { pub camera: Camera, pub antialias: f32 }
 
 impl Copy for RefinementKey {}
 
+/// Identity of a progressive coarse preview pass: the sampling camera plus
+/// the reference orbit generation against which deltas are measured.
+#[derive(Eq)]
+pub struct PreviewKey {
+    pub camera: Camera,
+    pub reference_generation: u32,
+    pub reference_bank: u32,
+}
+
+impl Copy for PreviewKey {}
+
 pub struct MandelbrotParams {
     pub center_x_w0: Param,
     pub center_x_w1: Param,

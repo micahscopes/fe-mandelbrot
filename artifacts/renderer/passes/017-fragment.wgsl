@@ -133,8 +133,6 @@ struct progress_pixels_element {
 }
 
 struct Input {
-    p16_: f32,
-    p17_: f32,
     p18_: f32,
     p19_: f32,
     p20_: f32,
@@ -148,6 +146,8 @@ struct Input {
     p28_: f32,
     p29_: f32,
     p30_: f32,
+    p31_: f32,
+    p32_: f32,
 }
 
 @group(0) @binding(0)
@@ -437,21 +437,21 @@ fn fs_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     let _e8 = u32(pos.x);
     let _e10 = u32(pos.y);
-    let _e12 = input.p16_;
-    let _e14 = input.p17_;
-    let _e16 = input.p18_;
-    let _e18 = input.p19_;
-    let _e20 = input.p20_;
-    let _e22 = input.p21_;
-    let _e24 = input.p22_;
-    let _e26 = input.p23_;
-    let _e28 = input.p24_;
-    let _e30 = input.p25_;
-    let _e32 = input.p26_;
-    let _e34 = input.p27_;
-    let _e36 = input.p28_;
-    let _e38 = input.p29_;
-    let _e40 = input.p30_;
+    let _e12 = input.p18_;
+    let _e14 = input.p19_;
+    let _e16 = input.p20_;
+    let _e18 = input.p21_;
+    let _e20 = input.p22_;
+    let _e22 = input.p23_;
+    let _e24 = input.p24_;
+    let _e26 = input.p25_;
+    let _e28 = input.p26_;
+    let _e30 = input.p27_;
+    let _e32 = input.p28_;
+    let _e34 = input.p29_;
+    let _e36 = input.p30_;
+    let _e38 = input.p31_;
+    let _e40 = input.p32_;
     let _e49 = index(FeLocal_fe_shader_private_layout_6_((_e8 & 2047u), (_e10 & 2047u)), 11u);
     let _e54 = cache[i32(0u)].epoch;
     let _e59 = reference[i32(0u)].active_;
