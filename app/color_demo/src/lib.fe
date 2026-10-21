@@ -21,21 +21,11 @@ use std::web::view::{
     SurfaceState,
 }
 use fmath::from_i32
-use perceptual_color::{Oklch, oklch, blend, display_rgba}
+use perceptual_color::{Oklch, blend, display_rgba}
 
-pub struct ColorParams {
-    pub hue: Param,
-    pub chroma: Param,
-    pub lightness: Param,
-    pub res: Param,
-}
+pub struct ColorParams { pub hue: Param, pub chroma: Param, pub lightness: Param, pub res: Param }
 
-pub struct ColorState {
-    pub hue: f32,
-    pub chroma: f32,
-    pub lightness: f32,
-    pub res: f32,
-}
+pub struct ColorState { pub hue: f32, pub chroma: f32, pub lightness: f32, pub res: f32 }
 
 impl Copy for ColorState {}
 
@@ -45,9 +35,7 @@ impl SurfaceState for ColorState {
 
 derive ApplyParamBindings for ColorState using ParamBindingsProvider<ColorParams>
 
-pub struct ColorStateEnvelope {
-    pub state: ColorState,
-}
+pub struct ColorStateEnvelope { pub state: ColorState }
 
 impl Copy for ColorStateEnvelope {}
 
@@ -86,26 +74,24 @@ actor ColorDemo uses (
         let s: ColorState = self.state
         let x: f32 = (from_i32(px) + 0.5) / s.res
         let y: f32 = (from_i32(py) + 0.5) / s.res
+        let base: Oklch = Oklch {
+            l: s.lightness,
+            chroma: s.chroma,
+            hue: s.hue,
+        }
         if y < 0.3333333 {
-            let sweep: Oklch = Oklch {
-                l: s.lightness,
-                chroma: s.chroma,
-                hue: s.hue + x * 360.0,
-            }
+            let mut sweep: Oklch = base
+            sweep.hue = base.hue + x * 360.0
             display_rgba(sweep.to_color())
+        } else if y < 0.6666667 {
+            let mut right: Oklch = base
+            right.hue = base.hue + 140.0
+            display_rgba(blend(base.to_color(), right.to_color(), x))
         } else {
-            if y < 0.6666667 {
-                let left = oklch(s.lightness, s.chroma, s.hue)
-                let right = oklch(s.lightness, s.chroma, s.hue + 140.0)
-                display_rgba(blend(left, right, x))
-            } else {
-                let field: Oklch = Oklch {
-                    l: 0.15 + 0.75 * x,
-                    chroma: s.chroma * (y - 0.6666667) * 3.0,
-                    hue: s.hue,
-                }
-                display_rgba(field.to_color())
-            }
+            let mut field: Oklch = base
+            field.l = 0.15 + 0.75 * x
+            field.chroma = base.chroma * (y - 0.6666667) * 3.0
+            display_rgba(field.to_color())
         }
     }
 }

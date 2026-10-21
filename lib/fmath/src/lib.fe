@@ -46,6 +46,7 @@
 use core::marker::Copy
 use core::num::{Abs, FloatRounding}
 use core::ops::MinMax
+use algebra::Vec3 as AlgebraVec3
 
 extern {
     fn __f32_from_i32(_: i32) -> f32
@@ -138,47 +139,36 @@ pub fn smoothstep(_ edge0: f32, _ edge1: f32, _ x: f32) -> f32 {
 // ---------------------------------------------------------------------------
 
 /// Small, ordinary Fe vector used by camera, ray, distance-field, and lighting
-/// code. Keeping it here lets examples state their geometry rather than repeat
-/// a private vector substrate; backend scalarization still decides the final
-/// representation.
-pub struct Vec3 {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
-}
-
-impl Copy for Vec3 {}
+/// code. Re-exported from `algebra::Vec3<f32>` so legacy helpers and operator
+/// callers share one canonical representation and evaluation order.
+pub type Vec3 = AlgebraVec3<f32>
 
 pub fn vec3(_ x: f32, _ y: f32, _ z: f32) -> Vec3 {
-    Vec3 { x: x, y: y, z: z }
+    AlgebraVec3 { x: x, y: y, z: z }
 }
 
 pub fn add3(_ a: Vec3, _ b: Vec3) -> Vec3 {
-    vec3(a.x + b.x, a.y + b.y, a.z + b.z)
+    a + b
 }
 
 pub fn sub3(_ a: Vec3, _ b: Vec3) -> Vec3 {
-    vec3(a.x - b.x, a.y - b.y, a.z - b.z)
+    a - b
 }
 
 pub fn scale3(_ value: Vec3, _ scale: f32) -> Vec3 {
-    vec3(value.x * scale, value.y * scale, value.z * scale)
+    value * scale
 }
 
 pub fn dot3(_ a: Vec3, _ b: Vec3) -> f32 {
-    a.x * b.x + a.y * b.y + a.z * b.z
+    a.dot(b)
 }
 
 pub fn cross3(_ a: Vec3, _ b: Vec3) -> Vec3 {
-    vec3(
-        a.y * b.z - a.z * b.y,
-        a.z * b.x - a.x * b.z,
-        a.x * b.y - a.y * b.x,
-    )
+    a.cross(b)
 }
 
 pub fn length3(_ value: Vec3) -> f32 {
-    sqrt(dot3(value, value))
+    value.norm()
 }
 
 pub fn normalize3(_ value: Vec3) -> Vec3 {
@@ -186,21 +176,13 @@ pub fn normalize3(_ value: Vec3) -> Vec3 {
 }
 
 pub fn mix3(_ a: Vec3, _ b: Vec3, _ amount: f32) -> Vec3 {
-    vec3(
-        mix(a.x, b.x, amount),
-        mix(a.y, b.y, amount),
-        mix(a.z, b.z, amount),
-    )
+    a + (b - a) * amount
 }
 
 /// A finite parameter interval along a normalized world-space ray. `active`
 /// is false when the ray misses the clipping domain or the domain lies wholly
 /// outside the caller's non-negative distance budget.
-pub struct RayInterval {
-    pub start: f32,
-    pub end: f32,
-    pub active: bool,
-}
+pub struct RayInterval { pub start: f32, pub end: f32, pub active: bool }
 
 impl Copy for RayInterval {}
 
@@ -219,8 +201,7 @@ pub fn unit_ray_sphere_interval(
 ) -> RayInterval {
     let offset: Vec3 = sub3(origin, center)
     let half_b: f32 = dot3(offset, unit_direction)
-    let discriminant: f32 =
-        half_b * half_b - (dot3(offset, offset) - radius * radius)
+    let discriminant: f32 = half_b * half_b - (dot3(offset, offset) - radius * radius)
     // Evaluate one uniform arithmetic path across a GPU wave. For a miss the
     // absolute value keeps sqrt finite and `active` rejects the inert bounds;
     // no lane needs a discriminant branch before the expensive march.
@@ -232,11 +213,7 @@ pub fn unit_ray_sphere_interval(
     // the full IEEE min/max NaN policy into every fragment.
     let start: f32 = 0.5 * (near + abs(near))
     let end: f32 = 0.5 * (far + max_distance - abs(far - max_distance))
-    RayInterval {
-        start: start,
-        end: end,
-        active: discriminant >= 0.0 && end > start,
-    }
+    RayInterval { start: start, end: end, active: discriminant >= 0.0 && end > start }
 }
 
 /// The same finite-sphere interval specialized for a camera whose origin is
@@ -251,23 +228,15 @@ pub fn targeted_camera_sphere_interval(
     _ radius: f32,
 ) -> RayInterval {
     let half_b: f32 = -camera_distance * dot3(unit_forward, unit_direction)
-    let discriminant: f32 =
-        half_b * half_b - (camera_distance * camera_distance - radius * radius)
+    let discriminant: f32 = half_b * half_b - (camera_distance * camera_distance - radius * radius)
     let root: f32 = sqrt(abs(discriminant))
     let near: f32 = -half_b - root
     let far: f32 = -half_b + root
-    RayInterval {
-        start: 0.5 * (near + abs(near)),
-        end: far,
-        active: discriminant >= 0.0,
-    }
+    RayInterval { start: 0.5 * (near + abs(near)), end: far, active: discriminant >= 0.0 }
 }
 
 /// A world-space camera ray derived entirely in Fe.
-pub struct OrbitRay {
-    pub origin: Vec3,
-    pub direction: Vec3,
-}
+pub struct OrbitRay { pub origin: Vec3, pub direction: Vec3 }
 
 impl Copy for OrbitRay {}
 
@@ -275,8 +244,13 @@ impl Copy for OrbitRay {}
 /// Interaction policy remains outside this pure construction; any Fe actor can
 /// feed it yaw/pitch/distance state from its preferred event vocabulary.
 pub fn orbit_ray(
-    _ yaw: f32, _ pitch: f32, _ distance: f32,
-    _ u: f32, _ v: f32, _ target_y: f32, _ field_of_view: f32,
+    _ yaw: f32,
+    _ pitch: f32,
+    _ distance: f32,
+    _ u: f32,
+    _ v: f32,
+    _ target_y: f32,
+    _ field_of_view: f32,
 ) -> OrbitRay {
     let cos_pitch: f32 = cos(pitch)
     let origin: Vec3 = vec3(
@@ -288,10 +262,15 @@ pub fn orbit_ray(
     let forward: Vec3 = normalize3(sub3(target, origin))
     let right: Vec3 = normalize3(cross3(forward, vec3(0.0, 1.0, 0.0)))
     let up: Vec3 = cross3(right, forward)
-    let direction: Vec3 = normalize3(add3(
-        forward,
-        add3(scale3(right, u * field_of_view), scale3(up, v * field_of_view)),
-    ))
+    let direction: Vec3 = normalize3(
+        add3(
+            forward,
+            add3(
+                scale3(right, u * field_of_view),
+                scale3(up, v * field_of_view),
+            ),
+        ),
+    )
     OrbitRay { origin: origin, direction: direction }
 }
 
@@ -308,16 +287,10 @@ pub fn orbit_ray(
 /// surfaces and deep fractals gain spatially stratified refinement without
 /// multiplying their dominant orbit/ray-march loop. The construction is
 /// branch-free and contains no renderer-specific quality or LoD policy.
-pub struct PixelSample {
-    pub x: f32,
-    pub y: f32,
-}
+pub struct PixelSample { pub x: f32, pub y: f32 }
 
 /// The normalized `[-1, 1]` plane coordinate for a pixel sample, with y up.
-pub struct PlaneSample {
-    pub u: f32,
-    pub v: f32,
-}
+pub struct PlaneSample { pub u: f32, pub v: f32 }
 
 impl PixelSample {
     /// One ordered, stratified sample per pixel. Even coordinates use 3/8 and
@@ -334,10 +307,7 @@ impl PixelSample {
 
     /// Map this sample to the conventional square fragment plane.
     pub fn plane(self, _ resolution: f32) -> PlaneSample {
-        PlaneSample {
-            u: self.x / resolution * 2.0 - 1.0,
-            v: 1.0 - self.y / resolution * 2.0,
-        }
+        PlaneSample { u: self.x / resolution * 2.0 - 1.0, v: 1.0 - self.y / resolution * 2.0 }
     }
 
     /// Map this sample to a resolution-correct rectangular fragment plane.
@@ -347,10 +317,7 @@ impl PixelSample {
     /// this Fe construction owns the projection policy.
     pub fn plane_extent(self, _ width: f32, _ height: f32) -> PlaneSample {
         let scale: f32 = max(min(width, height), 1.0)
-        PlaneSample {
-            u: (self.x * 2.0 - width) / scale,
-            v: (height - self.y * 2.0) / scale,
-        }
+        PlaneSample { u: (self.x * 2.0 - width) / scale, v: (height - self.y * 2.0) / scale }
     }
 }
 
@@ -413,7 +380,6 @@ pub fn palette(_ t: f32, _ phase_r: f32, _ phase_g: f32, _ phase_b: f32) -> i32 
 /// integer-count bands without a logarithm intrinsic or another orbit sample.
 /// `magnitude_squared` is the first finite `|z|^2 > 4` value.
 pub fn escape_palette(_ iterations: i32, _ magnitude_squared: f32) -> i32 {
-    let smooth_iterations: f32 =
-        from_i32(iterations) + 4.0 / magnitude_squared
+    let smooth_iterations: f32 = from_i32(iterations) + 4.0 / magnitude_squared
     palette(smooth_iterations / 256.0, 0.0, 0.33, 0.67)
 }

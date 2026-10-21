@@ -3,6 +3,8 @@
 
 use core::default::Default
 use core::marker::Copy
+use core::ops::Eq
+use algebra::Vec2
 use fmath::{PixelSample, from_i32, to_i32}
 use ingot::orbit::PackedReference
 use ingot::policy::iteration_limit
@@ -126,51 +128,68 @@ pub fn phase_order_rect(_ phase: u32, _ x: u32, _ y: u32, _ sx: u32, _ sy: u32) 
     (phase * direction + offset) % phases
 }
 
-pub struct CohortPixel {
-    pub x: u32,
-    pub y: u32,
-    pub index: u32,
-    pub active: bool,
+/// Integer raster coordinate in a power-of-two row-stride buffer.
+#[derive(Eq, Default)]
+pub struct Pixel { pub x: u32, pub y: u32 }
+
+impl Copy for Pixel {}
+
+impl Pixel {
+    pub fn index(self, _ row_shift: u32) -> u32 {
+        (self.y << row_shift) | self.x
+    }
+    pub fn coarse_index(self) -> u32 {
+        self.index(8)
+    }
+    pub fn native_index(self) -> u32 {
+        self.index(11)
+    }
+    pub fn in_extent(self, _ res: f32) -> bool {
+        from_i32(__bitcast<u32, i32>(self.x)) < res && from_i32(__bitcast<u32, i32>(self.y)) < res
+    }
+    pub fn sample(self) -> PixelSample {
+        PixelSample::ordered_2x2(__bitcast<u32, i32>(self.x), __bitcast<u32, i32>(self.y))
+    }
+    pub fn offset_sample(self, _ offset: Vec2<f32>) -> PixelSample {
+        let base: PixelSample = self.sample()
+        PixelSample { x: base.x + offset.x, y: base.y + offset.y }
+    }
+    pub fn clamped_neighbor_indices(self, _ res: f32) -> (u32, u32, u32, u32) {
+        let max_coord: u32 = __bitcast<i32, u32>(to_i32(res - 1.0))
+        let left: u32 = if self.x > 0 { self.x - 1 } else { 0 }
+        let right: u32 = if self.x < max_coord {
+            self.x + 1
+        } else {
+            max_coord
+        }
+        let up: u32 = if self.y > 0 { self.y - 1 } else { 0 }
+        let down: u32 = if self.y < max_coord {
+            self.y + 1
+        } else {
+            max_coord
+        }
+        ((self.y << 11) | left, (self.y << 11) | right, (up << 11) | self.x, (down << 11) | self.x)
+    }
 }
+
+#[derive(Eq, Default)]
+pub struct CohortPixel { pub pixel: Pixel, pub active: bool }
 
 impl Copy for CohortPixel {}
 
-impl Default for CohortPixel {
-    fn default() -> Self {
-        CohortPixel {
-            x: 0,
-            y: 0,
-            index: 0,
-            active: false,
-        }
-    }
-}
-
 impl CohortPixel {
     pub fn at(_ x: u32, _ y: u32, _ res: f32) -> Self {
-        let in_bounds: bool = from_i32(__bitcast<u32, i32>(x)) < res
-            && from_i32(__bitcast<u32, i32>(y)) < res
-        CohortPixel {
-            x: x,
-            y: y,
-            index: (y << 11) | x,
-            active: in_bounds,
-        }
+        let pixel: Pixel = Pixel { x: x, y: y }
+        CohortPixel { pixel: pixel, active: pixel.in_extent(res) }
     }
-
+    pub fn index(self) -> u32 {
+        self.pixel.native_index()
+    }
     pub fn sample(self) -> PixelSample {
-        PixelSample::ordered_2x2(
-            __bitcast<u32, i32>(self.x),
-            __bitcast<u32, i32>(self.y),
-        )
+        self.pixel.sample()
     }
-
-    pub fn offset_sample(self, _ ox: f32, _ oy: f32) -> PixelSample {
-        let base: PixelSample = self.sample()
-        PixelSample {
-            x: base.x + ox,
-            y: base.y + oy,
-        }
+    pub fn offset_sample(self, _ offset: Vec2<f32>) -> PixelSample {
+        self.pixel.offset_sample(offset)
     }
 }
 
@@ -219,15 +238,12 @@ impl RefinementSchedule {
             aa_stride: sy,
         }
     }
-
     pub fn refine_steps(self) -> u32 {
         self.rounds * self.phases
     }
-
     pub fn total_steps(self) -> u32 {
         self.refine_steps() + self.aa_stride * self.aa_stride
     }
-
     pub fn rect_pixel(self, _ cursor: u32, _ gx: u32, _ gy: u32, _ res: f32) -> CohortPixel {
         if cursor >= self.refine_steps() {
             return CohortPixel::default()
@@ -237,7 +253,6 @@ impl RefinementSchedule {
         let y: u32 = gy * self.sy + phase / self.sx
         CohortPixel::at(x, y, res)
     }
-
     pub fn aa_pixel(self, _ cursor: u32, _ gx: u32, _ gy: u32, _ res: f32) -> CohortPixel {
         let start: u32 = self.refine_steps()
         let aa_phases: u32 = self.aa_stride * self.aa_stride

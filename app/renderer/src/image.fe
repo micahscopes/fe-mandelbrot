@@ -21,11 +21,7 @@ pub fn max(_ a: f32, _ b: f32) -> f32 {
 fn clamp(_ value: f32, _ low: f32, _ high: f32) -> f32 {
     if value < low {
         low
-    } else if value > high {
-        high
-    } else {
-        value
-    }
+    } else if value > high { high } else { value }
 }
 
 pub fn coord_index(_ value: f32) -> u32 {
@@ -139,9 +135,7 @@ pub fn gaussian(
     let mut factor: f32 = q
     let mut weight: f32 = 1.0
     let mut total: f32 = 1.0
-    let mut lightness: f32 = center.l
-    let mut axis_a: f32 = center.a
-    let mut b: f32 = center.b
+    let mut sum: Color = center
     let xf: f32 = from_i32(__bitcast<u32, i32>(x))
     let yf: f32 = from_i32(__bitcast<u32, i32>(y))
     let mut tap: i32 = 1
@@ -171,17 +165,11 @@ pub fn gaussian(
         }
         let a: Color = image.load(index: (ay << 8) | ax)
         let c: Color = image.load(index: (by << 8) | bx)
-        lightness = lightness + (a.l + c.l) * weight
-        axis_a = axis_a + (a.a + c.a) * weight
-        b = b + (a.b + c.b) * weight
+        sum = sum + (a + c) * weight
         total = total + 2.0 * weight
         tap = tap + 1
     }
-    Color {
-        l: lightness / total,
-        a: axis_a / total,
-        b: b / total,
-    }
+    sum / total
 }
 
 pub fn sample(_ image: OrbitBuffer<Color, 65536>, _ x: f32, _ y: f32) -> Color {

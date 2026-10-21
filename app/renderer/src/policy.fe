@@ -1,5 +1,6 @@
 //! Fe camera state, backing extent, iteration and presentation policies.
 use core::marker::Copy
+use core::ops::Eq
 use std::webgpu::{SurfaceQualityFacts, SurfaceBackingExtent}
 use std::web::view::{
     Param,
@@ -9,8 +10,8 @@ use std::web::view::{
     ParamBindingsProvider,
     SurfaceState,
 }
+use algebra::Complex
 use fmath::{clamp, min, max}
-use ingot::orbit::Complex
 use precision::{Expansion, add_f32, from_quad, to_quad}
 
 pub const MAX_ITER_BASE: u32 = 256
@@ -29,11 +30,7 @@ pub const ZOOM_MAX: f32 = 3.0
 pub fn zoom_step(_ zoom: f32, _ delta: f32, _ mode: u32, _ extent: f32) -> f32 {
     let units: f32 = if mode == 1 {
         16.0
-    } else if mode == 2 {
-        extent
-    } else {
-        1.0
-    }
+    } else if mode == 2 { extent } else { 1.0 }
     let t: f32 = clamp(delta * units * 0.0006666667, -0.45, 0.45)
     zoom * ((1.0 + t) / (1.0 - t))
 }
@@ -41,11 +38,7 @@ pub fn zoom_step(_ zoom: f32, _ delta: f32, _ mode: u32, _ extent: f32) -> f32 {
 pub fn clamp_f(_ value: f32, _ lower: f32, _ upper: f32) -> f32 {
     if value < lower {
         lower
-    } else if value > upper {
-        upper
-    } else {
-        value
-    }
+    } else if value > upper { upper } else { value }
 }
 
 pub fn clamp_quad(_ w0: f32, _ w1: f32, _ w2: f32, _ w3: f32, _ lower: f32, _ upper: f32) -> (
@@ -69,14 +62,10 @@ pub fn clamp_expansion(_ value: Expansion<4>, _ lower: f32, _ upper: f32) -> Exp
     from_quad(c0, c1, c2, c3)
 }
 
-pub fn translate_center(
-    _ center: Complex<Expansion<4>>,
-    _ offset: Complex<f32>,
-) -> Complex<Expansion<4>> {
-    Complex {
-        re: add_f32<4>(center.re, offset.re),
-        im: add_f32<4>(center.im, offset.im),
-    }
+pub fn translate_center(_ center: Complex<Expansion<4>>, _ offset: Complex<f32>) -> Complex<
+    Expansion<4>,
+> {
+    Complex { re: add_f32<4>(center.re, offset.re), im: add_f32<4>(center.im, offset.im) }
 }
 
 pub fn clamp_center(_ center: Complex<Expansion<4>>) -> Complex<Expansion<4>> {
@@ -106,13 +95,17 @@ pub fn iteration_limit(_ zoom: f32) -> u32 {
 }
 
 /// Complete camera projection in complex-plane and backing-store coordinates.
-pub struct Camera {
-    pub center: Complex<Expansion<4>>,
-    pub zoom: f32,
-    pub res: f32,
-}
+#[derive(Eq)]
+pub struct Camera { pub center: Complex<Expansion<4>>, pub zoom: f32, pub res: f32 }
 
 impl Copy for Camera {}
+
+/// Identity of a refinement epoch: the sampling camera plus anti-aliasing mode.
+/// Excludes clock, cursor and transient gesture state.
+#[derive(Eq)]
+pub struct RefinementKey { pub camera: Camera, pub antialias: f32 }
+
+impl Copy for RefinementKey {}
 
 pub struct MandelbrotParams {
     pub center_x_w0: Param,
@@ -163,36 +156,55 @@ impl SurfaceState for MandelbrotViewState {
 derive ApplyParamBindings for MandelbrotViewState using ParamBindingsProvider<MandelbrotParams>
 
 /// Single non-resource state envelope owned by the GPU actor.
-pub struct SurfaceStateEnvelope {
-    pub state: MandelbrotViewState,
-}
+pub struct SurfaceStateEnvelope { pub state: MandelbrotViewState }
 
 impl Copy for SurfaceStateEnvelope {}
 
+pub const fn initial_view() -> MandelbrotViewState {
+    MandelbrotViewState {
+        center_x_w0: -1.1723285913467407,
+        center_x_w1: -0.000000008653259442326089,
+        center_x_w2: 0.00000000000000016498233784400384,
+        center_x_w3: 0.0000000000000000000000010576053052462748,
+        center_y_w0: 0.29582354426383972,
+        center_y_w1: -0.000000004263839503693134,
+        center_y_w2: -0.00000000000000021798654948407476,
+        center_y_w3: -0.0000000000000000000000037684836019798525,
+        zoom: 0.0000000389,
+        res: 512.0,
+        clock: 0.0,
+        last_input: 0.0,
+        antialias: 1.0,
+        drag_active: 0.0,
+        magnification: 3.0 / 0.0000000389,
+    }
+}
+
 pub const fn mandelbrot_params() -> MandelbrotParams {
+    let initial: MandelbrotViewState = initial_view()
     MandelbrotParams {
         center_x_w0: Param::range(
             min: CENTER_X_MIN,
             max: CENTER_X_MAX,
-            init: -1.1723285913467407,
+            init: initial.center_x_w0,
         ),
-        center_x_w1: Param::fixed(-0.000000008653259442326089),
-        center_x_w2: Param::fixed(0.00000000000000016498233784400384),
-        center_x_w3: Param::fixed(0.0000000000000000000000010576053052462748),
+        center_x_w1: Param::fixed(initial.center_x_w1),
+        center_x_w2: Param::fixed(initial.center_x_w2),
+        center_x_w3: Param::fixed(initial.center_x_w3),
         center_y_w0: Param::range(
             min: CENTER_Y_MIN,
             max: CENTER_Y_MAX,
-            init: 0.29582354426383972,
+            init: initial.center_y_w0,
         ),
-        center_y_w1: Param::fixed(-0.000000004263839503693134),
-        center_y_w2: Param::fixed(-0.00000000000000021798654948407476),
-        center_y_w3: Param::fixed(-0.0000000000000000000000037684836019798525),
-        zoom: Param::log(min: ZOOM_MIN, max: ZOOM_MAX, init: 0.0000000389),
+        center_y_w1: Param::fixed(initial.center_y_w1),
+        center_y_w2: Param::fixed(initial.center_y_w2),
+        center_y_w3: Param::fixed(initial.center_y_w3),
+        zoom: Param::log(min: ZOOM_MIN, max: ZOOM_MAX, init: initial.zoom),
         res: Param::extent_x(),
-        clock: Param::fixed(0.0),
-        last_input: Param::fixed(0.0),
-        antialias: Param::range(min: 0.0, max: 1.0, init: 1.0),
-        drag_active: Param::fixed(0.0),
+        clock: Param::fixed(initial.clock),
+        last_input: Param::fixed(initial.last_input),
+        antialias: Param::range(min: 0.0, max: 1.0, init: initial.antialias),
+        drag_active: Param::fixed(initial.drag_active),
         magnification: Param::readout(ParamReadout::Scalar),
     }
 }
@@ -210,10 +222,7 @@ impl SharpBacking {
         }
         let limit: f32 = min(declared, min(2048.0, device))
         let side: f32 = clamp((css * ratio).round(), 1.0, limit)
-        SurfaceBackingExtent {
-            width: side,
-            height: side,
-        }
+        SurfaceBackingExtent { width: side, height: side }
     }
 }
 
@@ -245,11 +254,9 @@ impl MandelbrotViewState {
             self.clock - self.last_input
         }
     }
-
     pub fn is_input_settled(self) -> bool {
         self.drag_active < 0.5 && self.clock - self.last_input >= 60.0
     }
-
     pub fn center(self) -> Complex<Expansion<4>> {
         Complex {
             re: from_quad(
@@ -266,15 +273,12 @@ impl MandelbrotViewState {
             ),
         }
     }
-
     pub fn camera(self) -> Camera {
-        Camera {
-            center: self.center(),
-            zoom: self.zoom,
-            res: self.res,
-        }
+        Camera { center: self.center(), zoom: self.zoom, res: self.res }
     }
-
+    pub fn refinement_key(self) -> RefinementKey {
+        RefinementKey { camera: self.camera(), antialias: self.antialias }
+    }
     pub fn with_camera(self, _ camera: Camera) -> Self {
         let (cx0, cx1, cx2, cx3) = to_quad(camera.center.re)
         let (cy0, cy1, cy2, cy3) = to_quad(camera.center.im)
@@ -292,7 +296,6 @@ impl MandelbrotViewState {
         next.magnification = 3.0 / camera.zoom
         next
     }
-
     pub fn refresh_readout(self) -> Self {
         let mut next: Self = self
         next.magnification = 3.0 / self.zoom
@@ -300,30 +303,8 @@ impl MandelbrotViewState {
     }
 }
 
-pub fn initial_view() -> MandelbrotViewState {
-    MandelbrotViewState {
-        center_x_w0: -1.1723285913467407,
-        center_x_w1: -0.000000008653259442326089,
-        center_x_w2: 0.00000000000000016498233784400384,
-        center_x_w3: 0.0000000000000000000000010576053052462748,
-        center_y_w0: 0.29582354426383972,
-        center_y_w1: -0.000000004263839503693134,
-        center_y_w2: -0.00000000000000021798654948407476,
-        center_y_w3: -0.0000000000000000000000037684836019798525,
-        zoom: 0.0000000389,
-        res: 512.0,
-        clock: 0.0,
-        last_input: 0.0,
-        antialias: 1.0,
-        drag_active: 0.0,
-        magnification: 3.0 / 0.0000000389,
-    }
-}
-
 pub fn initial_state() -> SurfaceStateEnvelope {
-    SurfaceStateEnvelope {
-        state: initial_view(),
-    }
+    SurfaceStateEnvelope { state: initial_view() }
 }
 
 pub fn transition(_ state: MandelbrotViewState, _ event: own SurfaceEvent) -> MandelbrotViewState {
@@ -335,41 +316,36 @@ pub fn transition(_ state: MandelbrotViewState, _ event: own SurfaceEvent) -> Ma
     next.last_input = event.timestamp
     if event.is_pointer_down()
         || event.is_pointer_up()
-        || (event.is_pointer_move() && (event.buttons & 1) == 0)
-    {
+        || (event.is_pointer_move() && (event.buttons & 1) == 0) {
         next.drag_active = if event.is_pointer_down() { 1.0 } else { 0.0 }
         return next.refresh_readout()
     }
     if event.is_param_edit() {
-        return next
-            .refresh_readout()
+        return next.refresh_readout()
             .apply_param_bindings(mandelbrot_params(), event)
             .refresh_readout()
     }
     let camera: Camera = state.camera()
     let res: f32 = event.width
     let step: f32 = 2.0 * camera.zoom / res
-    let pan_offset: Complex<f32> = Complex {
-        re: -event.delta_x * step,
-        im: event.delta_y * step,
-    }
+    let pan_offset: Complex<f32> = Complex { re: -event.delta_x * step, im: event.delta_y * step }
     let panned: Complex<Expansion<4>> = translate_center(camera.center, pan_offset)
     let next_zoom: f32 = clamp_f(
-        zoom_step(camera.zoom, event.wheel_delta, event.wheel_mode, event.height),
+        zoom_step(
+            camera.zoom,
+            event.wheel_delta,
+            event.wheel_mode,
+            event.height,
+        ),
         ZOOM_MIN,
         ZOOM_MAX,
     )
     let u: f32 = (event.pointer_x + 0.5) * 2.0 / res - 1.0
     let v: f32 = 1.0 - (event.pointer_y + 0.5) * 2.0 / res
     let zoom_span_delta: f32 = camera.zoom - next_zoom
-    let anchor_offset: Complex<f32> = Complex {
-        re: u * zoom_span_delta,
-        im: v * zoom_span_delta,
-    }
+    let anchor_offset: Complex<f32> = Complex { re: u * zoom_span_delta, im: v * zoom_span_delta }
     let anchored: Complex<Expansion<4>> = translate_center(panned, anchor_offset)
-    next.with_camera(Camera {
-        center: clamp_center(anchored),
-        zoom: next_zoom,
-        res: res,
-    })
+    next.with_camera(
+        Camera { center: clamp_center(anchored), zoom: next_zoom, res: res },
+    )
 }
