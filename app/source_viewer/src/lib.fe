@@ -356,7 +356,7 @@ actor FeSourceViewer {
         let page = file_link(page, "partition.fe", "Blue-noise ordering")
         let page = file_link(page, "algebra.fe", "Vectors, matrices, complex")
         let page = file_link(page, "precision.fe", "Typed float expansions")
-        let page = file_link(page, "fixed.fe", "Fixed-point reference arithmetic")
+        let page = file_link(page, "fixed.fe", "Fixed-point reference math")
         let page = file_link(page, "fmath.fe", "Scalar math boundaries")
         let page = file_link(page, "source_inspector.fe", "Source loading and ownership")
         let page = file_link(page, "color_library.fe", "OKLCH and OKLab library")
