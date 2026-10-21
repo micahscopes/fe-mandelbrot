@@ -8,6 +8,7 @@ compensated Mandelbrot iteration. The shader loads operands from storage;
 they cannot disappear through compile-time constant folding.
 
 ```sh
+python3 tests/precision-execution/oracle.py
 /path/to/fe web build tests/precision-execution --out /absolute/scratch/eft-bundle
 PLAYWRIGHT_MODULE=/absolute/path/to/playwright-core/index.mjs \
   node tests/precision-execution/gpu.mjs \
