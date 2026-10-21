@@ -2,7 +2,7 @@
   "fe": {
     "repository": "https://github.com/micahscopes/fe.git",
     "branch": "feat/mb2-demo-integration-20261020",
-    "revision": "be30de755584b57cf9773623e29465e42f37e83e"
+    "revision": "a68083357724234addf8ef86e19447da80d14405"
   },
   "sonatina": {
     "repository": "https://github.com/micahscopes/sonatina.git",
