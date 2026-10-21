@@ -9,450 +9,450 @@
     "build": "workspace"
   },
   "target": "wasm",
-  "source_set_sha256": "31fab33a53bf9da177e7adf8f07e48bb12e123eb08328069ad5de4c19209a3c4",
+  "source_set_sha256": "c44078fe0511276c0880e408b6dff37941798bebf7bf59eb3f625112bb2b693b",
   "source_dependencies": {
     "version": 1,
-    "root": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/app/source_viewer/src/lib.fe",
+    "root": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/app/source_viewer/src/lib.fe",
     "sources": [
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/abi.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/abi.fe",
         "sha256": "d4862d459e8295085587f8790102fcd68bc47b957ed46b7d3c4bdaea4f800e2a"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/actor.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/actor.fe",
         "sha256": "94d48bfd939ae976fd44bc386373b95af03bf2afa0444293d43eeb7119e785c3"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/atomic.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/atomic.fe",
         "sha256": "ffb79a98969d2b6ded8ade488b932be63bb1817753f602ceb68beede222f81b9"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/backend.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/backend.fe",
         "sha256": "fa9584d78529afdf4929b4ba34ccd50f307296bdf8afd95df1acebf4e8c66d1e"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/barrier.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/barrier.fe",
         "sha256": "b45ef6cdeecafafb10ac7c09d3ccf9ba7a792a74dcce81a1c9001304cea4e90e"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/browser.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/browser.fe",
         "sha256": "3564345831c28a4d4e29c5234e94fbc55b4a8b5800f04256ca3076108eaf9923"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/bytes.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/bytes.fe",
         "sha256": "a41edde03ce39f61eecf4a188d71b03018de1cf1f440a165a900e5013570b779"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/clone.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/clone.fe",
         "sha256": "0f6eae16c76c0d7faf154c3d1a1baf3903f1433880b93b25734194d1e3fbc027"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/conal.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/conal.fe",
         "sha256": "6017240e63d976f65b026334b28a1f9dd936fec02e0c13fc21fe58d1e418ce7e"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/contracts.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/contracts.fe",
         "sha256": "a42fe0fb0069dd051d4f63fb5cb1df5856d5ef2114cadb424323183d338d499e"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/default.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/default.fe",
         "sha256": "35f7c137cd34b394a20923ef613824cfd586d3549f6342ff5f11278944787afc"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/derive.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/derive.fe",
         "sha256": "17caaa12d03a46a53cb88ae1894b809cf47e88e768940385607e414b98ec6410"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/effect_ref.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/effect_ref.fe",
         "sha256": "df4336099c5402e7d2be7ca4cc98164a11033e9fd4d7fcbbe0f678131323e216"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/error.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/error.fe",
         "sha256": "87090c39382d8872463554e64cb65a7dc8da22d99ead9c9f27585c1a829cafa4"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/execution.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/execution.fe",
         "sha256": "2f09d2a16d98d756f18ae11ea73b8ef4525232d5aedf929f824a7ded4cebeca9"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/functional.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/functional.fe",
         "sha256": "40d762cb1ecf1d22b20dbfa317ca181e24829475a57b3a6587b337d2110e45f6"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/intrinsic.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/intrinsic.fe",
         "sha256": "f07d3c13a3d419b4ae8262c11b36ac51118a12485eed5acf8f11de4b19dc85a7"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/lib.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/lib.fe",
         "sha256": "51a2990790b95d81f2482c5f7cd38e9700c640cea49fcc3aba0c57f919bd1cf5"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/marker.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/marker.fe",
         "sha256": "3fb1c04e8ada748d243480519bb69cafbbd42532c8db1321c12f09d345211062"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/message.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/message.fe",
         "sha256": "8e2fdbc34af69c8f6c5ef005b17d8b95fdc873d458415933d279be33c586774e"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/num.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/num.fe",
         "sha256": "355166d64f6b19381210b7c316d70b5e258ff8c44afa5dc96ac075cb1ecaad8a"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/num_intrinsics.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/num_intrinsics.fe",
         "sha256": "6e6cc538ee0fa1740ea3ef00a9f4b7b208f8c852445fd99cedcd43b44a2eb34f"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/ops.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/ops.fe",
         "sha256": "b3eb8dbbb78aec39150f07058e2e3a7f0cee0ffe2c3a75889db813dfbe42036f"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/option.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/option.fe",
         "sha256": "353a5374c3b9caeeabb65f832b513f04b40cdb1fab1466a88ae4e74e0ca4fd31"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/par.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/par.fe",
         "sha256": "4b709ae91d32ef4ad8dc3037b4511202399986d7a02760ea6c2167b171639999"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/pending.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/pending.fe",
         "sha256": "aa8dea1e7767fda33abc045e7c200ff49362bb806585989141ed4be6a8f1f56b"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/prelude.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/prelude.fe",
         "sha256": "b05d96609c06b984679c0fe6fb3e5242b104597a393df7c03fca44572aa98a48"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/range.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/range.fe",
         "sha256": "d1fe899db7effeb2fa0311b3a938b01989711bad929cbc07ed9d9b0c6bfc4a10"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/result.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/result.fe",
         "sha256": "cbd6414930a1f2c42f9db75429f21d8e0c2c25c91b61ba92ac00c47c1c7289c0"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/seq.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/seq.fe",
         "sha256": "9c23933f316045335296dc618850271c709fd55020d0efe91b9e7bfdd8884711"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core/src/string.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core/src/string.fe",
         "sha256": "30c74bb93e905658ec71c0ae81f16279cb20b4db446e69149b48418a7f359886"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/core_derives/src/lib.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/core_derives/src/lib.fe",
         "sha256": "0f11027ed1e5a6c90f14fb543f7fff3eed84ef3fa0bed9b7d45fa401aafe0a57"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/abi.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/abi.fe",
         "sha256": "f768fbefeab78b84c57141dc8da760c5ce0a2c41ce2993c58c43498e399c4c9d"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/abi/sol.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/abi/sol.fe",
         "sha256": "a255ef1ee52286f52307768845b5f82f744a1003d0b9d4482c27ef0748e1ae4d"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/abi/sol/ints.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/abi/sol/ints.fe",
         "sha256": "20741e234c845e6a03c9d50dead02a7774ecdd548f32fa422790fe3be5fe5d0f"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/abi/sol/types.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/abi/sol/types.fe",
         "sha256": "74adc53e296af7d7e6fcbf786aa6d1b593d6fda65cf314f35768255e7f4e4029"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/actor.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/actor.fe",
         "sha256": "0f42b9734f30868aaa668cfb02250336b4c5012c6c8604bfa02df00fa02210b3"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/actor/notification_raw.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/actor/notification_raw.fe",
         "sha256": "d12399019d3017320daa0e0ae2c2ff5f32845d8f20de564157c452d1f4bbea21"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/actor/raw.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/actor/raw.fe",
         "sha256": "f5e243e9ee303c72bab8c6ede7780fb24bc78b6d744fedf486248e2482f8a2e3"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/conal.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/conal.fe",
         "sha256": "7b92b7ea15a03e6632979b2348c5533f5e7be2b003af1194d7e81b1ffae9a06f"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/eip712.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/eip712.fe",
         "sha256": "b1f1d74bbad29413457466d17841264570aa3594f9d0c894bdc4a8bca460a1cb"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm.fe",
         "sha256": "b2729dac196d3c684525be1a89cb179503a2f9d3b4e774c02f34df671c43e5dc"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/atomic.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/atomic.fe",
         "sha256": "5d56b7c90ee5c9505825c99c22dbe601b2f769d0b022410fbb7c4c169a9c876c"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/backend.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/backend.fe",
         "sha256": "b4420277bb4009ef9fc5660258c8b02fd498f376e583342d8e839359e50c9f5b"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/barrier.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/barrier.fe",
         "sha256": "c00b579ad43785758855ded8e9fdafaf0a50407680b899c48c4251fb56fb3cf7"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/calldata.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/calldata.fe",
         "sha256": "83b611808e46706c825b6f79ab1b95154cbbaca39d6e568e62cd177d2af754b4"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/crypto.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/crypto.fe",
         "sha256": "56631ae802b19a7341b8e4e7743678668cff400fb1b4a21ecf20d91289001d15"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/effects.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/effects.fe",
         "sha256": "cfad84640e7de4eedf04e08bf902f990fb00347636d1aa5939e93c3e19d68acc"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/event.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/event.fe",
         "sha256": "822272790448671b7abb100d1fd3c72a9ee3e29ec7637e899a6e27f30fdb24dd"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/intrinsic.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/intrinsic.fe",
         "sha256": "91164f58819f06eb8ddaf8debfaf95ca8f373dac1ffa1e7c63e63a8148349a38"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/mem.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/mem.fe",
         "sha256": "e4ee0d794a523db90462608a1e3a9a1fa65f445bdf1ffd1a9e920152762ab7b6"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/memory_input.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/memory_input.fe",
         "sha256": "5d32f73f6e3bdd3b676b436bf3f655d27f303de57e69911c9143a585bc2ab166"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/mutex.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/mutex.fe",
         "sha256": "1362da109d01ad56c84c1af153bee72d3db37152fbe74f626fa6408e78d0668e"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/ops.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/ops.fe",
         "sha256": "e865dfb80ccd62a990ae12375d1350db3e132d00e9ce690ab470e42342529e02"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/panic.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/panic.fe",
         "sha256": "68f39abc89d5a500a27905c1c0a8022dc436f184e4de1ecf43d2f13769146949"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/par.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/par.fe",
         "sha256": "8bfd541bd0bd22d81a50dd4ca6a09ed8e339ea0cf96f4fcc1d17255140019489"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/ssz.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/ssz.fe",
         "sha256": "fe16cdfdbae7d52e3c9168c8766641c5ae75bf1aa842a195084b9e55356d2976"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/storage_bytes.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/storage_bytes.fe",
         "sha256": "de71c95ce5fad8c427b7333055286c2b01945fe5ced6ad73be0acfdab542dd87"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/storage_map.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/storage_map.fe",
         "sha256": "f4f5a98dfdb06ddda72987ca1040d4db6bf700bf071cf5048462c06e5de4fcaf"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/storage_packed_array.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/storage_packed_array.fe",
         "sha256": "4547de2d321a440cf7dbc4e2167ee3cb096ed905dc504df117f448807be8baae"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/target.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/target.fe",
         "sha256": "436e28c0e503bc9c2ac4c3cf986cc8600c4e63aef0174b6b311db9bd5e6deee0"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/units.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/units.fe",
         "sha256": "b879fa243a3ff74aa801710059be9c910c50669365d1e85a4601b6b7673b52c0"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/evm/word.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/evm/word.fe",
         "sha256": "7e68f14ec33a9316df09e3fcbb1117c6f90a584ee8eae86f2f39320ad2ca9a00"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/gpu.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/gpu.fe",
         "sha256": "f7060ed003747df5301a86918d6c57881a4f3538777514b3e25391e4eb88f8f0"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/host.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/host.fe",
         "sha256": "0f8a3092de59400b8578afa8588acadc688fe883164669708df7e1c733b4ef13"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/host/raw.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/host/raw.fe",
         "sha256": "a1bfdf5606b11715268227ea1d55071e664d0692fe2935e800409f8aeac9e531"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/lib.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/lib.fe",
         "sha256": "1cd2928e190a374d000795bf3f99eda0c9a723f4b4996963ec544086747718fc"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/prelude.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/prelude.fe",
         "sha256": "9a216f323edca6a61698ca7ec6048e01f274d3929a208b35cf87122f0e1129b1"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/reactive.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/reactive.fe",
         "sha256": "5ca2641d552319404436d725af17b3ed0a50845a0ad6d1460ea43afe892aac55"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/runtime.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/runtime.fe",
         "sha256": "c052dcb35b1ae5de73b022ee8c3454bf6d6e34387e67a5d3de478971923d0fb7"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/runtime/browser.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/runtime/browser.fe",
         "sha256": "78bb4fcbc9847f6b14eb3f5154644c2f708715d5344310c05a610f2ed84fc6c0"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/runtime/execution.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/runtime/execution.fe",
         "sha256": "ca0b6fe005f4848576db994254ca017a1db0dc0b8b9567f216d4b3043e97ba42"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/runtime/raw.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/runtime/raw.fe",
         "sha256": "713e4396dfc086a7eaacbd73199a79d2e36d7dfef452423a8b1530658ba5c447"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/text.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/text.fe",
         "sha256": "fb44cf4c3cc62bdd4b3b86ae929e8320bb4aa1c2ee3618d2e7579a540ab06595"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/wasm.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/wasm.fe",
         "sha256": "b9d0f9fbf93e0d09fa259ea5da5f1efb84916516ec833a50539f0f0afc5ec326"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web.fe",
         "sha256": "6caf15ba060564cc0f84f342e063c5c518ac777a95c16ed672567289e3a5754a"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web/component.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web/component.fe",
         "sha256": "97afa67f67ade5dd220a9ab33fc9ce60bc209ef9cea3c66be23821a52d672048"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web/component_events.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web/component_events.fe",
         "sha256": "5411af6919d0f0f4efa3a1a1f34a700779f05f3617ff71141bba34139f53cdb9"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web/component_events/raw.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web/component_events/raw.fe",
         "sha256": "c7ab8a9d50cabf5f542fdfa3fab7bc459d1f1d0ef29b2f560b0d4bbe64a7a9a3"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web/document_events.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web/document_events.fe",
         "sha256": "7f539db9e0ab8f5a46f45e8516835f81abd3068698b5ca9d5ef1dd3e5db77843"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web/document_events/raw.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web/document_events/raw.fe",
         "sha256": "a28956bcbac56c49b9fcb26ed4bf821596a7a819aeb30099e6a0e2a9a9cf0157"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web/gpu_device_events.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web/gpu_device_events.fe",
         "sha256": "557934eccc59d2d83105fc7aec8a4f38b17bedfc47f3ed2afec2a906d58ebf23"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web/gpu_device_events/raw.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web/gpu_device_events/raw.fe",
         "sha256": "ecd5ceed70f1428cffbe30362bae71e409a7a638662a772190db974dc5ab8c33"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web/gpu_queue_events.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web/gpu_queue_events.fe",
         "sha256": "3d86d60c26ef105816b8c168125b4fc6bd9dcf951fc8df8fd996c4b80be4844a"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web/gpu_queue_events/raw.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web/gpu_queue_events/raw.fe",
         "sha256": "889d2afa1915e5c7acfea0febdb1f98a7e76e89d71087056279ba564bc52d315"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web/identity.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web/identity.fe",
         "sha256": "714c1dcd96f917f434e88288b86c30bcce57095a1a07f8c4a05df8bdd2e96ba6"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web/message_port_events.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web/message_port_events.fe",
         "sha256": "b46a3b823373852c36be8caacb835b4ac7324a98efc6abf5356b7a5bcabac169"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web/message_port_events/raw.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web/message_port_events/raw.fe",
         "sha256": "dbe201f59dbe64595af26c5f3d131e32c026f4a65744fb94bd11e6f699f34578"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web/navigation.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web/navigation.fe",
         "sha256": "5b189ba74a93617fec27d3823e14cb3290a8ee39d49fdf324ef543a224cb4582"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web/page.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web/page.fe",
         "sha256": "c8a80d667a4d00ecd0fa3678ace6ac53e0f02999652441bc3e81662558fffb03"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web/raw.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web/raw.fe",
         "sha256": "45e08e1c14cd8ccc17ae38d43d2fd2433c3211a918f20a0e62fd0a6ebea25761"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web/surface_task.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web/surface_task.fe",
         "sha256": "e456584dcb92add9dbb895b5253690f683185d950b693d903bfcc55f0507cfe1"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web/surface_task/raw.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web/surface_task/raw.fe",
         "sha256": "cda1aa405665ceeb0f212dfbbdc03edfbe15dc5e7e5d561d8ee8e7c4de281d65"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web/view.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web/view.fe",
         "sha256": "2f62ee194bc26e996868cdf1c7a8189186397af5a41eef37660cf8b77ad7bb88"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web/window_events.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web/window_events.fe",
         "sha256": "023a3054fc2fe20ed657d152b4c250c95dac3be209d0af804f923b047217ee29"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/web/window_events/raw.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/web/window_events/raw.fe",
         "sha256": "3fae21f3cb76672971babe7f7c539a1499eabc1a12200bfffc3dec2941d285a4"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/webgpu.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/webgpu.fe",
         "sha256": "7bba7bc8b2932a6a1dadf28a8e8dc045f4e85b55a3f7dc35a3b1453f2383d777"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/webgpu/draw.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/webgpu/draw.fe",
         "sha256": "63367d6f745492ad80829ec3dd4e1ea86a2858f7ea360760398611a03e49c105"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/webgpu/layout.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/webgpu/layout.fe",
         "sha256": "55d61ccac969dd66df5be64f00a78f6bfb638303d3ca5b5032d07d1ec2ec57ec"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/webgpu/publication.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/webgpu/publication.fe",
         "sha256": "6736cdd0a98690da1ffae4cc330cdc76d2a4e0471209b79b9903f090127436dd"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/webgpu/raster.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/webgpu/raster.fe",
         "sha256": "74cd3aadd2199342358c25047fd56cadcb1db9a65c6765a9099de86fc467e714"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/webgpu/raw.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/webgpu/raw.fe",
         "sha256": "8d1a2fe1ec1f5ff6b06cee1fa2d7b130448a4db70395f9ac686636539d840226"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/webgpu/resource.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/webgpu/resource.fe",
         "sha256": "d1a136dd7d949256d34962edb7708f203bdcbe6a8bfba4c87c7489f635c9f391"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/worker.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/worker.fe",
         "sha256": "2d3621113dc33235be09236b256ef60daa589d78be4e967640ccb896747af801"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/.cache/fe/ingots/std/src/worker/raw.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/.cache/fe/ingots/std/src/worker/raw.fe",
         "sha256": "49455bcd34ba42d71801565dc24effaf431d06b6e560ae7ed3b139f2fee1f5fd"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/app/source_viewer/src/highlight.fe",
-        "sha256": "b75bf42ef6c6a16c09c06e9d2252e54e28454ee61160f1d63e81f46bc684d318"
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/app/source_viewer/src/highlight.fe",
+        "sha256": "9fda80f8dde4500ba3a3129f373580613090f2487d86dd024ba10e18d6d81a8f"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/app/source_viewer/src/lib.fe",
-        "sha256": "30a812bcd0cbde5192f0b448d2985a2ff1f95e89268a565df99076e85a3bd3e4"
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/app/source_viewer/src/lib.fe",
+        "sha256": "9b6423c94cc5867b62e6561a14f127e6b4704af1bf01cc2bf1c2d4aaa9825903"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/lib/browser_fetch/src/lib.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/lib/browser_fetch/src/lib.fe",
         "sha256": "766dd93de7ed4f52b0a524d95a232c5f1c0e2d4ab41d8ac376d5cd53970639cc"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/lib/browser_fetch/src/raw.fe",
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/lib/browser_fetch/src/raw.fe",
         "sha256": "52bb9e4d7e8dfd9030ad9128eccb78230b1f6600f99c82db81f112453de5c89b"
       },
       {
-        "url": "file:///lab/argot/worktrees/fe-mandelbrot/source-selection-20261020/lib/source_inspector/src/lib.fe",
-        "sha256": "10668334bd8897c1db921e9563ee8dfe96b59cf847e853688ca663b004c6e6ef"
+        "url": "file:///lab/argot/worktrees/fe-mandelbrot/idiomatic-fe-20261020/lib/source_inspector/src/lib.fe",
+        "sha256": "fefed71a03eadcb4833c2ba14c014c6c3fcf4c53c38f5b6ffaf82acddf7f8e0a"
       }
     ]
   },
@@ -490,13 +490,6 @@
       {
         "module": "fe:host",
         "name": "select_begin",
-        "signature_complete": false,
-        "params": [],
-        "results": []
-      },
-      {
-        "module": "fe:web-fetch",
-        "name": "response_array_buffer",
         "signature_complete": false,
         "params": [],
         "results": []
@@ -575,27 +568,6 @@
       },
       {
         "module": "",
-        "name": "__fe_task_resume_load_resources_7",
-        "signature_complete": false,
-        "params": [],
-        "results": []
-      },
-      {
-        "module": "",
-        "name": "__fe_task_resume_load_resources_8",
-        "signature_complete": false,
-        "params": [],
-        "results": []
-      },
-      {
-        "module": "",
-        "name": "__fe_task_resume_load_resources_9",
-        "signature_complete": false,
-        "params": [],
-        "results": []
-      },
-      {
-        "module": "",
         "name": "__fe_task_start_load_resources",
         "signature_complete": false,
         "params": [],
@@ -665,9 +637,9 @@
       "name": "module.wasm",
       "kind": "wasm_module",
       "media_type": "application/wasm",
-      "sha256": "80636bad92aa542ee29376e39e5a8fd5e12ae0a267fdc9d0a067134e1c2a7f40",
-      "byte_len": 207860,
-      "url": "assets/fe-80636bad92aa542e.wasm"
+      "sha256": "c96e6b4cf48ce2027fe485141db2c6dde206e95f2d9fdaaf531ceda8392355da",
+      "byte_len": 145957,
+      "url": "assets/fe-c96e6b4cf48ce202.wasm"
     }
   ]
 }

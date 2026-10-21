@@ -1,5 +1,18 @@
 //! GPU-resident camera and reference metadata.
 //! Epochs invalidate orbit checkpoints without clearing the large buffers.
+use core::marker::Copy
+use ingot::image::max
+use ingot::policy::{MandelbrotViewState, blur_radius}
+
+pub const ORACLE_GLITCHED_BIT: u32 = 1073741824
+
+pub fn oracle_is_glitched(_ flags: u32) -> bool {
+    (flags & ORACLE_GLITCHED_BIT) != 0
+}
+
+pub fn oracle_is_usable(_ flags: u32) -> bool {
+    !oracle_is_glitched(flags)
+}
 
 pub struct ViewCache {
     pub x0: f32,
@@ -21,6 +34,9 @@ pub struct ViewCache {
     pub epoch: u32,
     pub completed: u32,
 }
+
+impl Copy for ViewCache {}
+
 pub struct ReferenceControl {
     pub active: u32,
     pub active_valid: u32,
@@ -30,6 +46,9 @@ pub struct ReferenceControl {
     pub zy_s: u32,
     pub ready_at: f32,
 }
+
+impl Copy for ReferenceControl {}
+
 pub struct ReferenceAnchor {
     pub x0: f32,
     pub x1: f32,
@@ -43,20 +62,211 @@ pub struct ReferenceAnchor {
     pub generation: u32,
 }
 
+impl Copy for ReferenceAnchor {}
+
 /// Persistent numeric history, separate from both color and live checkpoints.
 /// The associated ViewCache records the exact camera and iteration budget.
 pub struct SampleOracle {
-    pub iteration:u32,
-    pub magnitude:f32,
-    pub flags:u32,
+    pub iteration: u32,
+    pub magnitude: f32,
+    pub flags: u32,
 }
 
-impl Copy for ViewCache {}
+impl Copy for SampleOracle {}
+
+impl SampleOracle {
+    pub fn is_glitched(self) -> bool {
+        oracle_is_glitched(self.flags)
+    }
+
+    pub fn is_usable(self) -> bool {
+        oracle_is_usable(self.flags)
+    }
+}
 
 /// Numeric samples can be reused only for the identical sampling lattice.
 /// Reprojected colors alone never establish this identity.
-pub fn same_camera(_ a:ViewCache,_ b:ViewCache) -> bool {
-    a.x0==b.x0 && a.x1==b.x1 && a.x2==b.x2 && a.x3==b.x3
-        && a.y0==b.y0 && a.y1==b.y1 && a.y2==b.y2 && a.y3==b.y3
-        && a.zoom==b.zoom && a.res==b.res
+pub fn same_camera(_ a: ViewCache, _ b: ViewCache) -> bool {
+    a.x0 == b.x0 && a.x1 == b.x1 && a.x2 == b.x2 && a.x3 == b.x3
+        && a.y0 == b.y0 && a.y1 == b.y1 && a.y2 == b.y2 && a.y3 == b.y3
+        && a.zoom == b.zoom && a.res == b.res
+}
+
+impl ViewCache {
+    pub fn matches_view(self, _ s: MandelbrotViewState) -> bool {
+        self.x0 == s.center_x_w0 && self.x1 == s.center_x_w1
+            && self.x2 == s.center_x_w2 && self.x3 == s.center_x_w3
+            && self.y0 == s.center_y_w0 && self.y1 == s.center_y_w1
+            && self.y2 == s.center_y_w2 && self.y3 == s.center_y_w3
+            && self.zoom == s.zoom && self.res == s.res && self.aa == s.antialias
+    }
+
+    pub fn delta_from(self, _ s: MandelbrotViewState) -> (f32, f32) {
+        let dx: f32 = ((s.center_x_w0 - self.x0) + (s.center_x_w1 - self.x1))
+            + ((s.center_x_w2 - self.x2) + (s.center_x_w3 - self.x3))
+        let dy: f32 = ((s.center_y_w0 - self.y0) + (s.center_y_w1 - self.y1))
+            + ((s.center_y_w2 - self.y2) + (s.center_y_w3 - self.y3))
+        (dx, dy)
+    }
+
+    pub fn sync_with_view(
+        self,
+        _ s: MandelbrotViewState,
+        _ budget: u32,
+        _ radius: f32,
+        _ display_age: f32,
+    ) -> Self {
+        let same: bool = self.matches_view(s)
+        let preview_dirty: u32 = if same && self.budget == budget && display_age >= 360.0 {
+            0
+        } else {
+            1
+        }
+        let blur_dirty: u32 = if preview_dirty == 0 && self.radius == radius {
+            0
+        } else {
+            1
+        }
+        ViewCache {
+            x0: s.center_x_w0,
+            x1: s.center_x_w1,
+            x2: s.center_x_w2,
+            x3: s.center_x_w3,
+            y0: s.center_y_w0,
+            y1: s.center_y_w1,
+            y2: s.center_y_w2,
+            y3: s.center_y_w3,
+            zoom: s.zoom,
+            res: s.res,
+            cursor: if same { self.cursor } else { 0 },
+            aa: s.antialias,
+            budget: budget,
+            radius: radius,
+            preview_dirty: preview_dirty,
+            blur_dirty: blur_dirty,
+            epoch: if same { self.epoch } else { self.epoch + 1 },
+            completed: if same { self.completed } else { 0 },
+        }
+    }
+
+    pub fn invalidate_for_new_reference(self) -> Self {
+        let mut next: Self = self
+        next.cursor = 0
+        next.preview_dirty = 1
+        next.blur_dirty = 1
+        next.epoch = self.epoch + 1
+        next.completed = 0
+        next
+    }
+
+    pub fn as_published_initial(self) -> Self {
+        let mut next: Self = self
+        next.preview_dirty = 0
+        next.blur_dirty = 0
+        next.completed = 1
+        next
+    }
+
+    pub fn advance_cursor(self, _ end: u32) -> Self {
+        let mut next: Self = self
+        let next_cursor: u32 = self.cursor + 1
+        next.cursor = next_cursor
+        next.completed = if next_cursor >= end { 1 } else { 0 }
+        next
+    }
+}
+
+impl ReferenceControl {
+    pub fn display_age(self, _ s: MandelbrotViewState) -> f32 {
+        if s.drag_active >= 0.5 || self.pending == 1 {
+            0.0
+        } else {
+            max(0.0, s.clock - max(s.last_input, self.ready_at))
+        }
+    }
+
+    pub fn blur_sigma(self, _ s: MandelbrotViewState) -> f32 {
+        blur_radius(self.display_age(s)) * 192.0 / s.res
+    }
+
+    pub fn can_refine(self, _ s: MandelbrotViewState) -> bool {
+        self.pending == 0 && self.active_valid == 1 && s.is_input_settled()
+    }
+
+    pub fn can_publish_initial(
+        self,
+        _ s: MandelbrotViewState,
+        _ current_epoch: u32,
+        _ initial_epoch: u32,
+    ) -> bool {
+        self.active_valid == 1
+            && self.pending == 0
+            && s.drag_active < 0.5
+            && s.clock - max(s.last_input, self.ready_at) >= 360.0
+            && initial_epoch != current_epoch
+    }
+
+    pub fn cancel_pending(self) -> Self {
+        let mut next: Self = self
+        next.pending = 0
+        next.index = 0
+        next.zx_s = 0
+        next.zy_s = 0
+        next
+    }
+
+    pub fn start_pending(self) -> Self {
+        let mut next: Self = self
+        next.pending = 1
+        next.index = 0
+        next.zx_s = 0
+        next.zy_s = 0
+        next
+    }
+
+    pub fn advance_pending(self, _ index: u32, _ zx_s: u32, _ zy_s: u32) -> Self {
+        let mut next: Self = self
+        next.pending = 1
+        next.index = index
+        next.zx_s = zx_s
+        next.zy_s = zy_s
+        next
+    }
+
+    pub fn publish(_ bank: u32, _ index: u32, _ zx_s: u32, _ zy_s: u32, _ ready_at: f32) -> Self {
+        ReferenceControl {
+            active: bank,
+            active_valid: 1,
+            pending: 0,
+            index: index,
+            zx_s: zx_s,
+            zy_s: zy_s,
+            ready_at: ready_at,
+        }
+    }
+}
+
+impl ReferenceAnchor {
+    pub fn from_state(_ s: MandelbrotViewState, _ limit: u32, _ generation: u32) -> Self {
+        ReferenceAnchor {
+            x0: s.center_x_w0,
+            x1: s.center_x_w1,
+            x2: s.center_x_w2,
+            x3: s.center_x_w3,
+            y0: s.center_y_w0,
+            y1: s.center_y_w1,
+            y2: s.center_y_w2,
+            y3: s.center_y_w3,
+            limit: limit,
+            generation: generation,
+        }
+    }
+
+    pub fn delta_from(self, _ s: MandelbrotViewState) -> (f32, f32) {
+        let dx: f32 = ((s.center_x_w0 - self.x0) + (s.center_x_w1 - self.x1))
+            + ((s.center_x_w2 - self.x2) + (s.center_x_w3 - self.x3))
+        let dy: f32 = ((s.center_y_w0 - self.y0) + (s.center_y_w1 - self.y1))
+            + ((s.center_y_w2 - self.y2) + (s.center_y_w3 - self.y3))
+        (dx, dy)
+    }
 }

@@ -1378,14 +1378,12 @@ export function createFeHostAdapter(host, runtime) {
   const sameObjectCache = new WeakMap();
   const requireLegacyUnforgeable = (target, name) => { const descriptor = Object.getOwnPropertyDescriptor(target, name); if (!descriptor || descriptor.configurable) throw new TypeError(`LegacyUnforgeable property ${name} must be own and non-configurable`); };
   const imports = {
-    "response_array_buffer": function(selfHandle) { return Promise.resolve(runtime.resources.borrow(selfHandle)["arrayBuffer"]()); },
     "response_get_status": function(selfHandle) { return runtime.resources.borrow(selfHandle)["status"]; },
     "response_resource_drop": function(selfHandle) { runtime.resources.drop(selfHandle); },
     "response_text": function(selfHandle) { return Promise.resolve(runtime.resources.borrow(selfHandle)["text"]()); },
     "window_fetch": function(input) { return Promise.resolve(host.interfaces["Window"]["fetch"](input)); },
   };
   const completions = {
-    "response_array_buffer": function(value) { return runtime.resources.capture(() => new Uint8Array(value)); },
     "response_text": function(value) { return runtime.resources.capture(() => value); },
     "window_fetch": function(value) { return runtime.resources.capture(() => runtime.resources.insert(value)); },
   };
@@ -1439,19 +1437,6 @@ export function createFeCoreWasmTransport(codec, semanticAdapter, completions) {
     if (errors.length > 1) throw new AggregateError(errors, `generated completion ${identity} cleanup failed`);
   };
   const imports = {
-    "response_array_buffer": (...coreArgs) => {
-      const args = session.liftArguments("resource/Response/response_array_buffer", coreArgs);
-      const complete = semanticAdapter.completions?.["fe:web-fetch"]?.["response_array_buffer"];
-      if (typeof complete !== "function") throw new TypeError("generated semantic adapter has no completion converter");
-      const completionState = { receipt: undefined };
-      return completions.begin(
-        "resource/Response/response_array_buffer",
-        _signal => semanticAdapter.imports["fe:web-fetch"]["response_array_buffer"](...args),
-        2,
-        value => lowerCompletion("resource/Response/response_array_buffer", complete, value, completionState),
-        committed => releaseCompletion("resource/Response/response_array_buffer", completionState, committed),
-      );
-    },
     "response_get_status": (...coreArgs) => {
       const args = session.liftArguments("resource/Response/response_get_status", coreArgs);
       const result = semanticAdapter.imports["fe:web-fetch"]["response_get_status"](...args);
@@ -1489,7 +1474,7 @@ export function createFeCoreWasmTransport(codec, semanticAdapter, completions) {
       );
     },
   };
-  const postReturnNames = {"resource/Response/response_array_buffer": "cabi_post_229ce3ffb3fe677a","resource/Response/response_text": "cabi_post_07e98a263ec123c5",};
+  const postReturnNames = {"resource/Response/response_text": "cabi_post_07e98a263ec123c5",};
   const attach = instance => {
     const exports = instance.exports;
     const memory = exports["memory"];
@@ -1513,7 +1498,7 @@ export function createFeCoreWasmTransport(codec, semanticAdapter, completions) {
   return { imports: { "fe:web-fetch": imports }, attach, session };
 }
 
-export const FE_HOST_WASM_CODEC_PLANS = Object.freeze({"resource/Response/response_array_buffer":{"contract":"fe:host-wasm-codec/v1","abi":"fe-host-wasm","abi_version":1,"function":{"namespace":"Response","name":"arrayBuffer","direction":"guest_to_host","params":[{"type_":{"kind":"handle","value":{"resource":"Response","ownership":"borrow"}},"layout":{"size":4,"align":4,"shape":{"kind":"handle"},"flat":{"mode":"direct","types":["i32"]}},"position":"parameter","ownership":"borrow"}],"result":{"type_":{"kind":"buffer","value":{"element":"u8","ownership":"own"}},"layout":{"size":8,"align":4,"shape":{"kind":"buffer","value":"u8"},"flat":{"mode":"direct","types":["i32","i32"]}},"position":"result","ownership":"value"},"requirements":["realloc","post_return","borrow_scope"]}},"resource/Response/response_get_status":{"contract":"fe:host-wasm-codec/v1","abi":"fe-host-wasm","abi_version":1,"function":{"namespace":"Response","name":"get-status","direction":"guest_to_host","params":[{"type_":{"kind":"handle","value":{"resource":"Response","ownership":"borrow"}},"layout":{"size":4,"align":4,"shape":{"kind":"handle"},"flat":{"mode":"direct","types":["i32"]}},"position":"parameter","ownership":"borrow"}],"result":{"type_":{"kind":"u16"},"layout":{"size":2,"align":2,"shape":{"kind":"scalar","value":"u16"},"flat":{"mode":"direct","types":["i32"]}},"position":"result","ownership":"value"},"requirements":["borrow_scope"]}},"resource/Response/response_resource_drop":{"contract":"fe:host-wasm-codec/v1","abi":"fe-host-wasm","abi_version":1,"function":{"namespace":"Response","name":"resource-drop","direction":"guest_to_host","params":[{"type_":{"kind":"handle","value":{"resource":"Response","ownership":"own"}},"layout":{"size":4,"align":4,"shape":{"kind":"handle"},"flat":{"mode":"direct","types":["i32"]}},"position":"parameter","ownership":"own"}],"result":null,"requirements":["resource_transfer"]}},"resource/Response/response_text":{"contract":"fe:host-wasm-codec/v1","abi":"fe-host-wasm","abi_version":1,"function":{"namespace":"Response","name":"text","direction":"guest_to_host","params":[{"type_":{"kind":"handle","value":{"resource":"Response","ownership":"borrow"}},"layout":{"size":4,"align":4,"shape":{"kind":"handle"},"flat":{"mode":"direct","types":["i32"]}},"position":"parameter","ownership":"borrow"}],"result":{"type_":{"kind":"string","value":"utf8"},"layout":{"size":8,"align":4,"shape":{"kind":"string","value":"utf8"},"flat":{"mode":"direct","types":["i32","i32"]}},"position":"result","ownership":"value"},"requirements":["realloc","post_return","borrow_scope"]}},"resource/Window/window_fetch":{"contract":"fe:host-wasm-codec/v1","abi":"fe-host-wasm","abi_version":1,"function":{"namespace":"Window","name":"fetch","direction":"guest_to_host","params":[{"type_":{"kind":"string","value":"utf8"},"layout":{"size":8,"align":4,"shape":{"kind":"string","value":"utf8"},"flat":{"mode":"direct","types":["i32","i32"]}},"position":"parameter","ownership":"value"}],"result":{"type_":{"kind":"handle","value":{"resource":"Response","ownership":"own"}},"layout":{"size":4,"align":4,"shape":{"kind":"handle"},"flat":{"mode":"direct","types":["i32"]}},"position":"result","ownership":"own"},"requirements":["resource_transfer"]}}});
+export const FE_HOST_WASM_CODEC_PLANS = Object.freeze({"resource/Response/response_get_status":{"contract":"fe:host-wasm-codec/v1","abi":"fe-host-wasm","abi_version":1,"function":{"namespace":"Response","name":"get-status","direction":"guest_to_host","params":[{"type_":{"kind":"handle","value":{"resource":"Response","ownership":"borrow"}},"layout":{"size":4,"align":4,"shape":{"kind":"handle"},"flat":{"mode":"direct","types":["i32"]}},"position":"parameter","ownership":"borrow"}],"result":{"type_":{"kind":"u16"},"layout":{"size":2,"align":2,"shape":{"kind":"scalar","value":"u16"},"flat":{"mode":"direct","types":["i32"]}},"position":"result","ownership":"value"},"requirements":["borrow_scope"]}},"resource/Response/response_resource_drop":{"contract":"fe:host-wasm-codec/v1","abi":"fe-host-wasm","abi_version":1,"function":{"namespace":"Response","name":"resource-drop","direction":"guest_to_host","params":[{"type_":{"kind":"handle","value":{"resource":"Response","ownership":"own"}},"layout":{"size":4,"align":4,"shape":{"kind":"handle"},"flat":{"mode":"direct","types":["i32"]}},"position":"parameter","ownership":"own"}],"result":null,"requirements":["resource_transfer"]}},"resource/Response/response_text":{"contract":"fe:host-wasm-codec/v1","abi":"fe-host-wasm","abi_version":1,"function":{"namespace":"Response","name":"text","direction":"guest_to_host","params":[{"type_":{"kind":"handle","value":{"resource":"Response","ownership":"borrow"}},"layout":{"size":4,"align":4,"shape":{"kind":"handle"},"flat":{"mode":"direct","types":["i32"]}},"position":"parameter","ownership":"borrow"}],"result":{"type_":{"kind":"string","value":"utf8"},"layout":{"size":8,"align":4,"shape":{"kind":"string","value":"utf8"},"flat":{"mode":"direct","types":["i32","i32"]}},"position":"result","ownership":"value"},"requirements":["realloc","post_return","borrow_scope"]}},"resource/Window/window_fetch":{"contract":"fe:host-wasm-codec/v1","abi":"fe-host-wasm","abi_version":1,"function":{"namespace":"Window","name":"fetch","direction":"guest_to_host","params":[{"type_":{"kind":"string","value":"utf8"},"layout":{"size":8,"align":4,"shape":{"kind":"string","value":"utf8"},"flat":{"mode":"direct","types":["i32","i32"]}},"position":"parameter","ownership":"value"}],"result":{"type_":{"kind":"handle","value":{"resource":"Response","ownership":"own"}},"layout":{"size":4,"align":4,"shape":{"kind":"handle"},"flat":{"mode":"direct","types":["i32"]}},"position":"result","ownership":"own"},"requirements":["resource_transfer"]}}});
 export function createFeBrowserCoreAdapter(completions, globalObject = globalThis) {
   if (!globalObject || (typeof globalObject !== "object" && typeof globalObject !== "function")) throw new TypeError("browser adapter requires a global object");
   const host = Object.freeze({

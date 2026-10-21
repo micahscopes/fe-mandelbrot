@@ -2,48 +2,48 @@
   "source": "fe doc json SCIP export",
   "files": {
     "lib.fe": {
-      "bytes": 37795,
-      "semanticOccurrences": 870
+      "bytes": 28707,
+      "semanticOccurrences": 699
     },
     "policy.fe": {
-      "bytes": 6773,
-      "semanticOccurrences": 220
+      "bytes": 10744,
+      "semanticOccurrences": 337
     },
     "orbit.fe": {
-      "bytes": 14054,
-      "semanticOccurrences": 224
+      "bytes": 16129,
+      "semanticOccurrences": 324
     },
     "image.fe": {
-      "bytes": 4682,
-      "semanticOccurrences": 119
+      "bytes": 5985,
+      "semanticOccurrences": 162
     },
     "cache.fe": {
-      "bytes": 1531,
-      "semanticOccurrences": 67
+      "bytes": 7580,
+      "semanticOccurrences": 312
     },
     "palette.fe": {
-      "bytes": 1376,
-      "semanticOccurrences": 43
+      "bytes": 1386,
+      "semanticOccurrences": 32
     },
     "partition.fe": {
-      "bytes": 3254,
-      "semanticOccurrences": 35
+      "bytes": 7617,
+      "semanticOccurrences": 159
     },
     "color_library.fe": {
-      "bytes": 2726,
-      "semanticOccurrences": 87
+      "bytes": 4309,
+      "semanticOccurrences": 132
     },
     "color_demo.fe": {
-      "bytes": 2146,
-      "semanticOccurrences": 91
+      "bytes": 2933,
+      "semanticOccurrences": 116
     },
     "viewer.fe": {
-      "bytes": 17960,
-      "semanticOccurrences": 497
+      "bytes": 20105,
+      "semanticOccurrences": 560
     },
     "viewer_highlight.fe": {
-      "bytes": 5781,
-      "semanticOccurrences": 46
+      "bytes": 10228,
+      "semanticOccurrences": 161
     }
   }
 }

@@ -1,7 +1,16 @@
 //! Fe camera state, backing extent, iteration and presentation policies.
+use core::marker::Copy
 use std::webgpu::{SurfaceQualityFacts, SurfaceBackingExtent}
-use std::web::view::{Param,ParamReadout, SurfaceEvent, ApplyParamBindings, ParamBindingsProvider, SurfaceState}
+use std::web::view::{
+    Param,
+    ParamReadout,
+    SurfaceEvent,
+    ApplyParamBindings,
+    ParamBindingsProvider,
+    SurfaceState,
+}
 use fmath::{clamp, min, max, mix, from_i32, to_i32}
+use precision::{Expansion, add_f32, from_quad, to_quad}
 
 extern {
     const fn __bitcast<From, To>(_: From) -> To
@@ -20,10 +29,10 @@ pub const ZOOM_MAX: f32 = 3.0
 
 /// Smooth reciprocal zoom: reversing an equal wheel delta reverses its scale.
 /// Normalize raw DOM pixel, line and page units here, in Fe.
-pub fn zoom_step(_ zoom:f32,_ delta:f32,_ mode:u32,_ extent:f32) -> f32 {
-    let units:f32=if mode==1 { 16.0 } else { if mode==2 { extent } else { 1.0 } }
-    let t:f32=clamp(delta*units*0.0006666667,-0.45,0.45)
-    zoom*((1.0+t)/(1.0-t))
+pub fn zoom_step(_ zoom: f32, _ delta: f32, _ mode: u32, _ extent: f32) -> f32 {
+    let units: f32 = if mode == 1 { 16.0 } else { if mode == 2 { extent } else { 1.0 } }
+    let t: f32 = clamp(delta * units * 0.0006666667, -0.45, 0.45)
+    zoom * ((1.0 + t) / (1.0 - t))
 }
 
 pub fn clamp_f(_ value: f32, _ lower: f32, _ upper: f32) -> f32 {
@@ -51,6 +60,12 @@ pub fn clamp_quad(_ w0: f32, _ w1: f32, _ w2: f32, _ w3: f32, _ lower: f32, _ up
     }
 }
 
+pub fn clamp_expansion(_ value: Expansion<4>, _ lower: f32, _ upper: f32) -> Expansion<4> {
+    let (w0, w1, w2, w3) = to_quad(value)
+    let (c0, c1, c2, c3) = clamp_quad(w0, w1, w2, w3, lower, upper)
+    from_quad(c0, c1, c2, c3)
+}
+
 pub fn iteration_limit(_ zoom: f32) -> u32 {
     let mut z: f32 = zoom
     let mut depth: u32 = 0
@@ -70,6 +85,16 @@ pub fn iteration_limit(_ zoom: f32) -> u32 {
     }
 }
 
+/// Complete camera projection in complex-plane and backing-store coordinates.
+pub struct Camera {
+    pub center_x: Expansion<4>,
+    pub center_y: Expansion<4>,
+    pub zoom: f32,
+    pub res: f32,
+}
+
+impl Copy for Camera {}
+
 pub struct MandelbrotParams {
     pub center_x_w0: Param,
     pub center_x_w1: Param,
@@ -84,15 +109,18 @@ pub struct MandelbrotParams {
     pub clock: Param,
     pub last_input: Param,
     pub antialias: Param,
-    pub drag_active:Param,
-    pub magnification:Param,
+    pub drag_active: Param,
+    pub magnification: Param,
 }
 
 pub struct MandelbrotViewState {
+    /// Most-significant word of a four-word center expansion. Fe gesture math
+    /// updates this and the three hidden low words together.
     pub center_x_w0: f32,
     pub center_x_w1: f32,
     pub center_x_w2: f32,
     pub center_x_w3: f32,
+    /// Most-significant word of the four-word vertical center expansion.
     pub center_y_w0: f32,
     pub center_y_w1: f32,
     pub center_y_w2: f32,
@@ -102,15 +130,25 @@ pub struct MandelbrotViewState {
     pub clock: f32,
     pub last_input: f32,
     pub antialias: f32,
-    pub drag_active:f32,
-    pub magnification:f32,
+    pub drag_active: f32,
+    /// Magnification relative to the full initial view (3 / view half-span).
+    pub magnification: f32,
 }
+
+impl Copy for MandelbrotViewState {}
 
 impl SurfaceState for MandelbrotViewState {
     type Params = MandelbrotParams
 }
 
 derive ApplyParamBindings for MandelbrotViewState using ParamBindingsProvider<MandelbrotParams>
+
+/// Single non-resource state envelope owned by the GPU actor.
+pub struct SurfaceStateEnvelope {
+    pub state: MandelbrotViewState,
+}
+
+impl Copy for SurfaceStateEnvelope {}
 
 pub const fn mandelbrot_params() -> MandelbrotParams {
     MandelbrotParams {
@@ -135,8 +173,8 @@ pub const fn mandelbrot_params() -> MandelbrotParams {
         clock: Param::fixed(0.0),
         last_input: Param::fixed(0.0),
         antialias: Param::range(min: 0.0, max: 1.0, init: 1.0),
-        drag_active:Param::fixed(0.0),
-        magnification:Param::readout(ParamReadout::Scalar),
+        drag_active: Param::fixed(0.0),
+        magnification: Param::readout(ParamReadout::Scalar),
     }
 }
 
@@ -161,47 +199,145 @@ pub fn progress(_ age: f32, _ start: f32, _ duration: f32) -> f32 {
     let t: f32 = clamp_f((age - start) / duration, 0.0, 1.0)
     t * t * (3.0 - 2.0 * t)
 }
+
 /// Lower spatial resolution during interaction, not the required orbit depth.
 /// Short iteration caps can turn a perfectly valid deep view solid black.
-pub fn preview_budget(_ zoom:f32,_ age:f32) -> u32 { iteration_limit(zoom) }
+pub fn preview_budget(_ zoom: f32) -> u32 {
+    iteration_limit(zoom)
+}
 
 // Hold the soft view briefly, then ease preview blur and native reveal together.
-pub fn sharpness(_ age:f32) -> f32 { progress(age,200.0,1600.0) }
+pub fn sharpness(_ age: f32) -> f32 {
+    progress(age, 200.0, 1600.0)
+}
 
 pub fn blur_radius(_ age: f32) -> f32 {
     24.0 * (1.0 - sharpness(age))
 }
 
-
 impl MandelbrotViewState {
-    pub fn refresh_readout(self) -> Self {
-        Self {
-            center_x_w0:self.center_x_w0,
-            center_x_w1:self.center_x_w1,
-            center_x_w2:self.center_x_w2,
-            center_x_w3:self.center_x_w3,
-            center_y_w0:self.center_y_w0,
-            center_y_w1:self.center_y_w1,
-            center_y_w2:self.center_y_w2,
-            center_y_w3:self.center_y_w3,
-            zoom:self.zoom,
-            res:self.res,
-            clock:self.clock,
-            last_input:self.last_input,
-            antialias:self.antialias,
-            drag_active:self.drag_active,
-            magnification:3.0/self.zoom,
+    pub fn input_age(self) -> f32 {
+        if self.drag_active >= 0.5 {
+            0.0
+        } else {
+            self.clock - self.last_input
         }
+    }
+
+    pub fn is_input_settled(self) -> bool {
+        self.drag_active < 0.5 && self.clock - self.last_input >= 60.0
+    }
+
+    pub fn camera(self) -> Camera {
+        Camera {
+            center_x: from_quad(
+                self.center_x_w0,
+                self.center_x_w1,
+                self.center_x_w2,
+                self.center_x_w3,
+            ),
+            center_y: from_quad(
+                self.center_y_w0,
+                self.center_y_w1,
+                self.center_y_w2,
+                self.center_y_w3,
+            ),
+            zoom: self.zoom,
+            res: self.res,
+        }
+    }
+
+    pub fn with_camera(self, _ camera: Camera) -> Self {
+        let (cx0, cx1, cx2, cx3) = to_quad(camera.center_x)
+        let (cy0, cy1, cy2, cy3) = to_quad(camera.center_y)
+        let mut next: Self = self
+        next.center_x_w0 = cx0
+        next.center_x_w1 = cx1
+        next.center_x_w2 = cx2
+        next.center_x_w3 = cx3
+        next.center_y_w0 = cy0
+        next.center_y_w1 = cy1
+        next.center_y_w2 = cy2
+        next.center_y_w3 = cy3
+        next.zoom = camera.zoom
+        next.res = camera.res
+        next.magnification = 3.0 / camera.zoom
+        next
+    }
+
+    pub fn refresh_readout(self) -> Self {
+        let mut next: Self = self
+        next.magnification = 3.0 / self.zoom
+        next
     }
 }
 
 pub fn initial_view() -> MandelbrotViewState {
     MandelbrotViewState {
-        center_x_w0:-1.1723285913467407,center_x_w1:-0.000000008653259442326089,
-        center_x_w2:0.00000000000000016498233784400384,center_x_w3:0.0000000000000000000000010576053052462748,
-        center_y_w0:0.29582354426383972,center_y_w1:-0.000000004263839503693134,
-        center_y_w2:-0.00000000000000021798654948407476,center_y_w3:-0.0000000000000000000000037684836019798525,
-        zoom:0.0000000389,res:512.0,clock:0.0,last_input:0.0,antialias:1.0,drag_active:0.0,
-        magnification:3.0/0.0000000389,
+        center_x_w0: -1.1723285913467407,
+        center_x_w1: -0.000000008653259442326089,
+        center_x_w2: 0.00000000000000016498233784400384,
+        center_x_w3: 0.0000000000000000000000010576053052462748,
+        center_y_w0: 0.29582354426383972,
+        center_y_w1: -0.000000004263839503693134,
+        center_y_w2: -0.00000000000000021798654948407476,
+        center_y_w3: -0.0000000000000000000000037684836019798525,
+        zoom: 0.0000000389,
+        res: 512.0,
+        clock: 0.0,
+        last_input: 0.0,
+        antialias: 1.0,
+        drag_active: 0.0,
+        magnification: 3.0 / 0.0000000389,
     }
+}
+
+pub fn initial_state() -> SurfaceStateEnvelope {
+    SurfaceStateEnvelope { state: initial_view() }
+}
+
+pub fn transition(_ state: MandelbrotViewState, _ event: own SurfaceEvent) -> MandelbrotViewState {
+    let mut next: MandelbrotViewState = state
+    next.clock = event.timestamp
+    if event.is_animation_frame() {
+        return next.refresh_readout()
+    }
+    next.last_input = event.timestamp
+    if event.is_pointer_down() || event.is_pointer_up()
+        || (event.is_pointer_move() && (event.buttons & 1) == 0)
+    {
+        next.drag_active = if event.is_pointer_down() { 1.0 } else { 0.0 }
+        return next.refresh_readout()
+    }
+    if event.is_param_edit() {
+        return next
+            .refresh_readout()
+            .apply_param_bindings(mandelbrot_params(), event)
+            .refresh_readout()
+    }
+    let camera: Camera = state.camera()
+    let dx: f32 = event.delta_x
+    let dy: f32 = event.delta_y
+    let dzoom: f32 = event.wheel_delta
+    let mx: f32 = event.pointer_x
+    let my: f32 = event.pointer_y
+    let res: f32 = event.width
+    let step: f32 = 2.0 * camera.zoom / res
+    let panned_x: Expansion<4> = add_f32<4>(camera.center_x, -dx * step)
+    let panned_y: Expansion<4> = add_f32<4>(camera.center_y, dy * step)
+    let next_zoom: f32 = clamp_f(
+        zoom_step(camera.zoom, dzoom, event.wheel_mode, event.height),
+        ZOOM_MIN,
+        ZOOM_MAX,
+    )
+    let u: f32 = (mx + 0.5) * 2.0 / res - 1.0
+    let v: f32 = 1.0 - (my + 0.5) * 2.0 / res
+    let anchored_x: Expansion<4> = add_f32<4>(panned_x, u * (camera.zoom - next_zoom))
+    let anchored_y: Expansion<4> = add_f32<4>(panned_y, v * (camera.zoom - next_zoom))
+    next.with_camera(Camera {
+        center_x: clamp_expansion(anchored_x, CENTER_X_MIN, CENTER_X_MAX),
+        center_y: clamp_expansion(anchored_y, CENTER_Y_MIN, CENTER_Y_MAX),
+        zoom: next_zoom,
+        res: res,
+    })
 }

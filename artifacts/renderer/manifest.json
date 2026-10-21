@@ -4,9 +4,9 @@
   "source_entry": "display_preview",
   "artifacts": {
     "wasm": "module.wasm",
-    "wasm_bytes": 14526,
+    "wasm_bytes": 18667,
     "wgsl": "passes/015-fragment.wgsl",
-    "wgsl_bytes": 12633,
+    "wgsl_bytes": 17510,
     "canonical_adapters": []
   },
   "layout": {
@@ -112,7 +112,7 @@
         "members": [
           {
             "name": "center_x_w0",
-            "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+            "doc": null,
             "arg_index": 16,
             "offset": 0,
             "width": 4,
@@ -144,7 +144,7 @@
           },
           {
             "name": "center_y_w0",
-            "doc": "Most-significant word of the four-word vertical center expansion.",
+            "doc": null,
             "arg_index": 20,
             "offset": 16,
             "width": 4,
@@ -224,7 +224,7 @@
           },
           {
             "name": "magnification",
-            "doc": "Magnification relative to the full initial view (3 / view half-span).",
+            "doc": null,
             "arg_index": 30,
             "offset": 56,
             "width": 4,
@@ -927,7 +927,7 @@
     {
       "source_entry": "initialize_order",
       "shader": "passes/000-compute.wgsl",
-      "shader_bytes": 10419,
+      "shader_bytes": 10043,
       "shader_stages": [
         "compute"
       ],
@@ -987,7 +987,7 @@
             "members": [
               {
                 "name": "center_x_w0",
-                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "doc": null,
                 "arg_index": 27,
                 "offset": 0,
                 "width": 4,
@@ -1019,7 +1019,7 @@
               },
               {
                 "name": "center_y_w0",
-                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "doc": null,
                 "arg_index": 31,
                 "offset": 16,
                 "width": 4,
@@ -1099,7 +1099,7 @@
               },
               {
                 "name": "magnification",
-                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "doc": null,
                 "arg_index": 41,
                 "offset": 56,
                 "width": 4,
@@ -1203,7 +1203,7 @@
     {
       "source_entry": "discard_stale_reference",
       "shader": "passes/001-compute.wgsl",
-      "shader_bytes": 6485,
+      "shader_bytes": 8389,
       "shader_stages": [
         "compute"
       ],
@@ -1263,7 +1263,7 @@
             "members": [
               {
                 "name": "center_x_w0",
-                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "doc": null,
                 "arg_index": 14,
                 "offset": 0,
                 "width": 4,
@@ -1295,7 +1295,7 @@
               },
               {
                 "name": "center_y_w0",
-                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "doc": null,
                 "arg_index": 18,
                 "offset": 16,
                 "width": 4,
@@ -1375,7 +1375,7 @@
               },
               {
                 "name": "magnification",
-                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "doc": null,
                 "arg_index": 28,
                 "offset": 56,
                 "width": 4,
@@ -1413,7 +1413,7 @@
     {
       "source_entry": "build_reference",
       "shader": "passes/002-compute.wgsl",
-      "shader_bytes": 135091,
+      "shader_bytes": 141562,
       "shader_stages": [
         "compute"
       ],
@@ -1512,7 +1512,7 @@
             "members": [
               {
                 "name": "center_x_w0",
-                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "doc": null,
                 "arg_index": 14,
                 "offset": 0,
                 "width": 4,
@@ -1544,7 +1544,7 @@
               },
               {
                 "name": "center_y_w0",
-                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "doc": null,
                 "arg_index": 18,
                 "offset": 16,
                 "width": 4,
@@ -1624,7 +1624,7 @@
               },
               {
                 "name": "magnification",
-                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "doc": null,
                 "arg_index": 28,
                 "offset": 56,
                 "width": 4,
@@ -1662,7 +1662,7 @@
     {
       "source_entry": "render_preview",
       "shader": "passes/003-compute.wgsl",
-      "shader_bytes": 48261,
+      "shader_bytes": 52310,
       "shader_stages": [
         "compute"
       ],
@@ -1774,7 +1774,7 @@
             "members": [
               {
                 "name": "center_x_w0",
-                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "doc": null,
                 "arg_index": 27,
                 "offset": 0,
                 "width": 4,
@@ -1806,7 +1806,7 @@
               },
               {
                 "name": "center_y_w0",
-                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "doc": null,
                 "arg_index": 31,
                 "offset": 16,
                 "width": 4,
@@ -1886,7 +1886,7 @@
               },
               {
                 "name": "magnification",
-                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "doc": null,
                 "arg_index": 41,
                 "offset": 56,
                 "width": 4,
@@ -1990,7 +1990,7 @@
     {
       "source_entry": "cache_initial",
       "shader": "passes/004-compute.wgsl",
-      "shader_bytes": 4072,
+      "shader_bytes": 4876,
       "shader_stages": [
         "compute"
       ],
@@ -2076,7 +2076,7 @@
             "members": [
               {
                 "name": "center_x_w0",
-                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "doc": null,
                 "arg_index": 27,
                 "offset": 0,
                 "width": 4,
@@ -2108,7 +2108,7 @@
               },
               {
                 "name": "center_y_w0",
-                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "doc": null,
                 "arg_index": 31,
                 "offset": 16,
                 "width": 4,
@@ -2188,7 +2188,7 @@
               },
               {
                 "name": "magnification",
-                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "doc": null,
                 "arg_index": 41,
                 "offset": 56,
                 "width": 4,
@@ -2273,7 +2273,7 @@
     {
       "source_entry": "publish_initial",
       "shader": "passes/005-compute.wgsl",
-      "shader_bytes": 4299,
+      "shader_bytes": 5722,
       "shader_stages": [
         "compute"
       ],
@@ -2333,7 +2333,7 @@
             "members": [
               {
                 "name": "center_x_w0",
-                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "doc": null,
                 "arg_index": 14,
                 "offset": 0,
                 "width": 4,
@@ -2365,7 +2365,7 @@
               },
               {
                 "name": "center_y_w0",
-                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "doc": null,
                 "arg_index": 18,
                 "offset": 16,
                 "width": 4,
@@ -2445,7 +2445,7 @@
               },
               {
                 "name": "magnification",
-                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "doc": null,
                 "arg_index": 28,
                 "offset": 56,
                 "width": 4,
@@ -2464,7 +2464,7 @@
     {
       "source_entry": "blur_horizontal",
       "shader": "passes/006-compute.wgsl",
-      "shader_bytes": 10643,
+      "shader_bytes": 11535,
       "shader_stages": [
         "compute"
       ],
@@ -2550,7 +2550,7 @@
             "members": [
               {
                 "name": "center_x_w0",
-                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "doc": null,
                 "arg_index": 27,
                 "offset": 0,
                 "width": 4,
@@ -2582,7 +2582,7 @@
               },
               {
                 "name": "center_y_w0",
-                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "doc": null,
                 "arg_index": 31,
                 "offset": 16,
                 "width": 4,
@@ -2662,7 +2662,7 @@
               },
               {
                 "name": "magnification",
-                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "doc": null,
                 "arg_index": 41,
                 "offset": 56,
                 "width": 4,
@@ -2766,7 +2766,7 @@
     {
       "source_entry": "blur_vertical",
       "shader": "passes/007-compute.wgsl",
-      "shader_bytes": 10672,
+      "shader_bytes": 11564,
       "shader_stages": [
         "compute"
       ],
@@ -2852,7 +2852,7 @@
             "members": [
               {
                 "name": "center_x_w0",
-                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "doc": null,
                 "arg_index": 27,
                 "offset": 0,
                 "width": 4,
@@ -2884,7 +2884,7 @@
               },
               {
                 "name": "center_y_w0",
-                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "doc": null,
                 "arg_index": 31,
                 "offset": 16,
                 "width": 4,
@@ -2964,7 +2964,7 @@
               },
               {
                 "name": "magnification",
-                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "doc": null,
                 "arg_index": 41,
                 "offset": 56,
                 "width": 4,
@@ -3068,7 +3068,7 @@
     {
       "source_entry": "restore_oracle",
       "shader": "passes/008-compute.wgsl",
-      "shader_bytes": 25728,
+      "shader_bytes": 26252,
       "shader_stages": [
         "compute"
       ],
@@ -3180,7 +3180,7 @@
             "members": [
               {
                 "name": "center_x_w0",
-                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "doc": null,
                 "arg_index": 27,
                 "offset": 0,
                 "width": 4,
@@ -3212,7 +3212,7 @@
               },
               {
                 "name": "center_y_w0",
-                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "doc": null,
                 "arg_index": 31,
                 "offset": 16,
                 "width": 4,
@@ -3292,7 +3292,7 @@
               },
               {
                 "name": "magnification",
-                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "doc": null,
                 "arg_index": 41,
                 "offset": 56,
                 "width": 4,
@@ -3396,7 +3396,7 @@
     {
       "source_entry": "seed_refinement",
       "shader": "passes/009-compute.wgsl",
-      "shader_bytes": 60703,
+      "shader_bytes": 55315,
       "shader_stages": [
         "compute"
       ],
@@ -3508,7 +3508,7 @@
             "members": [
               {
                 "name": "center_x_w0",
-                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "doc": null,
                 "arg_index": 27,
                 "offset": 0,
                 "width": 4,
@@ -3540,7 +3540,7 @@
               },
               {
                 "name": "center_y_w0",
-                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "doc": null,
                 "arg_index": 31,
                 "offset": 16,
                 "width": 4,
@@ -3620,7 +3620,7 @@
               },
               {
                 "name": "magnification",
-                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "doc": null,
                 "arg_index": 41,
                 "offset": 56,
                 "width": 4,
@@ -3724,7 +3724,7 @@
     {
       "source_entry": "refine_pixels",
       "shader": "passes/010-compute.wgsl",
-      "shader_bytes": 51239,
+      "shader_bytes": 51162,
       "shader_stages": [
         "compute"
       ],
@@ -3836,7 +3836,7 @@
             "members": [
               {
                 "name": "center_x_w0",
-                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "doc": null,
                 "arg_index": 27,
                 "offset": 0,
                 "width": 4,
@@ -3868,7 +3868,7 @@
               },
               {
                 "name": "center_y_w0",
-                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "doc": null,
                 "arg_index": 31,
                 "offset": 16,
                 "width": 4,
@@ -3948,7 +3948,7 @@
               },
               {
                 "name": "magnification",
-                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "doc": null,
                 "arg_index": 41,
                 "offset": 56,
                 "width": 4,
@@ -4052,7 +4052,7 @@
     {
       "source_entry": "antialias_pixels",
       "shader": "passes/011-compute.wgsl",
-      "shader_bytes": 55865,
+      "shader_bytes": 53991,
       "shader_stages": [
         "compute"
       ],
@@ -4151,7 +4151,7 @@
             "members": [
               {
                 "name": "center_x_w0",
-                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "doc": null,
                 "arg_index": 27,
                 "offset": 0,
                 "width": 4,
@@ -4183,7 +4183,7 @@
               },
               {
                 "name": "center_y_w0",
-                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "doc": null,
                 "arg_index": 31,
                 "offset": 16,
                 "width": 4,
@@ -4263,7 +4263,7 @@
               },
               {
                 "name": "magnification",
-                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "doc": null,
                 "arg_index": 41,
                 "offset": 56,
                 "width": 4,
@@ -4367,7 +4367,7 @@
     {
       "source_entry": "finish_refinement",
       "shader": "passes/012-compute.wgsl",
-      "shader_bytes": 9290,
+      "shader_bytes": 10527,
       "shader_stages": [
         "compute"
       ],
@@ -4427,7 +4427,7 @@
             "members": [
               {
                 "name": "center_x_w0",
-                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "doc": null,
                 "arg_index": 14,
                 "offset": 0,
                 "width": 4,
@@ -4459,7 +4459,7 @@
               },
               {
                 "name": "center_y_w0",
-                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "doc": null,
                 "arg_index": 18,
                 "offset": 16,
                 "width": 4,
@@ -4539,7 +4539,7 @@
               },
               {
                 "name": "magnification",
-                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "doc": null,
                 "arg_index": 28,
                 "offset": 56,
                 "width": 4,
@@ -4577,7 +4577,7 @@
     {
       "source_entry": "cache_snapshot",
       "shader": "passes/013-compute.wgsl",
-      "shader_bytes": 4789,
+      "shader_bytes": 5974,
       "shader_stages": [
         "compute"
       ],
@@ -4676,7 +4676,7 @@
             "members": [
               {
                 "name": "center_x_w0",
-                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "doc": null,
                 "arg_index": 27,
                 "offset": 0,
                 "width": 4,
@@ -4708,7 +4708,7 @@
               },
               {
                 "name": "center_y_w0",
-                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "doc": null,
                 "arg_index": 31,
                 "offset": 16,
                 "width": 4,
@@ -4788,7 +4788,7 @@
               },
               {
                 "name": "magnification",
-                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "doc": null,
                 "arg_index": 41,
                 "offset": 56,
                 "width": 4,
@@ -4939,7 +4939,7 @@
             "members": [
               {
                 "name": "center_x_w0",
-                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "doc": null,
                 "arg_index": 14,
                 "offset": 0,
                 "width": 4,
@@ -4971,7 +4971,7 @@
               },
               {
                 "name": "center_y_w0",
-                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "doc": null,
                 "arg_index": 18,
                 "offset": 16,
                 "width": 4,
@@ -5051,7 +5051,7 @@
               },
               {
                 "name": "magnification",
-                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "doc": null,
                 "arg_index": 28,
                 "offset": 56,
                 "width": 4,
@@ -5070,7 +5070,7 @@
     {
       "source_entry": "display_preview",
       "shader": "passes/015-fragment.wgsl",
-      "shader_bytes": 12633,
+      "shader_bytes": 17510,
       "shader_stages": [
         "fragment"
       ],
@@ -5177,7 +5177,7 @@
             "members": [
               {
                 "name": "center_x_w0",
-                "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
+                "doc": null,
                 "arg_index": 16,
                 "offset": 0,
                 "width": 4,
@@ -5209,7 +5209,7 @@
               },
               {
                 "name": "center_y_w0",
-                "doc": "Most-significant word of the four-word vertical center expansion.",
+                "doc": null,
                 "arg_index": 20,
                 "offset": 16,
                 "width": 4,
@@ -5289,7 +5289,7 @@
               },
               {
                 "name": "magnification",
-                "doc": "Magnification relative to the full initial view (3 / view half-span).",
+                "doc": null,
                 "arg_index": 30,
                 "offset": 56,
                 "width": 4,
@@ -5330,7 +5330,6 @@
     "params": [
       {
         "name": "center_x_w0",
-        "doc": "Most-significant word of a four-word center expansion. Fe gesture math\nupdates this and the three hidden low words together.",
         "kind": "range",
         "min": -2.5,
         "max": 1.0,
@@ -5380,7 +5379,6 @@
       },
       {
         "name": "center_y_w0",
-        "doc": "Most-significant word of the four-word vertical center expansion.",
         "kind": "range",
         "min": -1.5,
         "max": 1.5,
@@ -5503,7 +5501,6 @@
       },
       {
         "name": "magnification",
-        "doc": "Magnification relative to the full initial view (3 / view half-span).",
         "kind": "fixed",
         "source": "state",
         "presentation": {

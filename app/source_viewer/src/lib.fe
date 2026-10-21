@@ -35,26 +35,48 @@ use std::web::page::{
     PageElement,
     PageText,
 }
-use std::text::{Utf8Buffer, Utf8View}
-use core::actor::{ActorSink, ScopedTask}
-use core::pending::{PendingCancellation, Select, Suspend}
-use std::actor::{ActorNotification, BrowserActorNotifications, BrowserActorSink}
+use std::text::{
+    Utf8Buffer,
+    Utf8View,
+}
+use core::actor::{
+    ActorSink,
+    ScopedTask,
+}
+use core::pending::{
+    PendingCancellation,
+    Select,
+    Suspend,
+}
+use std::actor::{
+    ActorNotification,
+    BrowserActorNotifications,
+    BrowserActorSink,
+}
 use std::reactive::AsyncEventSource
 use std::host::Resumable
 use std::wasm::WasmBackend
 use source_inspector::{
-    InspectorAction,
-    InspectorTask,
-    load_inspector_resources,
+    TextLoadAction,
+    TextLoadTask,
+    load_latest_text,
     publish_load_command,
     URL_CAPACITY,
     CONTENT_CAPACITY,
     CONTROL_CAPACITY,
 }
+use ingot::highlight::{
+    Document,
+    Token,
+    TokenKind,
+    document,
+    next,
+}
 
 const VIEW_CAPACITY: usize = 384
 const PATCH_CAPACITY: u32 = 2097152
 const GUTTER_CAPACITY: u32 = 65536
+const MAX_HIGHLIGHTED_RUNS: u32 = 8191
 
 struct SourceToken {}
 struct Ty {}
@@ -81,11 +103,13 @@ struct SourceParts {
     comment: Part<Class<Comment>>,
     string: Part<Class<StringToken>>,
     number: Part<Class<Number>>,
+
     gutter: Part<Text>,
     title: Part<Text>,
     error_text: Part<Text>,
     raw: Part<Link>,
 }
+
 derive ComponentSchema for SourceParts using ComponentSchemaProvider
 
 enum SourceStatus {
@@ -94,7 +118,38 @@ enum SourceStatus {
     Ready,
     Error,
 }
+
 impl Copy for SourceStatus {}
+
+impl SourceStatus {
+    fn is_empty(self) -> bool {
+        match self {
+            Self::Empty => true,
+            _ => false,
+        }
+    }
+
+    fn is_loading(self) -> bool {
+        match self {
+            Self::Loading => true,
+            _ => false,
+        }
+    }
+
+    fn is_ready(self) -> bool {
+        match self {
+            Self::Ready => true,
+            _ => false,
+        }
+    }
+
+    fn is_error(self) -> bool {
+        match self {
+            Self::Error => true,
+            _ => false,
+        }
+    }
+}
 
 pub struct SourceState {
     patch_ptr: u32,
@@ -107,8 +162,69 @@ pub struct SourceState {
     request: u32,
     status: SourceStatus,
     connected: bool,
-    project_source:bool,
+    project_source: bool,
     prevent_default: bool,
+}
+
+impl Copy for SourceState {}
+
+pub struct SourceStateEnvelope {
+    state: SourceState,
+}
+
+impl Copy for SourceStateEnvelope {}
+
+impl SourceState {
+    fn idle(self) -> Self {
+        let mut next = self
+        next.project_source = false
+        next.prevent_default = false
+        next
+    }
+
+    fn connected(self) -> Self {
+        let mut next = self.idle()
+        next.connected = true
+        next.project_source = true
+        next
+    }
+
+    fn disconnected(self) -> Self {
+        let mut next = self.idle()
+        next.connected = false
+        next
+    }
+
+    fn begin_load(self, url_len: u32) -> Self {
+        let mut next = self.idle()
+        next.url_len = url_len
+        next.request = self.request + 1
+        next.content_len = 0
+        next.status = SourceStatus::Loading
+        next.project_source = true
+        next.prevent_default = true
+        next
+    }
+
+    fn apply_loaded(self, task: TextLoadTask) -> Self {
+        let mut next = self.idle()
+        next.content_len = task.content_len
+        next.project_source = true
+        next.status = if task.is_http_success() {
+            SourceStatus::Ready
+        } else {
+            SourceStatus::Error
+        }
+        next
+    }
+
+    fn fail_load(self, task: TextLoadTask) -> Self {
+        let mut next = self.idle()
+        next.content_len = task.content_len
+        next.project_source = true
+        next.status = SourceStatus::Error
+        next
+    }
 }
 
 const fn label(_ text: String<31>) -> PageText {
@@ -123,12 +239,10 @@ const fn file_link(
     page.open(element: PageElement::Anchor)
         .attribute(value: PageAttribute::class(value: "file"))
         .attribute(
-            value: PageAttribute::href(
-                value: PageText::three(first: "source/", second: file, third: ".view"),
-            ),
+            value: PageAttribute::href(value: PageText::three(first: "source/", second: file, third: ".view")),
         )
         .attribute(
-            value: PageAttribute::action(value: InspectorAction::Source),
+            value: PageAttribute::action(value: TextLoadAction::Select),
         )
         .open(element: PageElement::Code)
         .text(value: label(file))
@@ -186,140 +300,178 @@ fn filename(_ url: Utf8View) -> BrowserString {
     url.slice(start: start, end: url.len()).view.browser_string()
 }
 
+fn write_run(
+    writer: ComponentWriter,
+    ui: SourceParts,
+    key: u32,
+    text: own BrowserString,
+    kind: TokenKind,
+) -> ComponentWriter {
+    writer
+        .repeat_item(key: key)
+        .set_text(target: ui.token, value: text)
+        .set_class(target: ui.token, token: ui.ty, enabled: kind.is_type_name())
+        .set_class(target: ui.token, token: ui.function, enabled: kind.is_function())
+        .set_class(target: ui.token, token: ui.property, enabled: kind.is_property())
+        .set_class(target: ui.token, token: ui.variable, enabled: kind.is_variable())
+        .set_class(target: ui.token, token: ui.keyword, enabled: kind.is_keyword())
+        .set_class(target: ui.token, token: ui.comment, enabled: kind.is_comment())
+        .set_class(target: ui.token, token: ui.string, enabled: kind.is_string())
+        .set_class(target: ui.token, token: ui.number, enabled: kind.is_number())
+}
+
 actor FeSourceViewer {
-    patch_ptr:u32,
-    control_ptr:u32,
-    url_ptr:u32,
-    content_ptr:u32,
-    gutter_ptr:u32,
-    url_len:u32,
-    content_len:u32,
-    request:u32,
-    status:SourceStatus,
-    connected:bool,
-    project_source:bool,
-    prevent_default:bool,
+    state: SourceState,
 
     const fn view() -> ComponentView<VIEW_CAPACITY> uses (ComponentComposition) {
-        let ui=<SourceParts as ComponentSchema>::component_parts()
-        let page=PageBuilder::new()
-            .open(element:PageElement::Header)
-            .open(element:PageElement::Anchor)
-            .attribute(value:PageAttribute::href(value:label("../index.html")))
-            .text(value:label("← Mandelbrot")).close()
-            .open(element:PageElement::Anchor)
-            .attribute(value:PageAttribute::href(value:label("../colors/index.html")))
-            .text(value:label("← Color lab")).close()
-            .open(element:PageElement::Heading1).text(value:label("Fe source")).close()
-            .open(element:PageElement::Paragraph).text(value:label("Renderer, colors and viewer")).close()
+        let ui = <SourceParts as ComponentSchema>::component_parts()
+        let page = PageBuilder::new()
+            .open(element: PageElement::Header)
+            .open(element: PageElement::Anchor)
+            .attribute(value: PageAttribute::href(value: label("../index.html")))
+            .text(value: label("← Mandelbrot")).close()
+            .open(element: PageElement::Anchor)
+            .attribute(value: PageAttribute::href(value: label("../colors/index.html")))
+            .text(value: label("← Color lab")).close()
+            .open(element: PageElement::Heading1).text(value: label("Fe source")).close()
+            .open(element: PageElement::Paragraph).text(value: label("Renderer, colors and viewer")).close()
             .close()
-            .open(element:PageElement::Div).attribute(value:PageAttribute::class(value:"workspace"))
-            .open(element:PageElement::Section).attribute(value:PageAttribute::class(value:"files"))
-        let page=file_link(page,"lib.fe","Actor and pass graph")
-        let page=file_link(page,"policy.fe","Camera and quality policy")
-        let page=file_link(page,"orbit.fe","Resumable perturbation")
-        let page=file_link(page,"image.fe","Color, sampling and Gaussian")
-        let page=file_link(page,"cache.fe","GPU cache metadata")
-        let page=file_link(page,"palette.fe","Rich OKLCH palette")
-        let page=file_link(page,"partition.fe","Blue-noise ordering")
-        let page=file_link(page,"color_library.fe","OKLCH and OKLab library")
-        let page=file_link(page,"color_demo.fe","Interactive color lab")
-        let page=file_link(page,"viewer.fe","This Fe source viewer")
-        let page=file_link(page,"viewer_highlight.fe","Fe lexical and semantic colors")
+            .open(element: PageElement::Div).attribute(value: PageAttribute::class(value: "workspace"))
+            .open(element: PageElement::Section).attribute(value: PageAttribute::class(value: "files"))
+        let page = file_link(page, "lib.fe", "Actor and pass graph")
+        let page = file_link(page, "policy.fe", "Camera and quality policy")
+        let page = file_link(page, "orbit.fe", "Resumable perturbation")
+        let page = file_link(page, "image.fe", "Color, sampling and Gaussian")
+        let page = file_link(page, "cache.fe", "GPU cache metadata")
+        let page = file_link(page, "palette.fe", "Rich OKLCH palette")
+        let page = file_link(page, "partition.fe", "Blue-noise ordering")
+        let page = file_link(page, "color_library.fe", "OKLCH and OKLab library")
+        let page = file_link(page, "color_demo.fe", "Interactive color lab")
+        let page = file_link(page, "viewer.fe", "This Fe source viewer")
+        let page = file_link(page, "viewer_highlight.fe", "Fe lexical and semantic colors")
         page.close()
-            .open(element:PageElement::Main)
-            .open(element:PageElement::Div).attribute(value:PageAttribute::class(value:"file-heading"))
-            .open(element:PageElement::Strong).attribute(value:PageAttribute::node(value:ui.title))
-            .text(value:label("Choose a file")).close()
-            .open(element:PageElement::Anchor).attribute(value:PageAttribute::node(value:ui.raw))
-            .attribute(value:PageAttribute::target(value:"_blank"))
-            .attribute(value:PageAttribute::rel(value:"noopener"))
-            .text(value:label("Raw source ↗")).close().close()
-            .open(element:PageElement::Paragraph).attribute(value:PageAttribute::view(value:ui.empty))
-            .attribute(value:PageAttribute::class(value:"message"))
-            .text(value:label("Choose a module to explore.")).close()
-            .open(element:PageElement::Paragraph).attribute(value:PageAttribute::view(value:ui.loading))
-            .attribute(value:PageAttribute::class(value:"message"))
-            .text(value:label("Loading source…")).close()
-            .open(element:PageElement::Pre).attribute(value:PageAttribute::view(value:ui.error))
-            .attribute(value:PageAttribute::node(value:ui.error_text))
-            .attribute(value:PageAttribute::class(value:"message error")).close()
-            .open(element:PageElement::Div).attribute(value:PageAttribute::class(value:"source-lines"))
-            .attribute(value:PageAttribute::view(value:ui.ready))
-            .open(element:PageElement::Pre).attribute(value:PageAttribute::class(value:"line-numbers"))
-            .attribute(value:PageAttribute::node(value:ui.gutter)).close()
-            .open(element:PageElement::Pre).attribute(value:PageAttribute::class(value:"source-code"))
-            .attribute(value:PageAttribute::node(value:ui.code)).close()
+            .open(element: PageElement::Main)
+            .open(element: PageElement::Div).attribute(value: PageAttribute::class(value: "file-heading"))
+            .open(element: PageElement::Strong).attribute(value: PageAttribute::node(value: ui.title))
+            .text(value: label("Choose a file")).close()
+            .open(element: PageElement::Anchor).attribute(value: PageAttribute::node(value: ui.raw))
+            .attribute(value: PageAttribute::target(value: "_blank"))
+            .attribute(value: PageAttribute::rel(value: "noopener"))
+            .text(value: label("Raw source ↗")).close().close()
+            .open(element: PageElement::Paragraph).attribute(value: PageAttribute::view(value: ui.empty))
+            .attribute(value: PageAttribute::class(value: "message"))
+            .text(value: label("Choose a module to explore.")).close()
+            .open(element: PageElement::Paragraph).attribute(value: PageAttribute::view(value: ui.loading))
+            .attribute(value: PageAttribute::class(value: "message"))
+            .text(value: label("Loading source…")).close()
+            .open(element: PageElement::Pre).attribute(value: PageAttribute::view(value: ui.error))
+            .attribute(value: PageAttribute::node(value: ui.error_text))
+            .attribute(value: PageAttribute::class(value: "message error")).close()
+            .open(element: PageElement::Div).attribute(value: PageAttribute::class(value: "source-lines"))
+            .attribute(value: PageAttribute::view(value: ui.ready))
+            .open(element: PageElement::Pre).attribute(value: PageAttribute::class(value: "line-numbers"))
+            .attribute(value: PageAttribute::node(value: ui.gutter)).close()
+            .open(element: PageElement::Pre).attribute(value: PageAttribute::class(value: "source-code"))
+            .attribute(value: PageAttribute::node(value: ui.code)).close()
             .close().close().close()
-            .open(element:PageElement::Template).attribute(value:PageAttribute::template(value:ui.code))
-            .open(element:PageElement::Span)
-            .open(element:PageElement::Span).attribute(value:PageAttribute::node(value:ui.token))
-            .attribute(value:PageAttribute::class_token(slot:ui.ty,value:"hl-ty"))
-            .attribute(value:PageAttribute::class_token(slot:ui.function,value:"hl-function"))
-            .attribute(value:PageAttribute::class_token(slot:ui.property,value:"hl-property"))
-            .attribute(value:PageAttribute::class_token(slot:ui.variable,value:"hl-variable"))
-            .attribute(value:PageAttribute::class_token(slot:ui.keyword,value:"hl-keyword"))
-            .attribute(value:PageAttribute::class_token(slot:ui.comment,value:"hl-comment"))
-            .attribute(value:PageAttribute::class_token(slot:ui.string,value:"hl-string"))
-            .attribute(value:PageAttribute::class_token(slot:ui.number,value:"hl-number"))
+            .open(element: PageElement::Template).attribute(value: PageAttribute::template(value: ui.code))
+            .open(element: PageElement::Span)
+            .open(element: PageElement::Span).attribute(value: PageAttribute::node(value: ui.token))
+            .attribute(value: PageAttribute::class_token(slot: ui.ty, value: "hl-ty"))
+            .attribute(value: PageAttribute::class_token(slot: ui.function, value: "hl-function"))
+            .attribute(value: PageAttribute::class_token(slot: ui.property, value: "hl-property"))
+            .attribute(value: PageAttribute::class_token(slot: ui.variable, value: "hl-variable"))
+            .attribute(value: PageAttribute::class_token(slot: ui.keyword, value: "hl-keyword"))
+            .attribute(value: PageAttribute::class_token(slot: ui.comment, value: "hl-comment"))
+            .attribute(value: PageAttribute::class_token(slot: ui.string, value: "hl-string"))
+            .attribute(value: PageAttribute::class_token(slot: ui.number, value: "hl-number"))
             .close().close().close().finish_component()
     }
 
-    fn initial() -> SourceState uses (InitialState) {
-        let patch=allocate_component_buffer(capacity:PATCH_CAPACITY)
-        let control=allocate_component_buffer(capacity:CONTROL_CAPACITY)
-        let url=allocate_component_buffer(capacity:URL_CAPACITY)
-        let content=allocate_component_buffer(capacity:CONTENT_CAPACITY)
-        let gutter=allocate_component_buffer(capacity:GUTTER_CAPACITY)
-        publish_load_command(control:control.ptr,revision:0,request:0,url_len:0,binary:false,active:false)
-        SourceState { patch_ptr:patch.ptr,control_ptr:control.ptr,url_ptr:url.ptr,content_ptr:content.ptr,
-            gutter_ptr:gutter.ptr,url_len:0,content_len:0,request:0,status:SourceStatus::Empty,
-            connected:false,project_source:true,prevent_default:false }
+    fn initial() -> SourceStateEnvelope uses (InitialState) {
+        let patch = allocate_component_buffer(capacity: PATCH_CAPACITY)
+        let control = allocate_component_buffer(capacity: CONTROL_CAPACITY)
+        let url = allocate_component_buffer(capacity: URL_CAPACITY)
+        let content = allocate_component_buffer(capacity: CONTENT_CAPACITY)
+        let gutter = allocate_component_buffer(capacity: GUTTER_CAPACITY)
+        publish_load_command(
+            control: control.ptr,
+            revision: 0,
+            request: 0,
+            url_len: 0,
+            active: false,
+        )
+        SourceStateEnvelope {
+            state: SourceState {
+                patch_ptr: patch.ptr,
+                control_ptr: control.ptr,
+                url_ptr: url.ptr,
+                content_ptr: content.ptr,
+                gutter_ptr: gutter.ptr,
+                url_len: 0,
+                content_len: 0,
+                request: 0,
+                status: SourceStatus::Empty,
+                connected: false,
+                project_source: true,
+                prevent_default: false,
+            },
+        }
     }
 
     fn load_resources(self) -> u32 uses (ScopedTask) {
         with (
-            AsyncEventSource<WasmBackend,ActorNotification> = BrowserActorNotifications::new(),
-            Select<WasmBackend,u32> = Resumable {},
+            AsyncEventSource<WasmBackend, ActorNotification> = BrowserActorNotifications::new(),
+            Select<WasmBackend, u32> = Resumable {},
             PendingCancellation<WasmBackend> = Resumable {},
-            ActorSink<WasmBackend,ComponentEvent<InspectorAction,InspectorTask>> = BrowserActorSink {},
-            Suspend<WasmBackend,u32> = Resumable {},
+            ActorSink<WasmBackend, ComponentEvent<TextLoadAction, TextLoadTask>> = BrowserActorSink {},
+            Suspend<WasmBackend, u32> = Resumable {},
         ) {
-            load_inspector_resources(control:self.control_ptr,url:self.url_ptr,content:self.content_ptr)
+            load_latest_text(
+                control: self.state.control_ptr,
+                url: self.state.url_ptr,
+                content: self.state.content_ptr,
+            )
         }
     }
 
-    fn receive(self,event:own ComponentEvent<InspectorAction,InspectorTask>) -> SourceState uses (ResidentTransition) {
-        let mut connected=self.connected
-        let mut url_len=self.url_len
-        let mut content_len=self.content_len
-        let mut request=self.request
-        let mut status=self.status
-        let mut project_source=false
-        let mut prevent_default=false
+    fn receive(
+        self,
+        event: own ComponentEvent<TextLoadAction, TextLoadTask>,
+    ) -> SourceStateEnvelope uses (ResidentTransition) {
+        let mut next = self.state.idle()
         match event.kind {
-            ComponentEventKind::Connected => { connected=true
-                project_source=true }
+            ComponentEventKind::Connected => {
+                next = self.state.connected()
+            }
             ComponentEventKind::Disconnected => {
-                connected=false
-                publish_load_command(control:self.control_ptr,revision:request+1,request:request,
-                    url_len:url_len,binary:false,active:false)
+                next = self.state.disconnected()
+                publish_load_command(
+                    control: next.control_ptr,
+                    revision: next.request + 1,
+                    request: next.request,
+                    url_len: next.url_len,
+                    active: false,
+                )
                 BrowserActorNotifications::new().notify()
             }
             ComponentEventKind::Activate => {
-                if connected {
+                if self.state.connected {
                     match event.target {
-                        InspectorAction::Source => {
-                            let copied=Utf8Buffer::empty(ptr:self.url_ptr,capacity:URL_CAPACITY).replace_browser(event.text)
+                        TextLoadAction::Select => {
+                            let copied = Utf8Buffer::empty(
+                                ptr: self.state.url_ptr,
+                                capacity: URL_CAPACITY,
+                            ).replace_browser(event.text)
                             if copied.valid && !copied.truncated {
-                                url_len=copied.buffer.len()
-                                request=request+1
-                                content_len=0
-                                status=SourceStatus::Loading
-                                prevent_default=true
-                                project_source=true
-                                publish_load_command(control:self.control_ptr,revision:request,request:request,
-                                    url_len:url_len,binary:false,active:true)
+                                next = self.state.begin_load(url_len: copied.buffer.len())
+                                publish_load_command(
+                                    control: next.control_ptr,
+                                    revision: next.request,
+                                    request: next.request,
+                                    url_len: next.url_len,
+                                    active: true,
+                                )
                                 BrowserActorNotifications::new().notify()
                             }
                         }
@@ -328,78 +480,100 @@ actor FeSourceViewer {
                 }
             }
             ComponentEventKind::TaskMessage => {
-                if connected && event.task.request==request {
+                if event.task.matches_request(
+                    connected: self.state.connected,
+                    active_request: self.state.request,
+                ) {
                     match event.target {
-                        InspectorAction::ResourceComplete => {
-                            project_source=true
-                            content_len=event.task.content_len
-                            status=if event.task.status>=200 && event.task.status<300 { SourceStatus::Ready } else { SourceStatus::Error }
+                        TextLoadAction::TextLoaded => {
+                            next = self.state.apply_loaded(task: event.task)
                         }
-                        InspectorAction::ResourceFailed => { project_source=true
-                            content_len=event.task.content_len
-                            status=SourceStatus::Error }
+                        TextLoadAction::TextFailed => {
+                            next = self.state.fail_load(task: event.task)
+                        }
                         _ => {}
                     }
                 }
             }
             _ => {}
         }
-        SourceState { patch_ptr:self.patch_ptr,control_ptr:self.control_ptr,url_ptr:self.url_ptr,
-            content_ptr:self.content_ptr,gutter_ptr:self.gutter_ptr,url_len:url_len,content_len:content_len,
-            request:request,status:status,connected:connected,project_source:project_source,prevent_default:prevent_default }
+        SourceStateEnvelope { state: next }
     }
 
     fn project(self) -> ComponentPatch uses (ProjectState) {
-        let ui=<SourceParts as ComponentSchema>::component_parts()
-        let ready=match self.status { SourceStatus::Ready=>true,_=>false }
-        let visible=VisibleParts::none()
-            .show_if(target:ui.ready,visible:ready)
-            .show_if(target:ui.empty,visible:match self.status { SourceStatus::Empty=>true,_=>false })
-            .show_if(target:ui.loading,visible:match self.status { SourceStatus::Loading=>true,_=>false })
-            .show_if(target:ui.error,visible:match self.status { SourceStatus::Error=>true,_=>false })
-        let requested=Utf8Buffer::with_len(ptr:self.url_ptr,len:self.url_len,capacity:URL_CAPACITY).view()
-        let url=if requested.len()>5 && requested.slice(start:requested.len()-5,end:requested.len()).view.equals_literal([46,118,105,101,119]) {
-            requested.slice(start:0,end:requested.len()-5).view
-        } else {requested}
-        let content=Utf8Buffer::with_len(ptr:self.content_ptr,len:self.content_len,capacity:CONTENT_CAPACITY).view()
-        let mut writer=ComponentWriter::new(buffer:BrowserBytes { ptr:self.patch_ptr,len:PATCH_CAPACITY })
-        // Leave browser-owned selection intact on unrelated clicks and keys.
-        if !self.project_source {
-            return ComponentPatch::new(visible:visible,focus_target:InspectorAction::Unknown,
-                prevent_default:self.prevent_default,commands:writer.finish())
-        }
-        if self.url_len>0 {
-            writer=writer.set_href(target:ui.raw,value:url.browser_string())
-                .set_text(target:ui.title,value:filename(url))
-        }
-        writer=writer.repeat_begin(region:ui.code)
-        if ready {
-            let doc=ingot::highlight::document(content)
-            let mut at:u32=0
-            let mut tokens:u32=0
-            while at<doc.text.len() {
-                let token=if tokens>=8191 {ingot::highlight::Token {end:doc.text.len(),kind:0}}
-                    else {ingot::highlight::next(doc,at)}
-                writer=writer.repeat_item(key:at+1)
-                    .set_text(target:ui.token,value:doc.text.slice(start:at,end:token.end).view.browser_string())
-                    .set_class(target:ui.token,token:ui.ty,enabled:token.kind==1)
-                    .set_class(target:ui.token,token:ui.function,enabled:token.kind==2)
-                    .set_class(target:ui.token,token:ui.property,enabled:token.kind==3)
-                    .set_class(target:ui.token,token:ui.variable,enabled:token.kind==4)
-                    .set_class(target:ui.token,token:ui.keyword,enabled:token.kind==5)
-                    .set_class(target:ui.token,token:ui.comment,enabled:token.kind==6)
-                    .set_class(target:ui.token,token:ui.string,enabled:token.kind==7)
-                    .set_class(target:ui.token,token:ui.number,enabled:token.kind==8)
-                at=token.end
-                tokens=tokens+1
-            }
-            writer=writer.repeat_end()
-                .set_text(target:ui.gutter,value:line_numbers(self.gutter_ptr,doc.text))
+        let state = self.state
+        let ui = <SourceParts as ComponentSchema>::component_parts()
+        let ready = state.status.is_ready()
+        let visible = VisibleParts::none()
+            .show_if(target: ui.ready, visible: ready)
+            .show_if(target: ui.empty, visible: state.status.is_empty())
+            .show_if(target: ui.loading, visible: state.status.is_loading())
+            .show_if(target: ui.error, visible: state.status.is_error())
+        let requested = Utf8Buffer::with_len(
+            ptr: state.url_ptr,
+            len: state.url_len,
+            capacity: URL_CAPACITY,
+        ).view()
+        let url = if requested.len() > 5
+            && requested.slice(start: requested.len() - 5, end: requested.len()).view.equals_literal([46, 118, 105, 101, 119])
+        {
+            requested.slice(start: 0, end: requested.len() - 5).view
         } else {
-            writer=writer.repeat_end()
-            writer=writer.set_text(target:ui.error_text,value:content.browser_string())
+            requested
         }
-        ComponentPatch::new(visible:visible,focus_target:InspectorAction::Unknown,
-            prevent_default:self.prevent_default,commands:writer.finish())
+        let content = Utf8Buffer::with_len(
+            ptr: state.content_ptr,
+            len: state.content_len,
+            capacity: CONTENT_CAPACITY,
+        ).view()
+        let mut writer = ComponentWriter::new(
+            buffer: BrowserBytes { ptr: state.patch_ptr, len: PATCH_CAPACITY },
+        )
+        // Unrelated events preserve browser-owned text selection.
+        if !state.project_source {
+            return ComponentPatch::new(
+                visible: visible,
+                focus_target: TextLoadAction::Idle,
+                prevent_default: state.prevent_default,
+                commands: writer.finish(),
+            )
+        }
+        if state.url_len > 0 {
+            writer = writer.set_href(target: ui.raw, value: url.browser_string())
+                .set_text(target: ui.title, value: filename(url))
+        }
+        writer = writer.repeat_begin(region: ui.code)
+        if ready {
+            let doc: Document = document(content)
+            let mut at: u32 = 0
+            let mut tokens: u32 = 0
+            while at < doc.text.len() {
+                let token = if tokens >= MAX_HIGHLIGHTED_RUNS {
+                    Token::plain_tail(doc.text.len())
+                } else {
+                    next(doc, at)
+                }
+                writer = write_run(
+                    writer: writer,
+                    ui: ui,
+                    key: at + 1,
+                    text: doc.text.slice(start: at, end: token.end).view.browser_string(),
+                    kind: token.kind,
+                )
+                at = token.end
+                tokens = tokens + 1
+            }
+            writer = writer.repeat_end()
+                .set_text(target: ui.gutter, value: line_numbers(state.gutter_ptr, doc.text))
+        } else {
+            writer = writer.repeat_end()
+            writer = writer.set_text(target: ui.error_text, value: content.browser_string())
+        }
+        ComponentPatch::new(
+            visible: visible,
+            focus_target: TextLoadAction::Idle,
+            prevent_default: state.prevent_default,
+            commands: writer.finish(),
+        )
     }
 }
