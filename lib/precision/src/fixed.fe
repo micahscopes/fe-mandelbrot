@@ -737,8 +737,13 @@ pub fn project_binary32<V: Binary32View + Copy>(_ sign: u32, _ mag: V) -> u32 {
 pub fn to_f32_quad_bits<const L: usize>(_ sign: u32, _ mag: Limbs<L>) -> (u32, u32, u32, u32)
     where Limbs<L>: Binary32View + Copy,
 {
-    let high: i32 = <Limbs<L> as Binary32View>::highest_bit(mag)
-    let fractional: i32 = <Limbs<L> as Binary32View>::fractional_bits(mag)
+    project_binary32_quad(sign, mag)
+}
+
+/// Observe four exact binary32 chunks through either limb representation.
+pub fn project_binary32_quad<V: Binary32View + Copy>(_ sign: u32, _ mag: V) -> (u32, u32, u32, u32) {
+    let high: i32 = <V as Binary32View>::highest_bit(mag)
+    let fractional: i32 = <V as Binary32View>::fractional_bits(mag)
     let mut w0: u32 = 0
     let mut w1: u32 = 0
     let mut w2: u32 = 0
@@ -753,9 +758,9 @@ pub fn to_f32_quad_bits<const L: usize>(_ sign: u32, _ mag: Limbs<L>) -> (u32, u
             let chunk_low: i32 = chunk_high - 23
             let retained: u32 = if chunk_low < 0 {
                 let left: u32 = __bitcast(-chunk_low)
-                (<Limbs<L> as Binary32View>::word_from(mag, 0) << left) & 16777215
+                (<V as Binary32View>::word_from(mag, 0) << left) & 16777215
             } else {
-                <Limbs<L> as Binary32View>::word_from(mag, chunk_low) & 16777215
+                <V as Binary32View>::word_from(mag, chunk_low) & 16777215
             }
             if retained == 0 {
                 0

@@ -11,16 +11,15 @@ use ingot::palette::{escape_palette, interior, glitch}
 use ingot::policy::Camera
 use precision::{Expansion, from_quad, to_quad, two_sum}
 use precision::field::{Limbs, Zero}
+use precision::array_fixed::ArrayFixed
 use precision::fixed::{
     add as fixed_add,
     escaped as fixed_escaped,
     fixed_magnitude_from_words,
     fixed_magnitude_to_words,
-    from_qf_offset,
     mul as fixed_mul,
     sqr as fixed_sqr,
     sub as fixed_sub,
-    to_f32_quad_bits,
 }
 
 extern {
@@ -98,8 +97,8 @@ impl ReferenceReal {
         Self::default()
     }
     pub fn from_quad(_ w0: f32, _ w1: f32, _ w2: f32, _ w3: f32) -> Self {
-        let (sign, magnitude) = from_qf_offset<8>(w0, w1, w2, w3, 0.0)
-        Self { sign: sign, magnitude: magnitude }
+        let value = ArrayFixed<8>::from_expansion(precision::from_quad(w0, w1, w2, w3))
+        Self::from_words(value.sign(), value.to_digits())
     }
     pub fn from_expansion(_ value: Expansion<4>) -> Self {
         let (w0, w1, w2, w3) = to_quad(value)
@@ -112,7 +111,7 @@ impl ReferenceReal {
         fixed_magnitude_to_words<8>(self.magnitude)
     }
     pub fn to_quad_bits(self) -> (u32, u32, u32, u32) {
-        to_f32_quad_bits<8>(self.sign, self.magnitude)
+        ArrayFixed<8>::from_digits(self.sign == 1, self.to_words()).to_quad_bits()
     }
     pub fn square(self) -> Self {
         let (sign, magnitude) = fixed_sqr<8>(self.sign, self.magnitude)

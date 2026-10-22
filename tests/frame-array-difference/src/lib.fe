@@ -103,3 +103,27 @@ fn canonical_radix_highest_bit_matches_shift_count() {
         digit = digit + 1
     }
 }
+
+#[test]
+fn array_reference_quad_matches_recursive_projection() {
+    let mut seed: u32 = 327109
+    let mut trial: u32 = 0
+    while trial < 128 {
+        let mut digits: [u32; 8] = [0; 8]
+        let mut index: usize = 0
+        while index < 8 {
+            seed = next_seed(seed)
+            digits[index] = seed & 8191
+            index = index + 1
+        }
+        let mut sign: u32 = 0
+        while sign < 2 {
+            let value = ArrayFixed<8>::from_digits(sign == 1, digits)
+            let (a, b, c, d) = value.to_quad_bits()
+            let (w, x, y, z) = precision::fixed::to_f32_quad_bits<8>(sign, fixed_magnitude_from_words<8>(digits))
+            assert(a == w && b == x && c == y && d == z)
+            sign = sign + 1
+        }
+        trial = trial + 1
+    }
+}

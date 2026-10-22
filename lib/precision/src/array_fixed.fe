@@ -9,7 +9,7 @@
 use core::marker::Copy
 use core::ops::{Add, Eq, Neg, Sub}
 use super::{Expansion, to_quad}
-use super::fixed::{Binary32View, limb_highest_bit, project_binary32}
+use super::fixed::{Binary32View, limb_highest_bit, project_binary32, project_binary32_quad}
 
 extern { const fn __bitcast<From, To>(_: From) -> To }
 
@@ -101,6 +101,14 @@ impl<const L: usize> ArrayFixed<L> {
         let (a, b, c, d) = to_quad(value)
         (((Self::from_f32(a) + Self::from_f32(b)) + Self::from_f32(c))
             + Self::from_f32(d)) + Self::zero()
+    }
+
+    pub fn sign(self) -> u32 { if self.negative { 1 } else { 0 } }
+
+    pub fn to_digits(self) -> [u32; L] { self.digits }
+
+    pub fn to_quad_bits(self) -> (u32, u32, u32, u32) {
+        project_binary32_quad(self.sign(), self)
     }
 
     pub fn to_binary32_bits(self) -> u32 {
