@@ -1,0 +1,93 @@
+//! Runtime float inputs compare the untouched recursive interpretation with
+//! the array interpretation; the transition exports both actual f32 results.
+use core::marker::Copy
+use std::webgpu::{
+    FragmentSurface, GpuProgram, WebGpuBackend, SurfaceQuality,
+    SurfaceQualityFacts, SurfaceBackingExtent, SurfaceRecovery,
+    StandardSurfaceRecovery, SurfaceTransition, SurfaceScheduling, ContinuousFrames,
+}
+use std::web::view::{
+    ApplyParamBindings, Extent, Param, ParamBindingsProvider,
+    Surface, SurfaceEvent, SurfaceState,
+}
+use precision::{from_quad, fixed, array_fixed}
+
+// The ten scalar lanes are this test's runtime transport, not an application
+// numeric representation. Their order is asserted by the transport runner.
+pub struct Params {
+    pub a0: Param,
+    pub a1: Param,
+    pub a2: Param,
+    pub a3: Param,
+    pub b0: Param,
+    pub b1: Param,
+    pub b2: Param,
+    pub b3: Param,
+    pub old_value: Param,
+    pub new_value: Param,
+}
+
+pub struct State {
+    pub a0: f32,
+    pub a1: f32,
+    pub a2: f32,
+    pub a3: f32,
+    pub b0: f32,
+    pub b1: f32,
+    pub b2: f32,
+    pub b3: f32,
+    pub old_value: f32,
+    pub new_value: f32,
+}
+
+impl Copy for State {}
+impl SurfaceState for State { type Params = Params }
+derive ApplyParamBindings for State using ParamBindingsProvider<Params>
+
+pub struct Envelope { pub state: State }
+impl Copy for Envelope {}
+pub struct Backing {}
+impl Backing {
+    pub fn choose(_ facts: own SurfaceQualityFacts) -> SurfaceBackingExtent {
+        let _ = facts
+        SurfaceBackingExtent { width: 64.0, height: 64.0 }
+    }
+}
+
+actor Probe uses (GpuProgram<WebGpuBackend>, SurfaceQuality<Backing>, SurfaceRecovery<StandardSurfaceRecovery>) {
+    state: State,
+
+    fn initial() -> Envelope uses (core::actor::InitialState) {
+        Envelope { state: State {
+            a0: 0.0, a1: 0.0, a2: 0.0, a3: 0.0,
+            b0: 0.0, b1: 0.0, b2: 0.0, b3: 0.0,
+            old_value: 0.0, new_value: 0.0,
+        } }
+    }
+
+    const fn view() -> Surface<Params> {
+        Surface { extent: Extent::square(64), params: Params {
+            a0: Param::fixed(0.0), a1: Param::fixed(0.0),
+            a2: Param::fixed(0.0), a3: Param::fixed(0.0),
+            b0: Param::fixed(0.0), b1: Param::fixed(0.0),
+            b2: Param::fixed(0.0), b3: Param::fixed(0.0),
+            old_value: Param::fixed(0.0), new_value: Param::fixed(0.0),
+        } }
+    }
+
+    fn display(self, px: i32, py: i32) -> i32 uses (FragmentSurface) {
+        let _ = px
+        let _ = py
+        0
+    }
+
+    fn navigate(self, event: own SurfaceEvent) -> Envelope uses (SurfaceTransition, SurfaceScheduling<ContinuousFrames>) {
+        let _ = event
+        let from = from_quad(self.state.a0, self.state.a1, self.state.a2, self.state.a3)
+        let to = from_quad(self.state.b0, self.state.b1, self.state.b2, self.state.b3)
+        let mut next: State = self.state
+        next.old_value = fixed::expansion_difference<10>(from, to)
+        next.new_value = array_fixed::expansion_difference<10>(from, to)
+        Envelope { state: next }
+    }
+}

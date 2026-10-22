@@ -1,0 +1,235 @@
+//! Array interpretation of signed radix-8192 fixed-point values for frame work.
+//!
+//! The private representation has 2..=10 canonical digits, least significant
+//! first, with 13*(L-1) fractional bits. Addition wraps magnitude modulo 8192^L;
+//! opposite signs retain the larger magnitude's sign (the left sign on ties).
+//! Negative zero is retained internally; binary32 observation canonicalizes it.
+//! No reference recurrence, recursive Fixed API, or storage layout uses this type.
+
+use core::marker::Copy
+use core::ops::{Add, Eq, Neg, Sub}
+use super::{Expansion, to_quad}
+use super::fixed::{Binary32View, project_binary32}
+
+extern { const fn __bitcast<From, To>(_: From) -> To }
+
+pub struct ArrayFixed<const L: usize> {
+    negative: bool,
+    digits: [u32; L],
+}
+
+impl<const L: usize> Copy for ArrayFixed<L> {}
+
+impl<const L: usize> ArrayFixed<L> {
+    pub fn zero() -> Self {
+        assert(L >= 2 && L <= 10)
+        Self { negative: false, digits: [0; L] }
+    }
+
+    /// Checked integer boundary. Unlike canonical wire Fixed, this arithmetic
+    /// value deliberately permits negative zero, matching the old limb kernel.
+    pub fn from_digits(_ negative: bool, _ digits: [u32; L]) -> Self {
+        assert(L >= 2 && L <= 10)
+        let mut index: usize = 0
+        while index < L {
+            assert(digits[index] < 8192)
+            index = index + 1
+        }
+        Self { negative: negative, digits: digits }
+    }
+
+    /// Quantize one finite |value| < 8192 source toward zero onto this lattice.
+    /// Decode integer bits directly: no GPU floating reassociation or flush-to-
+    /// zero can change the retained digits. Both IEEE zero encodings parse +0;
+    /// a negative nonzero source below the lattice parses negative zero.
+    pub fn from_binary32_bits(_ bits: u32) -> Self {
+        let magnitude: u32 = bits & 2147483647
+        // 0x46000000 encodes 8192; this also rejects infinities and NaNs.
+        assert(magnitude < 1174405120)
+        let mut result: Self = Self::zero()
+        result.negative = (bits >> 31) != 0 && magnitude != 0
+        let encoded_exponent: u32 = magnitude >> 23
+        // Every binary32 subnormal is below the finest supported 2^-117 unit.
+        if encoded_exponent == 0 { return result }
+        let significand: u32 = (magnitude & 8388607) | 8388608
+        let exponent: i32 = encoded_exponent as i32
+        let lattice_shift: i32 = exponent - 150 + result.fractional_bits()
+        let mut source_bit: i32 = -lattice_shift
+        let mut index: usize = 0
+        while index < L {
+            result.digits[index] = if source_bit >= 24 || source_bit <= -13 {
+                0
+            } else if source_bit >= 0 {
+                (significand >> (source_bit as u32)) & 8191
+            } else {
+                (significand << ((-source_bit) as u32)) & 8191
+            }
+            source_bit = source_bit + 13
+            index = index + 1
+        }
+        result
+    }
+
+    pub fn from_f32(_ value: f32) -> Self {
+        Self::from_binary32_bits(__bitcast<f32, u32>(value))
+    }
+
+    /// Preserve the old four-word, left-associated accumulation and final +0.
+    pub fn from_expansion(_ value: Expansion<4>) -> Self {
+        let (a, b, c, d) = to_quad(value)
+        (((Self::from_f32(a) + Self::from_f32(b)) + Self::from_f32(c))
+            + Self::from_f32(d)) + Self::zero()
+    }
+
+    pub fn to_binary32_bits(self) -> u32 {
+        project_binary32(if self.negative { 1 } else { 0 }, self)
+    }
+
+    pub fn to_f32(self) -> f32 {
+        __bitcast<u32, f32>(self.to_binary32_bits())
+    }
+
+    fn magnitude_less(self, _ other: Self) -> bool {
+        let mut index: usize = L
+        while index > 0 {
+            index = index - 1
+            if self.digits[index] != other.digits[index] {
+                return self.digits[index] < other.digits[index]
+            }
+        }
+        false
+    }
+
+    // Requires self's magnitude >= other's. The radix bias keeps every checked
+    // subtraction nonnegative; all intermediates fit in 14 bits.
+    fn subtract_magnitude(self, _ other: Self) -> Self {
+        let mut result: Self = self
+        let mut borrow: u32 = 0
+        let mut index: usize = 0
+        while index < L {
+            let biased: u32 = 8192 + self.digits[index] - other.digits[index] - borrow
+            result.digits[index] = biased & 8191
+            borrow = 1 - (biased >> 13)
+            index = index + 1
+        }
+        result
+    }
+}
+
+// Representation equality observes the retained zero sign. In particular,
+// opposite-sign exact cancellation keeps the left sign, as in fixed::add.
+impl<const L: usize> Eq for ArrayFixed<L> {
+    fn eq(self, _ other: Self) -> bool {
+        if self.negative != other.negative { return false }
+        let mut index: usize = 0
+        while index < L {
+            if self.digits[index] != other.digits[index] { return false }
+            index = index + 1
+        }
+        true
+    }
+}
+
+impl<const L: usize> Add for ArrayFixed<L> {
+    type Output = Self
+
+    fn add(own self, _ other: own Self) -> Self {
+        if self.negative != other.negative {
+            if self.magnitude_less(other) {
+                return other.subtract_magnitude(self)
+            }
+            return self.subtract_magnitude(other)
+        }
+        let mut result: Self = self
+        let mut carry: u32 = 0
+        let mut index: usize = 0
+        while index < L {
+            let sum: u32 = self.digits[index] + other.digits[index] + carry
+            result.digits[index] = sum & 8191
+            carry = sum >> 13
+            index = index + 1
+        }
+        result
+    }
+}
+
+impl<const L: usize> Neg for ArrayFixed<L> {
+    type Output = Self
+
+    fn neg(own self) -> Self {
+        Self { negative: !self.negative, digits: self.digits }
+    }
+}
+
+impl<const L: usize> Sub for ArrayFixed<L> {
+    type Output = Self
+
+    fn sub(own self, _ other: own Self) -> Self { self + (-other) }
+}
+
+impl<const L: usize> Binary32View for ArrayFixed<L> {
+    fn highest_bit(self) -> i32 {
+        let mut index: usize = L
+        while index > 0 {
+            index = index - 1
+            let mut digit: u32 = self.digits[index]
+            if digit != 0 {
+                let mut bit: i32 = 0
+                while digit > 1 {
+                    digit = digit >> 1
+                    bit = bit + 1
+                }
+                return (index as i32) * 13 + bit
+            }
+        }
+        -1
+    }
+
+    fn bit_at(self, _ index: i32) -> u32 {
+        if index < 0 { return 0 }
+        let slot: usize = (index as usize) / 13
+        if slot >= L { return 0 }
+        (self.digits[slot] >> ((index % 13) as u32)) & 1
+    }
+
+    fn word_from(self, _ index: i32) -> u32 {
+        if index < 0 { return 0 }
+        let mut slot: usize = (index as usize) / 13
+        if slot >= L { return 0 }
+        let shift: u32 = (index % 13) as u32
+        let mut result: u32 = self.digits[slot] >> shift
+        let mut position: u32 = 13 - shift
+        slot = slot + 1
+        // A 32-bit window touches at most four canonical radix digits.
+        while slot < L && position < 32 {
+            result = result | (self.digits[slot] << position)
+            slot = slot + 1
+            position = position + 13
+        }
+        result
+    }
+
+    fn any_below(self, _ count: i32) -> u32 {
+        if count <= 0 { return 0 }
+        let whole: usize = (count as usize) / 13
+        let mut index: usize = 0
+        let mut result: u32 = 0
+        while index < L && index < whole {
+            result = result | self.digits[index]
+            index = index + 1
+        }
+        if index < L {
+            let partial: u32 = (count % 13) as u32
+            result = result | (self.digits[index] & (((1 as u32) << partial) - 1))
+        }
+        result
+    }
+
+    fn fractional_bits(self) -> i32 { ((L - 1) as i32) * 13 }
+}
+
+/// Frame-scope difference with the same independently quantized ordered words
+/// as fixed::expansion_difference. L=10 retains the existing 117-bit lattice.
+pub fn expansion_difference<const L: usize>(_ from: Expansion<4>, _ to: Expansion<4>) -> f32 {
+    (ArrayFixed<L>::from_expansion(to) - ArrayFixed<L>::from_expansion(from)).to_f32()
+}

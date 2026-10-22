@@ -7,7 +7,7 @@ use fmath::from_i32
 use ingot::image::max
 use ingot::policy::{Camera, MandelbrotViewState, PreviewKey, RefinementKey, ZOOM_MIN, blur_radius}
 use precision::Expansion
-use precision::fixed::expansion_difference
+use precision::array_fixed::expansion_difference
 
 pub const ORACLE_GLITCHED_BIT: u32 = 1073741824
 pub const PREVIEW_BATCH: u32 = 256

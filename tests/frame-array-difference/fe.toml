@@ -1,0 +1,7 @@
+[ingot]
+name = "probe_frame_array_difference"
+version = "0.1.0"
+
+[dependencies]
+core = "../../.cache/fe/ingots/core"
+precision = "../../lib/precision"
