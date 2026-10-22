@@ -43,10 +43,12 @@ because those branches also cannot overflow on canonical digits. Array
 indices and counters are bounded by ten. Every loop header is a plain
 comparison (or conjunction of comparisons), with checked increments inside
 the body. Signed bit positions are checked before conversion to array indices;
-bit shifts stay in 0..31. Narrowing and sign changes use Fe's checked
-`downcast().unwrap()`; the remaining `as usize` conversions only widen u32
-indices. Valid constructor/branch bounds make every downcast succeed. No
-wrapping switch or unchecked indexing is used.
+bit shifts stay in 0..31. Two private conversion helpers assert the source
+range before a same-width u32/i32 bitcast. All runtime counters are u32;
+`as usize` only widens at array indexing. The const array dimension uses a
+range assertion followed by the existing intrinsic truncation, as in the
+gesture library's capacity boundary. Widths are bound before loop headers.
+No wrapping switch or unchecked indexing is used.
 
 ## Evidence and execution gates
 
@@ -95,8 +97,10 @@ alone establishes a driver improvement or a physical Pixel fix.
 
 The first actual renderer, native-test and Wasm build attempts all stopped
 at the same nine frontend lossless-cast diagnostics in `array_fixed.fe`.
-The follow-up replaces those casts with checked downcasts and awaits renewed
-execution; the failed logs remain under the scratch experiment directory.
-No successful compiled Fe or GPU result is claimed at this checkpoint.
+The checked-downcast follow-up passed all eight actual Fe tests, but both
+renderer and Wasm lowering rejected its reachable `IntWord::from_word(u256)`
+signature. The next source checkpoint replaces only that conversion route
+and runtime counter width with explicit checked scalar boundaries. Its
+renewed compiled/GPU gates are pending; both failed histories are preserved.
 The lead owns those gates and the source-viewer/catalog addition for the new
 module. Previous failed experiments and receipts remain intact.
