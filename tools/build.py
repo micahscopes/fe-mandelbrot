@@ -31,6 +31,7 @@ if __name__=='__main__':
     shutil.copytree(ROOT/'web/proof',proof)
     subprocess.run([args.fe,'web','build',str(ROOT/'app/point_prover'),'--out',str(proof/'engine')],cwd=ROOT,check=True)
     subprocess.run([args.fe,'web','build',str(ROOT/'app/proof_checker'),'--entry','wasm_anchor','--mode','render','--canonical','required','--canonical-entry','preflight','--canonical-entry','check','--out',str(proof/'checker')],cwd=ROOT,check=True)
+    subprocess.run([args.fe,'web','build',str(ROOT/'app/certified_escape'),'--entry','wasm_anchor','--mode','render','--canonical','required','--canonical-entry','certify','--canonical-entry','arithmetic','--canonical-entry','arithmetic_words','--out',str(proof/'certified')],cwd=ROOT,check=True)
     proof_manifest=proof/'engine/manifest.json'
     manifest=json.loads(proof_manifest.read_text())
     next(resource for resource in manifest['resources'] if resource['name']=='proof')['buffer_usage']=['storage','copy_src']

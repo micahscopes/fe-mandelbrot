@@ -1,0 +1,604 @@
+//! Experimental certified arithmetic, not a ZK proof or private verifier.
+//! Exact family c=i+2^-depth. Exact periodic reference is checked by construction.
+//! One scalar-word scratch allocation per call, reused across all iterations.
+use core::{BrowserBytes, BrowserPtr, alloc_browser_bytes}
+
+const STRIDE: u32 = 640
+const SLOTS: u32 = 65
+const EXP_LIMIT: i64 = 1000000000
+
+struct D { slot: u32, len: u32, exp: i64, neg: bool, valid: bool }
+impl core::marker::Copy for D {}
+struct I { lo: D, hi: D }
+impl core::marker::Copy for I {}
+struct C { re: I, im: I }
+impl core::marker::Copy for C {}
+struct Engine { ptr: BrowserPtr<u32>, bits: u32 }
+impl core::marker::Copy for Engine {}
+
+impl Engine {
+    fn new(_ bits: u32) -> Self {
+        Self {
+            ptr: BrowserPtr::from_u32(alloc_browser_bytes((SLOTS * STRIDE + 4) * 4).address()),
+            bits: bits,
+        }
+    }
+    fn load(self, _ slot: u32, _ index: u32) -> u32 {
+        let p: BrowserPtr<u32> = BrowserPtr::from_u32(
+            self.ptr.address() + (slot * STRIDE + index) * 4,
+        )
+        p.read()
+    }
+    fn store(self, _ slot: u32, _ index: u32, _ value: u32) {
+        let p: BrowserPtr<u32> = BrowserPtr::from_u32(
+            self.ptr.address() + (slot * STRIDE + index) * 4,
+        )
+        p.write(value)
+    }
+    fn zero(self) -> D {
+        D { slot: 64, len: 0, exp: 0, neg: false, valid: true }
+    }
+    fn invalid(self) -> D {
+        D { slot: 64, len: 0, exp: 0, neg: false, valid: false }
+    }
+    fn integer(self, _ slot: u32, _ value: i32, _ exp: i64) -> D {
+        let neg = value < 0
+        let mut magnitude: u32 = (if neg { -value } else { value }).downcast_truncate()
+        let mut len: u32 = 0
+        while magnitude != 0 {
+            self.store(slot, len, magnitude & 8191)
+            magnitude = magnitude >> 13
+            len = len + 1
+        }
+        self.normal(
+            D { slot: slot, len: len, exp: exp, neg: neg, valid: true },
+        )
+    }
+    fn word(self, _ a: D, _ index: u32) -> u32 {
+        if index < a.len {
+            self.load(a.slot, index)
+        } else {
+            0
+        }
+    }
+    fn top(self, _ a: D) -> i64 {
+        if a.len == 0 { return 0 }
+        let mut high = self.word(a, a.len - 1)
+        let mut bits: i64 = 0
+        while high != 0 {
+            high = high >> 1
+            bits = bits + 1
+        }
+        a.exp + ((a.len - 1) * 13) as i64 + bits
+    }
+    // Extract one base8192 digit after aligning to an arbitrary binary grid.
+    fn digit(self, _ a: D, _ grid: i64, _ index: u32) -> u32 {
+        let offset = grid + (index * 13) as i64 - a.exp
+        if offset <= -13 { return 0 }
+        if offset < 0 {
+            return (self.word(a, 0) << (-offset).downcast_truncate()) & 8191
+        }
+        let positive: u64 = offset.downcast_truncate()
+        let limb: u32 = (positive / 13).downcast_truncate()
+        let shift: u32 = (positive % 13).downcast_truncate()
+        let low = self.word(a, limb) >> shift
+        if shift == 0 { return low }
+        (low | (self.word(a, limb + 1) << (13 - shift))) & 8191
+    }
+    fn normal(self, _ value: D) -> D {
+        let mut a = value
+        if !a.valid || a.len > STRIDE || a.exp < -EXP_LIMIT || a.exp > EXP_LIMIT {
+            return self.invalid()
+        }
+        while a.len > 0 && self.word(a, a.len - 1) == 0 {
+            a.len = a.len - 1
+        }
+        if a.len == 0 {
+            a.exp = 0
+            a.neg = false
+            return a
+        }
+        let mut whole: u32 = 0
+        while self.word(a, whole) == 0 {
+            whole = whole + 1
+        }
+        let mut low = self.word(a, whole)
+        let mut shift: u32 = whole * 13
+        while (low & 1) == 0 {
+            shift = shift + 1
+            low = low >> 1
+        }
+        let original = a
+        let grid = a.exp + shift as i64
+        let mut i: u32 = 0
+        while i < a.len {
+            self.store(a.slot, i, self.digit(original, grid, i))
+            i = i + 1
+        }
+        a.exp = grid
+        while a.len > 0 && self.word(a, a.len - 1) == 0 {
+            a.len = a.len - 1
+        }
+        if a.exp < -EXP_LIMIT || a.exp > EXP_LIMIT {
+            return self.invalid()
+        }
+        a
+    }
+    fn copy(self, _ slot: u32, _ a: D) -> D {
+        let mut i: u32 = 0
+        while i < a.len {
+            self.store(slot, i, self.word(a, i))
+            i = i + 1
+        }
+        D { slot: slot, len: a.len, exp: a.exp, neg: a.neg, valid: a.valid }
+    }
+    fn magnitude_cmp(self, _ a: D, _ b: D) -> i32 {
+        if a.len == 0 {
+            return if b.len == 0 { 0 } else { -1 }
+        }
+        if b.len == 0 { return 1 }
+        let ta = self.top(a)
+        let tb = self.top(b)
+        if ta != tb {
+            return if ta < tb { -1 } else { 1 }
+        }
+        let grid = if a.exp < b.exp { a.exp } else { b.exp }
+        let span: u64 = (ta - grid + 12).downcast_truncate()
+        let mut width: u32 = (span / 13).downcast_truncate()
+        while width > 0 {
+            width = width - 1
+            let x = self.digit(a, grid, width)
+            let y = self.digit(b, grid, width)
+            if x != y {
+                return if x < y { -1 } else { 1 }
+            }
+        }
+        0
+    }
+    fn cmp(self, _ a: D, _ b: D) -> i32 {
+        if a.neg != b.neg {
+            return if a.neg { -1 } else { 1 }
+        }
+        let result = self.magnitude_cmp(a, b)
+        if a.neg { -result } else { result }
+    }
+    fn sticky(self, _ a: D, _ dropped: i64) -> bool {
+        if dropped <= 0 {
+            return false
+        }
+        let mut i: u32 = 0
+        while i < a.len {
+            let remaining = dropped - (i * 13) as i64
+            if remaining <= 0 {
+                return false
+            }
+            let word = self.word(a, i)
+            if remaining >= 13 {
+                if word != 0 { return true }
+            } else if (word & ((1 << remaining.downcast_truncate()) - 1)) != 0 {
+                return true
+            }
+            i = i + 1
+        }
+        false
+    }
+    fn quantize(self, _ slot: u32, _ a: D, _ grid: i64, _ up: bool) -> D {
+        if !a.valid {
+            return self.invalid()
+        }
+        if a.len == 0 || grid <= a.exp {
+            return self.copy(slot, a)
+        }
+        let increment = self.sticky(a, grid - a.exp) && (up != a.neg)
+        let top = self.top(a)
+        let span: u64 = (if top <= grid { 0 } else { top - grid + 12 }).downcast_truncate()
+        let width: u32 = (span / 13).downcast_truncate()
+        if width >= STRIDE {
+            return self.invalid()
+        }
+        let mut carry: u32 = if increment { 1 } else { 0 }
+        let mut i: u32 = 0
+        while i < width {
+            let total = self.digit(a, grid, i) + carry
+            self.store(slot, i, total & 8191)
+            carry = total >> 13
+            i = i + 1
+        }
+        if carry != 0 {
+            self.store(slot, i, carry)
+            i = i + 1
+        }
+        self.normal(
+            D { slot: slot, len: i, exp: grid, neg: a.neg, valid: true },
+        )
+    }
+    fn rounded(self, _ slot: u32, _ a: D, _ up: bool) -> D {
+        let grid = self.top(a) - self.bits as i64
+        self.quantize(slot, a, grid, up)
+    }
+    fn add(self, _ slot: u32, _ a: D, _ b: D, _ up: bool) -> D {
+        if !a.valid || !b.valid {
+            return self.invalid()
+        }
+        if slot == 58
+            || slot == 59
+            || a.slot == 58
+            || a.slot == 59
+            || b.slot == 58
+            || b.slot == 59 {
+            return self.invalid()
+        }
+        if a.len == 0 {
+            return self.rounded(slot, b, up)
+        }
+        if b.len == 0 {
+            return self.rounded(slot, a, up)
+        }
+        if a.neg != b.neg && self.magnitude_cmp(a, b) == 0 {
+            return self.copy(slot, self.zero())
+        }
+        let maximum = if self.top(a) > self.top(b) {
+            self.top(a)
+        } else {
+            self.top(b)
+        }
+        let grid = maximum - self.bits as i64
+        let x = self.quantize(58, a, grid, up)
+        let y = self.quantize(59, b, grid, up)
+        if !x.valid || !y.valid {
+            return self.invalid()
+        }
+        let ordering = self.magnitude_cmp(x, y)
+        let large = if ordering >= 0 { x } else { y }
+        let small = if ordering >= 0 { y } else { x }
+        let same = x.neg == y.neg
+        let mut carry: u32 = 0
+        let mut i: u32 = 0
+        let width = (self.bits + 12) / 13 + 1
+        while i < width {
+            let left = self.digit(large, grid, i)
+            let right = self.digit(small, grid, i)
+            if same {
+                let total = left + right + carry
+                self.store(slot, i, total & 8191)
+                carry = total >> 13
+            } else {
+                let total = left + 8192 - right - carry
+                self.store(slot, i, total & 8191)
+                carry = if total < 8192 { 1 } else { 0 }
+            }
+            i = i + 1
+        }
+        let result = self
+            .normal(
+                D { slot: slot, len: width, exp: grid, neg: large.neg, valid: true },
+            )
+        self.rounded(slot, result, up)
+    }
+    fn product(self, _ a: D, _ b: D) -> D {
+        if !a.valid || !b.valid || a.slot == 60 || b.slot == 60 {
+            return self.invalid()
+        }
+        if a.len == 0 || b.len == 0 {
+            return self.zero()
+        }
+        let width = a.len + b.len
+        if width >= STRIDE {
+            return self.invalid()
+        }
+        let mut i: u32 = 0
+        while i < width {
+            self.store(60, i, 0)
+            i = i + 1
+        }
+        i = 0
+        while i < a.len {
+            let mut carry: u32 = 0
+            let mut j: u32 = 0
+            while j < b.len {
+                let total = self.load(60, i + j) + self.word(a, i) * self.word(b, j) + carry
+                self.store(60, i + j, total & 8191)
+                carry = total >> 13
+                j = j + 1
+            }
+            self.store(60, i + b.len, carry)
+            i = i + 1
+        }
+        self.normal(
+            D { slot: 60, len: width, exp: a.exp + b.exp, neg: a.neg != b.neg, valid: true },
+        )
+    }
+    fn multiply(self, _ slot: u32, _ a: D, _ b: D, _ up: bool) -> D {
+        let exact = self.product(a, b)
+        self.rounded(slot, exact, up)
+    }
+    fn add_interval(self, _ slot: u32, _ a: I, _ b: I) -> I {
+        I { lo: self.add(slot, a.lo, b.lo, false), hi: self.add(slot + 1, a.hi, b.hi, true) }
+    }
+    fn mul_interval(self, _ slot: u32, _ a: I, _ b: I) -> I {
+        let mut lo = self.zero()
+        let mut hi = self.zero()
+        let mut i: u32 = 0
+        while i < 4 {
+            let x = if i < 2 { a.lo } else { a.hi }
+            let y = if (i & 1) == 0 { b.lo } else { b.hi }
+            let exact = self.product(x, y)
+            let low = self.rounded(52, exact, false)
+            let high = self.rounded(53, exact, true)
+            if !low.valid || !high.valid {
+                return I { lo: self.invalid(), hi: self.invalid() }
+            }
+            if i == 0 || self.cmp(low, lo) < 0 {
+                lo = self.copy(slot, low)
+            }
+            if i == 0 || self.cmp(high, hi) > 0 {
+                hi = self.copy(slot + 1, high)
+            }
+            i = i + 1
+        }
+        I { lo: lo, hi: hi }
+    }
+    fn square_interval(self, _ slot: u32, _ a: I) -> I {
+        let first = self.product(a.lo, a.lo)
+        let mut lo = self.rounded(slot, first, false)
+        let mut hi = self.rounded(slot + 1, first, true)
+        let second = self.product(a.hi, a.hi)
+        let lower = self.rounded(52, second, false)
+        let upper = self.rounded(53, second, true)
+        if !lo.valid || !hi.valid || !lower.valid || !upper.valid {
+            return I { lo: self.invalid(), hi: self.invalid() }
+        }
+        if self.cmp(lower, lo) < 0 {
+            lo = self.copy(slot, lower)
+        }
+        if self.cmp(upper, hi) > 0 {
+            hi = self.copy(slot + 1, upper)
+        }
+        if self.cmp(a.lo, self.zero()) <= 0 && self.cmp(a.hi, self.zero()) >= 0 {
+            lo = self.copy(slot, self.zero())
+        }
+        I { lo: lo, hi: hi }
+    }
+    fn plus(self, _ slot: u32, _ a: C, _ b: C) -> C {
+        C { re: self.add_interval(slot, a.re, b.re), im: self.add_interval(slot + 2, a.im, b.im) }
+    }
+    fn copy_complex(self, _ slot: u32, _ a: C) -> C {
+        C {
+            re: I { lo: self.copy(slot, a.re.lo), hi: self.copy(slot + 1, a.re.hi) },
+            im: I { lo: self.copy(slot + 2, a.im.lo), hi: self.copy(slot + 3, a.im.hi) },
+        }
+    }
+}
+
+fn negative(_ a: D) -> D {
+    D { slot: a.slot, len: a.len, exp: a.exp, neg: a.len != 0 && !a.neg, valid: a.valid }
+}
+fn neg_interval(_ a: I) -> I {
+    I { lo: negative(a.hi), hi: negative(a.lo) }
+}
+fn exact_interval(_ a: D) -> I {
+    I { lo: a, hi: a }
+}
+
+pub struct RunRequest { pub depth: u32, pub precision: u32, pub max_steps: u32 }
+pub struct RunResult { pub code: u32, pub step: u32, pub precision: u32, pub scratch_bytes: u32 }
+
+pub fn certify(_ request: own RunRequest) -> RunResult {
+    if request.precision < 32
+        || request.precision > 4096
+        || request.depth == 0
+        || request.depth > 16384
+        || request.max_steps == 0
+        || request.max_steps > 10000 {
+        return RunResult { code: 2, step: 0, precision: request.precision, scratch_bytes: 0 }
+    }
+    let e = Engine::new(request.precision)
+    let one = e.integer(61, 1, 0)
+    let four = e.integer(63, 1, 2)
+    let tiny = e.integer(62, 1, -(request.depth as i64))
+    let zero = exact_interval(e.zero())
+    let offset = C { re: exact_interval(tiny), im: zero }
+    let mut delta = C { re: zero, im: zero }
+    let mut step: u32 = 0
+    while step < request.max_steps {
+        // Reference orbit:0,i,-1+i,-i,-1+i,-i,... . Multiplication by
+        // these exact Gaussian integers is sign changes/addition only.
+        let cross = if step == 0 {
+            C { re: zero, im: zero }
+        } else if step == 1 {
+            C { re: neg_interval(delta.im), im: delta.re }
+        } else if (step & 1) == 0 {
+            C {
+                re: e.add_interval(12, neg_interval(delta.re), neg_interval(delta.im)),
+                im: e.add_interval(14, delta.re, neg_interval(delta.im)),
+            }
+        } else {
+            C { re: delta.im, im: neg_interval(delta.re) }
+        }
+        let doubled = e.plus(24, cross, cross)
+        let re_squared = e.square_interval(16, delta.re)
+        let im_squared = e.square_interval(18, delta.im)
+        let mixed = e.mul_interval(20, delta.re, delta.im)
+        let square = C {
+            re: e.add_interval(8, re_squared, neg_interval(im_squared)),
+            im: e.add_interval(10, mixed, mixed),
+        }
+        let sum = e.plus(28, doubled, square)
+        let next = e.plus(4, sum, offset)
+        delta = e.copy_complex(0, next)
+        step = step + 1
+        let reference = if step == 1 {
+            C { re: zero, im: exact_interval(one) }
+        } else if (step & 1) == 0 {
+            C { re: exact_interval(negative(one)), im: exact_interval(one) }
+        } else {
+            C { re: zero, im: exact_interval(negative(one)) }
+        }
+        let z = e.plus(32, reference, delta)
+        let re_norm = e.square_interval(36, z.re)
+        let im_norm = e.square_interval(38, z.im)
+        let norm = e.add_interval(40, re_norm, im_norm)
+        if !norm.lo.valid || !norm.hi.valid {
+            return RunResult {
+                code: 1,
+                step: step,
+                precision: request.precision,
+                scratch_bytes: (SLOTS * STRIDE + 4) * 4,
+            }
+        }
+        if e.cmp(norm.lo, four) > 0 {
+            return RunResult {
+                code: 0,
+                step: step,
+                precision: request.precision,
+                scratch_bytes: (SLOTS * STRIDE + 4) * 4,
+            }
+        }
+    }
+    RunResult {
+        code: 1,
+        step: step,
+        precision: request.precision,
+        scratch_bytes: (SLOTS * STRIDE + 4) * 4,
+    }
+}
+
+pub struct ArithmeticRequest {
+    pub left: i32,
+    pub left_exp: i32,
+    pub right: i32,
+    pub right_exp: i32,
+    pub precision: u32,
+    pub operation: u32,
+}
+pub struct ArithmeticResult {
+    pub code: u32,
+    pub lower: BrowserBytes,
+    pub upper: BrowserBytes,
+    pub lower_exp: i64,
+    pub upper_exp: i64,
+    pub lower_negative: bool,
+    pub upper_negative: bool,
+}
+fn encoded(_ e: Engine, _ a: D) -> BrowserBytes {
+    let ptr = alloc_browser_bytes(a.len * 4)
+    let mut i: u32 = 0
+    while i < a.len {
+        let target: BrowserPtr<u32> = BrowserPtr::from_u32(ptr.address() + i * 4)
+        target.write(e.word(a, i))
+        i = i + 1
+    }
+    BrowserBytes { ptr: ptr.address(), len: a.len * 4 }
+}
+pub fn arithmetic(_ request: own ArithmeticRequest) -> ArithmeticResult {
+    let e = Engine::new(
+        if request.precision >= 2 && request.precision <= 4096 {
+            request.precision
+        } else {
+            128
+        },
+    )
+    let mut lo = e.invalid()
+    let mut hi = e.invalid()
+    if request.precision >= 2
+        && request.precision <= 4096
+        && request.left >= -1000000000
+        && request.left <= 1000000000
+        && request.right >= -1000000000
+        && request.right <= 1000000000
+        && request.operation <= 1 {
+        let a = e.integer(0, request.left, request.left_exp as i64)
+        let b = e.integer(1, request.right, request.right_exp as i64)
+        if request.operation == 0 {
+            lo = e.add(2, a, b, false)
+            hi = e.add(3, a, b, true)
+        } else {
+            lo = e.multiply(2, a, b, false)
+            hi = e.multiply(3, a, b, true)
+        }
+    }
+    ArithmeticResult {
+        code: if lo.valid && hi.valid { 0 } else { 2 },
+        lower: encoded(e, lo),
+        upper: encoded(e, hi),
+        lower_exp: lo.exp,
+        upper_exp: hi.exp,
+        lower_negative: lo.neg,
+        upper_negative: hi.neg,
+    }
+}
+pub fn wasm_anchor(_ x: i32, _ y: i32, _ res: f32) -> u32 {
+    0
+}
+
+pub struct WordArithmeticRequest {
+    pub left: BrowserBytes,
+    pub right: BrowserBytes,
+    pub left_exp: i32,
+    pub right_exp: i32,
+    pub left_negative: bool,
+    pub right_negative: bool,
+    pub precision: u32,
+    pub operation: u32,
+}
+fn read_words(_ e: Engine, _ slot: u32, _ bytes: BrowserBytes, _ negative: bool, _ exp: i32) -> D {
+    if bytes.len > 316 * 4 || (bytes.len % 4) != 0 {
+        return e.invalid()
+    }
+    let mut i: u32 = 0
+    while i < bytes.len / 4 {
+        let pointer: BrowserPtr<u32> = BrowserPtr::from_u32(bytes.ptr + i * 4)
+        let word = pointer.read()
+        if word >= 8192 {
+            return e.invalid()
+        }
+        e.store(slot, i, word)
+        i = i + 1
+    }
+    e.normal(
+        D { slot: slot, len: i, exp: exp as i64, neg: negative, valid: true },
+    )
+}
+pub fn arithmetic_words(_ request: own WordArithmeticRequest) -> ArithmeticResult {
+    let e = Engine::new(
+        if request.precision >= 2 && request.precision <= 4096 {
+            request.precision
+        } else {
+            128
+        },
+    )
+    let mut lo = e.invalid()
+    let mut hi = e.invalid()
+    if request.precision >= 2 && request.precision <= 4096 && request.operation <= 1 {
+        let a = read_words(
+            e,
+            0,
+            request.left,
+            request.left_negative,
+            request.left_exp,
+        )
+        let b = read_words(
+            e,
+            1,
+            request.right,
+            request.right_negative,
+            request.right_exp,
+        )
+        if request.operation == 0 {
+            lo = e.add(2, a, b, false)
+            hi = e.add(3, a, b, true)
+        } else {
+            lo = e.multiply(2, a, b, false)
+            hi = e.multiply(3, a, b, true)
+        }
+    }
+    ArithmeticResult {
+        code: if lo.valid && hi.valid { 0 } else { 2 },
+        lower: encoded(e, lo),
+        upper: encoded(e, hi),
+        lower_exp: lo.exp,
+        upper_exp: hi.exp,
+        lower_negative: lo.neg,
+        upper_negative: hi.neg,
+    }
+}

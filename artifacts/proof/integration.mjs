@@ -1,3 +1,4 @@
+import './studio.mjs';
 import {selectAt,projectPoint} from './selection.mjs';
 const $=s=>document.querySelector(s),surface=$('fe-surface'),panel=$('#proof-panel'),result=$('#proof-result'),description=$('#proof-point');
 const worker=new Worker(new URL('./checker-worker.mjs',import.meta.url),{type:'module'});let serial=0,generation=0,selected=null,receipt=null,busy=false,frame;
@@ -13,7 +14,6 @@ async function choose(point){
   result.textContent=terminal===0xffffffff?'Point is outside the supported view: real [−2,1), imaginary [−1.5,1.5).':terminal===0xfffffffe?'No escape within 1,023 steps. This does not establish Mandelbrot membership.':`Q12 orbit escapes at step ${terminal}. Ready to generate a proof.`;
  }catch(e){if(own===generation)result.textContent=e.message;}controls();
 }
-$('#proof-open').onclick=()=>{panel.hidden=!panel.hidden;};
 $('#proof-pick').onclick=()=>{const overlay=$('#proof-picker');overlay.hidden=false;result.textContent='Click or tap a point on the fractal. The proof point snaps to the 1/4096 grid.';};
 $('#proof-picker').onpointerdown=e=>{
  e.preventDefault();e.stopPropagation();$('#proof-picker').hidden=true;

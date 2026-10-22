@@ -20,6 +20,8 @@ jobs:
         run: node tests/proof-selection.mjs
       - name: Check Fe/Wasm verifier against captured proofs and mutations
         run: node tests/fe-verifier.mjs
+      - name: Execute certified Fe Wasm arithmetic against independent endpoints
+        run: node tests/certified-escape.mjs
       - name: Check independent interval and algebraic models
         run: python3 -m unittest discover -s experiments/private_circle -v
       - name: Exercise certified deep-offset arithmetic and Unknown outcomes

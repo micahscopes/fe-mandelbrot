@@ -210,6 +210,7 @@ The viewer, GPU prover and Wasm verifier are members of **one Fe workspace**:
 | `app/renderer` | High-precision interactive explorer |
 | `app/point_prover` | WebGPU witness generation and proof passes |
 | `app/proof_checker` | Independent integer replay and receipt checks in Wasm |
+| `app/certified_escape` | Directed dyadic interval arithmetic for the exact deep-offset family |
 | `lib/mandelbrot_proof_profile` | Shared receipt geometry and fixed profile |
 | `lib/mandelbrot_proof_*` | AIR, encodings, domains and GPU placement |
 | `lib/precision`, `lib/poseidon_*`, `lib/fri_*`, `lib/parallel_*` | Shared field, hashing, folding and transform vocabulary |
@@ -257,3 +258,33 @@ The test owns a background browser target and closes only that target. It checks
 actual point clicks, early/late escape, generation, Fe/Wasm verification,
 corrupted-copy rejection, bounded nonescape, range rejection and stale checks.
 Timings include readback; GPU driver cache state is uncontrolled.
+
+
+The computation studio now has two separate lanes. **Certified escape** runs
+Fe/Wasm directed interval arithmetic for exact points `c=i+2^-k`, with public
+circle centered at `i` and radius `2^(1-k)`. It uses the exact periodic reference
+orbit and never rounds that tiny input into a Q12/f64 coordinate. Depth is
+currently1–16,384, working precision32–4,096 bits (the UI offers selected sizes),
+and the iteration budget1–10,000. The circle relation is fixed by this family;
+this is not arbitrary-circle selection or the generic residual-certificate
+checker yet. Results distinguish certified strict escape, inconclusive bounds
+and invalid profiles. A dedicated cancellable worker keeps this calculation
+off the UI thread. This lane reveals the point locally and generates **no ZK
+proof**. The preserved **GPU proof lab** runs the older nonprivate Q12 receipt.
+
+Measured on this lab CPU in actual Fe/Wasm: depth1,024 at256-bit precision
+certifies by step821 in roughly0.24s; depth4,096 at1,024-bit precision certifies
+by step3,285 in roughly10s. The same depth at4,096-bit working precision takes
+roughly159s with the current schoolbook multiplication kernel. These are
+arithmetic timings, not proof generation, rendering or universal performance
+guarantees. Wasm setup and computation are shown separately. Scratch is166,416
+bytes per call; total linear memory also includes native temporary records
+(about2.8MB/10.7MB for the measured smaller/larger runs), and is checked for reuse.
+
+`node tests/certified-escape.mjs` executes the actual compiled Wasm against292
+independent Python-model endpoint fixtures, malformed inputs, the reviewed
+exponent-limit failure regression, orbit cases and repeated-call memory checks.
+Set `CERTIFIED_LARGE_CASE=1` to include both expensive4,096-depth profiles.
+`tests/certified-studio-browser.mjs` exercises responsive UI, real computation,
+cancellation, inconclusive results, the preserved legacy preflight and worker
+startup failure. It requires Playwright and an explicitly chosen CDP browser.

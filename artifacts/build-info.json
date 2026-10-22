@@ -1,5 +1,5 @@
 {
-  "sourceHash": "735e4015d571b653b69d27630c50ab44845910db43b5d6fb6a0dd1abaf39b7c0",
+  "sourceHash": "df8cb1772e54dbf0378d86b96d9d3f8afac025e17a51962cf6056cee2a5f06d1",
   "toolchain": {
     "fe": {
       "repository": "https://github.com/micahscopes/fe.git",
@@ -53,6 +53,24 @@
     "indexes/renderer/docs.json": "9ba670c00e61e0e1333fe8a60fe7d38df01acd471bdc4ffdab0f0a8b5421faf7",
     "indexes/source_inspector/docs.json": "5408d6d2fbbb91d3c6c631e69a3027d2c140196c88575e326d72ff7b9d9b25cf",
     "indexes/source_viewer/docs.json": "535d8ca6fb493ebae99f68b34675e6bdcc7c7339f74d8ab7ac0f43436652c3f0",
+    "proof/certified/fe-render-runtime.js": "cc1ad17c078980d736bf239d51738fdd700d92f818b077dd8bbf6890ea5ecba7",
+    "proof/certified/index.html": "f99c53c7bdfd6f649ade7ced7c74055428eb63271042c215e833b127b4aae84c",
+    "proof/certified/interface.d.ts": "5ce510255261c671e053ce50ff9ba087237e98c81af069fb2e8e7fce43718801",
+    "proof/certified/interface.js": "4c1570e8b61ac70a9a0df9ab39142d1c86775131e039d93828b16667a0018095",
+    "proof/certified/manifest.json": "689267c638cb43fd5bd387190ca13ff26d997d0e221d14fde7d8c93be4073c8a",
+    "proof/certified/module.wasm": "9afc09ebf35988163dcd72bd0437fb7a7416803eca63d40da6688e9d5141f1b6",
+    "proof/certified/runtime/actor-client-core.js": "b6eb4d868ba87a97987c028881458a99f51abe46a52ed599d314efb195db074c",
+    "proof/certified/runtime/actor-client.js": "406251b8dd7f9a732e8e761167ecbe0ac0e2ef24b37c18f5df29e7f418e3dbd5",
+    "proof/certified/runtime/actor-coordinator.js": "6793f2d0803cab4968d3efffc8996b64d07aad3dd1e49fca7e0e33308f6c4eed",
+    "proof/certified/runtime/actor-endpoint.js": "f0244e2468b077c086d4b6032dd61f451b5e6cb503333ae8150a68ea5df533cd",
+    "proof/certified/runtime/actor-router.js": "6cd349c836f51dd28f8b3d69177b40e56a9b39f96ed73b18ae83a703766c0534",
+    "proof/certified/runtime/gpu-actor.js": "262c703494035e1c369226d3d7849143a809ce0f968e30025a08b84f43dea268",
+    "proof/certified/runtime/message-port-actor.js": "d1e72991b703759c4f82d56ac5da5404e9d4674982d9ef0384087b9a78b673fb",
+    "proof/certified/runtime/module-worker-actor.js": "9c827719a1aab8e7662ac77b8a1643743592fac9f161938a1b50fdf3178ca01f",
+    "proof/certified/runtime/worker-host-core.js": "908764e045f2566137f7f3ff8fb106c0e3b122f338b21849b7eff6dd06bf1f35",
+    "proof/certified/runtime/worker-host.js": "271e0b972063264f1df0403c798be7d4af973d7cf86967c1a5321e1dfa1371e1",
+    "proof/certified/shader.wgsl": "7adc66293d1a38db30c4d1e8abdd286947c579a1a46cd77f30a9b074ebb91c3c",
+    "proof/certified-worker.mjs": "eedf796d197f878c0423babba05ff27625590cf3d93090aa4e52fb2ebd1c2eae",
     "proof/checker/fe-render-runtime.js": "cc1ad17c078980d736bf239d51738fdd700d92f818b077dd8bbf6890ea5ecba7",
     "proof/checker/index.html": "f99c53c7bdfd6f649ade7ced7c74055428eb63271042c215e833b127b4aae84c",
     "proof/checker/interface.d.ts": "cdb4ef826031aea883d56b77ca331ce60a5e44d7373b055b617d82d8f1da0a0e",
@@ -111,8 +129,9 @@
     "proof/engine/passes/033-compute.wgsl": "96351ea650fc9149bb1198783d54c671701bf063192fa04b433d8ca996c01d71",
     "proof/engine/passes/034-fragment.wgsl": "e17d58ec1bab660854f1caf38b7b8581474a7f489a11d543d9d1f445e18c0a01",
     "proof/frame.html": "4de9d9a34d15c5b64bb360bc9042d28d1fcef06b3194e50306590a90ee2da802",
-    "proof/integration.mjs": "d62c1d0ee95a8f0accc55770faf4a8ec97ec0c21afd64d135555d8142e73af01",
+    "proof/integration.mjs": "3149bb1b375c59449acd5a7e64152a9b6b26d148e882e3c56b82bc2dde2ef544",
     "proof/selection.mjs": "b2b232e16f516104471ca74c9adcfd87878ccb6207f8c11c4b789a0bd0475525",
+    "proof/studio.mjs": "5fa0937d30b853efcedb07abbb6fbd9771c08a990af38ee46c7f8083264205fd",
     "renderer/fe-render-runtime.js": "cc1ad17c078980d736bf239d51738fdd700d92f818b077dd8bbf6890ea5ecba7",
     "renderer/index.html": "f99c53c7bdfd6f649ade7ced7c74055428eb63271042c215e833b127b4aae84c",
     "renderer/manifest.json": "92a8de6945538a13fad6f7971aceeab1395e29a43c84a4359c2d6d9c412c324e",
@@ -135,13 +154,13 @@
     "renderer/passes/015-compute.wgsl": "153ad2f4e4a69345d1a9f6ccea4134d7e59fe31d1704865d94a8fb737b692e8c",
     "renderer/passes/016-compute.wgsl": "835279647f98c7b1589ff627a155da36c1ea218766575d4dbb439be29de263f0",
     "renderer/passes/017-fragment.wgsl": "2eb805b9df1bf1fdb14de51f5bbbd4ad4ef676f5e09231d10d5b038cab54e8dc",
-    "viewer/assets/fe-4677c377d64897f8.json": "4677c377d64897f8fd94ef6c50d2e6d4b3efce346fcb41ab415a12b4087f3f10",
+    "viewer/assets/fe-7c8c28232fb13bbd.json": "7c8c28232fb13bbde40d7825b14b7977d912031620c71f544a8064a4e80c70fb",
     "viewer/assets/fe-997b01e0b87df7c8.wasm": "997b01e0b87df7c8c2266eeb344943379c60fe49e1a6d94328b127283777972f",
     "viewer/assets/fe-adapter-379df86969428ae9.js": "379df86969428ae9872febd8d518f6a42b7c2201bb4da57aafa9bd05715f6697",
     "viewer/assets/fe-bootstrap-4cb87a78ce901629.js": "4cb87a78ce90162979a6502595fabb1adbf4cbdf4b954d72d029e34f29a1035f",
     "viewer/assets/fe-task-3747de1e041477c4/host-completion.js": "54bc6871a2bf0b4bdf4dad48e8d1aa371ae920dcb418e5406d1d2253a322b8e8",
     "viewer/assets/fe-task-3747de1e041477c4/materialized-task.js": "c6840564dd53aba5d599ba2861e83f38232eefac1e1534cadf9692edcacdff96",
     "viewer/assets/fe-task-3747de1e041477c4/tasks.js": "35c384420ab70902707d0bc8b5b742c8872af39d54ccb34ef6610cf1cbc3d6cc",
-    "viewer/index.html": "e0eab7fa77913bb319fd99a51d5126fe156ece68acf6dc2644331dad24f5ce6c"
+    "viewer/index.html": "981fd2dc918424d81743cf7acdc81961647b9068c2346937a34b993179e0268f"
   }
 }

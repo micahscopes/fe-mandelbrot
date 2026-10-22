@@ -8,7 +8,7 @@ try{
  page.on('pageerror',e=>{report.errors.push(e.message);console.log('PAGEERROR',e.message);});page.on('console',m=>{if(m.type()==='error')console.log('CONSOLE',m.text());});
  await page.goto(process.env.BASE_URL||'http://localhost:8000/');
  await page.waitForFunction(()=>document.querySelector('fe-surface')?.state==='live',null,{timeout:120000});console.log('VIEWER LIVE');
- await page.click('#proof-open');await page.click('#proof-whole');await page.waitForFunction(()=>document.querySelector('fe-surface')._uniforms[8]===1.5);await page.click('#proof-pick');await page.locator('#proof-picker').click({position:{x:200,y:300}});await page.waitForFunction(()=>!document.querySelector('#proof-result').textContent.includes('Checking whether'));
+ await page.click('#proof-open');await page.click('#studio-tab-lab');await page.click('#proof-whole');await page.waitForFunction(()=>document.querySelector('fe-surface')._uniforms[8]===1.5);await page.click('#proof-pick');await page.locator('#proof-picker').click({position:{x:200,y:300}});await page.waitForFunction(()=>!document.querySelector('#proof-result').textContent.includes('Checking whether'));
  console.log('ACTUAL PICK',await page.locator('#proof-point').textContent(),await page.locator('#proof-result').textContent());
  for(const [re,im,label]of [[3500,3000,'early'],[1076,12,'late']]){
   await page.click('#proof-pick');const target=await page.evaluate(([re,im])=>{const s=document.querySelector('fe-surface'),r=s._liveCanvas.getBoundingClientRect();return{x:r.left+((re/4096+.5)/1.5+1)*r.width/2,y:r.top+(1-im/4096/1.5)*r.height/2};},[re,im]);await page.mouse.click(target.x,target.y);await page.waitForFunction(()=>!document.querySelector('#proof-generate').disabled);
@@ -24,7 +24,7 @@ try{
   const words=await page.evaluate(()=>Array.from(new Uint32Array(lastPointProof.proof)));await writeFile(root+'/proof-'+label+'.bin',Buffer.from(new Uint32Array(words).buffer));
   await page.click('#proof-test');await page.waitForFunction(()=>!document.querySelector('#proof-test').disabled,null,{timeout:120000});
   const clean=await page.evaluate(()=>window.lastPointProofCheck);console.log(label,'CHECK',clean,await page.locator('#proof-result').textContent());assert.equal(clean.accepted,true);
-  await page.click('#proof-corrupt');await page.waitForFunction(()=>!document.querySelector('#proof-test').disabled,null,{timeout:120000});const corrupt=await page.evaluate(()=>window.lastPointProofCheck);assert.equal(corrupt.accepted,false);
+  await page.locator('#legacy-lane details').evaluate(e=>e.open=true);await page.click('#proof-corrupt');await page.waitForFunction(()=>!document.querySelector('#proof-test').disabled,null,{timeout:120000});const corrupt=await page.evaluate(()=>window.lastPointProofCheck);assert.equal(corrupt.accepted,false);
   report.checks.push({label,re,im,clean,corrupt,generation:await page.evaluate(()=>({ms:lastPointProof.generationMs,adapter:lastPointProof.adapter,words:lastPointProof.proof.byteLength/4,timings:lastPointProof.timings}))});await writeFile(root+'/browser-receipt.json',JSON.stringify(report,null,2));
  }
  await page.evaluate(async()=>{const check=document.querySelector('#proof-test').onclick();await window.selectProofPoint({re:0,im:0});await check;});report.staleSuppressed=await page.locator('#proof-result').textContent();assert.ok(report.staleSuppressed.includes('No escape'));
