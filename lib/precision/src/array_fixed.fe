@@ -35,7 +35,7 @@ impl<const L: usize> Copy for ArrayFixed<L> {}
 impl<const L: usize> ArrayFixed<L> {
     // Like Contacts::capacity, convert the compile-time array dimension once;
     // all runtime counters are u32 and only widen at checked array indexing.
-    const fn width() -> u32 {
+    fn width() -> u32 {
         assert(L >= 2 && L <= 10)
         L.downcast_truncate()
     }
