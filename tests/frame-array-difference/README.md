@@ -104,3 +104,16 @@ and runtime counter width with explicit checked scalar boundaries. Its
 renewed compiled/GPU gates are pending; both failed histories are preserved.
 The lead owns those gates and the source-viewer/catalog addition for the new
 module. Previous failed experiments and receipts remain intact.
+
+## Current execution checkpoint
+
+At `d86255a`, all eight compiled Fe tests pass, and both old and new actual
+Fe/Wasm implementations agree with the independent Fraction expectation for
+all 2,668 runtime cases. The viewer also precompiles with the new module link.
+
+The renderer does not yet build: pinned Sonatina asserts in
+`range_analysis::fact_for_value`, called by `transfer_plain_binary` during the
+first shader-helper `RangeBranchSimplify` pass after SCCP. The traced graph
+has 33 functions. Native pipeline timing and GPU equivalence are therefore
+still unmeasured for this candidate. This branch is pushed for continuity;
+it is not merged into main or deployed as a mobile fix.
