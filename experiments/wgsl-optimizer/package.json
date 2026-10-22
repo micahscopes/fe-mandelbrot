@@ -1,0 +1,8 @@
+{
+  "name": "fe-wgsl-optimizer-experiment",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "nagami-rs": "2026.11.0"
+  }
+}
