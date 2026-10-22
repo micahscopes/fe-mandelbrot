@@ -52,7 +52,7 @@ impl<const L: usize> ArrayFixed<L> {
         // Every binary32 subnormal is below the finest supported 2^-117 unit.
         if encoded_exponent == 0 { return result }
         let significand: u32 = (magnitude & 8388607) | 8388608
-        let exponent: i32 = encoded_exponent as i32
+        let exponent: i32 = encoded_exponent.downcast().unwrap()
         let lattice_shift: i32 = exponent - 150 + result.fractional_bits()
         let mut source_bit: i32 = -lattice_shift
         let mut index: usize = 0
@@ -60,9 +60,11 @@ impl<const L: usize> ArrayFixed<L> {
             result.digits[index] = if source_bit >= 24 || source_bit <= -13 {
                 0
             } else if source_bit >= 0 {
-                (significand >> (source_bit as u32)) & 8191
+                let shift: u32 = source_bit.downcast().unwrap()
+                (significand >> shift) & 8191
             } else {
-                (significand << ((-source_bit) as u32)) & 8191
+                let shift: u32 = (-source_bit).downcast().unwrap()
+                (significand << shift) & 8191
             }
             source_bit = source_bit + 13
             index = index + 1
@@ -179,7 +181,8 @@ impl<const L: usize> Binary32View for ArrayFixed<L> {
                     digit = digit >> 1
                     bit = bit + 1
                 }
-                return (index as i32) * 13 + bit
+                let limb: i32 = index.downcast().unwrap()
+                return limb * 13 + bit
             }
         }
         -1
@@ -187,16 +190,18 @@ impl<const L: usize> Binary32View for ArrayFixed<L> {
 
     fn bit_at(self, _ index: i32) -> u32 {
         if index < 0 { return 0 }
-        let slot: usize = (index as usize) / 13
+        let position: u32 = index.downcast().unwrap()
+        let slot: usize = (position / 13) as usize
         if slot >= L { return 0 }
-        (self.digits[slot] >> ((index % 13) as u32)) & 1
+        (self.digits[slot] >> (position % 13)) & 1
     }
 
     fn word_from(self, _ index: i32) -> u32 {
         if index < 0 { return 0 }
-        let mut slot: usize = (index as usize) / 13
+        let offset: u32 = index.downcast().unwrap()
+        let mut slot: usize = (offset / 13) as usize
         if slot >= L { return 0 }
-        let shift: u32 = (index % 13) as u32
+        let shift: u32 = offset % 13
         let mut result: u32 = self.digits[slot] >> shift
         let mut position: u32 = 13 - shift
         slot = slot + 1
@@ -211,7 +216,8 @@ impl<const L: usize> Binary32View for ArrayFixed<L> {
 
     fn any_below(self, _ count: i32) -> u32 {
         if count <= 0 { return 0 }
-        let whole: usize = (count as usize) / 13
+        let bits: u32 = count.downcast().unwrap()
+        let whole: usize = (bits / 13) as usize
         let mut index: usize = 0
         let mut result: u32 = 0
         while index < L && index < whole {
@@ -219,13 +225,16 @@ impl<const L: usize> Binary32View for ArrayFixed<L> {
             index = index + 1
         }
         if index < L {
-            let partial: u32 = (count % 13) as u32
+            let partial: u32 = bits % 13
             result = result | (self.digits[index] & (((1 as u32) << partial) - 1))
         }
         result
     }
 
-    fn fractional_bits(self) -> i32 { ((L - 1) as i32) * 13 }
+    fn fractional_bits(self) -> i32 {
+        let fractional_limbs: i32 = (L - 1).downcast().unwrap()
+        fractional_limbs * 13
+    }
 }
 
 /// Frame-scope difference with the same independently quantized ordered words
