@@ -14,16 +14,16 @@ try{
  const receipt=await page.evaluate(async()=>{
   const {realizePassPipelines}=await import('./runtime.mjs');
   const records=Array.from({length:10},(_,index)=>({pass:{source_entry:'test_pass_'+index,layout:{mode:'compute'}},shaderSource:'shader',pipelineDescriptor:{compute:{entryPoint:'p'+index}}}));
-  let active=0,maximum=0,calls=0;
+  let active=0,maximum=0,calls=0;const progress=[];
   const shaderLabels=[],pipelineLabels=[];
   const device={createShaderModule:descriptor=>{shaderLabels.push(descriptor.label);return {};},createComputePipelineAsync:async descriptor=>{
    pipelineLabels.push(descriptor.label);calls++;active++;maximum=Math.max(maximum,active);
    await new Promise(resolve=>setTimeout(resolve,5));active--;
    return {name:descriptor.compute.entryPoint};
   }};
-  await Promise.all([realizePassPipelines(device,records),realizePassPipelines(device,records)]);
+  await Promise.all([realizePassPipelines(device,records,detail=>progress.push(detail)),realizePassPipelines(device,records)]);
   const once=calls,limit=maximum,ordered=records.every((record,index)=>record.pipeline.name==='p'+index);
-  await realizePassPipelines(device,records);
+  const beforeReuse=progress.length;await realizePassPipelines(device,records,detail=>progress.push(detail));
   const reused=calls===once;
   const failing=records.map((record,index)=>({...record,pipeline:null,pipelinePromise:null,pipelineDescriptor:{compute:{entryPoint:'f'+index}}}));
   let started=0,completed=0,inFlight=0,failed=false;
@@ -35,9 +35,9 @@ try{
    return {};
   }};
   try{await realizePassPipelines(broken,failing);}catch(error){failed=error.message==='Fe pass: test_pass_0: pipeline creation failed: expected pipeline failure' && error.cause?.message==='expected pipeline failure';}
-  return {labels:shaderLabels.every((label,index)=>label===`Fe pass: test_pass_${index}`)&&pipelineLabels.every((label,index)=>label===`Fe pass: test_pass_${index}`),calls:once,maximum:limit,ordered,reused,failurePropagated:failed,failureStarts:started,failureCompletions:completed,inFlightAtRejection:inFlight};
+  return {progressComplete:beforeReuse===10&&progress.length===10&&progress.every((detail,index)=>detail.stage==='pipeline'&&detail.pass==='test_pass_'+index&&detail.index===index+1&&detail.total===10),labels:shaderLabels.every((label,index)=>label===`Fe pass: test_pass_${index}`)&&pipelineLabels.every((label,index)=>label===`Fe pass: test_pass_${index}`),calls:once,maximum:limit,ordered,reused,failurePropagated:failed,failureStarts:started,failureCompletions:completed,inFlightAtRejection:inFlight};
  });
- assert.equal(receipt.labels,true);assert.equal(receipt.calls,10);assert.equal(receipt.maximum,1);assert.equal(receipt.ordered,true);assert.equal(receipt.reused,true);
+ assert.equal(receipt.progressComplete,true);assert.equal(receipt.labels,true);assert.equal(receipt.calls,10);assert.equal(receipt.maximum,1);assert.equal(receipt.ordered,true);assert.equal(receipt.reused,true);
  assert.equal(receipt.failurePropagated,true);assert.equal(receipt.failureStarts,1);assert.equal(receipt.failureCompletions,1);assert.equal(receipt.inFlightAtRejection,0);
  if(process.env.RECEIPT)await fs.writeFile(process.env.RECEIPT,JSON.stringify(receipt,null,2)+'\n');
  console.log(JSON.stringify(receipt));

@@ -2108,14 +2108,16 @@ export function realizePassPipeline(device, record) {
 /** Prepare active pipelines serially to bound driver compilation pressure.
  * Pass execution remains ordered by the Fe graph. On failure, stop starting
  * new work and join all in-flight compilations before releasing the graph. */
-export async function realizePassPipelines(device, records) {
+export async function realizePassPipelines(device, records, onProgress = null) {
   let cursor = 0;
   let failed = false;
   let failure;
   const worker = async () => {
     while (!failed && cursor < records.length) {
       const record = records[cursor++];
+      const preparing = !record.pipeline;
       try {
+        if (preparing) onProgress?.({ stage: "pipeline", pass: record.pass.source_entry, index: cursor, total: records.length });
         await realizePassPipeline(device, record);
       } catch (error) {
         if (!failed) failure = error;
@@ -3605,7 +3607,7 @@ export class FeSurfaceElement extends HTMLElement {
         this._passActivationKernels,
         uniforms,
       );
-      await realizePassPipelines(device, activePassRecords);
+      await realizePassPipelines(device, activePassRecords, detail => this._dispatch("fe-progress", detail));
       this._runWasmArenaEpoch(() => this._bufferPublications?.write(gpu, uniforms));
       if (activePassRecords.some(record => record.pass.layout.mode !== "compute")) {
         ensureRasterAttachments(gpu, this._backingWidth, this._backingHeight);
