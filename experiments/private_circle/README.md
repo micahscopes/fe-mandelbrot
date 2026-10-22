@@ -34,3 +34,11 @@ production exploit, soundness bound, or security/privacy proof.
 
 See [the proposed relation](../../docs/private-circle/RELATION.md) for the public
 statement, private witness, architecture and remaining proof gates.
+
+The optional `limb_probe.fe` / `run_fe_probe.py` experiment stages a standalone
+Fe ingot into a **new** scratch directory using an existing pinned compiler/core
+(and its sibling std). See the runner's help for arguments. It checks runtime
+20/316-word multiply-accumulate loops, canonical signed dyadic encodings,
+precision top limbs and explicit exponent limits. It is not the full Fe
+arithmetic/certificate port. No compiler rebuild or application asset change is
+needed. The Python-only CI jobs do not run this compiler experiment.

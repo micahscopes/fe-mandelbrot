@@ -8,7 +8,7 @@ import json
 import platform
 import time
 from dyadic import (Dyadic, ZERO, FOUR, ComplexBox, circle_membership,
-                    perturbation_orbit)
+                    perturbation_orbit, add)
 
 
 def run(depth, bits):
@@ -20,12 +20,16 @@ def run(depth, bits):
                                           (ZERO, Dyadic(1)), Dyadic(1, 1-depth)),
               'status': 'unknown', 'escapeByStep': None}
     start = time.perf_counter()
+    max_width = ZERO
     for step, box in enumerate(perturbation_orbit(reference, delta, result['budget'])):
+        for coordinate in (box.re, box.im):
+            max_width = max(max_width, add(coordinate.hi, -coordinate.lo, bits, True))
         norm = box.norm_squared()
         if norm.lo > FOUR:
             result.update(status='escape-certified', escapeByStep=step,
                           normSquaredLower={'m': norm.lo.m, 'e': norm.lo.e})
             break
+    result['maxCoordinateWidthUpper'] = {'m': max_width.m, 'e': max_width.e}
     result['elapsedSeconds'] = time.perf_counter() - start
     return result
 

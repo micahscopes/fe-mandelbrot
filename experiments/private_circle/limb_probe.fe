@@ -1,0 +1,224 @@
+//! Experimental constant-width 13-bit MAC, not a certificate or proof verifier.
+//! Runtime active lengths share one 320-word capacity and one loop body.
+pub struct MacResult { pub words: [u32; 320], pub carry: u32, pub valid: bool }
+
+pub fn mac_words(_ t: [u32; 320], _ x: [u32; 320], _ scalar: u32, _ active: u32) -> MacResult {
+    let mut words: [u32; 320] = [0; 320]
+    if active == 0 || active > 320 || scalar >= 8192 {
+        return MacResult { words: words, carry: 0, valid: false }
+    }
+    let mut i: u32 = 0
+    while i < 320 {
+        if t[i as usize] >= 8192
+            || x[i as usize] >= 8192
+            || (i >= active && (t[i as usize] != 0 || x[i as usize] != 0)) {
+            return MacResult { words: words, carry: 0, valid: false }
+        }
+        i = i + 1
+    }
+    let mut carry: u32 = 0
+    i = 0
+    while i < active {
+        // Each total is <= 8191^2+2*8191 = 2^26-1; no u32 overflow
+        // or equality alias modulo BabyBear is possible with these ranges.
+        let total = t[i as usize] + x[i as usize] * scalar + carry
+        words[i as usize] = total & 8191
+        carry = total >> 13
+        i = i + 1
+    }
+    MacResult { words: words, carry: carry, valid: true }
+}
+
+fn check_length(_ active: u32) {
+    let mut t: [u32; 320] = [0; 320]
+    let mut x: [u32; 320] = [0; 320]
+    let mut i: u32 = 0
+    while i < active {
+        t[i as usize] = 8191
+        x[i as usize] = 8191
+        i = i + 1
+    }
+    let result = mac_words(t, x, 8191, active)
+    assert(result.valid)
+    assert(result.words[0] == 0)
+    assert(result.carry == 8191)
+    i = 1
+    while i < active {
+        assert(result.words[i as usize] == 8191)
+        i = i + 1
+    }
+    while i < 320 {
+        assert(result.words[i as usize] == 0)
+        i = i + 1
+    }
+}
+
+#[test]
+fn same_kernel_at_twenty_active_limbs() {
+    check_length(20)
+}
+
+#[test]
+fn same_kernel_at_three_hundred_sixteen_active_limbs() {
+    check_length(316)
+}
+
+#[test]
+fn invalid_ranges_and_lengths_fail_closed() {
+    let zero: [u32; 320] = [0; 320]
+    assert(!mac_words(zero, zero, 1, 0).valid)
+    assert(!mac_words(zero, zero, 1, 321).valid)
+    assert(!mac_words(zero, zero, 8192, 20).valid)
+    let mut bad: [u32; 320] = [0; 320]
+    bad[0] = 8192
+    assert(!mac_words(bad, zero, 1, 20).valid)
+    bad[0] = 0
+    bad[20] = 1
+    assert(!mac_words(bad, zero, 1, 20).valid)
+}
+
+/// Experimental bounded representation; exponent range and significand precision
+/// are independent. This is not yet signed interval arithmetic.
+pub struct DyadicWords {
+    pub negative: bool,
+    pub exponent: i64,
+    pub active: u32,
+    pub words: [u32; 320],
+}
+
+pub fn canonical_dyadic(_ value: DyadicWords, _ mantissa_bits: u32, _ exponent_limit: i64) -> bool {
+    if mantissa_bits < 2 || mantissa_bits > 4160 || exponent_limit < 0 {
+        return false
+    }
+    if value.exponent < -exponent_limit || value.exponent > exponent_limit {
+        return false
+    }
+    let capacity = (mantissa_bits + 12) / 13
+    if value.active > capacity {
+        return false
+    }
+    let mut i: u32 = 0
+    while i < 320 {
+        if value.words[i as usize] >= 8192 || (i >= value.active && value.words[i as usize] != 0) {
+            return false
+        }
+        i = i + 1
+    }
+    if value.active == 0 {
+        return !value.negative && value.exponent == 0
+    }
+    // Canonical nonzero significands are odd and have no leading zero limb.
+    if (value.words[0] & 1) == 0 || value.words[(value.active - 1) as usize] == 0 {
+        return false
+    }
+    if value.active == capacity {
+        let top_bits = mantissa_bits - (capacity - 1) * 13
+        if value.words[(capacity - 1) as usize] >= (1 << top_bits) {
+            return false
+        }
+    }
+    true
+}
+
+#[test]
+fn dyadic_boundary_separates_exponent_from_precision() {
+    let mut words: [u32; 320] = [0; 320]
+    words[0] = 1
+    words[19] = 511
+    assert(
+        canonical_dyadic(
+            DyadicWords { negative: true, exponent: -1000000000, active: 20, words: words },
+            256,
+            1000000000,
+        ),
+    )
+    words[19] = 512
+    assert(
+        !canonical_dyadic(
+            DyadicWords { negative: true, exponent: -1000000000, active: 20, words: words },
+            256,
+            1000000000,
+        ),
+    )
+    words[19] = 0
+    words[315] = 1
+    assert(
+        canonical_dyadic(
+            DyadicWords { negative: false, exponent: -1000000000, active: 316, words: words },
+            4096,
+            1000000000,
+        ),
+    )
+    words[315] = 2
+    assert(
+        !canonical_dyadic(
+            DyadicWords { negative: false, exponent: -1000000000, active: 316, words: words },
+            4096,
+            1000000000,
+        ),
+    )
+}
+
+#[test]
+fn dyadic_boundary_rejects_ambiguous_and_out_of_range_encodings() {
+    let zero: [u32; 320] = [0; 320]
+    assert(
+        canonical_dyadic(
+            DyadicWords { negative: false, exponent: 0, active: 0, words: zero },
+            256,
+            1000000000,
+        ),
+    )
+    assert(
+        !canonical_dyadic(
+            DyadicWords { negative: true, exponent: 0, active: 0, words: zero },
+            256,
+            1000000000,
+        ),
+    )
+    assert(
+        !canonical_dyadic(
+            DyadicWords { negative: false, exponent: 1, active: 0, words: zero },
+            256,
+            1000000000,
+        ),
+    )
+    let mut words: [u32; 320] = [0; 320]
+    words[0] = 2
+    assert(
+        !canonical_dyadic(
+            DyadicWords { negative: false, exponent: 0, active: 1, words: words },
+            256,
+            1000000000,
+        ),
+    )
+    words[0] = 1
+    assert(
+        !canonical_dyadic(
+            DyadicWords { negative: false, exponent: -1000000001, active: 1, words: words },
+            256,
+            1000000000,
+        ),
+    )
+    assert(
+        !canonical_dyadic(
+            DyadicWords { negative: false, exponent: 0, active: 1, words: words },
+            4161,
+            1000000000,
+        ),
+    )
+    assert(
+        !canonical_dyadic(
+            DyadicWords { negative: false, exponent: 0, active: 1, words: words },
+            256,
+            -1,
+        ),
+    )
+    assert(
+        !canonical_dyadic(
+            DyadicWords { negative: false, exponent: 0, active: 321, words: words },
+            256,
+            1000000000,
+        ),
+    )
+}

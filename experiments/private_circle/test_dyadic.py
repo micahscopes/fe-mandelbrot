@@ -69,6 +69,12 @@ class DirectedArithmetic(unittest.TestCase):
         self.assertEqual(circle_membership(reference, ComplexBox.exact(Dyadic(3, -100000)),
                                           reference, tiny), 'outside')
 
+    def test_mismatched_precision_is_rejected(self):
+        with self.assertRaises(ValueError):
+            Interval.exact(Dyadic(1), 16) + Interval.exact(Dyadic(2), 32)
+        with self.assertRaises(ValueError):
+            ComplexBox(Interval.exact(ZERO, 16), Interval.exact(ZERO, 32))
+
     def test_overlapping_circle_bounds_are_unknown(self):
         offset = ComplexBox(Interval(Dyadic(0), Dyadic(2)), Interval.exact(ZERO))
         self.assertEqual(circle_membership((ZERO, ZERO), offset, (ZERO, ZERO),
