@@ -1,0 +1,119 @@
+//! Application controls are resident Fe state, projected through the generic
+//! component host. Selection geometry and arithmetic never belong to JS.
+use std::web::component::{
+    BrowserBytes, ComponentEvent, ComponentEventKind,
+    ComponentPatch, ComponentWriter, InitialState, ProjectState,
+    ResidentTransition, VisibleParts, allocate_component_buffer,
+}
+use std::web::identity::{
+    ComponentAction, ComponentActionProvider, ComponentSchema,
+    ComponentSchemaProvider, Part, Visibility,
+}
+use std::web::page::{
+    ComponentComposition, ComponentView, PageAttribute, PageBuilder,
+    PageElement, PageText,
+}
+
+enum Action { Idle, Circle, Box, Draw, Point, Escape, Bounded }
+impl Copy for Action {}
+derive ComponentAction for Action using ComponentActionProvider
+
+struct Parts {
+    drawing: Part<Visibility>,
+    selecting: Part<Visibility>,
+    escape: Part<Visibility>,
+    bounded: Part<Visibility>,
+}
+derive ComponentSchema for Parts using ComponentSchemaProvider
+
+struct Controls {
+    patch: u32,
+    circle: bool,
+    selecting: bool,
+    bounded: bool,
+}
+impl Copy for Controls {}
+struct Envelope { state: Controls }
+impl Copy for Envelope {}
+
+const fn button(_ page: PageBuilder<96>, action: Action, text: String<31>) -> PageBuilder<96> {
+    page.open(element: PageElement::Button)
+        .attribute(value: PageAttribute::input_type(value: "button"))
+        .attribute(value: PageAttribute::action(value: action))
+        .text(value: PageText::one(value: text))
+        .close()
+}
+
+actor ClaimControls {
+    state: Controls,
+
+    const fn view() -> ComponentView<96> uses (ComponentComposition) {
+        let ui = <Parts as ComponentSchema>::component_parts()
+        let page: PageBuilder<96> = PageBuilder::new()
+        let page = page.open(element: PageElement::Section)
+        let page = button(page, action: Action::Circle, text: "Circle")
+        let page = button(page, action: Action::Box, text: "Box")
+        let page = button(page, action: Action::Draw, text: "Draw region")
+        let page = button(page, action: Action::Point, text: "Select point")
+        let page = button(page, action: Action::Escape, text: "Escapes")
+        let page = button(page, action: Action::Bounded, text: "Doesn't escape")
+        page.open(element: PageElement::Paragraph)
+            .attribute(value: PageAttribute::view(value: ui.drawing))
+            .text(value: PageText::one(value: "Drag to draw the region."))
+            .close()
+            .open(element: PageElement::Paragraph)
+            .attribute(value: PageAttribute::view(value: ui.selecting))
+            .text(value: PageText::one(value: "Select a point in the region."))
+            .close()
+            .open(element: PageElement::Paragraph)
+            .attribute(value: PageAttribute::view(value: ui.escape))
+            .text(value: PageText::one(value: "Claim: a point escapes."))
+            .close()
+            .open(element: PageElement::Paragraph)
+            .attribute(value: PageAttribute::view(value: ui.bounded))
+            .text(value: PageText::one(value: "Claim: a point stays bounded."))
+            .close().close().finish_component()
+    }
+
+    fn initial() -> Envelope uses (InitialState) {
+        let buffer = allocate_component_buffer(capacity: 1024)
+        Envelope { state: Controls {
+            patch: buffer.ptr, circle: true, selecting: false, bounded: false,
+        } }
+    }
+
+    fn receive(self, event: own ComponentEvent<Action>) -> Envelope uses (ResidentTransition) {
+        let mut next = self.state
+        match event.kind {
+            ComponentEventKind::Activate => {
+                match event.target {
+                    Action::Circle => { next.circle = true }
+                    Action::Box => { next.circle = false }
+                    Action::Draw => { next.selecting = false }
+                    Action::Point => { next.selecting = true }
+                    Action::Escape => { next.bounded = false }
+                    Action::Bounded => { next.bounded = true }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+        Envelope { state: next }
+    }
+
+    fn project(self) -> ComponentPatch uses (ProjectState) {
+        let ui = <Parts as ComponentSchema>::component_parts()
+        ComponentPatch::new(
+            visible: VisibleParts::none()
+                .show_if(target: ui.drawing, visible: !self.state.selecting)
+                .show_if(target: ui.selecting, visible: self.state.selecting)
+                .show_if(target: ui.escape, visible: !self.state.bounded)
+                .show_if(target: ui.bounded, visible: self.state.bounded),
+            focus_target: Action::Idle,
+            prevent_default: false,
+            commands: ComponentWriter::new(buffer: BrowserBytes {
+                ptr: self.state.patch, len: 1024,
+            }).finish(),
+        )
+    }
+}

@@ -2,6 +2,7 @@
 name = "FeMandelbrot"
 version = "0.1.0"
 members = [
+  { path = "app/claim_controls", name = "mandelbrot_claim_controls" },
   { path = "app/certified_escape", name = "mandelbrot_certified_escape" },
   { path = "lib/mandelbrot_proof_profile", name = "mandelbrot_proof_profile" },
   { path = "app/proof_checker", name = "mandelbrot_proof_checker" },
