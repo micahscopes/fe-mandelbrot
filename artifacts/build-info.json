@@ -1,5 +1,5 @@
 {
-  "sourceHash": "15927f5e0916b567d88ad07686fabb8d331d1e64ed6e2dbe9edfd95386f28e7b",
+  "sourceHash": "ccf65301bc53f32682975fb10d20a80a5d1c0759490be421e4c23d7f2516a98c",
   "toolchain": {
     "fe": {
       "repository": "https://github.com/micahscopes/fe.git",
@@ -129,9 +129,9 @@
     "proof/engine/passes/033-compute.wgsl": "96351ea650fc9149bb1198783d54c671701bf063192fa04b433d8ca996c01d71",
     "proof/engine/passes/034-fragment.wgsl": "e17d58ec1bab660854f1caf38b7b8581474a7f489a11d543d9d1f445e18c0a01",
     "proof/frame.html": "4de9d9a34d15c5b64bb360bc9042d28d1fcef06b3194e50306590a90ee2da802",
-    "proof/integration.mjs": "3149bb1b375c59449acd5a7e64152a9b6b26d148e882e3c56b82bc2dde2ef544",
+    "proof/integration.mjs": "e0bf68d16b87893ccb14db380fd50b57c5188ca4e7f235a3e86ca7c4942e783e",
     "proof/selection.mjs": "b2b232e16f516104471ca74c9adcfd87878ccb6207f8c11c4b789a0bd0475525",
-    "proof/studio.mjs": "1b70cbab4609be3245b89bd5de8fbfcf6e38094e4b75bdba452e9fc24146a237",
+    "proof/studio.mjs": "54964081ec1c9914c114fc6936520c8e9cb2254ac572a771014ad7fb784c779c",
     "renderer/fe-render-runtime.js": "cc1ad17c078980d736bf239d51738fdd700d92f818b077dd8bbf6890ea5ecba7",
     "renderer/index.html": "f99c53c7bdfd6f649ade7ced7c74055428eb63271042c215e833b127b4aae84c",
     "renderer/manifest.json": "92a8de6945538a13fad6f7971aceeab1395e29a43c84a4359c2d6d9c412c324e",

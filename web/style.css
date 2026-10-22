@@ -71,3 +71,10 @@ nav .nav-primary{background:#e6f0e9;color:#17251d;border-color:transparent;font-
 .studio-heading{position:sticky;top:0;z-index:2;background:#10151df5;backdrop-filter:blur(16px)}
 
 .studio-top{position:sticky;top:0;z-index:3;background:#10151dfa;backdrop-filter:blur(16px);padding-bottom:14px}.studio-top .studio-heading{position:static;background:transparent;backdrop-filter:none;padding-bottom:16px}
+
+/* Keep selection first; examples are secondary and headings stay compact. */
+#studio-intro{padding:8px 12px;left:20px;bottom:100px;border:0;border-radius:8px;background:#10151d90;max-width:none;box-shadow:none}.intro-hint{margin:0}
+.studio-heading{padding:14px 18px!important}.studio-heading h2{font-size:14px!important;letter-spacing:0!important;margin:0!important;font-weight:500}.studio-top{padding-bottom:0}
+#legacy-lane{padding:16px 18px}.pick-actions{flex-direction:row-reverse}.pick-actions #proof-pick{background:var(--studio-accent);color:#183525;border:0;font-weight:600;flex:1}.pick-actions a{font-size:10px}
+#precision-examples{border-top:1px solid var(--studio-border)}#precision-examples>summary{padding:14px 18px;color:var(--studio-muted);font-size:11px;cursor:pointer}#certified-lane{padding:0 18px 18px}.example-note{font-size:11px;color:var(--studio-muted);line-height:1.6;margin:0 0 16px}
+@media(max-width:480px){nav .brand-fe{display:none}nav .brand{margin-right:auto;font-size:12px;gap:5px}nav .brand-mark{font-size:18px}nav #controls{font-size:10px;padding:8px}nav #proof-open{font-size:10px;padding:8px}nav .nav-primary{font-size:11px;padding:9px}#proof-panel{top:64px}}

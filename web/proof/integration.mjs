@@ -4,14 +4,15 @@ const $=s=>document.querySelector(s),surface=$('fe-surface'),panel=$('#proof-pan
 const worker=new Worker(new URL('./checker-worker.mjs',import.meta.url),{type:'module'});let serial=0,generation=0,selected=null,receipt=null,busy=false,frame;
 const pending=new Map();worker.onmessage=({data})=>{const p=pending.get(data.id);if(!p)return;pending.delete(data.id);data.error?p.reject(Error(data.error)):p.resolve(data);};worker.onerror=e=>{for(const p of pending.values())p.reject(Error(e.message));pending.clear();};
 function ask(kind,point,proof){return new Promise((resolve,reject)=>{const id=++serial;pending.set(id,{resolve,reject});worker.postMessage({id,kind,...point,proof},proof?[proof]:[]);});}
-function controls(){for(const id of ['proof-generate','proof-test','proof-corrupt'])$('#'+id).disabled=busy||!selected||(id==='proof-generate'?!selected.eligible:!receipt||receipt.generation!==generation);$('#proof-pick').disabled=busy;}
+function controls(){for(const id of ['proof-generate','proof-test','proof-corrupt'])$('#'+id).disabled=busy||!selected||(id==='proof-generate'?!selected.eligible:!receipt||receipt.generation!==generation);$('#proof-pick').disabled=busy;$('#point-select').disabled=busy;}
 async function choose(point){
+ dispatchEvent(new Event('proof-point-selected'));$('#proof-pick').textContent='Select another point';
  const own=++generation;receipt=null;selected={...point,eligible:false};controls();
- description.textContent=`Exact proof point: ${point.re}/4096 + (${point.im}/4096)i = ${point.re/4096} + (${point.im/4096})i`;
+ description.textContent=`${point.re}/4096 + (${point.im}/4096)i`;
  result.textContent='Checking whether this point escapes within 1,023 steps…';
  try{const {terminal}=await ask('preflight',point);if(own!==generation)return;
   selected={...point,terminal,eligible:terminal<1024};
-  result.textContent=terminal===0xffffffff?'Point is outside the supported view: real [−2,1), imaginary [−1.5,1.5).':terminal===0xfffffffe?'No escape within 1,023 steps. This does not establish Mandelbrot membership.':`Q12 orbit escapes at step ${terminal}. Ready to generate a proof.`;
+  result.textContent=terminal===0xffffffff?'Point is outside the supported view: real [−2,1), imaginary [−1.5,1.5).':terminal===0xfffffffe?'No escape within 1,023 steps. This does not establish Mandelbrot membership.':`Escapes at step ${terminal}. Ready to generate.`;
  }catch(e){if(own===generation)result.textContent=e.message;}controls();
 }
 $('#proof-pick').onclick=()=>{const overlay=$('#proof-picker');overlay.hidden=false;result.textContent='Click or tap a point on the fractal. The proof point snaps to the 1/4096 grid.';};

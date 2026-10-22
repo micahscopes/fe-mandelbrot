@@ -1,10 +1,9 @@
 const $=id=>document.getElementById(id);
 const panel=$('proof-panel'),open=$('proof-open'),intro=$('studio-intro');
 function showStudio(show){panel.hidden=!show;open.setAttribute('aria-expanded',String(show));intro.hidden=show;if(!show){$('proof-picker').hidden=true;open.focus();}}
-open.onclick=()=>showStudio(panel.hidden);$('studio-intro-open').onclick=()=>{showStudio(true);$('studio-tab-certified').focus();};$('studio-close').onclick=()=>showStudio(false);
-const tabs=[$('studio-tab-certified'),$('studio-tab-lab')],lanes=[$('certified-lane'),$('legacy-lane')];
-function selectTab(index){tabs.forEach((tab,i)=>{tab.setAttribute('aria-selected',String(i===index));tab.tabIndex=i===index?0:-1;lanes[i].hidden=i!==index;});$('proof-picker').hidden=true;}
-tabs.forEach((tab,i)=>{tab.onclick=()=>selectTab(i);tab.onkeydown=e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const next=e.key==='Home'?0:e.key==='End'?1:1-i;selectTab(next);tabs[next].focus();}};});
+open.onclick=()=>showStudio(panel.hidden);$('studio-close').onclick=()=>showStudio(false);
+$('point-select').onclick=()=>{if($('proof-pick').disabled)return;showStudio(false);$('proof-pick').click();};
+addEventListener('proof-point-selected',()=>showStudio(true));
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!panel.hidden&&$('proof-picker').hidden)showStudio(false);});
 const superscript=n=>String(n).replace(/[0-9-]/g,c=>'⁰¹²³⁴⁵⁶⁷⁸⁹'['0123456789'.indexOf(c)]||'⁻');
 const power=n=>'2'+superscript(n),inputs=[$('cert-depth'),$('cert-precision'),$('cert-budget')];
