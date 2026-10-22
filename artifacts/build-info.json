@@ -1,5 +1,5 @@
 {
-  "sourceHash": "df8cb1772e54dbf0378d86b96d9d3f8afac025e17a51962cf6056cee2a5f06d1",
+  "sourceHash": "15927f5e0916b567d88ad07686fabb8d331d1e64ed6e2dbe9edfd95386f28e7b",
   "toolchain": {
     "fe": {
       "repository": "https://github.com/micahscopes/fe.git",
@@ -131,7 +131,7 @@
     "proof/frame.html": "4de9d9a34d15c5b64bb360bc9042d28d1fcef06b3194e50306590a90ee2da802",
     "proof/integration.mjs": "3149bb1b375c59449acd5a7e64152a9b6b26d148e882e3c56b82bc2dde2ef544",
     "proof/selection.mjs": "b2b232e16f516104471ca74c9adcfd87878ccb6207f8c11c4b789a0bd0475525",
-    "proof/studio.mjs": "5fa0937d30b853efcedb07abbb6fbd9771c08a990af38ee46c7f8083264205fd",
+    "proof/studio.mjs": "1b70cbab4609be3245b89bd5de8fbfcf6e38094e4b75bdba452e9fc24146a237",
     "renderer/fe-render-runtime.js": "cc1ad17c078980d736bf239d51738fdd700d92f818b077dd8bbf6890ea5ecba7",
     "renderer/index.html": "f99c53c7bdfd6f649ade7ced7c74055428eb63271042c215e833b127b4aae84c",
     "renderer/manifest.json": "92a8de6945538a13fad6f7971aceeab1395e29a43c84a4359c2d6d9c412c324e",
