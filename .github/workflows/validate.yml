@@ -1,7 +1,7 @@
 name: Validate Fe workspace artifacts
 on:
   push:
-    branches: [feat/viewer-prover-workspace]
+    branches: [feat/viewer-prover-workspace, feat/private-circle-proof]
   pull_request:
     branches: [main]
 permissions:
@@ -20,3 +20,7 @@ jobs:
         run: node tests/proof-selection.mjs
       - name: Check Fe/Wasm verifier against captured proofs and mutations
         run: node tests/fe-verifier.mjs
+      - name: Check independent interval and algebraic models
+        run: python3 -m unittest discover -s experiments/private_circle -v
+      - name: Exercise certified deep-offset arithmetic and Unknown outcomes
+        run: python3 experiments/private_circle/depth_probe.py

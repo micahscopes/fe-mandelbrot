@@ -1,0 +1,22 @@
+{
+  "plonky3Revision": "208b64744cf56fe8eeb6afcb7be37ed669d9d6eb",
+  "files": [
+    {
+      "file": "hiding_pcs.rs",
+      "url": "https://raw.githubusercontent.com/Plonky3/Plonky3/208b64744cf56fe8eeb6afcb7be37ed669d9d6eb/fri/src/hiding_pcs.rs",
+      "sha256": "77f8a834b83e56763d4f026134f6e68e15153d8d84ba8019d71162fa76e0daf9",
+      "bytes": 79229
+    },
+    {
+      "file": "architecture.md",
+      "url": "https://raw.githubusercontent.com/Plonky3/Plonky3/208b64744cf56fe8eeb6afcb7be37ed669d9d6eb/docs/architecture.md",
+      "sha256": "b1ca97b692995127be31a406528514ef2026f11e50e49ce249e04b07f02db19a",
+      "bytes": 5722
+    },
+    {
+      "file": "zk-starks.pdf",
+      "url": "https://eprint.iacr.org/2024/1037.pdf",
+      "error": "<urlopen error Tunnel connection failed: 403 Filtered>"
+    }
+  ]
+}
