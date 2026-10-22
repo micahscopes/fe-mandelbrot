@@ -20,7 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
       - name: Verify source and artifact hashes; assemble site
-        run: python3 tools/site.py --out dist
+        run: |
+          python3 tools/site.py --out dist
+          if [ -d previews ]; then cp -a previews dist/previews; fi
       - uses: actions/configure-pages@v6.0.0
       - uses: actions/upload-pages-artifact@v5.0.0
         with:
