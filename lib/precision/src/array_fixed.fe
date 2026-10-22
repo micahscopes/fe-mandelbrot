@@ -9,7 +9,7 @@
 use core::marker::Copy
 use core::ops::{Add, Eq, Neg, Sub}
 use super::{Expansion, to_quad}
-use super::fixed::{Binary32View, project_binary32}
+use super::fixed::{Binary32View, limb_highest_bit, project_binary32}
 
 extern { const fn __bitcast<From, To>(_: From) -> To }
 
@@ -197,13 +197,9 @@ impl<const L: usize> Binary32View for ArrayFixed<L> {
         let mut index: u32 = Self::width()
         while index > 0 {
             index = index - 1
-            let mut digit: u32 = self.digits[index as usize]
+            let digit: u32 = self.digits[index as usize]
             if digit != 0 {
-                let mut bit: i32 = 0
-                while digit > 1 {
-                    digit = digit >> 1
-                    bit = bit + 1
-                }
+                let bit: i32 = limb_highest_bit(digit)
                 let limb: i32 = signed_word(index)
                 return limb * 13 + bit
             }

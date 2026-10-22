@@ -88,3 +88,18 @@ fn array_fixed_rne_guard_sticky_tie_and_carry() {
     let sticky = ArrayFixed<2>::from_digits(false, [3, 4096])
     assert(sticky.to_binary32_bits() == 1166016513)
 }
+
+#[test]
+fn canonical_radix_highest_bit_matches_shift_count() {
+    let mut digit: u32 = 0
+    while digit < 8192 {
+        let mut value: u32 = digit
+        let mut expected: i32 = -1
+        while value > 0 {
+            expected = expected + 1
+            value = value >> 1
+        }
+        assert(precision::fixed::limb_highest_bit(digit) == expected)
+        digit = digit + 1
+    }
+}
