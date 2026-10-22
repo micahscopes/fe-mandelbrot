@@ -39,3 +39,38 @@ Full-image numerical comparison is still pending; these outputs are not deployed
 Source reduction includes printing changes as well as optimization. Structural
 comparison (including riff-catalog where a suitable producer is available) and
 actual numerical/runtime gates must distinguish those effects before integration.
+
+## riff-catalog comparison
+
+`catalog.py` exports one ordered-token graph per WGSL function. It removes
+whitespace/comments, categorizes names, constants and built-in types, and retains
+operators and call identities. Optimizer name maps restore original helper names.
+This first recipe is a lexical audit: it does not resolve local bindings or prove
+semantic equivalence. In particular, `names-blind` matches are review candidates.
+
+```sh
+python3 catalog.py /path/to/generated /new/path/catalog-generated
+python3 catalog.py /path/to/max /new/path/catalog-max \
+  --optimizer-report /path/to/max/optimizer-report.json
+riffcat-core --corpus /new/path/corpus check \
+  --declaration /path/catalog-generated/declaration.json \
+  /path/catalog-generated/units.jsonl /path/catalog-max/units.jsonl
+riffcat-core --corpus /path/corpus add --world generated \
+  --declaration /path/catalog-generated/declaration.json /path/catalog-generated/units.jsonl
+riffcat-core --corpus /path/corpus add --world optimized /path/catalog-max/units.jsonl
+riffcat-core --corpus /path/corpus diff --unit wgsl-function generated optimized
+riffcat-core --corpus /path/corpus overlap --unit wgsl-function \
+  --mode shape --facet names-blind generated optimized
+python3 check_catalog.py /path/to/riffcat-core
+```
+
+Actual initial run: 906 units pass declaration validation. Of 709 generated
+function definitions, 197 remain in the max output and 512 disappear. Eleven
+surviving functions retain their structure at this recipe's granularity. There
+are ten cross-world names-blind overlap classes, including small projection
+helpers. The catalog controls verify that identifier renaming matches under
+`names-blind`, while changes to constants, operators or callees do not.
+
+These results distinguish syntax changes from renaming; they do not tell us which
+removed functions were inlined versus eliminated, whether floating operations
+round identically, or why a native driver stalls. Those need separate evidence.
