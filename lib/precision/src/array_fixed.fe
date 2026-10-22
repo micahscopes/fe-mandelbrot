@@ -195,16 +195,18 @@ impl<const L: usize> Sub for ArrayFixed<L> {
 impl<const L: usize> Binary32View for ArrayFixed<L> {
     fn highest_bit(self) -> i32 {
         let mut index: u32 = Self::width()
-        while index > 0 {
+        let mut digit: u32 = 0
+        while index > 0 && digit == 0 {
             index = index - 1
-            let digit: u32 = self.digits[index as usize]
-            if digit != 0 {
-                let bit: i32 = limb_highest_bit(digit)
-                let limb: i32 = signed_word(index)
-                return limb * 13 + bit
-            }
+            digit = self.digits[index as usize]
         }
-        -1
+        if digit == 0 {
+            -1
+        } else {
+            let bit: i32 = limb_highest_bit(digit)
+            let limb: i32 = signed_word(index)
+            limb * 13 + bit
+        }
     }
 
     fn bit_at(self, _ index: i32) -> u32 {
