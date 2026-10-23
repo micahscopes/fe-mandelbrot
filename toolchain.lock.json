@@ -1,13 +1,13 @@
 {
   "fe": {
     "repository": "https://github.com/micahscopes/fe.git",
-    "branch": "feat/mb2-typed-private-copy-20261021",
-    "revision": "7741b9ef808c423b1719951f80343a3aa1a66894"
+    "branch": "feat/mb2-upstream-sonatina-20261022",
+    "revision": "842492ce9a6b3b05737334fcd0d9c2e4d79eb62d"
   },
   "sonatina": {
     "repository": "https://github.com/micahscopes/sonatina.git",
-    "revision": "1145fe2f9c42c7e6c53bae48f6e83fac087c3709",
-    "branch": "feat/mb2-demanded-bitcast-20261020"
+    "revision": "8c8e60b8221b272e96f11654ce7c16fd27098ac5",
+    "branch": "feat/mb2-upstream-rebase-20261022"
   },
   "naga": {
     "repository": "https://github.com/micahscopes/wgpu",
