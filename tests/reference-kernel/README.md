@@ -22,3 +22,8 @@ It does not successively round and subtract binary32 values. Orbit magnitudes
 fit in these 96 bits; unrestricted 104-bit magnitudes can leave a suffix.
 The first oracle incorrectly assumed successive rounding. Its failed receipt
 is retained; the corrected oracle tests the existing documented wire contract.
+
+The probe also runs the partial-checkpoint publication contract in actual
+Fe/Wasm initialization and in every GPU dispatch. Partial deltas remain
+resumable; only terminal checkpoints acquire a presentation payload. This
+check uses Wasm/GPU because the EVM test backend does not support f32 values.

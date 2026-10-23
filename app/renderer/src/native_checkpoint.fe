@@ -220,20 +220,3 @@ pub fn continue_native_pixel(
     current
 }
 
-#[test]
-fn refinement_policy_partial_checkpoint_remains_resumable() {
-    let initial = NativeCheckpoint::initial(7)
-    let partial = initial.present_if_terminal(128, 0.0)
-    assert(!partial.is_presentable())
-    assert(!partial.is_terminal(128))
-    assert(partial.iteration() == 0 && partial.reference_index() == 0)
-    assert(partial.epoch == 7)
-    let exhausted = NativeCheckpoint {
-        control: 128 << ITERATION_SHIFT,
-        epoch: 7,
-        payload: Complex::default(),
-    }
-    let finished = exhausted.present_if_terminal(128, 0.0)
-    assert(finished.is_terminal(128) && finished.is_presentable())
-    assert(finished.iteration() == 128 && finished.epoch == 7)
-}
