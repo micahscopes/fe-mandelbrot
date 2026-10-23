@@ -1,0 +1,14 @@
+{
+  "profile": "toy-stark-bits-v0",
+  "contractCommit": "f8d2d37",
+  "oracleSourceCommit": "7c7495a3dac97ab3286c8e4083d12fd6a0f6615a",
+  "integratedOracleCommit": "71a0df0",
+  "file": "fixtures.json.gz",
+  "compressedSha256": "a23b4f23a82cda6cbea589aab87412ab0a69bb05ff63d6a0acc564c011891dd5",
+  "uncompressedSha256": "b35d1f07520b7cdc119274f505d20adac39abf358ae3f3c2b06a0ef5ae5b10fe",
+  "cases": 30,
+  "proofWords": 2456,
+  "honestCases": 4,
+  "zeroKnowledge": false,
+  "limits": "Experimental non-hiding fixtures; fixed case rejection is not a soundness bound."
+}
