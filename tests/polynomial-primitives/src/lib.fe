@@ -1,0 +1,63 @@
+//! Test-only canonical interface; all arithmetic is shared precision code.
+use core::ops::Eq
+use precision::baby_bear::{BabyBear, BabyBearExt4}
+use precision::polynomial::{evaluate_coefficients, divide_by_linear}
+
+pub struct Request {
+    pub coefficients: [[u32; 4]; 4],
+    pub point: [u32; 4],
+    pub claimed: [u32; 4],
+    pub count: u32,
+}
+pub struct Result {
+    pub valid_input: bool,
+    pub evaluation: [u32; 4],
+    pub quotient: [[u32; 4]; 4],
+    pub remainder: [u32; 4],
+    pub claimed_valid: bool,
+}
+fn inspect<const N: usize>(_ r: ref Request, _ coefficients: ref [BabyBearExt4; N]) -> Result
+where N > 0,
+{
+    let z = BabyBearExt4::from_u32s(r.point)
+    let value = evaluate_coefficients<BabyBearExt4, N>(ref coefficients, z)
+    let divided = divide_by_linear<BabyBearExt4, N>(ref coefficients, z)
+    let mut quotient: [[u32; 4]; 4] = [[0; 4]; 4]
+    for i in 0..N { quotient[i] = divided.quotient[i].to_u32s() }
+    Result { valid_input: true, evaluation: value.to_u32s(), quotient: quotient,
+        remainder: divided.remainder.to_u32s(), claimed_valid: value.equals(BabyBearExt4::from_u32s(r.claimed)) }
+}
+pub fn inspect_ext4(_ r: own Request) -> Result {
+    let invalid = Result { valid_input: false, evaluation: [0; 4], quotient: [[0; 4]; 4],
+        remainder: [0; 4], claimed_valid: false }
+    for i in 0..4 {
+        if r.point[i] >= 2013265921 || r.claimed[i] >= 2013265921 { return invalid }
+        for j in 0..4 { if r.coefficients[i][j] >= 2013265921 { return invalid } }
+    }
+    if r.count == 1 {
+        let c = [BabyBearExt4::from_u32s(r.coefficients[0])]
+        return inspect<1>(ref r, ref c)
+    }
+    if r.count == 4 {
+        let c = [BabyBearExt4::from_u32s(r.coefficients[0]), BabyBearExt4::from_u32s(r.coefficients[1]),
+            BabyBearExt4::from_u32s(r.coefficients[2]), BabyBearExt4::from_u32s(r.coefficients[3])]
+        return inspect<4>(ref r, ref c)
+    }
+    invalid
+}
+pub struct BaseRequest { pub coefficients: [u32; 4], pub point: u32 }
+pub struct BaseResult { pub evaluation: u32, pub quotient: [u32; 4], pub remainder: u32 }
+pub fn inspect_base(_ r: own BaseRequest) -> BaseResult {
+    let mut coefficients = [BabyBear::zero(); 4]
+    for i in 0..4 { coefficients[i] = BabyBear::from_u32(r.coefficients[i]) }
+    let z = BabyBear::from_u32(r.point)
+    let value = evaluate_coefficients<BabyBear, 4>(ref coefficients, z)
+    let divided = divide_by_linear<BabyBear, 4>(ref coefficients, z)
+    let mut quotient = [0; 4]
+    for i in 0..4 { quotient[i] = divided.quotient[i].to_u32() }
+    BaseResult { evaluation: value.to_u32(), quotient: quotient, remainder: divided.remainder.to_u32() }
+}
+pub fn wasm_anchor(_ x: i32, _ y: i32, _ res: f32) -> u32 {
+    let _ = (x, y, res)
+    0
+}

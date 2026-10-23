@@ -2,6 +2,7 @@
 name = "FeMandelbrot"
 version = "0.1.0"
 members = [
+  { path = "tests/polynomial-primitives", name = "probe_polynomial_primitives" },
   { path = "tests/toy-deep-air", name = "probe_toy_deep_air" },
   { path = "tests/resident-memory", name = "probe_resident_memory" },
   { path = "app/studio", name = "mandelbrot_studio" },

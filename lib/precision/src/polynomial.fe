@@ -639,3 +639,51 @@ pub fn radix2_ext4_coset_lde<
     )
     Ext4Radix2CosetLde { valid: lde.valid, evaluations: lde.evaluations }
 }
+
+/// Evaluate nonempty ascending-order coefficients by Horner's rule. A single
+/// zero coefficient denotes zero. No domain or power-of-two restriction applies.
+pub fn evaluate_coefficients<F: Radix2Field, const N: usize>(
+    _ coefficients: ref [F; N],
+    _ point: F,
+) -> F
+where N > 0,
+{
+    let mut value = F::radix2_zero()
+    let mut remaining: usize = N
+    while remaining > 0 {
+        remaining = remaining - 1
+        value = value.radix2_mul(point).radix2_add(coefficients[remaining])
+    }
+    value
+}
+
+/// Coefficients of `P(X) = (X - point) Q(X) + remainder`.
+/// The quotient has the input capacity, with a zero highest coefficient.
+/// At least one coefficient is required. Constant inputs, including zero,
+/// produce a zero quotient without inversion.
+pub struct LinearDivision<F: Radix2Field, const N: usize> {
+    pub quotient: [F; N],
+    pub remainder: F,
+}
+impl<F: Radix2Field, const N: usize> Copy for LinearDivision<F, N> {}
+
+pub fn divide_by_linear<F: Radix2Field, const N: usize>(
+    _ coefficients: ref [F; N],
+    _ point: F,
+) -> LinearDivision<F, N>
+where N > 0,
+{
+    let mut quotient = [F::radix2_zero(); N]
+    let mut remainder = F::radix2_zero()
+    let mut remaining: usize = N
+    while remaining > 0 {
+        remaining = remaining - 1
+        if remaining > 0 {
+            remainder = remainder.radix2_mul(point).radix2_add(coefficients[remaining])
+            quotient[remaining - 1] = remainder
+        } else {
+            remainder = remainder.radix2_mul(point).radix2_add(coefficients[0])
+        }
+    }
+    LinearDivision { quotient: quotient, remainder: remainder }
+}
