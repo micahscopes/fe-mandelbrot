@@ -63,6 +63,10 @@ def digest(digits):
     return folded
 
 
+def lanes_digest(seed):
+    return digest([(seed >> i) & 8191 for i in range(10)])
+
+
 def expected(from_bits, to_bits):
     origin = model.expansion(from_bits, WIDTH, model.exact_parse, model.exact_add)
     target = model.expansion(to_bits, WIDTH, model.exact_parse, model.exact_add)
@@ -71,6 +75,13 @@ def expected(from_bits, to_bits):
         model.rational_projection(diff), *target[1], target[0],
         model.rational_projection(origin), model.rational_projection(target),
         diff[0], digest(diff[1]),
+        # Canaries and isolated primitives; see src/lib.fe words 16..26.
+        0xC0FFEE, from_bits[0], to_bits[0], from_bits[0] >> 31,
+        digest(model.exact_parse(from_bits[0], WIDTH)[1]), model.exact_parse(from_bits[0], WIDTH)[0],
+        model.rational_projection(model.exact_parse(from_bits[0], WIDTH)),
+        lanes_digest(from_bits[0]), lanes_digest(from_bits[0]), from_bits[0] >> 31,
+        digest(model.exact_parse(to_bits[0], WIDTH)[1]),
+        0, 0, 0, 0, 0,
     ]
 
 
@@ -110,7 +121,7 @@ def main():
     parser.add_argument('--out', type=Path, default=HERE / 'corpus.json')
     args = parser.parse_args()
     cases = corpus()
-    payload = dict(width=WIDTH, seed=SEED, wordsPerCase=16, capacity=CASES, cases=cases)
+    payload = dict(width=WIDTH, seed=SEED, wordsPerCase=32, capacity=CASES, cases=cases)
     text = json.dumps(payload, separators=(',', ':')) + '\n'
     args.out.write_text(text)
     print(json.dumps(dict(cases=len(cases), sha256=hashlib.sha256(text.encode()).hexdigest())))

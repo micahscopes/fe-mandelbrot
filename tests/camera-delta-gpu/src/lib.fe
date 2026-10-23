@@ -20,7 +20,7 @@ use precision::array_fixed::{ArrayFixed, expansion_difference}
 extern { const fn __bitcast<From, To>(_: From) -> To }
 
 pub const CASES: u32 = 512
-pub const WORDS_PER_CASE: u32 = 16
+pub const WORDS_PER_CASE: u32 = 32
 
 pub struct ProbeParams { pub unused: Param }
 pub struct ProbeState { pub unused: f32 }
@@ -60,13 +60,39 @@ fn digest(_ digits: [u32; 10]) -> u32 {
     folded
 }
 
+
+/// Smallest form of the suspect construct: a dynamically indexed array inside a
+/// local struct that also holds a bool, filled by a loop and returned by value.
+pub struct Lanes { pub negative: bool, pub digits: [u32; 10] }
+impl Copy for Lanes {}
+
+fn fill_lanes(_ seed: u32) -> Lanes {
+    let mut lanes: Lanes = Lanes { negative: (seed >> 31) != 0, digits: [0; 10] }
+    let mut index: u32 = 0
+    while index < 10 {
+        lanes.digits[index as usize] = (seed >> index) & 8191
+        index = index + 1
+    }
+    lanes
+}
+
+/// The same values with no array and no loop.
+fn straight_digest(_ seed: u32) -> u32 {
+    (seed & 8191)
+        ^ (((seed >> 1) & 8191) << 7) ^ (((seed >> 2) & 8191) << 14)
+        ^ (((seed >> 3) & 8191) << 2) ^ (((seed >> 4) & 8191) << 9)
+        ^ (((seed >> 5) & 8191) << 16) ^ (((seed >> 6) & 8191) << 4)
+        ^ (((seed >> 7) & 8191) << 11) ^ (((seed >> 8) & 8191) << 18)
+        ^ (((seed >> 9) & 8191) << 6)
+}
+
 actor CameraDeltaProbe uses (
     GpuProgram<WebGpuBackend>,
     SurfaceQuality<ProbeBacking>,
     SurfaceRecovery<StandardSurfaceRecovery>,
 ) {
     inputs: StorageBuffer<u32, 4096>,
-    outputs: StorageBuffer<u32, 8192>,
+    outputs: StorageBuffer<u32, 16384>,
     state: ProbeState,
 
     fn initial() -> ProbeEnvelope uses (core::actor::InitialState) {
@@ -82,7 +108,7 @@ actor CameraDeltaProbe uses (
     {
         let case: u32 = invocation.global.x
         let input: u32 = case * 8
-        let output: u32 = case * 16
+        let output: u32 = case * 32
         let from: Expansion<4> = read_expansion(self.inputs, input)
         let to: Expansion<4> = read_expansion(self.inputs, input + 4)
         let origin: ArrayFixed<10> = ArrayFixed<10>::from_expansion(from)
@@ -100,6 +126,23 @@ actor CameraDeltaProbe uses (
         self.outputs.store(index: output + 13, value: target.to_binary32_bits())
         self.outputs.store(index: output + 14, value: difference.sign())
         self.outputs.store(index: output + 15, value: digest(difference.to_digits()))
+        // Canaries and isolated primitives (words 16..26).
+        let raw_from: u32 = self.inputs.load(index: input)
+        let raw_to: u32 = self.inputs.load(index: input + 4)
+        self.outputs.store(index: output + 16, value: 12648430)
+        self.outputs.store(index: output + 17, value: raw_from)
+        self.outputs.store(index: output + 18, value: raw_to)
+        self.outputs.store(index: output + 19, value: raw_from >> 31)
+        let single: ArrayFixed<10> = ArrayFixed<10>::from_binary32_bits(raw_from)
+        self.outputs.store(index: output + 20, value: digest(single.to_digits()))
+        self.outputs.store(index: output + 21, value: single.sign())
+        self.outputs.store(index: output + 22, value: single.to_binary32_bits())
+        let lanes: Lanes = fill_lanes(raw_from)
+        self.outputs.store(index: output + 23, value: digest(lanes.digits))
+        self.outputs.store(index: output + 24, value: straight_digest(raw_from))
+        self.outputs.store(index: output + 25, value: if lanes.negative { 1 } else { 0 })
+        let single_to: ArrayFixed<10> = ArrayFixed<10>::from_binary32_bits(raw_to)
+        self.outputs.store(index: output + 26, value: digest(single_to.to_digits()))
     }
 
     fn display_probe(self, px: i32, py: i32) -> i32 uses (FragmentSurface) {

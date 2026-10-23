@@ -9,6 +9,17 @@ const STAGES = [
   ['target to f32', [13]],
   ['difference sign', [14]],
   ['difference digits', [15]],
+  ['canary constant', [16]],
+  ['raw echo from', [17]],
+  ['raw echo to', [18]],
+  ['sign bit from input', [19]],
+  ['single conversion digits', [20]],
+  ['single conversion sign', [21]],
+  ['single conversion to f32', [22]],
+  ['micro: array in struct loop', [23]],
+  ['micro: straight-line', [24]],
+  ['micro: struct bool', [25]],
+  ['single conversion digits (to)', [26]],
 ];
 const hex = value => (value >>> 0).toString(16).padStart(8, '0');
 const asFloat = bits => new Float32Array(new Uint32Array([bits]).buffer)[0];
@@ -29,6 +40,7 @@ export async function runProbe(base = '.') {
   const info = adapter.info || {};
   result.adapter = {vendor: info.vendor, architecture: info.architecture, device: info.device, description: info.description};
   const device = await adapter.requestDevice();
+  device.lost.then(info => { result.lost = `${info.reason}: ${info.message}`; });
   device.addEventListener('uncapturederror', e => result.errors.push(e.error.message));
   device.pushErrorScope('validation');
   const module = device.createShaderModule({code});
@@ -59,7 +71,8 @@ export async function runProbe(base = '.') {
   device.queue.writeBuffer(buffers.get('inputs'), 0, inputs);
   const outputBytes = buffers.get('outputs').size;
   const trapBuffer = buffers.get('trap');
-  const read = device.createBuffer({size: outputBytes + 16, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ});
+  const trapBytes = trapBuffer ? trapBuffer.size : 0;
+  const read = device.createBuffer({size: outputBytes + trapBytes, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ});
   const encoder = device.createCommandEncoder();
   const compute = encoder.beginComputePass();
   compute.setPipeline(pipeline);
@@ -67,12 +80,14 @@ export async function runProbe(base = '.') {
   compute.dispatchWorkgroups(...pass.dispatch);
   compute.end();
   encoder.copyBufferToBuffer(buffers.get('outputs'), 0, read, 0, outputBytes);
-  if (trapBuffer) encoder.copyBufferToBuffer(trapBuffer, 0, read, outputBytes, 16);
+  if (trapBuffer) encoder.copyBufferToBuffer(trapBuffer, 0, read, outputBytes, trapBytes);
   device.queue.submit([encoder.finish()]);
   await read.mapAsync(GPUMapMode.READ);
   const mapped = new Uint32Array(read.getMappedRange().slice(0));
   const actual = mapped.subarray(0, outputBytes / 4);
-  result.trap = trapBuffer ? Array.from(mapped.subarray(outputBytes / 4)) : null;
+  const trapWords = trapBuffer ? mapped.subarray(outputBytes / 4) : [];
+  result.trappedCases = Array.from(trapWords).slice(0, count).filter(Boolean).length;
+  result.nonzeroWords = {};
   read.unmap();
   const validation = await device.popErrorScope();
   if (validation) result.errors.push(validation.message);
@@ -81,10 +96,11 @@ export async function runProbe(base = '.') {
   corpus.cases.forEach((c, i) => {
     let bad = false;
     for (const [name, offsets] of STAGES) {
+      for (const o of offsets) if (actual[i * per + o] !== 0) result.nonzeroWords[name] = (result.nonzeroWords[name] || 0) + 1;
       const differs = offsets.filter(o => actual[i * per + o] !== c.expected[o]);
       if (differs.length) {
         result.stages[name] += 1; bad = true;
-        if (result.examples.length < 12) {
+        if (result.examples.filter(e => e.stage === name).length < 2) {
           const o = differs[0];
           result.examples.push({case: i, name: c.name, stage: name, word: o,
             expected: hex(c.expected[o]), actual: hex(actual[i * per + o])});
@@ -98,12 +114,14 @@ export async function runProbe(base = '.') {
     }
   });
   result.failedCases = failedCases;
-  result.pass = failedCases === 0 && result.errors.length === 0 && !(result.trap || []).some(Boolean);
+  result.pass = failedCases === 0 && result.errors.length === 0 && !result.trappedCases > 0;
   return result;
 }
 
 export function summarize(result) {
   if (result.fatal) return `ERROR ${result.fatal}`;
   const stages = Object.entries(result.stages).filter(([, n]) => n).map(([k, n]) => `${k}=${n}`).join(',');
-  return `${result.pass ? 'PASS' : 'FAIL'} ${result.cases - result.failedCases}/${result.cases}${stages ? ' bad:' + stages : ''}`;
+  const wrote = Object.values(result.nonzeroWords || {}).reduce((a, b) => a + b, 0);
+  const extra = (result.lost ? ' LOST' : '') + (result.trappedCases ? ` trapped=${result.trappedCases}` : '') + ` nonzero=${wrote}`;
+  return `${result.pass ? 'PASS' : 'FAIL'} ${result.cases - result.failedCases}/${result.cases}${stages ? ' bad:' + stages : ''}${extra}`;
 }
