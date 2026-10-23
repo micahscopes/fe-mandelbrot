@@ -693,6 +693,23 @@ pub fn to_f32_bits<const L: usize>(_ sign: u32, _ mag: Limbs<L>) -> u32
         0
     } else {
         let mut exponent: i32 = high - <Limbs<L> as Binary32View>::fractional_bits(mag) + 127
+        if exponent <= 0 {
+            // Subnormals have a fixed 2^-149 grid and no implicit leading
+            // bit. Round that grid directly; a carry to bit23 is exactly
+            // the smallest normal. Never encode a negative exponent field.
+            let shift = <Limbs<L> as Binary32View>::fractional_bits(mag) - 149
+            let retained = if shift < 0 {
+                <Limbs<L> as Binary32View>::word_from(mag, 0) << __bitcast<i32, u32>(-shift)
+            } else {
+                <Limbs<L> as Binary32View>::word_from(mag, shift)
+            }
+            let guard = <Limbs<L> as Binary32View>::bit_at(mag, shift - 1)
+            let sticky = <Limbs<L> as Binary32View>::any_below(mag, shift - 1)
+            let increment: u32 = if guard == 1 {
+                if sticky != 0 { 1 } else { retained & 1 }
+            } else { 0 }
+            return (sign << 31) | (retained + increment)
+        }
         // The leading 24 magnitude bits, aligned with the implicit binary32
         // leading one at bit 23. One recursive window extraction replaces 24
         // separately expanded recursive bit lookups.

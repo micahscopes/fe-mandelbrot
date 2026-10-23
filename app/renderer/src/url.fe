@@ -249,10 +249,11 @@ impl PersistedView {
             res: __bitcast<u32, f32>(self.res_bits),
         }
         next.gesture = GestureSession::empty()
+        next.selection = next.selection.cancel()
         next.antialias = __bitcast<u32, f32>(self.antialias_bits)
         next.drag_active = 0.0
         next.magnification = 3.0 / zoom
-        next
+        next.refresh_readout()
     }
 
     pub fn word(self, _ field: u32) -> u32 {
@@ -589,6 +590,14 @@ pub fn sync_url_state(
                 let hash: Utf8View = location.hash.view()
                 if hash.is_empty() {
                     next_state = fallback.apply_to(next_state)
+                } else if hash.equals_literal([102, 117, 108, 108]) {
+                    // A Fe-owned viewport preset, with ordinary native-anchor
+                    // navigation. It changes no mathematical selection.
+                    let mut full = fallback
+                    full.center_x = QuadWordBits { w0: 0xbf000000, w1: 0, w2: 0, w3: 0 }
+                    full.center_y = QuadWordBits { w0: 0, w1: 0, w2: 0, w3: 0 }
+                    full.zoom_bits = 0x3fc00000
+                    next_state = full.apply_to(next_state)
                 } else {
                     let decoded: DecodedPersistedView = decode_hash_view(hash, fallback, bounds)
                     next_state = decoded.view.apply_to(next_state)

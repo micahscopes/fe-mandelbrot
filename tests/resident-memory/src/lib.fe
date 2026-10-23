@@ -1,0 +1,59 @@
+//! Zero-task resident surface: actor storage must outlive host scratch epochs.
+use core::{BrowserPtr, alloc_browser_bytes}
+use std::webgpu::{GpuProgram, WebGpuBackend, FragmentSurface, SurfaceTransition, SurfaceScheduling, ContinuousFrames}
+use std::web::view::{SurfaceState, Surface, Extent, Param, ParamReadout, SurfaceEvent}
+pub struct Params { pub valid: Param, pub turns: Param }
+pub struct State { pub ptr: u32, pub valid: f32, pub turns: f32, pub count: u32 }
+impl Copy for State {}
+impl SurfaceState for State { type Params = Params }
+pub struct Envelope { pub state: State }
+impl Copy for Envelope {}
+fn write(_ address: u32, _ value: u32) {
+    let ptr: BrowserPtr<u32> = BrowserPtr::from_u32(address)
+    ptr.write(value)
+}
+fn read(_ address: u32) -> u32 {
+    let ptr: BrowserPtr<u32> = BrowserPtr::from_u32(address)
+    ptr.read()
+}
+actor ResidentMemory uses (GpuProgram<WebGpuBackend>) {
+    state: State,
+    fn initial() -> Envelope uses (core::actor::InitialState) {
+        let ptr = alloc_browser_bytes(4096).address()
+        let mut i: u32 = 0
+        while i < 1024 {
+            write(ptr + i * 4, 305397760 + i)
+            i = i + 1
+        }
+        Envelope { state: State { ptr: ptr, valid: 1.0, turns: 0.0, count: 0 } }
+    }
+    const fn view() -> Surface<Params> {
+        Surface { extent: Extent::square(16), params: Params {
+            valid: Param::readout(ParamReadout::Toggle), turns: Param::readout(ParamReadout::Integer),
+        } }
+    }
+    fn display(self, px: i32, py: i32) -> i32 uses (FragmentSurface) {
+        let _ = (px, py)
+        if self.state.valid > 0.5 { -16711936 } else { -16776961 }
+    }
+    fn navigate(self, event: own SurfaceEvent) -> Envelope uses (SurfaceTransition, SurfaceScheduling<ContinuousFrames>) {
+        let _ = event
+        let mut next = self.state
+        let temporary = alloc_browser_bytes(65536).address()
+        let mut i: u32 = 0
+        while i < 16384 {
+            write(temporary + i * 4, 2779096485)
+            i = i + 1
+        }
+        i = 1
+        while i < 1024 {
+            if read(next.ptr + i * 4) != 305397760 + i { next.valid = 0.0 }
+            i = i + 1
+        }
+        if read(next.ptr) != 305397760 + next.count { next.valid = 0.0 }
+        next.count = next.count + 1
+        write(next.ptr, 305397760 + next.count)
+        next.turns = next.turns + 1.0
+        Envelope { state: next }
+    }
+}

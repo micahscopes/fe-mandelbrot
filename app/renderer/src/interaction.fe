@@ -28,6 +28,14 @@ impl GestureSession {
 
 pub fn contact_transition(_ state: MandelbrotViewState, _ event: own SurfaceContactEvent) -> MandelbrotViewState {
     let mut next = state
+    if state.selection_settings.mode > 0.5 {
+        next.selection = state.selection.contact(state.camera, state.selection_settings, event)
+        next.gesture = GestureSession::empty()
+        next.clock = event.sample.timestamp
+        next.last_input = event.sample.timestamp
+        next.drag_active = 0.0
+        return next.refresh_readout()
+    }
     let sample = event.sample
     let frame = Viewport {
         origin: Vec2 { x: event.bounds.left, y: event.bounds.top },

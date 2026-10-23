@@ -832,14 +832,14 @@ actor SmoothPerturbationalMandelbrot uses (
             let bits: u32 = self.antialiased_pixels.load(index: index)
             let amount: f32 = progress(s.clock - saved.fade_started_at(), 0.0, 350.0) * reveal
             if amount >= 1.0 {
-                return display_rgba(unpack_lab(bits))
+                return ingot::selection::overlay(s.selection_display, s.camera, px, py, display_rgba(unpack_lab(bits)))
             }
             let coarse: Color = sample(
                 self.blurred,
                 from_i32(px) * 256.0 / s.camera.res,
                 from_i32(py) * 256.0 / s.camera.res,
             )
-            return display_rgba(blend(coarse, unpack_lab(bits), amount))
+            return ingot::selection::overlay(s.selection_display, s.camera, px, py, display_rgba(blend(coarse, unpack_lab(bits), amount)))
         }
         let coarse: Color = sample(
             self.blurred,
@@ -870,9 +870,9 @@ actor SmoothPerturbationalMandelbrot uses (
                 finite_max(d.fade_started_at(), e.fade_started_at()),
             )
             let since: f32 = s.clock - latest_fade
-            display_rgba(blend(coarse, sparse, progress(since, 0.0, 350.0) * reveal))
+            ingot::selection::overlay(s.selection_display, s.camera, px, py, display_rgba(blend(coarse, sparse, progress(since, 0.0, 350.0) * reveal)))
         } else {
-            display_rgba(coarse)
+            ingot::selection::overlay(s.selection_display, s.camera, px, py, display_rgba(coarse))
         }
     }
 

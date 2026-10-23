@@ -6,6 +6,7 @@ use std::webgpu::{SurfaceQualityFacts, SurfaceBackingExtent}
 use std::web::view::{
     Param,
     ParamReadout,
+    ChoiceOptions,
     ParamValue,
     SurfaceEvent,
     ApplyParamBindings,
@@ -14,6 +15,7 @@ use std::web::view::{
 }
 use algebra::Complex
 use ingot::interaction::GestureSession
+use ingot::selection::{Selection, SelectionSettings, SelectionDisplay, display_selection}
 use fmath::{clamp, min, max}
 use precision::{Expansion, add_f32, from_f32, from_quad, to_quad}
 
@@ -169,10 +171,27 @@ pub struct CameraControls {
     pub res: Param,
 }
 
+pub struct SelectionParams {
+    pub mode: Param,
+    pub shape: Param,
+    pub claim: Param,
+    pub precision: Param,
+    pub steps: Param,
+    pub public_view: Param,
+}
+
 pub struct MandelbrotParams {
+    pub selection_settings: SelectionParams,
     pub camera: CameraControls,
     pub antialias: Param,
     pub magnification: Param,
+    pub checking: Param,
+    pub escaping_witness_certified: Param,
+    pub bounded_witness_certified: Param,
+    pub witness_outside_region: Param,
+    pub unknown: Param,
+    pub invalid_input: Param,
+    pub checked_steps: Param,
 }
 
 /// An explicit restored resolution is separate from the always-valid camera.
@@ -187,6 +206,18 @@ impl BackingRequest {
 }
 
 pub struct MandelbrotViewState {
+    pub selection_settings: SelectionSettings,
+    pub selection: Selection,
+    pub selection_display: SelectionDisplay,
+    pub job: certified::RegionJob,
+    pub job_revision: u32,
+    pub checking: f32,
+    pub escaping_witness_certified: f32,
+    pub bounded_witness_certified: f32,
+    pub witness_outside_region: f32,
+    pub unknown: f32,
+    pub invalid_input: f32,
+    pub checked_steps: f32,
     pub camera: Camera,
     pub clock: f32,
     pub last_input: f32,
@@ -235,6 +266,12 @@ pub const fn initial_camera() -> Camera {
 pub const fn initial_view() -> MandelbrotViewState {
     let camera = initial_camera()
     MandelbrotViewState {
+        selection_settings: SelectionSettings::initial(),
+        selection: Selection::empty(camera),
+        selection_display: SelectionDisplay::empty(),
+        job: certified::RegionJob { ptr: 0, precision: 128, max_steps: 1, step: 0, code: 5, certificate: 0 },
+        job_revision: 0, checking: 0.0, escaping_witness_certified: 0.0,
+        bounded_witness_certified: 0.0, witness_outside_region: 0.0, unknown: 0.0, invalid_input: 0.0, checked_steps: 0.0,
         camera: camera,
         clock: 0.0,
         last_input: 0.0,
@@ -249,6 +286,15 @@ pub const fn initial_view() -> MandelbrotViewState {
 pub const fn mandelbrot_params() -> MandelbrotParams {
     let initial: MandelbrotViewState = initial_view()
     MandelbrotParams {
+        selection_settings: SelectionParams {
+            mode: Param::choice(options: ChoiceOptions::three(
+                first: "Navigate", second: "Draw region", third: "Select point"), init: 0.0),
+            shape: Param::choice(options: ChoiceOptions::two(first: "Circle", second: "Box"), init: 0.0),
+            claim: Param::choice(options: ChoiceOptions::two(first: "Escapes", second: "Stays bounded"), init: 0.0),
+            precision: Param::int(min: 32.0, max: 4096.0, init: 256.0),
+            steps: Param::int(min: 1.0, max: 10000.0, init: 1024.0),
+            public_view: Param::toggle(init: false),
+        },
         camera: CameraControls {
             center: Complex {
                 re: Param::range(
@@ -267,6 +313,13 @@ pub const fn mandelbrot_params() -> MandelbrotParams {
         },
         antialias: Param::range(min: 0.0, max: 1.0, init: initial.antialias),
         magnification: Param::readout(ParamReadout::Scalar),
+        checking: Param::readout(ParamReadout::Toggle),
+        escaping_witness_certified: Param::readout(ParamReadout::Toggle),
+        bounded_witness_certified: Param::readout(ParamReadout::Toggle),
+        witness_outside_region: Param::readout(ParamReadout::Toggle),
+        unknown: Param::readout(ParamReadout::Toggle),
+        invalid_input: Param::readout(ParamReadout::Toggle),
+        checked_steps: Param::readout(ParamReadout::Integer),
     }
 }
 
@@ -336,18 +389,53 @@ impl MandelbrotViewState {
     pub fn refresh_readout(self) -> Self {
         let mut next: Self = self
         next.magnification = 3.0 / self.camera.zoom
+        next.selection_display = display_selection(self.selection, self.camera, self.selection_settings)
+        if next.job_revision != next.selection.revision {
+            next.job = next.job.cancel()
+            next.job_revision = next.selection.revision
+            if next.selection.has_region && next.selection.has_witness && next.job.ptr != 0 {
+                next.job = next.job.begin_binary(ingot::selection::region_request(next.selection, next.selection_settings))
+            }
+        }
+        next.checking = if next.job.code == 4 { 1.0 } else { 0.0 }
+        next.escaping_witness_certified = if next.job.code == 0 && next.selection_settings.claim < 0.5 { 1.0 } else { 0.0 }
+        next.bounded_witness_certified = if next.job.code == 0 && next.selection_settings.claim > 0.5 { 1.0 } else { 0.0 }
+        next.witness_outside_region = if next.job.code == 3 { 1.0 } else { 0.0 }
+        next.unknown = if next.job.code == 1 { 1.0 } else { 0.0 }
+        next.invalid_input = if next.job.code == 2 { 1.0 } else { 0.0 }
+        next.checked_steps = fmath::from_i32(next.job.step.downcast_truncate())
+        // A draft is not the certified statement. Keep the committed job,
+        // but do not present its result over a different provisional region.
+        if next.selection.active {
+            next.checking = 0.0
+            next.escaping_witness_certified = 0.0
+            next.bounded_witness_certified = 0.0
+            next.witness_outside_region = 0.0
+            next.unknown = 0.0
+            next.invalid_input = 0.0
+            next.checked_steps = 0.0
+        }
         next
     }
 }
 
 pub fn initial_state() -> SurfaceStateEnvelope {
-    SurfaceStateEnvelope { state: initial_view() }
+    let mut state = initial_view()
+    state.job = certified::RegionJob::new()
+    SurfaceStateEnvelope { state: state }
 }
 
 pub fn transition(_ state: MandelbrotViewState, _ event: own SurfaceEvent) -> MandelbrotViewState {
     let mut next: MandelbrotViewState = state
     next.clock = event.timestamp
     if event.is_animation_frame() {
+        // Bounded batches yield between frames. This is not a worker:
+        // high-precision individual products can still take noticeable time.
+        if !next.selection.active && next.job.code == 4 && next.job_revision == next.selection.revision {
+            next.job = next.job.advance(if next.job.precision <= 512 { 16 } else {
+                if next.job.precision <= 1024 { 4 } else { 1 }
+            })
+        }
         return next.refresh_readout()
     }
     next.last_input = event.timestamp
@@ -358,10 +446,19 @@ pub fn transition(_ state: MandelbrotViewState, _ event: own SurfaceEvent) -> Ma
         return next.refresh_readout()
     }
     if event.is_param_edit() {
+        next = next.apply_param_bindings(mandelbrot_params(), event)
+        let before = state.selection_settings
+        let after = next.selection_settings
+        if before.mode != after.mode || before.shape != after.shape || next.camera != state.camera {
+            next.selection = next.selection.cancel()
+            next.gesture = GestureSession::empty()
+        }
+        if before.claim != after.claim || before.precision != after.precision || before.steps != after.steps {
+            next.selection = next.selection.invalidate()
+        }
         return next.refresh_readout()
-            .apply_param_bindings(mandelbrot_params(), event)
-            .refresh_readout()
     }
+    if next.selection_settings.mode > 0.5 { return next.refresh_readout() }
     let camera: Camera = state.camera
     let res: f32 = event.width
     let step: f32 = 2.0 * camera.zoom / res

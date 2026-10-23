@@ -1,0 +1,22 @@
+use certified::{RegionRequest, RegionResult, RegionJob, BinaryRegion}
+pub struct SlicedRequest {
+    pub request: RegionRequest,
+    pub budget: u32,
+}
+pub fn sliced(_ input: own SlicedRequest) -> RegionResult {
+    if input.budget == 0 || input.budget > 1024 {
+        return RegionResult { code: 2, step: 0, certificate: 0 }
+    }
+    let mut job = RegionJob::new().begin(input.request)
+    while job.code == 4 { job = job.advance(input.budget) }
+    job.result()
+}
+pub fn binary(_ request: own BinaryRegion) -> RegionResult {
+    let mut job = RegionJob::new().begin_binary(request)
+    while job.code == 4 { job = job.advance(1) }
+    job.result()
+}
+pub fn wasm_anchor(_ x: i32, _ y: i32, _ res: f32) -> u32 {
+    let _ = (x, y, res)
+    0
+}

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mandelbrot</title>
+<style>
+:root { color-scheme: dark; font: 15px system-ui; background: #15181d; color: #e9eef5; }
+body { margin: 0; }
+main { max-width: 1200px; margin: auto; padding: 1rem; }
+p { margin: .5rem 0; color: #bdc9d8; }
+a { display: inline-block; color: #a6c8ff; margin: .25rem 0 .75rem; }
+fe-render, fe-surface { display: block; width: 100%; font: inherit; }
+fe-surface { position: relative; font: inherit; min-height: 760px; }
+fe-surface::part(stage) { width: calc(100% - 306px); }
+fe-surface::part(side) { position: absolute; right: 0; top: 0; width: 260px; padding: 1rem; background: #1c2027; border-radius: .8rem; }
+fe-surface::part(panel) { display: grid; gap: .7rem; }
+fe-surface::part(meta), fe-surface::part(badge) { display: none; }
+fe-surface::part(control-camera\.center\.re\.value\.lead),
+fe-surface::part(control-camera\.center\.im\.value\.lead),
+fe-surface::part(control-camera\.zoom), fe-surface::part(control-antialias),
+fe-surface::part(control-magnification) { display: none; }
+@media (max-width: 700px) {
+ fe-surface { min-height: 0; }
+ fe-surface::part(stage) { width: 100%; }
+ fe-surface::part(side) { position: static; width: auto; order: -1; }
+ fe-surface::part(panel) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+fe-render::part(stage), fe-surface::part(stage) { border-radius: .8rem; overflow: hidden; }
+</style>
+</head><body>
+<script type="application/fe" data-fe-page data-fe-src="../app/studio/src/lib.fe"></script>
+</body></html>

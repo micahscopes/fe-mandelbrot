@@ -1,0 +1,7 @@
+[ingot]
+name = "probe_region_engine"
+version = "0.1.0"
+[dependencies]
+core = "../../.cache/fe/ingots/core"
+std = "../../.cache/fe/ingots/std"
+certified = "../../app/certified_escape"

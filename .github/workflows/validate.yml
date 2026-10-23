@@ -15,13 +15,21 @@ jobs:
         with:
           node-version: 24
       - name: Verify sources and complete compiled site
-        run: python3 tools/site.py --out dist
-      - name: Check exact point selection
-        run: node tests/proof-selection.mjs
+        run: python3 tools/site_studio.py --out dist
+      - name: Check Fe region selection and float projection
+        run: FE_SELECTION_BUNDLE=artifacts/studio/checks/region-selection node tests/region-selection.mjs
+      - name: Check exact binary adapter and repeated jobs
+        run: FE_REGION_JOB_BUNDLE=artifacts/studio/checks/region-engine node tests/region-job.mjs
+      - name: Check region predicates and incremental parity
+        run: FE_CERTIFIED_BUNDLE=artifacts/studio/checks/certified FE_REGION_JOB_BUNDLE=artifacts/studio/checks/region-engine node tests/certified-region.mjs
+      - name: Check zero-task persistent memory through generated runtime
+        run: FE_RESIDENT_BUNDLE=artifacts/studio/checks/resident-memory node tests/resident-memory.mjs
+      - name: Check actual viewer pointer, claim and cancellation transitions
+        run: FE_STUDIO_DIR=artifacts/studio node tests/studio-resident.mjs
       - name: Check Fe/Wasm verifier against captured proofs and mutations
         run: node tests/fe-verifier.mjs
       - name: Execute certified Fe Wasm arithmetic against independent endpoints
-        run: node tests/certified-escape.mjs
+        run: FE_CERTIFIED_BUNDLE=artifacts/studio/checks/certified node tests/certified-escape.mjs
       - name: Check independent interval and algebraic models
         run: python3 -m unittest discover -s experiments/private_circle -v
       - name: Exercise certified deep-offset arithmetic and Unknown outcomes

@@ -1,0 +1,18 @@
+diff --git a/crates/codegen/src/web_bundle.rs b/crates/codegen/src/web_bundle.rs
+index a693c11d2..748927f87 100644
+--- a/crates/codegen/src/web_bundle.rs
++++ b/crates/codegen/src/web_bundle.rs
+@@ -3894,7 +3894,12 @@ fn with_typed_surface_export(
+     contract: &TypedSurfaceTransitionContract,
+ ) -> WasmCompileOptions {
+     if contract.scheduled {
+-        options.with_surface_frame(
++        // Resident initialization may allocate actor-owned storage. The
++        // reset-only arena discards it after every host call; use the same
++        // scoped stack contract as resident components and Fe tasks.
++        options.with_canonical_stack_memory(["fe_cabi_post_return"])
++            .with_canonical_scoped_host_borrows()
++            .with_surface_frame(
+             source,
+             TYPED_SURFACE_SCHEDULED_EXPORT,
+             TYPED_SURFACE_STATE_REPLACE_EXPORT,

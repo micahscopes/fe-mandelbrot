@@ -1,0 +1,28 @@
+//! The application page is composed in Fe. Browser assets are generated.
+use std::web::page::{Page, PageBuilder, PageComposition, PageElement, PageText, PageAttribute}
+use std::web::identity::{ComponentAction, ComponentActionProvider}
+enum Download { Idle, Shader, Wasm, Manifest }
+impl Copy for Download {}
+derive ComponentAction for Download using ComponentActionProvider
+actor MandelbrotStudio {
+    version: u32,
+    const fn compose() -> Page<24> uses (PageComposition) {
+        PageBuilder::new()
+            .open(element: PageElement::Main)
+            .open(element: PageElement::Paragraph)
+            .text(value: PageText::one(value: "Draw a region. Select a point."))
+            .close()
+            .open(element: PageElement::Anchor)
+            .attribute(value: PageAttribute::href(value: PageText::one(value: "#full")))
+            .text(value: PageText::one(value: "Full view"))
+            .close()
+            .render(source: PageText::one(value: "../app/renderer"),
+                wgsl_action: Download::Shader, wasm_action: Download::Wasm,
+                manifest_action: Download::Manifest)
+            .open(element: PageElement::Paragraph)
+            .text(value: PageText::two(first: "Local arithmetic checks. ", second: "Zero-knowledge proofs pending."))
+            .close()
+            .close()
+            .finish(title: PageText::one(value: "Mandelbrot"))
+    }
+}

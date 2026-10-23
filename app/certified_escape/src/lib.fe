@@ -1,6 +1,8 @@
-//! Experimental certified arithmetic, not a ZK proof or private verifier.
-//! Exact family c=i+2^-depth. Exact periodic reference is checked by construction.
-//! One scalar-word scratch allocation per call, reused across all iterations.
+//! Exact dyadic interval arithmetic and local Mandelbrot checks.
+//! This receives the witness; it is not a ZK proof or private verifier.
+//! The deep-offset family uses an exact periodic reference; general regions
+//! use strict escape or finite sufficient boundedness certificates.
+//! Resident jobs reuse one scalar-word tape across incremental steps.
 use core::{BrowserBytes, BrowserPtr, alloc_browser_bytes}
 
 const STRIDE: u32 = 640
@@ -13,25 +15,25 @@ struct I { lo: D, hi: D }
 impl core::marker::Copy for I {}
 struct C { re: I, im: I }
 impl core::marker::Copy for C {}
-struct Engine { ptr: BrowserPtr<u32>, bits: u32 }
+struct Engine { ptr: u32, bits: u32 }
 impl core::marker::Copy for Engine {}
 
 impl Engine {
     fn new(_ bits: u32) -> Self {
         Self {
-            ptr: BrowserPtr::from_u32(alloc_browser_bytes((SLOTS * STRIDE + 4) * 4).address()),
+            ptr: alloc_browser_bytes((SLOTS * STRIDE + 4) * 4).address(),
             bits: bits,
         }
     }
     fn load(self, _ slot: u32, _ index: u32) -> u32 {
         let p: BrowserPtr<u32> = BrowserPtr::from_u32(
-            self.ptr.address() + (slot * STRIDE + index) * 4,
+            self.ptr + (slot * STRIDE + index) * 4,
         )
         p.read()
     }
     fn store(self, _ slot: u32, _ index: u32, _ value: u32) {
         let p: BrowserPtr<u32> = BrowserPtr::from_u32(
-            self.ptr.address() + (slot * STRIDE + index) * 4,
+            self.ptr + (slot * STRIDE + index) * 4,
         )
         p.write(value)
     }
@@ -601,4 +603,376 @@ pub fn arithmetic_words(_ request: own WordArithmeticRequest) -> ArithmeticResul
         lower_negative: lo.neg,
         upper_negative: hi.neg,
     }
+}
+
+// Local general-region checker. This API receives a witness; it is NOT a ZK proof.
+// Wire six exact dyadics: witness re/im, public center re/im, radius x/y.
+// Each record is [sign, exponent-sign, exponent-magnitude, count, base8192 words].
+pub struct RegionRequest {
+    pub selection: BrowserBytes,
+    pub shape: u32,
+    pub claim: u32,
+    pub precision: u32,
+    pub max_steps: u32,
+}
+pub struct RegionResult { pub code: u32, pub step: u32, pub certificate: u32 }
+struct Decoded { value: D, next: u32 }
+fn wire_word(_ bytes: BrowserBytes, _ i: u32) -> u32 {
+    let p: BrowserPtr<u32> = BrowserPtr::from_u32(bytes.ptr + i * 4)
+    p.read()
+}
+fn decode_dyadic(_ e: Engine, _ slot: u32, _ bytes: BrowserBytes, _ cursor: u32) -> Decoded {
+    let size = bytes.len / 4
+    if cursor > size || size - cursor < 4 {
+        return Decoded { value: e.invalid(), next: size + 1 }
+    }
+    let sign = wire_word(bytes, cursor)
+    let exponent_sign = wire_word(bytes, cursor + 1)
+    let magnitude = wire_word(bytes, cursor + 2)
+    let count = wire_word(bytes, cursor + 3)
+    if sign > 1
+        || exponent_sign > 1
+        || magnitude > 1000000000
+        || count > 316
+        || count > size - cursor - 4 {
+        return Decoded { value: e.invalid(), next: size + 1 }
+    }
+    let mut i: u32 = 0
+    while i < count {
+        let word = wire_word(bytes, cursor + 4 + i)
+        if word >= 8192 {
+            return Decoded { value: e.invalid(), next: size + 1 }
+        }
+        e.store(slot, i, word)
+        i = i + 1
+    }
+    let exp = if exponent_sign == 1 {
+        -(magnitude as i64)
+    } else {
+        magnitude as i64
+    }
+    Decoded {
+        value: e.normal(
+            D { slot: slot, len: count, exp: exp, neg: sign == 1, valid: true },
+        ),
+        next: cursor + 4 + count,
+    }
+}
+fn valid_interval(_ a: I) -> bool {
+    a.lo.valid && a.hi.valid
+}
+fn point_interval(_ e: Engine, _ slot: u32, _ a: D) -> I {
+    I { lo: e.rounded(slot, a, false), hi: e.rounded(slot + 1, a, true) }
+}
+fn norm_squared(_ e: Engine, _ a: C) -> I {
+    let re = e.square_interval(36, a.re)
+    let im = e.square_interval(38, a.im)
+    e.add_interval(40, re, im)
+}
+// A finite sufficient certificate: |c|<=1/4 makes |z|<=1/2 invariant.
+// Two further strict-interior tests use the main cardioid and period2 bulb.
+// Source/formulas: mathr.co.uk/blog/2022-11-19_cardioid_and_bulb_checking.html
+fn bounded_certificate(_ e: Engine, _ point: C) -> u32 {
+    let one = e.integer(61, 1, 0)
+    let sixteenth = e.integer(63, 1, -4)
+    let norm = norm_squared(e, point)
+    if valid_interval(norm) && e.cmp(norm.hi, sixteenth) <= 0 {
+        return 1
+    }
+    let translated = C { re: e.add_interval(4, point.re, exact_interval(one)), im: point.im }
+    let bulb = norm_squared(e, translated)
+    if valid_interval(bulb) && e.cmp(bulb.hi, sixteenth) < 0 {
+        return 2
+    }
+    let quarter = e.integer(62, 1, -2)
+    let shifted = e.add_interval(4, point.re, exact_interval(negative(quarter)))
+    let xs = e.square_interval(6, shifted)
+    let ys = e.square_interval(8, point.im)
+    let q = e.add_interval(10, xs, ys)
+    let qx = e.add_interval(12, q, shifted)
+    let lhs = e.mul_interval(14, q, qx)
+    let rhs = e.mul_interval(16, ys, exact_interval(quarter))
+    if valid_interval(lhs) && valid_interval(rhs) && e.cmp(lhs.hi, rhs.lo) < 0 {
+        return 3
+    }
+    0
+}
+// A resident evaluation owns this tape for its complete lifetime. Native
+// descriptor headers are explicitly encoded after the 65 scalar limb slots.
+// GPU display reads scalar progress only; it never dereferences this pointer.
+pub struct RegionJob {
+    pub ptr: u32,
+    pub precision: u32,
+    pub max_steps: u32,
+    pub step: u32,
+    pub code: u32,
+    pub certificate: u32,
+}
+impl core::marker::Copy for RegionJob {}
+
+fn save_value(_ e: Engine, _ index: u32, _ value: D) {
+    let at = index * 5
+    e.store(65, at, value.len)
+    e.store(65, at + 1, if value.exp < 0 { 1 } else { 0 })
+    e.store(65, at + 2, (if value.exp < 0 { -value.exp } else { value.exp }).downcast_truncate())
+    e.store(65, at + 3, if value.neg { 1 } else { 0 })
+    e.store(65, at + 4, if value.valid { 1 } else { 0 })
+}
+fn load_value(_ e: Engine, _ index: u32, _ slot: u32) -> D {
+    let at = index * 5
+    let magnitude = e.load(65, at + 2) as i64
+    D { slot: slot, len: e.load(65, at),
+        exp: if e.load(65, at + 1) == 1 { -magnitude } else { magnitude },
+        neg: e.load(65, at + 3) == 1, valid: e.load(65, at + 4) == 1 }
+}
+fn save_interval(_ e: Engine, _ index: u32, _ value: I) {
+    save_value(e, index, value.lo)
+    save_value(e, index + 1, value.hi)
+}
+fn load_interval(_ e: Engine, _ index: u32, _ slot: u32) -> I {
+    I { lo: load_value(e, index, slot), hi: load_value(e, index + 1, slot + 1) }
+}
+fn prepare_region(_ e: Engine, _ pr: D, _ pi: D, _ cr: D, _ ci: D,
+    _ rx: D, _ ry: D, _ shape: u32, _ claim: u32) -> RegionResult {
+    if !pr.valid
+        || !pi.valid
+        || !cr.valid
+        || !ci.valid
+        || !rx.valid
+        || !ry.valid
+        || rx.neg
+        || ry.neg
+        || rx.len == 0
+        || ry.len == 0 {
+        return RegionResult { code: 2, step: 0, certificate: 0 }
+    }
+    if shape == 0 && e.cmp(rx, ry) != 0 {
+        return RegionResult { code: 2, step: 0, certificate: 0 }
+    }
+    // Subtract input anchors before rounding to the working precision.
+    // Otherwise 1+2^-256 and 1 collapse to the same 128-bit point.
+    let input = Engine { ptr: e.ptr, bits: 8192 }
+    let dx = I {
+        lo: input.add(4, pr, negative(cr), false),
+        hi: input.add(5, pr, negative(cr), true),
+    }
+    let dy = I {
+        lo: input.add(6, pi, negative(ci), false),
+        hi: input.add(7, pi, negative(ci), true),
+    }
+    if !valid_interval(dx) || !valid_interval(dy) {
+        return RegionResult { code: 1, step: 0, certificate: 0 }
+    }
+    if shape == 1 {
+        if e.cmp(dx.lo, rx) > 0
+            || e.cmp(dx.hi, negative(rx)) < 0
+            || e.cmp(dy.lo, ry) > 0
+            || e.cmp(dy.hi, negative(ry)) < 0 {
+            return RegionResult { code: 3, step: 0, certificate: 0 }
+        }
+        if e.cmp(dx.lo, negative(rx)) < 0
+            || e.cmp(dx.hi, rx) > 0
+            || e.cmp(dy.lo, negative(ry)) < 0
+            || e.cmp(dy.hi, ry) > 0 {
+            return RegionResult { code: 1, step: 0, certificate: 0 }
+        }
+    } else {
+        let distance = norm_squared(e, C { re: dx, im: dy })
+        let radius = e.square_interval(8, exact_interval(rx))
+        if !valid_interval(distance) || !valid_interval(radius) {
+            return RegionResult { code: 1, step: 0, certificate: 0 }
+        }
+        if e.cmp(distance.lo, radius.hi) > 0 {
+            return RegionResult { code: 3, step: 0, certificate: 0 }
+        }
+        if e.cmp(distance.hi, radius.lo) > 0 {
+            return RegionResult { code: 1, step: 0, certificate: 0 }
+        }
+    }
+    let point = C { re: point_interval(e, 0, pr), im: point_interval(e, 2, pi) }
+    if claim == 1 {
+        let certificate = bounded_certificate(e, point)
+        return RegionResult {
+            code: if certificate == 0 { 1 } else { 0 },
+            step: 0,
+            certificate: certificate,
+        }
+    }
+    save_interval(e, 0, point.re)
+    save_interval(e, 2, point.im)
+    let zero = exact_interval(e.zero())
+    save_interval(e, 4, zero)
+    save_interval(e, 6, zero)
+    RegionResult { code: 4, step: 0, certificate: 0 }
+}
+
+impl RegionJob {
+    pub fn new() -> Self {
+        let ptr = alloc_browser_bytes((SLOTS * STRIDE + 128) * 4).address()
+        Self { ptr: ptr, precision: 128, max_steps: 1, step: 0, code: 5, certificate: 0 }
+    }
+    fn engine(self) -> Engine {
+        Engine { ptr: self.ptr, bits: self.precision }
+    }
+    fn completed(self, _ result: RegionResult) -> Self {
+        Self { ptr: self.ptr, precision: self.precision, max_steps: self.max_steps,
+            step: result.step, code: result.code, certificate: result.certificate }
+    }
+    pub fn result(self) -> RegionResult {
+        RegionResult { code: self.code, step: self.step, certificate: self.certificate }
+    }
+    pub fn cancel(self) -> Self {
+        self.completed(RegionResult { code: 5, step: 0, certificate: 0 })
+    }
+    pub fn begin(self, _ request: own RegionRequest) -> Self {
+    if request.selection.len < 96
+        || request.selection.len > 7680
+        || request.selection.len % 4 != 0
+        || request.shape > 1
+        || request.claim > 1
+        || request.precision < 32
+        || request.precision > 4096
+        || request.max_steps == 0
+        || request.max_steps > 10000 {
+        return self.completed(RegionResult { code: 2, step: 0, certificate: 0 })
+    }
+
+        let job = Self { ptr: self.ptr, precision: request.precision,
+            max_steps: request.max_steps, step: 0, code: 4, certificate: 0 }
+        let e = job.engine()
+        let pr = decode_dyadic(e, 45, request.selection, 0)
+        let pi = decode_dyadic(e, 46, request.selection, pr.next)
+        let cr = decode_dyadic(e, 47, request.selection, pi.next)
+        let ci = decode_dyadic(e, 48, request.selection, cr.next)
+        let rx = decode_dyadic(e, 49, request.selection, ci.next)
+        let ry = decode_dyadic(e, 50, request.selection, rx.next)
+        if ry.next != request.selection.len / 4 {
+            return job.completed(RegionResult { code: 2, step: 0, certificate: 0 })
+        }
+        job.completed(prepare_region(e, pr.value, pi.value, cr.value, ci.value,
+            rx.value, ry.value, request.shape, request.claim))
+    }
+    pub fn advance(self, _ budget: u32) -> Self {
+        if self.code != 4 { return self }
+        let e = self.engine()
+        let point = C { re: load_interval(e, 0, 0), im: load_interval(e, 2, 2) }
+        let mut z = C { re: load_interval(e, 4, 24), im: load_interval(e, 6, 26) }
+        let four = e.integer(63, 1, 2)
+        let mut step = self.step
+        let mut spent: u32 = 0
+        while step < self.max_steps && spent < budget {
+            let rr = e.square_interval(16, z.re)
+            let ii = e.square_interval(18, z.im)
+            let mixed = e.mul_interval(20, z.re, z.im)
+            let square = C { re: e.add_interval(8, rr, neg_interval(ii)),
+                im: e.add_interval(10, mixed, mixed) }
+            let next = e.plus(4, square, point)
+            z = e.copy_complex(24, next)
+            step = step + 1
+            spent = spent + 1
+            let norm = norm_squared(e, z)
+            if !valid_interval(norm) {
+                return self.completed(RegionResult { code: 1, step: step, certificate: 0 })
+            }
+            if e.cmp(norm.lo, four) > 0 {
+                return self.completed(RegionResult { code: 0, step: step, certificate: 4 })
+            }
+        }
+        save_interval(e, 4, z.re)
+        save_interval(e, 6, z.im)
+        self.completed(RegionResult { code: if step == self.max_steps { 1 } else { 4 },
+            step: step, certificate: 0 })
+    }
+}
+
+pub fn evaluate_region(_ request: own RegionRequest) -> RegionResult {
+    let mut job = RegionJob::new().begin(request)
+    while job.code == 4 { job = job.advance(32) }
+    job.result()
+}
+
+/// Exact meaning: sum(anchor[0..4]) + scale*offset, with every finite
+/// binary32 interpreted as its exact dyadic value. There is no f32 product.
+pub struct BinaryCoordinate { pub w0: f32, pub w1: f32, pub w2: f32, pub w3: f32 }
+impl core::marker::Copy for BinaryCoordinate {}
+pub struct BinaryPoint {
+    pub re: BinaryCoordinate,
+    pub im: BinaryCoordinate,
+    pub scale: f32,
+    pub u: f32,
+    pub v: f32,
+}
+impl core::marker::Copy for BinaryPoint {}
+
+pub struct BinaryRegion {
+    pub witness: BinaryPoint,
+    pub center: BinaryPoint,
+    pub radius_x: f32,
+    pub radius_y: f32,
+    pub shape: u32,
+    pub claim: u32,
+    pub precision: u32,
+    pub max_steps: u32,
+}
+impl core::marker::Copy for BinaryRegion {}
+extern { const fn __bitcast<From, To>(_: From) -> To }
+fn binary_value(_ e: Engine, _ slot: u32, _ value: f32) -> D {
+    let bits = __bitcast<f32, u32>(value)
+    let encoded_exp = (bits >> 23) & 255
+    if encoded_exp == 255 { return e.invalid() }
+    let magnitude = (bits & 8388607) | (if encoded_exp == 0 { 0 } else { 8388608 })
+    let mantissa = __bitcast<u32, i32>(magnitude)
+    let signed = if (bits >> 31) != 0 { -mantissa } else { mantissa }
+    e.integer(slot, signed, if encoded_exp == 0 { -149 } else { (encoded_exp as i64) - 150 })
+}
+fn binary_coordinate(_ e: Engine, _ slot: u32, _ anchor: BinaryCoordinate,
+    _ scale: f32, _ offset: f32) -> D {
+    // A sum of four finite binary32s and one exact binary32 product spans
+    // fewer than 600 bits. 1024 bits retains it exactly, independently of
+    // the requested orbit precision. Source slots45..50 remain immutable.
+    let exact = Engine { ptr: e.ptr, bits: 1024 }
+    let a = binary_value(exact, 4, scale)
+    let b = binary_value(exact, 5, offset)
+    let mut value = exact.multiply(6, a, b, false)
+    let t0 = binary_value(exact, 4, anchor.w0)
+    let s0 = exact.add(8, value, t0, false)
+    value = exact.copy(6, s0)
+    let t1 = binary_value(exact, 4, anchor.w1)
+    let s1 = exact.add(8, value, t1, false)
+    value = exact.copy(6, s1)
+    let t2 = binary_value(exact, 4, anchor.w2)
+    let s2 = exact.add(8, value, t2, false)
+    value = exact.copy(6, s2)
+    let t3 = binary_value(exact, 4, anchor.w3)
+    let s3 = exact.add(8, value, t3, false)
+    value = exact.copy(6, s3)
+    exact.copy(slot, value)
+}
+impl RegionJob {
+    pub fn begin_binary(self, _ request: own BinaryRegion) -> Self {
+        if request.shape > 1 || request.claim > 1 || request.precision < 32
+            || request.precision > 4096 || request.max_steps == 0 || request.max_steps > 10000 {
+            return self.completed(RegionResult { code: 2, step: 0, certificate: 0 })
+        }
+        let job = Self { ptr: self.ptr, precision: request.precision,
+            max_steps: request.max_steps, step: 0, code: 4, certificate: 0 }
+        let e = job.engine()
+        let pr = binary_coordinate(e, 45, request.witness.re, request.witness.scale, request.witness.u)
+        let pi = binary_coordinate(e, 46, request.witness.im, request.witness.scale, request.witness.v)
+        let cr = binary_coordinate(e, 47, request.center.re, request.center.scale, request.center.u)
+        let ci = binary_coordinate(e, 48, request.center.im, request.center.scale, request.center.v)
+        let exact = Engine { ptr: e.ptr, bits: 1024 }
+        let scale = binary_value(exact, 4, request.center.scale)
+        let x = binary_value(exact, 5, request.radius_x)
+        let rx = exact.multiply(49, scale, x, false)
+        let y = binary_value(exact, 5, request.radius_y)
+        let ry = exact.multiply(50, scale, y, false)
+        job.completed(prepare_region(e, pr, pi, cr, ci, rx, ry, request.shape, request.claim))
+    }
+}
+
+pub fn evaluate_binary(_ request: own BinaryRegion) -> RegionResult {
+    let mut job = RegionJob::new().begin_binary(request)
+    while job.code == 4 { job = job.advance(32) }
+    job.result()
 }

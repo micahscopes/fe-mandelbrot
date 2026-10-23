@@ -1,0 +1,112 @@
+//! Executed adversarial checks of the actual Fe selection implementation.
+use core::ops::Eq
+use algebra::{Complex, Vec2}
+use precision::{from_f32, from_quad, to_quad}
+use std::web::{SurfaceContactEvent, SurfaceContactBounds, PointerSample, PointerPhase, PointerDevice}
+use renderer::selection::{Selection, SelectionSettings, ExactPoint, projected, display_selection, overlay}
+use renderer::policy::{Camera, Coordinate}
+
+fn camera() -> Camera {
+    Camera { center: Complex {
+        re: Coordinate { value: from_f32<4>(0.0) },
+        im: Coordinate { value: from_f32<4>(0.0) },
+    }, zoom: 1.0, res: 512.0 }
+}
+fn event(_ phase: PointerPhase, _ x: f32, _ y: f32, _ buttons: u32) -> SurfaceContactEvent {
+    SurfaceContactEvent { sample: PointerSample {
+        phase: phase, device: PointerDevice::Mouse, pointer_id: 7,
+        client_x: x, client_y: y, buttons: buttons, primary: true,
+        pressure: 0.0, timestamp: 1.0,
+    }, bounds: SurfaceContactBounds { left: 100.0, top: 200.0, width: 400.0, height: 400.0 } }
+}
+pub struct Result { pub checks: u32, pub cancellation_x: f32 }
+pub struct Request { pub unused: u32 }
+pub fn inspect(_ request: own Request) -> Result {
+    let _ = request.unused
+    let c = camera()
+    let mut settings = SelectionSettings::initial()
+    settings.mode = 1.0
+    let empty = Selection::empty(c)
+    let mut s = empty.contact(c, settings, event(PointerPhase::Down, 300.0, 400.0, 1))
+    s = s.contact(c, settings, event(PointerPhase::Up, 400.0, 400.0, 0))
+    let mut checks: u32 = 0
+    if s.has_region && !s.has_witness && s.radius.x == 0.5 && s.region.offset.x == 0.0 {
+        checks = checks | 1
+    }
+    let region = s.region
+    let radius = s.radius
+    settings.mode = 2.0
+    s = s.contact(c, settings, event(PointerPhase::Down, 350.0, 400.0, 1))
+    s = s.contact(c, settings, event(PointerPhase::Up, 350.0, 400.0, 0))
+    if s.has_witness && s.witness.offset.x == 0.25 && s.region.offset == region.offset
+        && s.radius == radius && s.revision == 2 { checks = checks | 2 }
+    let mut nav = c
+    nav.center.re = Coordinate { value: from_f32<4>(0.25) }
+    let moved = projected(s.witness, nav)
+    if moved.x == 0.0 && s.witness.offset.x == 0.25 { checks = checks | 4 }
+    settings.public_view = 1.0
+    let public = display_selection(s, c, settings)
+    if public.has_region && !public.has_witness { checks = checks | 8 }
+    settings.public_view = 0.0
+    let private = display_selection(s, c, settings)
+    if private.has_region && private.has_witness { checks = checks | 16 }
+    settings.mode = 1.0
+    let right = empty.contact(c, settings, event(PointerPhase::Down, 300.0, 400.0, 2))
+    if !right.active { checks = checks | 32 }
+    let down = empty.contact(c, settings, event(PointerPhase::Down, 300.0, 400.0, 1))
+    let lost = down.contact(c, settings, event(PointerPhase::Move, 350.0, 400.0, 0))
+    if !lost.active && !lost.has_region { checks = checks | 64 }
+    let canceled = down.contact(c, settings, event(PointerPhase::Cancel, 350.0, 400.0, 0))
+    if !canceled.active && !canceled.has_region { checks = checks | 128 }
+    let mut resized = event(PointerPhase::Up, 400.0, 400.0, 0)
+    resized.bounds.width = 800.0
+    if !down.contact(c, settings, resized).has_region { checks = checks | 256 }
+    if !down.contact(nav, settings, event(PointerPhase::Up, 400.0, 400.0, 0)).has_region {
+        checks = checks | 512
+    }
+    settings.shape = 1.0
+    let box_start = empty.contact(c, settings, event(PointerPhase::Down, 200.0, 300.0, 1))
+    let box_end = box_start.contact(c, settings, event(PointerPhase::Up, 400.0, 500.0, 0))
+    if box_end.has_region && box_end.region.offset.x == 0.0 && box_end.region.offset.y == 0.0
+        && box_end.radius.x == 0.5 && box_end.radius.y == 0.5 { checks = checks | 1024 }
+    let mut deep = c
+    deep.center.re = Coordinate { value: from_quad(1.0, 0.0000000000000000008673617379884035, 0.0, 0.0) }
+    deep.zoom = 0.0000000000000000008673617379884035
+    let factored = ExactPoint { anchor: c.center_value(), scale: 1.0, offset: Vec2 { x: 1.0, y: 0.0 } }
+    let at = projected(factored, deep)
+    if at.x == -1.0 { checks = checks | 2048 }
+    // Actual final pixel path hides the private marker in public view.
+    let mut marker = s
+    marker.has_region = false
+    marker.witness.offset = Vec2 { x: 0.0, y: 0.0 }
+    settings.public_view = 0.0
+    let shown = overlay(display_selection(marker, c, settings), c, 256, 256, 123)
+    settings.public_view = 1.0
+    let hidden = overlay(display_selection(marker, c, settings), c, 256, 256, 123)
+    if shown != 123 && hidden == 123 { checks = checks | 4096 }
+    // Sub-Q12 witness identity retains all four camera terms and the factored zoom.
+    let mut subtle = c
+    subtle.center.re = Coordinate { value: from_quad(1.0, 0.0000000000000000008673617379884035, 0.0, 0.0) }
+    subtle.zoom = deep.zoom
+    settings.mode = 2.0
+    let selected = empty.contact(subtle, settings, event(PointerPhase::Down, 350.0, 400.0, 1))
+        .contact(subtle, settings, event(PointerPhase::Up, 350.0, 400.0, 0))
+    let (_, tail, _, _) = to_quad(selected.witness.anchor.re)
+    if tail == deep.zoom && selected.witness.scale == deep.zoom && selected.witness.offset.x == 0.25 {
+        checks = checks | 8192
+    }
+    Result { checks: checks, cancellation_x: at.x }
+}
+pub fn wasm_anchor(_ x: i32, _ y: i32, _ res: f32) -> u32 {
+    let _ = (x, y, res)
+    0
+}
+
+
+pub struct ProjectionRequest { pub words: [u32; 14], pub negative: bool }
+pub struct ProjectionResult { pub bits: u32 }
+pub fn fixed_projection(_ request: own ProjectionRequest) -> ProjectionResult {
+    let magnitude = precision::fixed::fixed_magnitude_from_words<14>(request.words)
+    ProjectionResult { bits: precision::fixed::to_f32_bits<14>(
+        if request.negative { 1 } else { 0 }, magnitude) }
+}

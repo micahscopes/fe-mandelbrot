@@ -2,6 +2,10 @@
 name = "FeMandelbrot"
 version = "0.1.0"
 members = [
+  { path = "tests/resident-memory", name = "probe_resident_memory" },
+  { path = "app/studio", name = "mandelbrot_studio" },
+  { path = "tests/region-engine", name = "probe_region_engine" },
+  { path = "tests/region-selection", name = "probe_region_selection" },
   { path = "app/claim_controls", name = "mandelbrot_claim_controls" },
   { path = "app/certified_escape", name = "mandelbrot_certified_escape" },
   { path = "lib/mandelbrot_proof_profile", name = "mandelbrot_proof_profile" },
