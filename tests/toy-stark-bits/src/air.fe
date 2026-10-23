@@ -1,0 +1,35 @@
+//! Shared bitweight constraint combination. Arithmetic only, not a proof.
+use core::ops::{Add, Mul, Sub}
+use precision::baby_bear::{BabyBear, BabyBearExt4}
+use precision::polynomial::{radix2_log, radix2_field_domain_supported}
+
+pub struct AirValue { pub valid: bool, pub value: BabyBearExt4 }
+
+/// Mask order: [b(X), b(gX), acc(X), acc(gX)]. Challenge order:
+/// [r0, r0prime, r1, r1prime, r2, r2prime, r3, r3prime].
+/// Degree correction is [1, N-1, 1, 1]. Honest N-row traces yield degree < N.
+/// Only H poles are rejected. Evaluation-coset points remain valid inputs.
+pub fn constraint_combination<const N: usize>(
+    _ point: BabyBearExt4,
+    _ mask: [BabyBearExt4; 4],
+    _ challenges: [BabyBearExt4; 8],
+    _ statement: BabyBear,
+) -> AirValue
+where N > 0, N >= 4, { (N & (N - 1)) == 0 },
+    { radix2_field_domain_supported<N, BabyBear>() },
+{
+    let one = BabyBearExt4::one()
+    let last = BabyBearExt4::from_base(BabyBear::two_adic_root(radix2_log<N>()).inverse_or_zero())
+    let zh = point.pow_u32(N.downcast_truncate()) - one
+    if zh.is_zero() { return AirValue { valid: false, value: BabyBearExt4::zero() } }
+    let inverse_zh = zh.inverse_or_zero()
+    let bool_quotient = (mask[0] * mask[0] - mask[0]) * inverse_zh
+    let transition_quotient = (mask[3] - mask[2] - mask[1]) * (point - last) * inverse_zh
+    let first_quotient = (mask[2] - mask[0]) * (point - one).inverse_or_zero()
+    let last_quotient = (mask[2] - BabyBearExt4::from_base(statement)) * (point - last).inverse_or_zero()
+    let value = (challenges[0] + challenges[1] * point) * bool_quotient
+        + (challenges[2] + challenges[3] * point.pow_u32((N - 1).downcast_truncate())) * transition_quotient
+        + (challenges[4] + challenges[5] * point) * first_quotient
+        + (challenges[6] + challenges[7] * point) * last_quotient
+    AirValue { valid: true, value: value }
+}

@@ -1,0 +1,31 @@
+//! Shared five-term single-point DEEP arithmetic, without source commitments.
+use core::ops::{Add, Mul, Sub}
+use precision::baby_bear::BabyBearExt4
+pub struct DeepValue { pub valid: bool, pub value: BabyBearExt4 }
+
+/// Answers: [b(q), b(gq), acc(q), acc(gq), composition(q)].
+/// Both pole guards precede all input-dependent inversion.
+pub fn deep_value(
+    _ point: BabyBearExt4,
+    _ y_b: BabyBearExt4,
+    _ y_a: BabyBearExt4,
+    _ y_c: BabyBearExt4,
+    _ answers: [BabyBearExt4; 5],
+    _ challenges: [BabyBearExt4; 5],
+    _ q: BabyBearExt4,
+    _ g: BabyBearExt4,
+) -> DeepValue {
+    let denominator = point - q
+    let shifted_denominator = point - g * q
+    if denominator.is_zero() || shifted_denominator.is_zero() {
+        return DeepValue { valid: false, value: BabyBearExt4::zero() }
+    }
+    let inverse = denominator.inverse_or_zero()
+    let shifted_inverse = shifted_denominator.inverse_or_zero()
+    DeepValue { valid: true, value:
+        challenges[0] * (y_b - answers[0]) * inverse
+        + challenges[1] * (y_b - answers[1]) * shifted_inverse
+        + challenges[2] * (y_a - answers[2]) * inverse
+        + challenges[3] * (y_a - answers[3]) * shifted_inverse
+        + challenges[4] * (y_c - answers[4]) * inverse }
+}

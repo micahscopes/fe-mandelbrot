@@ -1,0 +1,7 @@
+[ingot]
+name = "toy_stark_bits"
+version = "0.1.0"
+[dependencies]
+core = "../../.cache/fe/ingots/core"
+std = "../../.cache/fe/ingots/std"
+precision = "../../lib/precision"

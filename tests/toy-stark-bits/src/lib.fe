@@ -1,0 +1,63 @@
+//! Test-only canonical interfaces. No commitments, transcript or proof format.
+use core::ops::Eq
+use precision::baby_bear::{BabyBear, BabyBearExt4}
+use ingot::air::constraint_combination
+use ingot::deep::deep_value
+const P: u32 = 2013265921
+fn canonical(_ words: [u32; 4]) -> bool {
+    for i in 0..4 { if words[i] >= P { return false } }
+    true
+}
+pub struct AlgebraResult { pub status: u32, pub value: [u32; 4] }
+// Test statuses: 0 arithmetic result, 1 noncanonical input, 2 pole.
+pub struct AirRequest {
+    pub point: [u32; 4], pub mask: [[u32; 4]; 4],
+    pub challenges: [[u32; 4]; 8], pub statement: u32,
+}
+pub fn air8(_ r: own AirRequest) -> AlgebraResult {
+    let invalid = AlgebraResult { status: 1, value: [0; 4] }
+    if !canonical(r.point) || r.statement >= P { return invalid }
+    let mut mask = [BabyBearExt4::zero(); 4]
+    let mut challenges = [BabyBearExt4::zero(); 8]
+    for i in 0..4 {
+        if !canonical(r.mask[i]) { return invalid }
+        mask[i] = BabyBearExt4::from_u32s(r.mask[i])
+    }
+    for i in 0..8 {
+        if !canonical(r.challenges[i]) { return invalid }
+        challenges[i] = BabyBearExt4::from_u32s(r.challenges[i])
+    }
+    let value = constraint_combination<8>(BabyBearExt4::from_u32s(r.point), mask, challenges,
+        BabyBear::from_u32(r.statement))
+    AlgebraResult { status: if value.valid { 0 } else { 2 }, value: value.value.to_u32s() }
+}
+pub struct DeepRequest {
+    pub point: [u32; 4], pub y_b: [u32; 4], pub y_a: [u32; 4], pub y_c: [u32; 4],
+    pub answers: [[u32; 4]; 5], pub challenges: [[u32; 4]; 5], pub q: [u32; 4], pub g: [u32; 4],
+}
+pub fn deep(_ r: own DeepRequest) -> AlgebraResult {
+    let invalid = AlgebraResult { status: 1, value: [0; 4] }
+    if !canonical(r.point) || !canonical(r.y_b) || !canonical(r.y_a) || !canonical(r.y_c)
+        || !canonical(r.q) || !canonical(r.g) { return invalid }
+    let mut answers = [BabyBearExt4::zero(); 5]
+    let mut challenges = [BabyBearExt4::zero(); 5]
+    for i in 0..5 {
+        if !canonical(r.answers[i]) || !canonical(r.challenges[i]) { return invalid }
+        answers[i] = BabyBearExt4::from_u32s(r.answers[i])
+        challenges[i] = BabyBearExt4::from_u32s(r.challenges[i])
+    }
+    let value = deep_value(BabyBearExt4::from_u32s(r.point), BabyBearExt4::from_u32s(r.y_b),
+        BabyBearExt4::from_u32s(r.y_a), BabyBearExt4::from_u32s(r.y_c), answers, challenges,
+        BabyBearExt4::from_u32s(r.q), BabyBearExt4::from_u32s(r.g))
+    AlgebraResult { status: if value.valid { 0 } else { 2 }, value: value.value.to_u32s() }
+}
+pub struct DomainRequest { pub unused: u32 }
+pub struct DomainResult { pub g: u32, pub omega: u32 }
+pub fn domains(_ r: own DomainRequest) -> DomainResult {
+    let _ = r.unused
+    DomainResult { g: BabyBear::two_adic_root(3).to_u32(), omega: BabyBear::two_adic_root(5).to_u32() }
+}
+pub fn wasm_anchor(_ x: i32, _ y: i32, _ res: f32) -> u32 {
+    let _ = (x, y, res)
+    0
+}
