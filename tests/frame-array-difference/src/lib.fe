@@ -130,15 +130,17 @@ fn array_reference_quad_matches_recursive_projection() {
 
 // Compare every sign and limb against the independent recursive interpretation.
 // The first rows exercise zero, full carries, and equal magnitudes.
-#[test]
-fn array_reference_multiplication_matches_recursive_kernel() {
+fn multiplication_suite<const L: usize>()
+    where Limbs<L>: Copy + Mac + Head + ShiftAppend + Zero
+        + precision::field::Carry + precision::fixed::TruncRows<Limbs<L>>,
+{
     let mut seed: u32 = 20261022
     let mut trial: u32 = 0
     while trial < 128 {
-        let mut left: [u32; 8] = [0; 8]
-        let mut right: [u32; 8] = [0; 8]
+        let mut left: [u32; L] = [0; L]
+        let mut right: [u32; L] = [0; L]
         let mut slot: usize = 0
-        while slot < 8 {
+        while slot < L {
             seed = next_seed(seed)
             left[slot] = if trial == 0 { 0 } else if trial == 1 { 8191 } else { seed & 8191 }
             seed = next_seed(seed)
@@ -150,21 +152,28 @@ fn array_reference_multiplication_matches_recursive_kernel() {
         while signs < 4 {
             let a_sign: u32 = signs & 1
             let b_sign: u32 = signs >> 1
-            let a = ArrayFixed<8>::from_digits(a_sign == 1, left)
-            let b = ArrayFixed<8>::from_digits(b_sign == 1, right)
+            let a = ArrayFixed<L>::from_digits(a_sign == 1, left)
+            let b = ArrayFixed<L>::from_digits(b_sign == 1, right)
             let product = a * b
-            let (expected_sign, expected_magnitude) = precision::fixed::mul<8>(
-                a_sign, fixed_magnitude_from_words<8>(left),
-                b_sign, fixed_magnitude_from_words<8>(right),
+            let (expected_sign, expected_magnitude) = precision::fixed::mul<L>(
+                a_sign, fixed_magnitude_from_words<L>(left),
+                b_sign, fixed_magnitude_from_words<L>(right),
             )
-            let expected = ArrayFixed<8>::from_digits(
-                expected_sign == 1, fixed_magnitude_to_words<8>(expected_magnitude),
+            let expected = ArrayFixed<L>::from_digits(
+                expected_sign == 1, fixed_magnitude_to_words<L>(expected_magnitude),
             )
             assert(product == expected)
             signs = signs + 1
         }
         trial = trial + 1
     }
+}
+
+#[test]
+fn array_reference_multiplication_matches_recursive_kernel() {
+    multiplication_suite<2>()
+    multiplication_suite<8>()
+    multiplication_suite<10>()
 }
 
 #[test]
