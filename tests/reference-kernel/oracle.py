@@ -21,9 +21,20 @@ def f32(r):
  assert -126<=e<=127
  bits=(sign<<31)|((e+127)<<23)|(q&0x7fffff);return bits,(-1 if sign else 1)*q*Fraction(2)**(e-23)
 def quad(a):
- r=(-1 if a[0] else 1)*Fraction(a[1],scale);out=[]
- for _ in range(4):bits,value=f32(r);out.append(bits);r-=value
+ # The wire contract uses four fixed, descending 24-bit windows. It does
+ # not successively round/subtract floats, and empty windows retain slots.
+ sign,mag=a
+ high=mag.bit_length()-1
+ out=[]
+ for slot in range(4):
+  low=high-24*slot-23
+  chunk=((mag >> low) if low>=0 else (mag << -low)) & ((1<<24)-1)
+  value=(-1 if sign else 1)*Fraction(chunk)*Fraction(2)**low/scale
+  bits,represented=f32(value)
+  assert represented==value
+  out.append(bits)
  return out
+
 cases=[]
 for i in range(160):
  if i<16:
