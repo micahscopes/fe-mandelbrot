@@ -24,10 +24,16 @@ limbs; the conservative bound is21203820543>p. At11 bits/L373 it is1563713535<p.
 These are DIFFERENT layouts; the smaller diagonal sum is not mandatory if we
 retain explicit per-operation carries or split partial sums.
 
-The independent integer model checks30 full schoolbook products, including
-all-maximal limbs and seeded inputs across32–4096 bits, and reconstructs each
+The independent integer model checks45 full schoolbook products across capacities selected for32–4096-bit
+profiles: unrestricted all-maximal capacity stress, exact-precision maximum, and
+seeded inputs with the top limb masked to the promised precision, and reconstructs each
 product against Python integers. Its profile table records L^2 multiply-adds;
 these are not actual AIR rows, constraint counts, GPU operations or timings.
+For a promised P-bit input the top limb must additionally satisfy
+`top < 2^(P-b*(L-1))`; capacity alone does not enforce precision. L^2 assumes
+both inputs fit that profile; wider exact/intermediate Engine paths need their
+own dimensions and range accounting.
+
 No boundary checks, comparisons, memory argument, outward rounding or signed
 arithmetic gadget is supplied by that model.
 

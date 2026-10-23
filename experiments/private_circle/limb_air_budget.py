@@ -21,6 +21,7 @@ def budget(precision, limb_bits):
     # an integer wrap on either side. This bound is deliberately conservative.
     diagonal_max = (base - 1) * (limbs * base + 1)
     return dict(precision=precision, limb_bits=limb_bits, limbs=limbs,
+                capacity_bits=limbs * limb_bits, top_limb_bits=precision-limb_bits*(limbs-1),
                 product_macs=limbs * limbs, per_mac_max=per_mac_max,
                 per_mac_no_wrap=per_mac_max < P,
                 diagonal_max=diagonal_max, diagonal_no_wrap=diagonal_max < P)
@@ -55,9 +56,15 @@ def run():
         for bits in [11, 13, 15]:
             n = (precision+bits-1)//bits
             bound = (1 << bits)-1
+            top_bits = precision-bits*(n-1)
+            top_bound = (1 << top_bits)-1
+            exact_max = [bound]*(n-1)+[top_bound]
+            random_inputs = [[rng.randrange(bound+1) for _ in range(n)] for _ in range(2)]
+            for words in random_inputs:
+                words[-1] &= top_bound
+                assert value(words, bits).bit_length() <= precision
             for a, b in [([bound]*n, [bound]*n),
-                         ([rng.randrange(bound+1) for _ in range(n)],
-                          [rng.randrange(bound+1) for _ in range(n)])]:
+                         (exact_max, exact_max), tuple(random_inputs)]:
                 product = schoolbook(a, b, bits)
                 assert value(product, bits) == value(a, bits)*value(b, bits)
                 count += 1
@@ -69,7 +76,7 @@ def run():
     assert not budget(4096, 16)['per_mac_no_wrap']
     return dict(pass_checks=True, integer_product_checks=count, modulus=P,
                 profiles=profiles,
-                limits='Requires explicit range constraints on every digit and carry; no AIR, ZK, soundness-bit or timing claim. Counts are schoolbook MACs, not actual prover rows or GPU work.')
+                limits='Full-capacity maximal stress may exceed nominal precision; exact-precision maximal/random cases also checked. Requires explicit top-limb, digit and carry ranges; no AIR, ZK, soundness-bit or timing claim. Counts are schoolbook MACs, not actual prover rows or GPU work.')
 
 
 if __name__ == '__main__':
