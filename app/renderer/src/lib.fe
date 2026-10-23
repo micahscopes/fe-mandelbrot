@@ -281,10 +281,10 @@ actor SmoothPerturbationalMandelbrot uses (
             )
             let published: bool = escaped || i >= pending_anchor.limit
             let next_control: ReferenceControl = if published {
-                ReferenceControl::publish(bank, i, z.re.sign, z.im.sign, s.clock)
+                ReferenceControl::publish(bank, i, z.re.sign(), z.im.sign(), s.clock)
             } else {
                 store_reference_checkpoint(self.reference_words, z)
-                control.advance_pending(i, z.re.sign, z.im.sign)
+                control.advance_pending(i, z.re.sign(), z.im.sign())
             }
             self.reference.store(index: 0, value: next_control)
             // Checkpoints belong to the orbit actually selected for preview.
@@ -1058,18 +1058,18 @@ fn assert_step_matches_oracle(
 ) -> ReferenceStep {
     let result: ReferenceStep = reference_step(z, center)
     let (nx_s, nx, ny_s, ny, did_escape) = mandelbrot_advance8(
-        z.re.sign,
-        z.re.magnitude,
-        z.im.sign,
-        z.im.magnitude,
-        center.re.sign,
-        center.re.magnitude,
-        center.im.sign,
-        center.im.magnitude,
+        z.re.sign(),
+        precision::fixed::fixed_magnitude_from_words<8>(z.re.to_words()),
+        z.im.sign(),
+        precision::fixed::fixed_magnitude_from_words<8>(z.im.to_words()),
+        center.re.sign(),
+        precision::fixed::fixed_magnitude_from_words<8>(center.re.to_words()),
+        center.im.sign(),
+        precision::fixed::fixed_magnitude_from_words<8>(center.im.to_words()),
     )
     assert(result.escaped == (did_escape == 1))
-    assert(result.value.re.sign == nx_s)
-    assert(result.value.im.sign == ny_s)
+    assert(result.value.re.sign() == nx_s)
+    assert(result.value.im.sign() == ny_s)
     let actual_re: [u32; 8] = result.value.re.to_words()
     let actual_im: [u32; 8] = result.value.im.to_words()
     let expected_re: [u32; 8] = fixed_magnitude_to_words<8>(nx)
@@ -1128,8 +1128,8 @@ fn reference_step_escape_cancellation_and_negative_zero() {
     }
     let escaped_step: ReferenceStep = assert_step_matches_oracle(escaped_z, center)
     assert(escaped_step.escaped)
-    assert(escaped_step.value.re.sign == 1)
-    assert(escaped_step.value.im.sign == 1)
+    assert(escaped_step.value.re.sign() == 1)
+    assert(escaped_step.value.im.sign() == 1)
 
     // 2. Boundary |z|^2 == 4 (antenna tip z = -2 + 0i): must NOT escape on input.
     let antenna: Complex<ReferenceReal> = Complex {
@@ -1180,8 +1180,8 @@ fn reference_step_resumed_64_step_batches_match_oracle() {
     let saved_re: [u32; 8] = z_batch.re.to_words()
     let saved_im: [u32; 8] = z_batch.im.to_words()
     let mut z_resumed: Complex<ReferenceReal> = Complex {
-        re: ReferenceReal::from_words(z_batch.re.sign, saved_re),
-        im: ReferenceReal::from_words(z_batch.im.sign, saved_im),
+        re: ReferenceReal::from_words(z_batch.re.sign(), saved_re),
+        im: ReferenceReal::from_words(z_batch.im.sign(), saved_im),
     }
     while step < 128 {
         let result: ReferenceStep = assert_step_matches_oracle(z_resumed, center)

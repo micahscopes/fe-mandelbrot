@@ -4,10 +4,10 @@
 //! first, with 13*(L-1) fractional bits. Addition wraps magnitude modulo 8192^L;
 //! opposite signs retain the larger magnitude's sign (the left sign on ties).
 //! Negative zero is retained internally; binary32 observation canonicalizes it.
-//! No reference recurrence, recursive Fixed API, or storage layout uses this type.
+//! The reference recurrence uses this interpretation; wire layouts stay explicit.
 
 use core::marker::Copy
-use core::ops::{Add, Eq, Neg, Sub}
+use core::ops::{Add, Eq, Mul, Neg, Sub}
 use super::{Expansion, to_quad}
 use super::fixed::{Binary32View, limb_highest_bit, project_binary32, project_binary32_quad}
 
@@ -99,8 +99,14 @@ impl<const L: usize> ArrayFixed<L> {
     /// Preserve the old four-word, left-associated accumulation and final +0.
     pub fn from_expansion(_ value: Expansion<4>) -> Self {
         let (a, b, c, d) = to_quad(value)
-        (((Self::from_f32(a) + Self::from_f32(b)) + Self::from_f32(c))
-            + Self::from_f32(d)) + Self::zero()
+        let terms: [f32; 4] = [a, b, c, d]
+        let mut result: Self = Self::from_f32(terms[0])
+        let mut index: usize = 1
+        while index < 4 {
+            result = result + Self::from_f32(terms[index])
+            index = index + 1
+        }
+        result + Self::zero()
     }
 
     pub fn sign(self) -> u32 { if self.negative { 1 } else { 0 } }
@@ -117,6 +123,20 @@ impl<const L: usize> ArrayFixed<L> {
 
     pub fn to_f32(self) -> f32 {
         __bitcast<u32, f32>(self.to_binary32_bits())
+    }
+
+    /// Strict magnitude > 4, including a nonzero fractional suffix at 4.
+    pub fn magnitude_exceeds_four(self) -> bool {
+        let width: u32 = Self::width()
+        let top: u32 = self.digits[(width - 1) as usize]
+        if top > 4 { return true }
+        if top < 4 { return false }
+        let mut index: u32 = 0
+        while index < width - 1 {
+            if self.digits[index as usize] != 0 { return true }
+            index = index + 1
+        }
+        false
     }
 
     fn magnitude_less(self, _ other: Self) -> bool {
@@ -181,6 +201,54 @@ impl<const L: usize> Add for ArrayFixed<L> {
             result.digits[index as usize] = sum & 8191
             carry = sum >> 13
             index = index + 1
+        }
+        result
+    }
+}
+
+/// Sliding radix multiplication: round the discarded fraction half upward,
+/// then retain L magnitude digits. Every MAC is bounded by 8192^2 - 1.
+/// The loops share one accumulator instead of expanding a family of limb calls.
+impl<const L: usize> Mul for ArrayFixed<L> {
+    type Output = Self
+
+    fn mul(own self, _ other: own Self) -> Self {
+        let width: u32 = Self::width()
+        let mut result: Self = Self::zero()
+        result.negative = self.negative != other.negative
+        let mut guard: u32 = 0
+        let mut row: u32 = 0
+        while row < width {
+            let mut carry: u32 = 0
+            let mut column: u32 = 0
+            while column < width {
+                let index: usize = column as usize
+                let sum: u32 = result.digits[index]
+                    + self.digits[index] * other.digits[row as usize] + carry
+                result.digits[index] = sum & 8191
+                carry = sum >> 13
+                column = column + 1
+            }
+            if row < width - 1 {
+                guard = result.digits[0]
+                let mut column: u32 = 0
+                while column < width - 1 {
+                    result.digits[column as usize] = result.digits[(column + 1) as usize]
+                    column = column + 1
+                }
+                result.digits[(width - 1) as usize] = carry
+            } else {
+                let mut carry: u32 = guard >> 12
+                let mut column: u32 = 0
+                while column < width {
+                    let index: usize = column as usize
+                    let sum: u32 = result.digits[index] + carry
+                    result.digits[index] = sum & 8191
+                    carry = sum >> 13
+                    column = column + 1
+                }
+            }
+            row = row + 1
         }
         result
     }

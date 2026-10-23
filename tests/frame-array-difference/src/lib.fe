@@ -127,3 +127,57 @@ fn array_reference_quad_matches_recursive_projection() {
         trial = trial + 1
     }
 }
+
+// Compare every sign and limb against the independent recursive interpretation.
+// The first rows exercise zero, full carries, and equal magnitudes.
+#[test]
+fn array_reference_multiplication_matches_recursive_kernel() {
+    let mut seed: u32 = 20261022
+    let mut trial: u32 = 0
+    while trial < 128 {
+        let mut left: [u32; 8] = [0; 8]
+        let mut right: [u32; 8] = [0; 8]
+        let mut slot: usize = 0
+        while slot < 8 {
+            seed = next_seed(seed)
+            left[slot] = if trial == 0 { 0 } else if trial == 1 { 8191 } else { seed & 8191 }
+            seed = next_seed(seed)
+            right[slot] = if trial == 0 { 8191 } else if trial == 1 { 8191 }
+                else if trial == 2 { left[slot] } else { seed & 8191 }
+            slot = slot + 1
+        }
+        let mut signs: u32 = 0
+        while signs < 4 {
+            let a_sign: u32 = signs & 1
+            let b_sign: u32 = signs >> 1
+            let a = ArrayFixed<8>::from_digits(a_sign == 1, left)
+            let b = ArrayFixed<8>::from_digits(b_sign == 1, right)
+            let product = a * b
+            let (expected_sign, expected_magnitude) = precision::fixed::mul<8>(
+                a_sign, fixed_magnitude_from_words<8>(left),
+                b_sign, fixed_magnitude_from_words<8>(right),
+            )
+            let expected = ArrayFixed<8>::from_digits(
+                expected_sign == 1, fixed_magnitude_to_words<8>(expected_magnitude),
+            )
+            assert(product == expected)
+            signs = signs + 1
+        }
+        trial = trial + 1
+    }
+}
+
+#[test]
+fn array_reference_multiplication_rounding_and_escape_boundary() {
+    let unit: [u32; 8] = [1, 0, 0, 0, 0, 0, 0, 0]
+    let half: [u32; 8] = [0, 0, 0, 0, 0, 0, 4096, 0]
+    let tiny = ArrayFixed<8>::from_digits(false, unit)
+    let half_value = ArrayFixed<8>::from_digits(false, half)
+    assert(tiny * half_value == tiny)
+    assert((-tiny) * half_value == -tiny)
+    assert((-ArrayFixed<8>::zero()) * tiny == -ArrayFixed<8>::zero())
+    let four = ArrayFixed<8>::from_digits(false, [0, 0, 0, 0, 0, 0, 0, 4])
+    assert(!four.magnitude_exceeds_four())
+    assert((four + tiny).magnitude_exceeds_four())
+    assert(!(four - tiny).magnitude_exceeds_four())
+}
