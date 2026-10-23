@@ -56,10 +56,21 @@ Before committing to a receipt format, specify and independently review:
   encodings, rejection sampling and deterministic duplicate-query handling.
 
 Commit to the source LDE before the relevant challenges. Commit to auxiliary
-columns after their interaction challenges. Commit to quotient chunks before z.
+columns after their interaction challenges. Sample AIR batching alpha only after
+all challenged trace phases are committed, and before quotient commitments.
+Commit to quotient chunks before z.
 Absorb the claimed out-of-domain values before sampling their batching challenge.
 FRI queries must verify both source openings and the matching DEEP relation.
 A low-degree composition alone must not substitute for low-degree source binding.
+
+The concrete multipoint opening and quotient/chunk reconstruction construction
+is still UNSELECTED. The multipoint quotient in DEEP-ALI and independently
+batched single-point quotients are not interchangeable merely because both use
+OOD points. Name one exact construction and map its theorem/hypotheses to the
+source/shift degree ledger before implementing the PCS format. Name whether
+the target is interactive soundness, Fiat-Shamir computational soundness,
+knowledge soundness and/or computational/statistical zero knowledge, with each
+model and assumption; honest transcripts do not supply those arguments.
 
 Use a tiny complete nonprivate argument first: statement plus proof only, no
 full trace/table/coefficient disclosure and no replay. Validate both honest and
@@ -77,8 +88,8 @@ chunks, all FRI layers and the final polynomial. No independent numeric security
 claim is adopted from the old demo.
 
 The pinned Plonky3 hiding PCS at208b647 is a reference with executable checks:
-its conservative mask-height requirement is N>=2*(queries+extension_degree*
-opening_points), at least extension_degree random codewords, hiding input AND
+its conservative requirement uses mask height M, distinct from the Mandelbrot
+iteration budget N: M>=2*(queries+extension_degree*opening_points), at least extension_degree random codewords, hiding input AND
 FRI commitment schemes, unpredictable cryptographic seeding, and single-use
 private opening data. These are requirements of that implementation and do not
 by themselves specify our STARK. Its source explicitly says they do not replace
@@ -89,7 +100,9 @@ seeds only belong in test harnesses. Mask private auxiliary columns as well as
 main columns. Randomize quotient decomposition and the FRI batch according to
 the selected construction. Unsalted leaf hashes are not a hiding commitment.
 Independent review covers the ENTIRE verifier view and the selected theorem,
-not just trace masking. Fixed public profiles and padded execution keep escape
+not just trace masking. Pad the tiny test trace to a separate public domain
+large enough for the chosen disclosure budget; the four-row algebra fixture is
+not automatically a feasible hiding profile. Fixed public profiles and padded execution keep escape
 index, data shape and mask reuse out of the exported witness interface.
 
 ## Gate4: exact Mandelbrot constraints
@@ -105,9 +118,11 @@ sums from a checked ledger. Test circle/box boundary equality and c=-2.
 Then implement and validate the public-reference perturbation identity. Public
 reference validation is explicit work; a reference hash is insufficient. A
 public scaling schedule and ball arithmetic require separate correctness and
-cost experiments. Extreme-depth fixtures must match the existing interval
-checker or return Unknown; exponent range alone is not evidence of useful deep
-precision. Keep direct and perturbation arithmetic semantically equivalent.
+cost experiments. Designated positive deep fixtures (including i+2^-1024 at a sufficient public
+precision/budget) must actually certify and agree with the existing interval
+checker. Boundary/insufficient-precision cases may return Unknown; returning
+Unknown for everything must fail acceptance. Exponent range alone is not
+evidence of useful deep precision. Keep direct and perturbation arithmetic semantically equivalent.
 
 Bounded-forever certificates form a separate relation profile, initially the
 existing sufficient certificates. General attracting-cycle certificates and
