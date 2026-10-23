@@ -129,7 +129,7 @@ groups.push('external-edit-reanchors-active-contact');
 
 
 
-assert.deepEqual(state.slice(-2),initial.slice(-2),'Contact transitions preserve backing request');
+assert.deepEqual(state.slice(49,51),initial.slice(49,51),'Contact transitions preserve backing request');
 const receipt={actualWasm:true,stateLeaves:initial.length,cameraPrefixLeaves:17,groups};
 if(process.argv[3])await fs.writeFile(process.argv[3],JSON.stringify(receipt,null,2)+'\n');
 console.log(JSON.stringify(receipt));

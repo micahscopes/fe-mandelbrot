@@ -211,3 +211,15 @@ inverse mapping, and similarity composition down to `1e-27` zoom.
 `Similarity2.inverse()` requires a nonzero finite multiplier and a finite,
 representable inverse map. As with the other floating-point algebra primitives,
 callers own that domain; it is not an arbitrary-input matrix validation API.
+
+
+GPU camera tracing is temporarily available with `?trace=1`. Fe reads back one
+56-byte observation per frame and appends the last completed observation to the
+view URL as `~g:` followed by fourteen hexadecimal words. Ordinary view URLs
+remain unchanged; diagnostic words are never restored as camera state. The
+packet records begin/end frame stamps, the GPU camera's first two words per
+axis, full/initial cache offsets, cache/reference status, and the reprojected
+center tap. This diagnostic adds two small GPU passes and a readback; it is
+intended to locate the outstanding physical-phone rendering failure. The URL
+contains the last observation available when input synchronizes location, so
+its GPU camera may precede the CPU camera by a frame.

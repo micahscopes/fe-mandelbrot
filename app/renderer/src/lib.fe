@@ -13,6 +13,8 @@ use std::webgpu::{
     ContinuousFrames,
     StandardSurfaceRecovery,
     StorageBuffer,
+    ReadbackWords,
+    ReadbackTransition,
     SurfaceQuality,
     SurfaceRecovery,
     SurfaceScheduling,
@@ -133,6 +135,7 @@ actor SmoothPerturbationalMandelbrot uses (
     SurfaceQuality<SharpBacking>,
     SurfaceRecovery<StandardSurfaceRecovery>,
 ) {
+    camera_trace: ReadbackWords<ingot::trace::TraceMessage, 14>,
     orbit: StorageBuffer<PackedReference, ORBIT_CAPACITY>,
     pixels: StorageBuffer<Color, 65536>,
     initial_pixels: StorageBuffer<Color, 65536>,
@@ -192,6 +195,13 @@ actor SmoothPerturbationalMandelbrot uses (
         {
             self.reference.store(index: 0, value: control.cancel_pending())
         }
+    }
+
+    fn begin_camera_trace(self)
+        uses (ComputeSurface<Workgroup<1, 1, 1>, FixedDispatch<1, 1, 1>>)
+    {
+        let s = self.state
+        if s.trace.enabled { ingot::trace::begin(self.camera_trace, s.clock, s.camera) }
     }
 
     fn build_reference(self)
@@ -318,6 +328,29 @@ actor SmoothPerturbationalMandelbrot uses (
             }
             bank = bank + 1
         }
+        if s.trace.enabled {
+            let mut completed = self.preview_cache.load(index: 0)
+            completed.trace_clock = s.clock
+            self.preview_cache.store(index: 0, value: completed)
+        }
+    }
+
+    fn finish_camera_trace(self)
+        uses (ComputeSurface<Workgroup<1, 1, 1>, FixedDispatch<1, 1, 1>>)
+    {
+        let s = self.state
+        if !s.trace.enabled { return }
+        let preview = self.preview_cache.load(index: 0)
+        let view = self.cache.load(index: 0)
+        let full = self.cache.load(index: 1)
+        let initial = self.cache.load(index: 2)
+        let reference = self.reference.load(index: 0)
+        let px = to_i32(s.camera.res * 0.5)
+        let tap = reproject_coarse_pixel(s, full, initial, preview.history, px, px)
+        ingot::trace::finish(self.camera_trace, ingot::trace::TraceFrame {
+            clock: preview.trace_clock, offsets: preview.history, view: view,
+            full: full, initial: initial, reference: reference, tap: tap,
+        })
     }
 
     fn advance_preview(self, invocation: ComputeInvocation)
@@ -852,6 +885,14 @@ actor SmoothPerturbationalMandelbrot uses (
         } else {
             display_rgba(coarse)
         }
+    }
+
+    fn observe_camera(self, message: own ingot::trace::TraceMessage) -> SurfaceStateEnvelope
+        uses (ReadbackTransition<ingot::trace::TraceMessage>)
+    {
+        let mut next = self.state
+        next.trace = next.trace.accept(message)
+        SurfaceStateEnvelope { state: next }
     }
 
     fn sync_url(self, event: own SurfaceLocationEvent) -> SurfaceStateEnvelope

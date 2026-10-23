@@ -29,7 +29,7 @@ deep[10]=0;deep[11]=1;
 const hash=encode(deep),restored=sync(hash);
 assert.deepEqual(words(restored.state.slice(0,10)),words(deep.slice(0,10)));
 assert.deepEqual(words([restored.state[14]]),words([-0]));assert.equal(restored.hash,hash);
-assert.deepEqual(restored.state.slice(-2),[1,1024],'A valid restored extent is explicit');
+assert.deepEqual(restored.state.slice(49,51),[1,1024],'A valid restored extent is explicit');
 assert.equal(sync('',false).hash,hash,'Writing must preserve the exact restored view');
 assert.deepEqual(words(restored.state.slice(10,12)),words([0,1]),'Restore preserves exact rotation');
 const legacy=hash.slice(0,102).replace('#v2:','#v1:');
@@ -47,7 +47,7 @@ for(const [label,bad] of [
  reset();const result=sync(bad);
  assert.deepEqual(words(result.state.slice(0,10)),words(initial.slice(0,10)),`${label} falls back atomically`);
  assert.deepEqual(words([result.state[14]]),words([initial[14]]),`${label} restores AA atomically`);
- assert.deepEqual(result.state.slice(-2),[0,512],`${label} restores automatic backing`);
+ assert.deepEqual(result.state.slice(49,51),[0,512],`${label} restores automatic backing`);
  groups.push(`reject-${label}`);
 }
 const receipt={actualWasm:true,stateLeaves:initial.length,fragmentBytes:hash.length,groups};

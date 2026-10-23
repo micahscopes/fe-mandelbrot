@@ -1,87 +1,93 @@
-struct FeLocal_fe_Last_eb970eb0_8_ {
+struct FeLocal_fe_Last_eb970eb0_6_ {
     value: f32,
 }
 
-struct FeLocal_fe_More_Last_1ac585f5_9_ {
+struct FeLocal_fe_More_Last_1ac585f5_7_ {
     lead: f32,
-    tail: FeLocal_fe_Last_eb970eb0_8_,
+    tail: FeLocal_fe_Last_eb970eb0_6_,
 }
 
-struct FeLocal_fe_More_More_Last_60a5ba63_10_ {
+struct FeLocal_fe_More_More_Last_60a5ba63_8_ {
     lead: f32,
-    tail: FeLocal_fe_More_Last_1ac585f5_9_,
+    tail: FeLocal_fe_More_Last_1ac585f5_7_,
 }
 
-struct FeLocal_fe_More_More_More_Last_e6310ae8_11_ {
+struct FeLocal_fe_More_More_More_Last_e6310ae8_9_ {
     lead: f32,
-    tail: FeLocal_fe_More_More_Last_60a5ba63_10_,
+    tail: FeLocal_fe_More_More_Last_60a5ba63_8_,
 }
 
-struct FeLocal_fe_Coordinate_bdc10f09_12_ {
-    value: FeLocal_fe_More_More_More_Last_e6310ae8_11_,
+struct FeLocal_fe_Coordinate_bdc10f09_10_ {
+    value: FeLocal_fe_More_More_More_Last_e6310ae8_9_,
 }
 
-struct FeLocal_fe_Complex_Coordinate_d4657101_13_ {
-    re: FeLocal_fe_Coordinate_bdc10f09_12_,
-    im: FeLocal_fe_Coordinate_bdc10f09_12_,
+struct FeLocal_fe_Complex_Coordinate_d4657101_11_ {
+    re: FeLocal_fe_Coordinate_bdc10f09_10_,
+    im: FeLocal_fe_Coordinate_bdc10f09_10_,
 }
 
-struct FeLocal_fe_Complex_f32_87ec9249_0_ {
+struct FeLocal_fe_Complex_f32_87ec9249_4_ {
     re: f32,
     im: f32,
 }
 
-struct FeLocal_fe_Camera_03494b0d_14_ {
-    center: FeLocal_fe_Complex_Coordinate_d4657101_13_,
+struct FeLocal_fe_Camera_03494b0d_12_ {
+    center: FeLocal_fe_Complex_Coordinate_d4657101_11_,
     zoom: f32,
     res: f32,
-    orientation: FeLocal_fe_Complex_f32_87ec9249_0_,
+    orientation: FeLocal_fe_Complex_f32_87ec9249_4_,
 }
 
-struct FeLocal_fe_Vec2_f32_2772165c_15_ {
+struct FeLocal_fe_Vec2_f32_2772165c_14_ {
     x: f32,
     y: f32,
 }
 
-struct FeLocal_fe_Contact_2b5c3d26_16_ {
+struct FeLocal_fe_Contact_2b5c3d26_15_ {
     active_: bool,
     id: u32,
-    position: FeLocal_fe_Vec2_f32_2772165c_15_,
+    position: FeLocal_fe_Vec2_f32_2772165c_14_,
 }
 
-struct FeLocal_fe_Contacts_2_ac13bf77_17_ {
-    entries: array<FeLocal_fe_Contact_2b5c3d26_16_, 2>,
+struct FeLocal_fe_Contacts_2_ac13bf77_16_ {
+    entries: array<FeLocal_fe_Contact_2b5c3d26_15_, 2>,
 }
 
-struct FeLocal_fe_Viewport_91e53b90_18_ {
-    origin: FeLocal_fe_Vec2_f32_2772165c_15_,
-    extent: FeLocal_fe_Vec2_f32_2772165c_15_,
+struct FeLocal_fe_Viewport_91e53b90_17_ {
+    origin: FeLocal_fe_Vec2_f32_2772165c_14_,
+    extent: FeLocal_fe_Vec2_f32_2772165c_14_,
 }
 
-struct FeLocal_fe_GestureSession_6b679731_19_ {
-    contacts: FeLocal_fe_Contacts_2_ac13bf77_17_,
-    viewport: FeLocal_fe_Viewport_91e53b90_18_,
-    baseline_contacts: FeLocal_fe_Contacts_2_ac13bf77_17_,
-    baseline_camera: FeLocal_fe_Camera_03494b0d_14_,
+struct FeLocal_fe_GestureSession_6b679731_18_ {
+    contacts: FeLocal_fe_Contacts_2_ac13bf77_16_,
+    viewport: FeLocal_fe_Viewport_91e53b90_17_,
+    baseline_contacts: FeLocal_fe_Contacts_2_ac13bf77_16_,
+    baseline_camera: FeLocal_fe_Camera_03494b0d_12_,
 }
 
-struct FeLocal_fe_BackingRequest_2bcae9f8_20_ {
+struct FeLocal_fe_BackingRequest_2bcae9f8_19_ {
     fixed: bool,
     side: f32,
 }
 
+struct FeLocal_fe_CameraTrace_7ca62f00_20_ {
+    enabled: bool,
+    words: array<u32, 14>,
+}
+
 struct FeLocal_fe_MandelbrotViewState_c524184f_21_ {
-    camera: FeLocal_fe_Camera_03494b0d_14_,
+    camera: FeLocal_fe_Camera_03494b0d_12_,
     clock: f32,
     last_input: f32,
     antialias: f32,
     drag_active: f32,
     magnification: f32,
-    gesture: FeLocal_fe_GestureSession_6b679731_19_,
-    backing: FeLocal_fe_BackingRequest_2bcae9f8_20_,
+    gesture: FeLocal_fe_GestureSession_6b679731_18_,
+    backing: FeLocal_fe_BackingRequest_2bcae9f8_19_,
+    trace: FeLocal_fe_CameraTrace_7ca62f00_20_,
 }
 
-struct FeLocal_fe_RefinementSchedule_b8aa1d23_22_ {
+struct FeLocal_fe_RefinementSchedule_b8aa1d23_3_ {
     limit: u32,
     rounds: u32,
     quantum: u32,
@@ -91,100 +97,36 @@ struct FeLocal_fe_RefinementSchedule_b8aa1d23_22_ {
     aa_stride: u32,
 }
 
-struct FeLocal_fe_Pixel_5817280a_5_ {
+struct FeLocal_fe_Pixel_5817280a_1_ {
     x: u32,
     y: u32,
 }
 
-struct FeLocal_fe_CohortPixel_5c31bbba_6_ {
-    pixel: FeLocal_fe_Pixel_5817280a_5_,
+struct FeLocal_fe_CohortPixel_5c31bbba_2_ {
+    pixel: FeLocal_fe_Pixel_5817280a_1_,
     active_: bool,
 }
 
-struct FeLocal_fe_NativeCheckpoint_6a22185c_1_ {
+struct FeLocal_fe_NativeCheckpoint_6a22185c_5_ {
     control: u32,
     epoch: u32,
-    payload: FeLocal_fe_Complex_f32_87ec9249_0_,
+    payload: FeLocal_fe_Complex_f32_87ec9249_4_,
 }
 
-struct FeLocal_fe_PixelSample_d22dfa2e_23_ {
-    x: f32,
-    y: f32,
-}
-
-struct FeLocal_fe_PlaneSample_375c1fa3_27_ {
-    u: f32,
-    v: f32,
-}
-
-struct FeLocal_fe_PackedReference_e11ca04a_2_ {
-    re_w0_bits: u32,
-    re_w1_bits: u32,
-    re_w2_bits: u32,
-    re_w3_bits: u32,
-    im_w0_bits: u32,
-    im_w1_bits: u32,
-    im_w2_bits: u32,
-    im_w3_bits: u32,
-}
-
-struct FeLocal_fe_ReferenceMetadata_782c1884_25_ {
-    valid_samples: u32,
-    limit: u32,
-}
-
-struct FeLocal_fe_OrbitProgress_96185e10_3_ {
-    dz_re: f32,
-    dz_im: f32,
-    z_re: f32,
-    z_im: f32,
-    reference_i: u32,
-    iteration: u32,
-    epoch: u32,
-    magnitude: f32,
-}
-
-struct FeLocal_fe_Complex_More_More_More_Last_7724c22a_24_ {
-    re: FeLocal_fe_More_More_More_Last_e6310ae8_11_,
-    im: FeLocal_fe_More_More_More_Last_e6310ae8_11_,
-}
-
-struct FeLocal_fe_f32_f32_f32_f32_83f8ffa4_28_ {
-    f0_: f32,
-    f1_: f32,
-    f2_: f32,
-    f3_: f32,
-}
-
-struct FeLocal_fe_f32_f32_b3478b14_29_ {
-    f0_: f32,
-    f1_: f32,
-}
-
-struct FeLocal_fe_Color_6b73191a_26_ {
+struct FeLocal_fe_Color_6b73191a_22_ {
     l: f32,
     a: f32,
     b: f32,
 }
 
-struct FeLocal_fe_Oklch_77e78738_4_ {
+struct FeLocal_fe_Oklch_77e78738_0_ {
     l: f32,
     chroma: f32,
     hue: f32,
 }
 
-struct FeLocal_fe_ReferenceControl_7d077120_7_ {
-    active_: u32,
-    active_valid: u32,
-    pending: u32,
-    index: u32,
-    zx_s: u32,
-    zy_s: u32,
-    ready_at: f32,
-}
-
-struct FeLocal_fe_ViewCache_da6e2ccc_30_ {
-    camera: FeLocal_fe_Camera_03494b0d_14_,
+struct FeLocal_fe_ViewCache_da6e2ccc_23_ {
+    camera: FeLocal_fe_Camera_03494b0d_12_,
     cursor: u32,
     aa: f32,
     budget: u32,
@@ -195,21 +137,22 @@ struct FeLocal_fe_ViewCache_da6e2ccc_30_ {
     completed: u32,
 }
 
-struct FeLocal_fe_InvocationId_3c625d5f_31_ {
+struct FeLocal_fe_InvocationId_3c625d5f_24_ {
     x: u32,
     y: u32,
     z: u32,
 }
 
-struct orbit_element {
-    re_w0_bits: u32,
-    re_w1_bits: u32,
-    re_w2_bits: u32,
-    re_w3_bits: u32,
-    im_w0_bits: u32,
-    im_w1_bits: u32,
-    im_w2_bits: u32,
-    im_w3_bits: u32,
+struct FeLocal_fe_SampleOracle_cc1ce944_13_ {
+    iteration: u32,
+    magnitude: f32,
+    flags: u32,
+}
+
+struct snapshot_oracle_element {
+    iteration: u32,
+    magnitude: f32,
+    flags: u32,
 }
 
 struct cache_element {
@@ -235,16 +178,6 @@ struct cache_element {
     completed: u32,
 }
 
-struct reference_element {
-    active_: u32,
-    active_valid: u32,
-    pending: u32,
-    index: u32,
-    zx_s: u32,
-    zy_s: u32,
-    ready_at: f32,
-}
-
 struct progress_pixels_element {
     control: u32,
     epoch: u32,
@@ -253,7 +186,6 @@ struct progress_pixels_element {
 }
 
 struct Params {
-    p29_: f32,
     p30_: f32,
     p31_: f32,
     p32_: f32,
@@ -270,25 +202,25 @@ struct Params {
     p43_: f32,
     p44_: f32,
     p45_: f32,
-    p46_: u32,
+    p46_: f32,
     p47_: u32,
-    p48_: f32,
+    p48_: u32,
     p49_: f32,
-    p50_: u32,
+    p50_: f32,
     p51_: u32,
-    p52_: f32,
+    p52_: u32,
     p53_: f32,
     p54_: f32,
     p55_: f32,
     p56_: f32,
     p57_: f32,
-    p58_: u32,
+    p58_: f32,
     p59_: u32,
-    p60_: f32,
+    p60_: u32,
     p61_: f32,
-    p62_: u32,
+    p62_: f32,
     p63_: u32,
-    p64_: f32,
+    p64_: u32,
     p65_: f32,
     p66_: f32,
     p67_: f32,
@@ -302,85 +234,84 @@ struct Params {
     p75_: f32,
     p76_: f32,
     p77_: f32,
-    p78_: u32,
-    p79_: f32,
+    p78_: f32,
+    p79_: u32,
+    p80_: f32,
+    p81_: u32,
+    p82_: u32,
+    p83_: u32,
+    p84_: u32,
+    p85_: u32,
+    p86_: u32,
+    p87_: u32,
+    p88_: u32,
+    p89_: u32,
+    p90_: u32,
+    p91_: u32,
+    p92_: u32,
+    p93_: u32,
+    p94_: u32,
+    p95_: u32,
 }
 
 @group(0) @binding(0)
-var<storage, read_write> orbit: array<orbit_element>;
+var<storage, read_write> snapshot_oracle: array<snapshot_oracle_element>;
 @group(0) @binding(1)
 var<storage, read_write> cache: array<cache_element>;
 @group(0) @binding(2)
-var<storage, read_write> reference: array<reference_element>;
-@group(0) @binding(3)
 var<storage, read_write> native_pixels: array<u32>;
-@group(0) @binding(4)
+@group(0) @binding(3)
 var<storage, read_write> antialiased_pixels: array<u32>;
-@group(0) @binding(5)
+@group(0) @binding(4)
 var<storage, read_write> progress_pixels: array<progress_pixels_element>;
+@group(0) @binding(5)
+var<storage, read_write> snapshot_pixels: array<u32>;
 @group(0) @binding(6)
 var<storage> params: Params;
 @group(0) @binding(7)
 var<storage, read_write> trap: array<u32, 32768>;
 
 fn is_input_settled(a0_: ptr<function, FeLocal_fe_MandelbrotViewState_c524184f_21_>) -> bool {
-    var local_11: bool;
-    var local_12: bool = false;
-    var local_13: bool = bool();
+    var local_5: bool;
+    var local_6: bool = false;
+    var local_7: bool = bool();
 
     let _e4 = (*a0_).drag_active;
     if (_e4 < 0.5f) {
         let _e8 = (*a0_).clock;
         let _e10 = (*a0_).last_input;
         if (60f <= (_e8 - _e10)) {
-            local_13 = true;
+            local_7 = true;
         }
     }
-    let _e17 = local_13;
+    let _e17 = local_7;
     return _e17;
 }
 
-fn can_refine(a0_1: FeLocal_fe_ReferenceControl_7d077120_7_, a1_: ptr<function, FeLocal_fe_MandelbrotViewState_c524184f_21_>) -> bool {
-    var local_14: bool;
-    var local_15: bool = false;
-    var local_16: bool = bool();
-
-    if (a0_1.pending == 0u) {
-        if (a0_1.active_valid == 1u) {
-            let _e10 = is_input_settled(a1_);
-            if _e10 {
-                local_16 = true;
-            }
-        }
-    }
-    let _e14 = local_16;
-    return _e14;
+fn to_i32_(a0_1: f32) -> u32 {
+    return select(0u, select(select(bitcast<u32>(i32(a0_1)), 2147483648u, (a0_1 <= -2147483600f)), 2147483647u, (a0_1 >= 2147483600f)), (a0_1 == a0_1));
 }
 
-fn to_i32_(a0_2: f32) -> u32 {
-    return select(0u, select(select(bitcast<u32>(i32(a0_2)), 2147483648u, (a0_2 <= -2147483600f)), 2147483647u, (a0_2 >= 2147483600f)), (a0_2 == a0_2));
-}
-
-fn iteration_limit(a0_3: f32, fe_trapped_1: ptr<function, bool>) -> u32 {
-    var local_17: u32 = u32();
-    var local_18: f32 = f32();
-    var local_19: u32 = u32();
+fn iteration_limit(a0_2: f32, fe_trapped_1: ptr<function, bool>) -> u32 {
+    var local_8: u32 = u32();
+    var local_9: f32 = f32();
+    var local_10: u32 = u32();
     var loop_result: u32;
     var loop_did_return: bool = false;
     var loop_header_carry_5_: bool;
-    var local_20: u32 = u32();
-    var local_21: f32 = f32();
-    var local_22: u32;
-    var local_23: bool = false;
-    var local_24: u32 = u32();
+    var local_11: u32 = u32();
+    var local_12: f32 = f32();
+    var local_13: u32;
+    var local_14: bool = false;
+    var local_15: u32 = u32();
 
-    local_17 = 0u;
-    local_18 = a0_3;
-    local_19 = 0u;
+    local_8 = 0u;
+    local_9 = a0_2;
+    local_10 = 0u;
     loop {
-        let _e12 = local_17;
-        let _e14 = local_18;
-        let _e16 = local_19;
+        let _e12 = local_8;
+        let _e14 = local_9;
+        let _e16 = local_10;
         let _e18 = (_e16 < 96u);
         loop_header_carry_5_ = _e18;
         if _e18 {
@@ -389,24 +320,24 @@ fn iteration_limit(a0_3: f32, fe_trapped_1: ptr<function, bool>) -> u32 {
                     (*fe_trapped_1) = true;
                     break;
                 } else {
-                    local_20 = (_e12 + 1u);
-                    local_21 = (_e14 * 2f);
+                    local_11 = (_e12 + 1u);
+                    local_12 = (_e14 * 2f);
                 }
             } else {
-                local_20 = _e12;
-                local_21 = _e14;
+                local_11 = _e12;
+                local_12 = _e14;
             }
-            let _e36 = local_20;
-            let _e38 = local_21;
-            local_17 = _e36;
-            local_18 = _e38;
-            local_19 = (_e16 + 1u);
+            let _e36 = local_11;
+            let _e38 = local_12;
+            local_8 = _e36;
+            local_9 = _e38;
+            local_10 = (_e16 + 1u);
             continue;
         } else {
             break;
         }
     }
-    let _e46 = local_17;
+    let _e46 = local_8;
     let _e52 = (_e46 * 64u);
     let _e53 = (_e46 != 0u);
     if (_e53 && (64u > (4294967295u / select(1u, _e46, _e53)))) {
@@ -416,66 +347,66 @@ fn iteration_limit(a0_3: f32, fe_trapped_1: ptr<function, bool>) -> u32 {
             (*fe_trapped_1) = true;
         }
         if (8192u < _e60) {
-            local_24 = 8192u;
+            local_15 = 8192u;
         } else {
-            local_24 = _e60;
+            local_15 = _e60;
         }
-        let _e71 = local_24;
-        local_22 = _e71;
-        local_23 = true;
+        let _e71 = local_15;
+        local_13 = _e71;
+        local_14 = true;
     }
-    let _e77 = local_23;
+    let _e77 = local_14;
     if _e77 {
     } else {
         (*fe_trapped_1) = true;
     }
-    let _e79 = local_22;
+    let _e79 = local_13;
     return _e79;
 }
 
-fn assert(a0_4: bool, fe_trapped_2: ptr<function, bool>) {
-    var local_25: u32;
-    var local_26: bool = false;
+fn assert(a0_3: bool, fe_trapped_2: ptr<function, bool>) {
+    var local_16: u32;
+    var local_17: bool = false;
 
-    if a0_4 {
-        local_26 = true;
+    if a0_3 {
+        local_17 = true;
     } else {
         (*fe_trapped_2) = true;
     }
     return;
 }
 
-fn for_grid(a0_5: u32, a1_1: u32, a2_: u32, fe_trapped_3: ptr<function, bool>) -> FeLocal_fe_RefinementSchedule_b8aa1d23_22_ {
-    var local_27: FeLocal_fe_RefinementSchedule_b8aa1d23_22_;
-    var local_28: bool = false;
-    var local_29: bool = bool();
-    var local_30: FeLocal_fe_RefinementSchedule_b8aa1d23_22_;
-    var local_31: bool = false;
-    var local_32: u32 = u32();
-    var loop_result_1: FeLocal_fe_RefinementSchedule_b8aa1d23_22_;
+fn for_grid(a0_4: u32, a1_: u32, a2_: u32, fe_trapped_3: ptr<function, bool>) -> FeLocal_fe_RefinementSchedule_b8aa1d23_3_ {
+    var local_18: FeLocal_fe_RefinementSchedule_b8aa1d23_3_;
+    var local_19: bool = false;
+    var local_20: bool = bool();
+    var local_21: FeLocal_fe_RefinementSchedule_b8aa1d23_3_;
+    var local_22: bool = false;
+    var local_23: u32 = u32();
+    var loop_result_1: FeLocal_fe_RefinementSchedule_b8aa1d23_3_;
     var loop_did_return_1: bool = false;
     var loop_header_carry_28_: u32;
     var loop_header_carry_29_: bool;
 
-    if (0u < a0_5) {
-        if ((8192u < a0_5) == false) {
-            if (0u < a1_1) {
+    if (0u < a0_4) {
+        if ((8192u < a0_4) == false) {
+            if (0u < a1_) {
                 if (0u < a2_) {
-                    local_29 = true;
+                    local_20 = true;
                 }
             }
         }
     }
-    let _e20 = local_29;
+    let _e20 = local_20;
     assert(_e20, fe_trapped_3);
-    let _e23 = (a0_5 + 128u);
-    if (a0_5 > (4294967295u - 128u)) {
+    let _e23 = (a0_4 + 128u);
+    if (a0_4 > (4294967295u - 128u)) {
     } else {
         if (_e23 < 1u) {
         } else {
-            local_32 = 2u;
+            local_23 = 2u;
             loop {
-                let _e36 = local_32;
+                let _e36 = local_23;
                 let _e40 = (_e36 * _e36);
                 let _e41 = (_e36 != 0u);
                 let _e45 = (_e41 && (_e36 > (4294967295u / select(1u, _e36, _e41))));
@@ -488,24 +419,24 @@ fn for_grid(a0_5: u32, a1_1: u32, a2_: u32, fe_trapped_3: ptr<function, bool>) -
                     if (_e51 && (128u > (4294967295u / select(1u, _e40, _e51)))) {
                         break;
                     } else {
-                        if ((_e40 * 128u) < a0_5) {
+                        if ((_e40 * 128u) < a0_4) {
                             let _e62 = (_e36 != 0u);
                             if (_e62 && (2u > (4294967295u / select(1u, _e36, _e62)))) {
                                 break;
                             } else {
-                                local_32 = (_e36 * 2u);
+                                local_23 = (_e36 * 2u);
                                 continue;
                             }
                         } else {
-                            let _e72 = (a1_1 != 0u);
-                            if (_e72 && (a2_ > (4294967295u / select(1u, a1_1, _e72)))) {
+                            let _e72 = (a1_ != 0u);
+                            if (_e72 && (a2_ > (4294967295u / select(1u, a1_, _e72)))) {
                                 break;
                             } else {
                                 let _e81 = (a2_ != 0u);
                                 if (_e81 && (_e36 > (4294967295u / select(1u, a2_, _e81)))) {
                                     break;
                                 } else {
-                                    loop_result_1 = FeLocal_fe_RefinementSchedule_b8aa1d23_22_(a0_5, ((_e23 - 1u) >> 7u), 128u, a1_1, a2_, (a1_1 * a2_), (a2_ * _e36));
+                                    loop_result_1 = FeLocal_fe_RefinementSchedule_b8aa1d23_3_(a0_4, ((_e23 - 1u) >> 7u), 128u, a1_, a2_, (a1_ * a2_), (a2_ * _e36));
                                     loop_did_return_1 = true;
                                     break;
                                 }
@@ -517,72 +448,189 @@ fn for_grid(a0_5: u32, a1_1: u32, a2_: u32, fe_trapped_3: ptr<function, bool>) -
             let _e94 = loop_did_return_1;
             if _e94 {
                 let _e96 = loop_result_1;
-                local_30 = _e96;
-                local_31 = true;
+                local_21 = _e96;
+                local_22 = true;
             }
         }
-        let _e101 = local_31;
+        let _e101 = local_22;
         if _e101 {
         }
     }
-    let _e104 = local_31;
+    let _e104 = local_22;
     if _e104 {
     } else {
         (*fe_trapped_3) = true;
     }
-    let _e106 = local_30;
+    let _e106 = local_21;
     return _e106;
 }
 
-fn for_view(a0_6: f32, a1_2: f32, fe_trapped_4: ptr<function, bool>) -> FeLocal_fe_RefinementSchedule_b8aa1d23_22_ {
-    let _e7 = to_i32_(((a1_2 + 127f) / 128f));
-    let _e12 = to_i32_(((a1_2 + 255f) / 256f));
-    let _e13 = iteration_limit(a0_6, fe_trapped_4);
+fn for_view(a0_5: f32, a1_1: f32, fe_trapped_4: ptr<function, bool>) -> FeLocal_fe_RefinementSchedule_b8aa1d23_3_ {
+    let _e7 = to_i32_(((a1_1 + 127f) / 128f));
+    let _e12 = to_i32_(((a1_1 + 255f) / 256f));
+    let _e13 = iteration_limit(a0_5, fe_trapped_4);
     let _e14 = for_grid(_e13, _e7, _e12, fe_trapped_4);
     return _e14;
 }
 
-fn refine_steps(a0_7: FeLocal_fe_RefinementSchedule_b8aa1d23_22_, fe_trapped_5: ptr<function, bool>) -> u32 {
-    var local_33: u32;
-    var local_34: bool = false;
+fn impl_trait_Last_eq(a0_6: f32, a1_2: f32) -> bool {
+    return (a0_6 == a1_2);
+}
 
-    let _e9 = (a0_7.rounds != 0u);
-    if (_e9 && (a0_7.phases > (4294967295u / select(1u, a0_7.rounds, _e9)))) {
-        (*fe_trapped_5) = true;
-    } else {
-        local_33 = (a0_7.rounds * a0_7.phases);
-        local_34 = true;
+fn eq_ge630_(a0_7: FeLocal_fe_More_Last_1ac585f5_7_, a1_3: FeLocal_fe_More_Last_1ac585f5_7_) -> bool {
+    var local_24: bool;
+    var local_25: bool = false;
+    var local_26: bool = bool();
+
+    if (a0_7.lead == a1_3.lead) {
+        let _e11 = impl_trait_Last_eq(a0_7.tail.value, a1_3.tail.value);
+        if _e11 {
+            local_26 = true;
+        }
     }
-    let _e19 = local_33;
+    let _e15 = local_26;
+    return _e15;
+}
+
+fn eq_g4419_(a0_8: FeLocal_fe_More_More_Last_60a5ba63_8_, a1_4: FeLocal_fe_More_More_Last_60a5ba63_8_) -> bool {
+    var local_27: bool;
+    var local_28: bool = false;
+    var local_29: bool = bool();
+
+    if (a0_8.lead == a1_4.lead) {
+        let _e9 = eq_ge630_(a0_8.tail, a1_4.tail);
+        if _e9 {
+            local_29 = true;
+        }
+    }
+    let _e13 = local_29;
+    return _e13;
+}
+
+fn eq_ga905_(a0_9: FeLocal_fe_More_More_More_Last_e6310ae8_9_, a1_5: FeLocal_fe_More_More_More_Last_e6310ae8_9_) -> bool {
+    var local_30: bool;
+    var local_31: bool = false;
+    var local_32: bool = bool();
+
+    if (a0_9.lead == a1_5.lead) {
+        let _e9 = eq_g4419_(a0_9.tail, a1_5.tail);
+        if _e9 {
+            local_32 = true;
+        }
+    }
+    let _e13 = local_32;
+    return _e13;
+}
+
+fn impl_trait_Coordinate_eq(a0_10: FeLocal_fe_Coordinate_bdc10f09_10_, a1_6: FeLocal_fe_Coordinate_bdc10f09_10_) -> bool {
+    var local_33: bool;
+    var local_34: bool = false;
+    var local_35: bool = bool();
+
+    let _e6 = eq_ga905_(a0_10.value, a1_6.value);
+    if _e6 {
+        local_35 = true;
+    }
+    let _e10 = local_35;
+    return _e10;
+}
+
+fn eq_ge0da(a0_11: FeLocal_fe_Complex_Coordinate_d4657101_11_, a1_7: FeLocal_fe_Complex_Coordinate_d4657101_11_) -> bool {
+    var local_36: bool;
+    var local_37: bool = false;
+    var local_38: bool = bool();
+
+    let _e6 = impl_trait_Coordinate_eq(a0_11.re, a1_7.re);
+    if _e6 {
+        let _e9 = impl_trait_Coordinate_eq(a0_11.im, a1_7.im);
+        if _e9 {
+            local_38 = true;
+        }
+    }
+    let _e13 = local_38;
+    return _e13;
+}
+
+fn eq_ge58b(a0_12: FeLocal_fe_Complex_f32_87ec9249_4_, a1_8: FeLocal_fe_Complex_f32_87ec9249_4_) -> bool {
+    var local_39: bool;
+    var local_40: bool = false;
+    var local_41: bool = bool();
+
+    if (a0_12.re == a1_8.re) {
+        if (a0_12.im == a1_8.im) {
+            local_41 = true;
+        }
+    }
+    let _e13 = local_41;
+    return _e13;
+}
+
+fn impl_trait_Camera_eq(a0_13: FeLocal_fe_Camera_03494b0d_12_, a1_9: FeLocal_fe_Camera_03494b0d_12_) -> bool {
+    var local_42: bool;
+    var local_43: bool = false;
+    var local_44: bool = bool();
+
+    let _e6 = eq_ge0da(a0_13.center, a1_9.center);
+    if _e6 {
+        if (a0_13.zoom == a1_9.zoom) {
+            if (a0_13.res == a1_9.res) {
+                let _e15 = eq_ge58b(a0_13.orientation, a1_9.orientation);
+                if _e15 {
+                    local_44 = true;
+                }
+            }
+        }
+    }
+    let _e19 = local_44;
     return _e19;
 }
 
-fn impl_trait_Pixel_default() -> FeLocal_fe_Pixel_5817280a_5_ {
-    return FeLocal_fe_Pixel_5817280a_5_();
+fn same_camera(a0_14: FeLocal_fe_ViewCache_da6e2ccc_23_, a1_10: FeLocal_fe_ViewCache_da6e2ccc_23_) -> bool {
+    let _e4 = impl_trait_Camera_eq(a0_14.camera, a1_10.camera);
+    return _e4;
 }
 
-fn impl_trait_CohortPixel_default() -> FeLocal_fe_CohortPixel_5c31bbba_6_ {
+fn refine_steps(a0_15: FeLocal_fe_RefinementSchedule_b8aa1d23_3_, fe_trapped_5: ptr<function, bool>) -> u32 {
+    var local_45: u32;
+    var local_46: bool = false;
+
+    let _e9 = (a0_15.rounds != 0u);
+    if (_e9 && (a0_15.phases > (4294967295u / select(1u, a0_15.rounds, _e9)))) {
+        (*fe_trapped_5) = true;
+    } else {
+        local_45 = (a0_15.rounds * a0_15.phases);
+        local_46 = true;
+    }
+    let _e19 = local_45;
+    return _e19;
+}
+
+fn impl_trait_Pixel_default() -> FeLocal_fe_Pixel_5817280a_1_ {
+    return FeLocal_fe_Pixel_5817280a_1_();
+}
+
+fn impl_trait_CohortPixel_default() -> FeLocal_fe_CohortPixel_5c31bbba_2_ {
     let _e0 = impl_trait_Pixel_default();
-    return FeLocal_fe_CohortPixel_5c31bbba_6_(_e0, false);
+    return FeLocal_fe_CohortPixel_5c31bbba_2_(_e0, false);
 }
 
-fn cohort(a0_8: FeLocal_fe_RefinementSchedule_b8aa1d23_22_, a1_3: u32, fe_trapped_6: ptr<function, bool>) -> u32 {
-    var local_35: u32;
-    var local_36: bool = false;
+fn cohort(a0_16: FeLocal_fe_RefinementSchedule_b8aa1d23_3_, a1_11: u32, fe_trapped_6: ptr<function, bool>) -> u32 {
+    var local_47: u32;
+    var local_48: bool = false;
 
-    if (a0_8.phases == 0u) {
+    if (a0_16.phases == 0u) {
         (*fe_trapped_6) = true;
     }
-    return (a1_3 % a0_8.phases);
+    return (a1_11 % a0_16.phases);
 }
 
-fn from_i32_(a0_9: u32) -> f32 {
-    return f32(bitcast<i32>(a0_9));
+fn from_i32_(a0_17: u32) -> f32 {
+    return f32(bitcast<i32>(a0_17));
 }
 
-fn phase_offset(a0_10: u32, a1_4: u32, a2_1: u32) -> u32 {
-    let _e3 = from_i32_(a0_10);
-    let _e6 = from_i32_(a1_4);
+fn phase_offset(a0_18: u32, a1_12: u32, a2_1: u32) -> u32 {
+    let _e3 = from_i32_(a0_18);
+    let _e6 = from_i32_(a1_12);
     let _e9 = ((_e3 * 0.06711056f) + (_e6 * 0.00583715f));
     let _e10 = to_i32_(_e9);
     let _e11 = from_i32_(_e10);
@@ -594,1075 +642,526 @@ fn phase_offset(a0_10: u32, a1_4: u32, a2_1: u32) -> u32 {
     return _e20;
 }
 
-fn phase_order_rect(a0_11: u32, a1_5: u32, a2_2: u32, a3_: u32, a4_: u32, fe_trapped_7: ptr<function, bool>) -> u32 {
-    var local_37: u32;
-    var local_38: bool = false;
-    var local_39: u32 = u32();
+fn phase_order_rect(a0_19: u32, a1_13: u32, a2_2: u32, a3_: u32, a4_: u32, fe_trapped_7: ptr<function, bool>) -> u32 {
+    var local_49: u32;
+    var local_50: bool = false;
+    var local_51: u32 = u32();
 
     let _e10 = (a3_ * a4_);
     let _e11 = (a3_ != 0u);
     if (_e11 && (a4_ > (4294967295u / select(1u, a3_, _e11)))) {
     } else {
-        let _e17 = phase_offset(a1_5, a2_2, _e10);
+        let _e17 = phase_offset(a1_13, a2_2, _e10);
         if ((_e17 & 1u) == 0u) {
-            local_39 = 1u;
+            local_51 = 1u;
         } else {
             if (_e10 < 1u) {
                 (*fe_trapped_7) = true;
             } else {
-                local_39 = (_e10 - 1u);
+                local_51 = (_e10 - 1u);
             }
         }
-        let _e30 = local_39;
-        let _e34 = (a0_11 * _e30);
-        let _e35 = (a0_11 != 0u);
-        if (_e35 && (_e30 > (4294967295u / select(1u, a0_11, _e35)))) {
+        let _e30 = local_51;
+        let _e34 = (a0_19 * _e30);
+        let _e35 = (a0_19 != 0u);
+        if (_e35 && (_e30 > (4294967295u / select(1u, a0_19, _e35)))) {
         } else {
             if (_e34 > (4294967295u - _e17)) {
             } else {
                 if (_e10 == 0u) {
                 } else {
-                    local_37 = ((_e34 + _e17) % _e10);
-                    local_38 = true;
+                    local_49 = ((_e34 + _e17) % _e10);
+                    local_50 = true;
                 }
-                let _e51 = local_38;
+                let _e51 = local_50;
                 if _e51 {
                 }
             }
-            let _e53 = local_38;
+            let _e53 = local_50;
             if _e53 {
             }
         }
-        let _e55 = local_38;
+        let _e55 = local_50;
         if _e55 {
         }
     }
-    let _e58 = local_38;
+    let _e58 = local_50;
     if _e58 {
     } else {
         (*fe_trapped_7) = true;
     }
-    let _e60 = local_37;
+    let _e60 = local_49;
     return _e60;
 }
 
-fn in_extent(a0_12: FeLocal_fe_Pixel_5817280a_5_, a1_6: f32) -> bool {
-    var local_40: bool;
-    var local_41: bool = false;
-    var local_42: bool = bool();
+fn in_extent(a0_20: FeLocal_fe_Pixel_5817280a_1_, a1_14: f32) -> bool {
+    var local_52: bool;
+    var local_53: bool = false;
+    var local_54: bool = bool();
 
-    let _e5 = from_i32_(a0_12.x);
-    if (_e5 < a1_6) {
-        let _e8 = from_i32_(a0_12.y);
-        if (_e8 < a1_6) {
-            local_42 = true;
+    let _e5 = from_i32_(a0_20.x);
+    if (_e5 < a1_14) {
+        let _e8 = from_i32_(a0_20.y);
+        if (_e8 < a1_14) {
+            local_54 = true;
         }
     }
-    let _e13 = local_42;
+    let _e13 = local_54;
     return _e13;
 }
 
-fn at(a0_13: u32, a1_7: u32, a2_3: f32) -> FeLocal_fe_CohortPixel_5c31bbba_6_ {
-    let _e3 = FeLocal_fe_Pixel_5817280a_5_(a0_13, a1_7);
+fn at(a0_21: u32, a1_15: u32, a2_3: f32) -> FeLocal_fe_CohortPixel_5c31bbba_2_ {
+    let _e3 = FeLocal_fe_Pixel_5817280a_1_(a0_21, a1_15);
     let _e4 = in_extent(_e3, a2_3);
-    return FeLocal_fe_CohortPixel_5c31bbba_6_(_e3, _e4);
+    return FeLocal_fe_CohortPixel_5c31bbba_2_(_e3, _e4);
 }
 
-fn rect_pixel(a0_14: FeLocal_fe_RefinementSchedule_b8aa1d23_22_, a1_8: u32, a2_4: u32, a3_1: u32, a4_1: f32, fe_trapped_8: ptr<function, bool>) -> FeLocal_fe_CohortPixel_5c31bbba_6_ {
-    var local_43: FeLocal_fe_CohortPixel_5c31bbba_6_;
-    var local_44: bool = false;
-    var local_45: FeLocal_fe_CohortPixel_5c31bbba_6_;
-    var local_46: bool = false;
+fn rect_pixel(a0_22: FeLocal_fe_RefinementSchedule_b8aa1d23_3_, a1_16: u32, a2_4: u32, a3_1: u32, a4_1: f32, fe_trapped_8: ptr<function, bool>) -> FeLocal_fe_CohortPixel_5c31bbba_2_ {
+    var local_55: FeLocal_fe_CohortPixel_5c31bbba_2_;
+    var local_56: bool = false;
+    var local_57: FeLocal_fe_CohortPixel_5c31bbba_2_;
+    var local_58: bool = false;
 
-    let _e7 = refine_steps(a0_14, fe_trapped_8);
-    if ((a1_8 < _e7) == false) {
+    let _e7 = refine_steps(a0_22, fe_trapped_8);
+    if ((a1_16 < _e7) == false) {
         let _e11 = impl_trait_CohortPixel_default();
-        local_43 = _e11;
-        local_44 = true;
+        local_55 = _e11;
+        local_56 = true;
     }
-    let _e77 = local_44;
+    let _e77 = local_56;
     if _e77 {
     } else {
-        let _e16 = cohort(a0_14, a1_8, fe_trapped_8);
-        let _e19 = phase_order_rect(_e16, a2_4, a3_1, a0_14.sx, a0_14.sy, fe_trapped_8);
-        let _e24 = (a2_4 * a0_14.sx);
+        let _e16 = cohort(a0_22, a1_16, fe_trapped_8);
+        let _e19 = phase_order_rect(_e16, a2_4, a3_1, a0_22.sx, a0_22.sy, fe_trapped_8);
+        let _e24 = (a2_4 * a0_22.sx);
         let _e25 = (a2_4 != 0u);
-        if (_e25 && (a0_14.sx > (4294967295u / select(1u, a2_4, _e25)))) {
+        if (_e25 && (a0_22.sx > (4294967295u / select(1u, a2_4, _e25)))) {
         } else {
-            if (a0_14.sx == 0u) {
+            if (a0_22.sx == 0u) {
             } else {
-                let _e33 = (_e19 % a0_14.sx);
+                let _e33 = (_e19 % a0_22.sx);
                 if (_e24 > (4294967295u - _e33)) {
                 } else {
-                    let _e42 = (a3_1 * a0_14.sy);
+                    let _e42 = (a3_1 * a0_22.sy);
                     let _e43 = (a3_1 != 0u);
-                    if (_e43 && (a0_14.sy > (4294967295u / select(1u, a3_1, _e43)))) {
+                    if (_e43 && (a0_22.sy > (4294967295u / select(1u, a3_1, _e43)))) {
                     } else {
-                        if (a0_14.sx == 0u) {
+                        if (a0_22.sx == 0u) {
                         } else {
-                            let _e51 = (_e19 / a0_14.sx);
+                            let _e51 = (_e19 / a0_22.sx);
                             if (_e42 > (4294967295u - _e51)) {
                             } else {
                                 let _e56 = at((_e24 + _e33), (_e42 + _e51), a4_1);
-                                local_45 = _e56;
-                                local_46 = true;
+                                local_57 = _e56;
+                                local_58 = true;
                             }
-                            let _e61 = local_46;
+                            let _e61 = local_58;
                             if _e61 {
                             }
                         }
-                        let _e63 = local_46;
+                        let _e63 = local_58;
                         if _e63 {
                         }
                     }
-                    let _e65 = local_46;
+                    let _e65 = local_58;
                     if _e65 {
                     }
                 }
-                let _e67 = local_46;
+                let _e67 = local_58;
                 if _e67 {
                 }
             }
-            let _e69 = local_46;
+            let _e69 = local_58;
             if _e69 {
             }
         }
-        let _e72 = local_46;
+        let _e72 = local_58;
         if _e72 {
         } else {
             (*fe_trapped_8) = true;
         }
-        let _e74 = local_45;
-        local_43 = _e74;
+        let _e74 = local_57;
+        local_55 = _e74;
     }
-    let _e79 = local_43;
+    let _e79 = local_55;
     return _e79;
 }
 
-fn impl_Pixel_index(a0_15: FeLocal_fe_Pixel_5817280a_5_, a1_9: u32) -> u32 {
-    return ((a0_15.y << a1_9) | a0_15.x);
+fn impl_Pixel_index(a0_23: FeLocal_fe_Pixel_5817280a_1_, a1_17: u32) -> u32 {
+    return ((a0_23.y << a1_17) | a0_23.x);
 }
 
-fn impl_CohortPixel_index(a0_16: FeLocal_fe_CohortPixel_5c31bbba_6_) -> u32 {
-    let _e3 = impl_Pixel_index(a0_16.pixel, 11u);
+fn impl_CohortPixel_index(a0_24: FeLocal_fe_CohortPixel_5c31bbba_2_) -> u32 {
+    let _e3 = impl_Pixel_index(a0_24.pixel, 11u);
     return _e3;
 }
 
-fn default_ge58b() -> FeLocal_fe_Complex_f32_87ec9249_0_ {
-    return FeLocal_fe_Complex_f32_87ec9249_0_();
+fn progress_is_presentable(a0_25: u32) -> bool {
+    return (((a0_25 & 536870912u) == 0u) == false);
 }
 
-fn initial(a0_17: u32) -> FeLocal_fe_NativeCheckpoint_6a22185c_1_ {
-    let _e1 = default_ge58b();
-    return FeLocal_fe_NativeCheckpoint_6a22185c_1_(FeLocal_fe_NativeCheckpoint_6a22185c_1_().control, a0_17, _e1);
-}
-
-fn iteration(a0_18: FeLocal_fe_NativeCheckpoint_6a22185c_1_) -> u32 {
-    return ((a0_18.control >> 14u) & 16383u);
-}
-
-fn impl_NativeCheckpoint_is_terminal(a0_19: FeLocal_fe_NativeCheckpoint_6a22185c_1_, a1_10: u32) -> bool {
-    var local_47: bool;
-    var local_48: bool = false;
-    var local_49: bool = bool();
-
-    let _e4 = iteration(a0_19);
-    if ((_e4 < a1_10) == false) {
-        local_49 = true;
-    } else {
-        if (((a0_19.control & 268435456u) == 0u) == false) {
-            local_49 = true;
-        }
-    }
-    let _e20 = local_49;
-    return _e20;
-}
-
-fn ordered_2x2_(a0_20: u32, a1_11: u32) -> FeLocal_fe_PixelSample_d22dfa2e_23_ {
-    let _e6 = from_i32_(a0_20);
-    let _e9 = from_i32_((a0_20 & 1u));
-    let _e13 = from_i32_(a1_11);
-    let _e16 = from_i32_((a1_11 & 1u));
-    return FeLocal_fe_PixelSample_d22dfa2e_23_(((_e6 + 0.375f) + (0.25f * _e9)), ((_e13 + 0.375f) + (0.25f * _e16)));
-}
-
-fn impl_Pixel_sample(a0_21: FeLocal_fe_Pixel_5817280a_5_) -> FeLocal_fe_PixelSample_d22dfa2e_23_ {
-    let _e3 = ordered_2x2_(a0_21.x, a0_21.y);
-    return _e3;
-}
-
-fn impl_CohortPixel_sample(a0_22: FeLocal_fe_CohortPixel_5c31bbba_6_) -> FeLocal_fe_PixelSample_d22dfa2e_23_ {
-    let _e2 = impl_Pixel_sample(a0_22.pixel);
+fn is_presentable(a0_26: FeLocal_fe_NativeCheckpoint_6a22185c_5_) -> bool {
+    let _e2 = progress_is_presentable(a0_26.control);
     return _e2;
 }
 
-fn plane(a0_23: FeLocal_fe_PixelSample_d22dfa2e_23_, a1_12: f32) -> FeLocal_fe_PlaneSample_375c1fa3_27_ {
-    return FeLocal_fe_PlaneSample_375c1fa3_27_((((a0_23.x / a1_12) * 2f) - 1f), (1f - ((a0_23.y / a1_12) * 2f)));
-}
+fn is_presentable_in(a0_27: FeLocal_fe_NativeCheckpoint_6a22185c_5_, a1_18: u32) -> bool {
+    var local_59: bool;
+    var local_60: bool = false;
+    var local_61: bool = bool();
 
-fn center_offset(a0_24: FeLocal_fe_PackedReference_e11ca04a_2_) -> FeLocal_fe_Complex_f32_87ec9249_0_ {
-    return FeLocal_fe_Complex_f32_87ec9249_0_(bitcast<f32>(a0_24.re_w2_bits), bitcast<f32>(a0_24.re_w3_bits));
-}
-
-fn scale(a0_25: FeLocal_fe_Complex_f32_87ec9249_0_, a1_13: f32) -> FeLocal_fe_Complex_f32_87ec9249_0_ {
-    return FeLocal_fe_Complex_f32_87ec9249_0_((a0_25.re * a1_13), (a0_25.im * a1_13));
-}
-
-fn impl_trait_Complex_one_ge58b() -> FeLocal_fe_Complex_f32_87ec9249_0_ {
-    return FeLocal_fe_Complex_f32_87ec9249_0_(1f, 0f);
-}
-
-fn eq(a0_26: FeLocal_fe_Complex_f32_87ec9249_0_, a1_14: FeLocal_fe_Complex_f32_87ec9249_0_) -> bool {
-    var local_50: bool;
-    var local_51: bool = false;
-    var local_52: bool = bool();
-
-    if (a0_26.re == a1_14.re) {
-        if (a0_26.im == a1_14.im) {
-            local_52 = true;
-        }
-    }
-    let _e13 = local_52;
-    return _e13;
-}
-
-fn mul(a0_27: FeLocal_fe_Complex_f32_87ec9249_0_, a1_15: FeLocal_fe_Complex_f32_87ec9249_0_) -> FeLocal_fe_Complex_f32_87ec9249_0_ {
-    return FeLocal_fe_Complex_f32_87ec9249_0_(((a0_27.re * a1_15.re) - (a0_27.im * a1_15.im)), ((a0_27.re * a1_15.im) + (a0_27.im * a1_15.re)));
-}
-
-fn plane_offset(a0_28: FeLocal_fe_Camera_03494b0d_14_, a1_16: FeLocal_fe_Complex_f32_87ec9249_0_) -> FeLocal_fe_Complex_f32_87ec9249_0_ {
-    var local_53: FeLocal_fe_Complex_f32_87ec9249_0_;
-    var local_54: bool = false;
-    var local_55: FeLocal_fe_Complex_f32_87ec9249_0_ = FeLocal_fe_Complex_f32_87ec9249_0_();
-
-    let _e5 = scale(a1_16, a0_28.zoom);
-    let _e7 = impl_trait_Complex_one_ge58b();
-    let _e8 = eq(a0_28.orientation, _e7);
-    if _e8 {
-        local_55 = _e5;
-    } else {
-        let _e10 = mul(a0_28.orientation, _e5);
-        local_55 = _e10;
-    }
-    let _e14 = local_55;
-    return _e14;
-}
-
-fn add(a0_29: FeLocal_fe_Complex_f32_87ec9249_0_, a1_17: FeLocal_fe_Complex_f32_87ec9249_0_) -> FeLocal_fe_Complex_f32_87ec9249_0_ {
-    return FeLocal_fe_Complex_f32_87ec9249_0_((a0_29.re + a1_17.re), (a0_29.im + a1_17.im));
-}
-
-fn pixel_delta_from_reference(a1_18: u32, a2_5: FeLocal_fe_Camera_03494b0d_14_, a3_2: FeLocal_fe_PixelSample_d22dfa2e_23_, fe_trapped_9: ptr<function, bool>) -> FeLocal_fe_Complex_f32_87ec9249_0_ {
-    var local_56: FeLocal_fe_Complex_f32_87ec9249_0_;
-    var local_57: bool = false;
-
-    let _e7 = plane(a3_2, a2_5.res);
-    if (a1_18 > (4294967295u - 8194u)) {
-        (*fe_trapped_9) = true;
-    }
-    let _e17 = orbit[i32((a1_18 + 8194u))].re_w0_bits;
-    let _e19 = orbit[i32((a1_18 + 8194u))].re_w1_bits;
-    let _e21 = orbit[i32((a1_18 + 8194u))].re_w2_bits;
-    let _e23 = orbit[i32((a1_18 + 8194u))].re_w3_bits;
-    let _e25 = orbit[i32((a1_18 + 8194u))].im_w0_bits;
-    let _e27 = orbit[i32((a1_18 + 8194u))].im_w1_bits;
-    let _e29 = orbit[i32((a1_18 + 8194u))].im_w2_bits;
-    let _e31 = orbit[i32((a1_18 + 8194u))].im_w3_bits;
-    let _e33 = center_offset(FeLocal_fe_PackedReference_e11ca04a_2_(_e17, _e19, _e21, _e23, _e25, _e27, _e29, _e31));
-    let _e37 = plane_offset(a2_5, FeLocal_fe_Complex_f32_87ec9249_0_(_e7.u, _e7.v));
-    let _e38 = add(_e33, _e37);
-    return _e38;
-}
-
-fn impl_NativeCheckpoint_reference_index(a0_30: FeLocal_fe_NativeCheckpoint_6a22185c_1_) -> u32 {
-    return (a0_30.control & 16383u);
-}
-
-fn decode_metadata(a0_31: FeLocal_fe_PackedReference_e11ca04a_2_) -> FeLocal_fe_ReferenceMetadata_782c1884_25_ {
-    return FeLocal_fe_ReferenceMetadata_782c1884_25_(a0_31.re_w0_bits, a0_31.re_w1_bits);
-}
-
-fn impl_NativeCheckpoint_delta(a0_32: FeLocal_fe_NativeCheckpoint_6a22185c_1_) -> FeLocal_fe_Complex_f32_87ec9249_0_ {
-    return a0_32.payload;
-}
-
-fn from_continuation(a0_33: FeLocal_fe_Complex_f32_87ec9249_0_, a1_19: FeLocal_fe_Complex_f32_87ec9249_0_, a2_6: u32, a3_3: u32, a4_2: u32, a5_: f32) -> FeLocal_fe_OrbitProgress_96185e10_3_ {
-    return FeLocal_fe_OrbitProgress_96185e10_3_(a0_33.re, a0_33.im, a1_19.re, a1_19.im, a2_6, a3_3, a4_2, a5_);
-}
-
-fn impl_OrbitProgress_delta(a0_34: FeLocal_fe_OrbitProgress_96185e10_3_) -> FeLocal_fe_Complex_f32_87ec9249_0_ {
-    return FeLocal_fe_Complex_f32_87ec9249_0_(a0_34.dz_re, a0_34.dz_im);
-}
-
-fn position(a0_35: FeLocal_fe_OrbitProgress_96185e10_3_) -> FeLocal_fe_Complex_f32_87ec9249_0_ {
-    return FeLocal_fe_Complex_f32_87ec9249_0_(a0_35.z_re, a0_35.z_im);
-}
-
-fn progress_reference_index(a0_36: u32) -> u32 {
-    return (a0_36 & 536870911u);
-}
-
-fn impl_OrbitProgress_reference_index(a0_37: FeLocal_fe_OrbitProgress_96185e10_3_) -> u32 {
-    let _e2 = progress_reference_index(a0_37.reference_i);
-    return _e2;
-}
-
-fn progress_is_escaped(a0_38: u32) -> bool {
-    return (((a0_38 & 2147483648u) == 0u) == false);
-}
-
-fn impl_OrbitProgress_is_escaped(a0_39: FeLocal_fe_OrbitProgress_96185e10_3_) -> bool {
-    let _e2 = progress_is_escaped(a0_39.reference_i);
-    return _e2;
-}
-
-fn progress_is_glitched(a0_40: u32) -> bool {
-    return (((a0_40 & 1073741824u) == 0u) == false);
-}
-
-fn impl_OrbitProgress_is_glitched(a0_41: FeLocal_fe_OrbitProgress_96185e10_3_) -> bool {
-    let _e2 = progress_is_glitched(a0_41.reference_i);
-    return _e2;
-}
-
-fn is_invalid(a0_42: FeLocal_fe_PackedReference_e11ca04a_2_) -> bool {
-    var local_58: bool;
-    var local_59: bool = false;
-    var local_60: bool = bool();
-
-    if (a0_42.re_w0_bits == 2143289344u) {
-        local_60 = true;
-    } else {
-        if (a0_42.im_w0_bits == 2143289344u) {
-            local_60 = true;
-        }
-    }
-    let _e14 = local_60;
-    return _e14;
-}
-
-fn from_quad(a0_43: f32, a1_20: f32, a2_7: f32, a3_4: f32) -> FeLocal_fe_More_More_More_Last_e6310ae8_11_ {
-    return FeLocal_fe_More_More_More_Last_e6310ae8_11_(a0_43, FeLocal_fe_More_More_Last_60a5ba63_10_(a1_20, FeLocal_fe_More_Last_1ac585f5_9_(a2_7, FeLocal_fe_Last_eb970eb0_8_(a3_4))));
-}
-
-fn decode(a0_44: FeLocal_fe_PackedReference_e11ca04a_2_) -> FeLocal_fe_Complex_More_More_More_Last_7724c22a_24_ {
-    let _e9 = from_quad(bitcast<f32>(a0_44.re_w0_bits), bitcast<f32>(a0_44.re_w1_bits), bitcast<f32>(a0_44.re_w2_bits), bitcast<f32>(a0_44.re_w3_bits));
-    let _e18 = from_quad(bitcast<f32>(a0_44.im_w0_bits), bitcast<f32>(a0_44.im_w1_bits), bitcast<f32>(a0_44.im_w2_bits), bitcast<f32>(a0_44.im_w3_bits));
-    return FeLocal_fe_Complex_More_More_More_Last_7724c22a_24_(_e9, _e18);
-}
-
-fn to_quad(a0_45: FeLocal_fe_More_More_More_Last_e6310ae8_11_) -> FeLocal_fe_f32_f32_f32_f32_83f8ffa4_28_ {
-    return FeLocal_fe_f32_f32_f32_f32_83f8ffa4_28_(a0_45.lead, a0_45.tail.lead, a0_45.tail.tail.lead, a0_45.tail.tail.tail.value);
-}
-
-fn perturb(a0_46: FeLocal_fe_Complex_More_More_More_Last_7724c22a_24_, a1_21: FeLocal_fe_Complex_f32_87ec9249_0_, a2_8: FeLocal_fe_Complex_f32_87ec9249_0_) -> FeLocal_fe_Complex_f32_87ec9249_0_ {
-    let _e4 = to_quad(a0_46.re);
-    let _e10 = to_quad(a0_46.im);
-    return FeLocal_fe_Complex_f32_87ec9249_0_(((((2f * ((_e4.f0_ * a1_21.re) - (_e10.f0_ * a1_21.im))) + (2f * ((((((_e4.f1_ * a1_21.re) - (_e10.f1_ * a1_21.im)) + (_e4.f2_ * a1_21.re)) - (_e10.f2_ * a1_21.im)) + (_e4.f3_ * a1_21.re)) - (_e10.f3_ * a1_21.im)))) + ((a1_21.re * a1_21.re) - (a1_21.im * a1_21.im))) + a2_8.re), ((((2f * ((_e4.f0_ * a1_21.im) + (_e10.f0_ * a1_21.re))) + (2f * ((((((_e4.f1_ * a1_21.im) + (_e10.f1_ * a1_21.re)) + (_e4.f2_ * a1_21.im)) + (_e10.f2_ * a1_21.re)) + (_e4.f3_ * a1_21.im)) + (_e10.f3_ * a1_21.re)))) + ((2f * a1_21.re) * a1_21.im)) + a2_8.im));
-}
-
-fn two_sum(a0_47: f32, a1_22: f32) -> FeLocal_fe_f32_f32_b3478b14_29_ {
-    let _e2 = (a0_47 + a1_22);
-    let _e3 = (_e2 - a0_47);
-    return FeLocal_fe_f32_f32_b3478b14_29_(_e2, ((a0_47 - (_e2 - _e3)) + (a1_22 - _e3)));
-}
-
-fn reference_plus_delta(a0_48: f32, a1_23: f32, a2_9: f32, a3_5: f32, a4_3: f32) -> f32 {
-    let _e5 = two_sum(a0_48, a4_3);
-    let _e8 = two_sum(_e5.f0_, a1_23);
-    let _e11 = two_sum(_e8.f0_, a2_9);
-    let _e14 = two_sum(_e11.f0_, a3_5);
-    return (_e14.f0_ + (((_e14.f1_ + _e11.f1_) + _e8.f1_) + _e5.f1_));
-}
-
-fn expansion_plus_delta(a0_49: FeLocal_fe_More_More_More_Last_e6310ae8_11_, a1_24: f32) -> f32 {
-    let _e2 = to_quad(a0_49);
-    let _e7 = reference_plus_delta(_e2.f0_, _e2.f1_, _e2.f2_, _e2.f3_, a1_24);
-    return _e7;
-}
-
-fn reference_with_delta(a0_50: FeLocal_fe_Complex_More_More_More_Last_7724c22a_24_, a1_25: FeLocal_fe_Complex_f32_87ec9249_0_) -> FeLocal_fe_Complex_f32_87ec9249_0_ {
-    let _e4 = expansion_plus_delta(a0_50.re, a1_25.re);
-    let _e7 = expansion_plus_delta(a0_50.im, a1_25.im);
-    return FeLocal_fe_Complex_f32_87ec9249_0_(_e4, _e7);
-}
-
-fn norm_squared(a0_51: FeLocal_fe_Complex_f32_87ec9249_0_) -> f32 {
-    return ((a0_51.re * a0_51.re) + (a0_51.im * a0_51.im));
-}
-
-fn pack_progress_reference(a0_52: u32, a1_26: u32, a2_10: u32) -> u32 {
-    return (((a0_52 & 536870911u) | (a1_26 << 31u)) | (a2_10 << 30u));
-}
-
-fn non_finite(a0_53: f32) -> bool {
-    return (((a0_53 - a0_53) == 0f) == false);
-}
-
-fn is_non_finite_complex(a0_54: FeLocal_fe_Complex_f32_87ec9249_0_) -> bool {
-    var local_61: bool;
-    var local_62: bool = false;
-    var local_63: bool = bool();
-
-    let _e4 = non_finite(a0_54.re);
-    if _e4 {
-        local_63 = true;
-    } else {
-        let _e6 = non_finite(a0_54.im);
+    if (a0_27.epoch == a1_18) {
+        let _e6 = is_presentable(a0_27);
         if _e6 {
-            local_63 = true;
+            local_61 = true;
         }
     }
-    let _e12 = local_63;
-    return _e12;
-}
-
-fn impl_trait_f32_abs(a0_55: f32) -> f32 {
-    return bitcast<f32>((bitcast<u32>(a0_55) & 2147483647u));
-}
-
-fn impl_trait_f32_max(a0_56: f32, a1_27: f32) -> f32 {
-    let _e2 = bitcast<u32>(a0_56);
-    let _e3 = bitcast<u32>(a1_27);
-    return bitcast<f32>(select(select(_e3, _e2, ((_e2 ^ ((0u - (_e2 >> 31u)) | 2147483648u)) > (_e3 ^ ((0u - (_e3 >> 31u)) | 2147483648u)))), 2143289344u, (((_e2 & 2147483647u) > 2139095040u) || ((_e3 & 2147483647u) > 2139095040u))));
-}
-
-fn advance_progress_step(a0_57: FeLocal_fe_OrbitProgress_96185e10_3_, a1_28: FeLocal_fe_Complex_f32_87ec9249_0_, a2_11: FeLocal_fe_PackedReference_e11ca04a_2_, a3_6: FeLocal_fe_PackedReference_e11ca04a_2_, fe_trapped_10: ptr<function, bool>) -> FeLocal_fe_OrbitProgress_96185e10_3_ {
-    var local_64: FeLocal_fe_OrbitProgress_96185e10_3_;
-    var local_65: bool = false;
-    var local_66: u32 = u32();
-    var local_67: FeLocal_fe_OrbitProgress_96185e10_3_;
-    var local_68: bool = false;
-    var local_69: u32 = u32();
-    var local_70: FeLocal_fe_OrbitProgress_96185e10_3_;
-    var local_71: bool = false;
-    var local_72: f32 = f32();
-    var local_73: FeLocal_fe_Complex_f32_87ec9249_0_ = FeLocal_fe_Complex_f32_87ec9249_0_();
-    var local_74: FeLocal_fe_Complex_f32_87ec9249_0_ = FeLocal_fe_Complex_f32_87ec9249_0_();
-    var local_75: u32 = u32();
-    var local_76: u32 = u32();
-    var local_77: u32 = u32();
-    var local_78: bool = bool();
-    var local_79: FeLocal_fe_OrbitProgress_96185e10_3_;
-    var local_80: bool = false;
-
-    let _e7 = impl_OrbitProgress_delta(a0_57);
-    let _e8 = position(a0_57);
-    let _e9 = impl_OrbitProgress_reference_index(a0_57);
-    let _e10 = impl_OrbitProgress_is_escaped(a0_57);
-    if _e10 {
-        local_66 = 1u;
-    }
-    let _e16 = local_66;
-    let _e17 = impl_OrbitProgress_is_glitched(a0_57);
-    if _e17 {
-        local_69 = 1u;
-    }
-    let _e28 = local_69;
-    let _e30 = is_invalid(a2_11);
-    if _e30 {
-        local_72 = a0_57.magnitude;
-        local_73 = _e8;
-        local_74 = _e7;
-        local_75 = 1u;
-        local_76 = _e16;
-        local_77 = _e9;
-    } else {
-        let _e31 = is_invalid(a3_6);
-        if _e31 {
-            local_72 = a0_57.magnitude;
-            local_73 = _e8;
-            local_74 = _e7;
-            local_75 = 1u;
-            local_76 = _e16;
-            local_77 = _e9;
-        } else {
-            let _e33 = decode(a2_11);
-            let _e34 = decode(a3_6);
-            let _e35 = perturb(_e33, _e7, a1_28);
-            let _e36 = reference_with_delta(_e34, _e35);
-            let _e37 = norm_squared(_e36);
-            let _e38 = norm_squared(_e35);
-            if (4f < _e37) {
-                let _e44 = impl_trait_f32_abs((_e37 - 4f));
-                let _e46 = impl_trait_f32_max(1f, _e37);
-                if (_e44 <= (0.000004f * _e46)) {
-                    local_78 = true;
-                }
-            }
-            let _e53 = local_78;
-            let _e54 = is_non_finite_complex(_e35);
-            if _e54 {
-                local_72 = a0_57.magnitude;
-                local_73 = _e8;
-                local_74 = _e7;
-                local_75 = 1u;
-                local_76 = _e16;
-                local_77 = _e9;
-            } else {
-                let _e55 = non_finite(_e37);
-                if (_e55 | _e53) {
-                    local_72 = a0_57.magnitude;
-                    local_73 = _e8;
-                    local_74 = _e7;
-                    local_75 = 1u;
-                    local_76 = _e16;
-                    local_77 = _e9;
-                } else {
-                    if (4f < _e37) {
-                        local_72 = _e37;
-                        local_73 = _e36;
-                        local_74 = _e35;
-                        local_75 = _e28;
-                        local_76 = 1u;
-                        local_77 = _e9;
-                    } else {
-                        if (_e37 < _e38) {
-                            local_72 = a0_57.magnitude;
-                            local_73 = _e36;
-                            local_74 = _e36;
-                            local_75 = _e28;
-                            local_76 = _e16;
-                        } else {
-                            if (_e9 > (4294967295u - 1u)) {
-                                (*fe_trapped_10) = true;
-                            } else {
-                                local_72 = a0_57.magnitude;
-                                local_73 = _e36;
-                                local_74 = _e35;
-                                local_75 = _e28;
-                                local_76 = _e16;
-                                local_77 = (_e9 + 1u);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    let _e113 = local_72;
-    let _e115 = local_73;
-    let _e117 = local_74;
-    let _e119 = local_75;
-    let _e121 = local_76;
-    let _e123 = local_77;
-    let _e124 = pack_progress_reference(_e123, _e121, _e119);
-    if (a0_57.iteration > (4294967295u - 1u)) {
-        (*fe_trapped_10) = true;
-    }
-    let _e133 = from_continuation(_e117, _e115, _e124, (a0_57.iteration + 1u), a0_57.epoch, _e113);
-    return _e133;
-}
-
-fn progress_is_presentable(a0_58: u32) -> bool {
-    return (((a0_58 & 536870912u) == 0u) == false);
-}
-
-fn progress_has_outcome(a0_59: u32) -> bool {
-    return (((a0_59 & 3221225472u) == 0u) == false);
-}
-
-fn progress_is_terminal(a0_60: u32, a1_29: u32, a2_12: u32) -> bool {
-    var local_81: bool;
-    var local_82: bool = false;
-    var local_83: bool = bool();
-
-    if ((a1_29 < a2_12) == false) {
-        local_83 = true;
-    } else {
-        let _e8 = progress_has_outcome(a0_60);
-        if _e8 {
-            local_83 = true;
-        } else {
-            let _e9 = progress_is_presentable(a0_60);
-            if _e9 {
-                local_83 = true;
-            }
-        }
-    }
-    let _e17 = local_83;
-    return _e17;
-}
-
-fn impl_OrbitProgress_is_terminal(a0_61: FeLocal_fe_OrbitProgress_96185e10_3_, a1_30: u32) -> bool {
-    let _e4 = progress_is_terminal(a0_61.reference_i, a0_61.iteration, a1_30);
-    return _e4;
-}
-
-fn progress_outcome_flags(a0_62: u32) -> u32 {
-    return (a0_62 & 3221225472u);
-}
-
-fn outcome_flags(a0_63: FeLocal_fe_OrbitProgress_96185e10_3_) -> u32 {
-    let _e2 = progress_outcome_flags(a0_63.reference_i);
-    return _e2;
-}
-
-fn advance(a0_64: FeLocal_fe_NativeCheckpoint_6a22185c_1_, a1_31: FeLocal_fe_Complex_f32_87ec9249_0_, a2_13: FeLocal_fe_PackedReference_e11ca04a_2_, a3_7: FeLocal_fe_PackedReference_e11ca04a_2_, a4_4: u32, a5_1: u32, fe_trapped_11: ptr<function, bool>) -> FeLocal_fe_NativeCheckpoint_6a22185c_1_ {
-    var local_84: FeLocal_fe_NativeCheckpoint_6a22185c_1_;
-    var local_85: bool = false;
-    var local_86: FeLocal_fe_NativeCheckpoint_6a22185c_1_;
-    var local_87: bool = false;
-    var local_88: FeLocal_fe_NativeCheckpoint_6a22185c_1_ = FeLocal_fe_NativeCheckpoint_6a22185c_1_();
-
-    let _e8 = impl_NativeCheckpoint_is_terminal(a0_64, a5_1);
-    if _e8 {
-        local_84 = a0_64;
-        local_85 = true;
-    }
-    let _e63 = local_85;
-    if _e63 {
-    } else {
-        let _e14 = impl_NativeCheckpoint_delta(a0_64);
-        let _e15 = default_ge58b();
-        let _e16 = impl_NativeCheckpoint_reference_index(a0_64);
-        let _e17 = iteration(a0_64);
-        let _e20 = from_continuation(_e14, _e15, _e16, _e17, a0_64.epoch, 4f);
-        let _e21 = advance_progress_step(_e20, a1_31, a2_13, a3_7, fe_trapped_11);
-        let _e25 = impl_OrbitProgress_reference_index(_e21);
-        let _e26 = ((_e21.iteration << 14u) | _e25);
-        let _e27 = impl_OrbitProgress_is_terminal(_e21, a5_1);
-        if _e27 {
-            let _e28 = outcome_flags(_e21);
-            local_88 = FeLocal_fe_NativeCheckpoint_6a22185c_1_(((_e26 | _e28) | 268435456u), a0_64.epoch, FeLocal_fe_Complex_f32_87ec9249_0_(_e21.magnitude, 0f));
-        } else {
-            let _e37 = impl_OrbitProgress_reference_index(_e21);
-            if (_e37 > (4294967295u - 1u)) {
-                (*fe_trapped_11) = true;
-            } else {
-                if (((_e37 + 1u) < a4_4) == false) {
-                    let _e51 = position(_e21);
-                    local_88 = FeLocal_fe_NativeCheckpoint_6a22185c_1_((_e21.iteration << 14u), a0_64.epoch, _e51);
-                } else {
-                    let _e54 = impl_OrbitProgress_delta(_e21);
-                    local_88 = FeLocal_fe_NativeCheckpoint_6a22185c_1_(_e26, a0_64.epoch, _e54);
-                }
-            }
-        }
-        let _e60 = local_88;
-        local_84 = _e60;
-    }
-    let _e65 = local_84;
-    return _e65;
-}
-
-fn continue_native_pixel(a1_32: u32, a2_14: FeLocal_fe_Camera_03494b0d_14_, a3_8: FeLocal_fe_PixelSample_d22dfa2e_23_, a4_5: u32, a5_2: u32, a6_: FeLocal_fe_NativeCheckpoint_6a22185c_1_, fe_trapped_12: ptr<function, bool>) -> FeLocal_fe_NativeCheckpoint_6a22185c_1_ {
-    var local_89: FeLocal_fe_NativeCheckpoint_6a22185c_1_;
-    var local_90: bool = false;
-    var local_91: FeLocal_fe_NativeCheckpoint_6a22185c_1_ = FeLocal_fe_NativeCheckpoint_6a22185c_1_();
-    var local_92: u32 = u32();
-    var loop_result_2: FeLocal_fe_NativeCheckpoint_6a22185c_1_;
-    var loop_did_return_2: bool = false;
-    var loop_header_carry_56_: bool;
-
-    let _e9 = pixel_delta_from_reference(a1_32, a2_14, a3_8, fe_trapped_12);
-    if (a1_32 > (4294967295u - 8194u)) {
-    } else {
-        let _e18 = orbit[i32((a1_32 + 8194u))].re_w0_bits;
-        let _e20 = orbit[i32((a1_32 + 8194u))].re_w1_bits;
-        let _e22 = orbit[i32((a1_32 + 8194u))].re_w2_bits;
-        let _e24 = orbit[i32((a1_32 + 8194u))].re_w3_bits;
-        let _e26 = orbit[i32((a1_32 + 8194u))].im_w0_bits;
-        let _e28 = orbit[i32((a1_32 + 8194u))].im_w1_bits;
-        let _e30 = orbit[i32((a1_32 + 8194u))].im_w2_bits;
-        let _e32 = orbit[i32((a1_32 + 8194u))].im_w3_bits;
-        let _e34 = decode_metadata(FeLocal_fe_PackedReference_e11ca04a_2_(_e18, _e20, _e22, _e24, _e26, _e28, _e30, _e32));
-        local_91 = a6_;
-        local_92 = 0u;
-        loop {
-            let _e43 = local_91;
-            let _e45 = local_92;
-            let _e46 = (_e45 < a5_2);
-            loop_header_carry_56_ = _e46;
-            if _e46 {
-                let _e47 = impl_NativeCheckpoint_is_terminal(_e43, a4_5);
-                if (_e47 == false) {
-                } else {
-                    loop_result_2 = _e43;
-                    loop_did_return_2 = true;
-                    break;
-                }
-                let _e53 = impl_NativeCheckpoint_reference_index(_e43);
-                let _e55 = (a1_32 + _e53);
-                if (a1_32 > (4294967295u - _e53)) {
-                } else {
-                    let _e61 = orbit[i32(_e55)].re_w0_bits;
-                    let _e63 = orbit[i32(_e55)].re_w1_bits;
-                    let _e65 = orbit[i32(_e55)].re_w2_bits;
-                    let _e67 = orbit[i32(_e55)].re_w3_bits;
-                    let _e69 = orbit[i32(_e55)].im_w0_bits;
-                    let _e71 = orbit[i32(_e55)].im_w1_bits;
-                    let _e73 = orbit[i32(_e55)].im_w2_bits;
-                    let _e75 = orbit[i32(_e55)].im_w3_bits;
-                    if (_e55 > (4294967295u - 1u)) {
-                        (*fe_trapped_12) = true;
-                        break;
-                    }
-                    let _e86 = orbit[i32((_e55 + 1u))].re_w0_bits;
-                    let _e88 = orbit[i32((_e55 + 1u))].re_w1_bits;
-                    let _e90 = orbit[i32((_e55 + 1u))].re_w2_bits;
-                    let _e92 = orbit[i32((_e55 + 1u))].re_w3_bits;
-                    let _e94 = orbit[i32((_e55 + 1u))].im_w0_bits;
-                    let _e96 = orbit[i32((_e55 + 1u))].im_w1_bits;
-                    let _e98 = orbit[i32((_e55 + 1u))].im_w2_bits;
-                    let _e100 = orbit[i32((_e55 + 1u))].im_w3_bits;
-                    let _e102 = advance(_e43, _e9, FeLocal_fe_PackedReference_e11ca04a_2_(_e61, _e63, _e65, _e67, _e69, _e71, _e73, _e75), FeLocal_fe_PackedReference_e11ca04a_2_(_e86, _e88, _e90, _e92, _e94, _e96, _e98, _e100), _e34.valid_samples, a4_5, fe_trapped_12);
-                    local_91 = _e102;
-                    local_92 = (_e45 + 1u);
-                    continue;
-                }
-                (*fe_trapped_12) = true;
-                break;
-            } else {
-                loop_result_2 = _e43;
-                loop_did_return_2 = true;
-                break;
-            }
-        }
-        let _e113 = loop_did_return_2;
-        if _e113 {
-            let _e115 = loop_result_2;
-            local_89 = _e115;
-            local_90 = true;
-        }
-    }
-    let _e121 = local_90;
-    if _e121 {
-    } else {
-        (*fe_trapped_12) = true;
-    }
-    let _e123 = local_89;
-    return _e123;
-}
-
-fn magnitude(a0_65: FeLocal_fe_NativeCheckpoint_6a22185c_1_) -> f32 {
-    var local_93: f32;
-    var local_94: bool = false;
-    var local_95: f32 = f32();
-
-    if (((a0_65.control & 268435456u) == 0u) == false) {
-        local_95 = a0_65.payload.re;
-    } else {
-        local_95 = 4f;
-    }
-    let _e16 = local_95;
-    return _e16;
-}
-
-fn with_fade_start(a0_66: FeLocal_fe_NativeCheckpoint_6a22185c_1_, a1_33: f32) -> FeLocal_fe_NativeCheckpoint_6a22185c_1_ {
-    let _e8 = magnitude(a0_66);
-    return FeLocal_fe_NativeCheckpoint_6a22185c_1_(((a0_66.control | 268435456u) | 536870912u), a0_66.epoch, FeLocal_fe_Complex_f32_87ec9249_0_(_e8, a1_33));
-}
-
-fn present_if_terminal(a0_67: FeLocal_fe_NativeCheckpoint_6a22185c_1_, a1_34: u32, a2_15: f32) -> FeLocal_fe_NativeCheckpoint_6a22185c_1_ {
-    var local_96: FeLocal_fe_NativeCheckpoint_6a22185c_1_;
-    var local_97: bool = false;
-    var local_98: FeLocal_fe_NativeCheckpoint_6a22185c_1_ = FeLocal_fe_NativeCheckpoint_6a22185c_1_();
-
-    let _e5 = impl_NativeCheckpoint_is_terminal(a0_67, a1_34);
-    if _e5 {
-        let _e6 = with_fade_start(a0_67, a2_15);
-        local_98 = _e6;
-    } else {
-        local_98 = a0_67;
-    }
-    let _e10 = local_98;
+    let _e10 = local_61;
     return _e10;
 }
 
-fn impl_NativeCheckpoint_is_glitched(a0_68: FeLocal_fe_NativeCheckpoint_6a22185c_1_) -> bool {
-    let _e2 = progress_is_glitched(a0_68.control);
+fn oracle_is_glitched(a0_28: u32) -> bool {
+    return (((a0_28 & 1073741824u) == 0u) == false);
+}
+
+fn oracle_is_usable(a0_29: u32) -> bool {
+    let _e1 = oracle_is_glitched(a0_29);
+    return (_e1 == false);
+}
+
+fn is_usable(a0_30: FeLocal_fe_SampleOracle_cc1ce944_13_) -> bool {
+    let _e2 = oracle_is_usable(a0_30.flags);
     return _e2;
 }
 
-fn clamp_(a0_69: f32, a1_35: f32, a2_16: f32) -> f32 {
-    var local_99: f32;
-    var local_100: bool = false;
-    var local_101: f32 = f32();
+fn progress_outcome_flags(a0_31: u32) -> u32 {
+    return (a0_31 & 3221225472u);
+}
 
-    if (a0_69 < a1_35) {
-        local_101 = a1_35;
+fn from_oracle(a0_32: FeLocal_fe_SampleOracle_cc1ce944_13_, a1_19: u32, a2_5: f32) -> FeLocal_fe_NativeCheckpoint_6a22185c_5_ {
+    let _e7 = progress_outcome_flags(a0_32.flags);
+    return FeLocal_fe_NativeCheckpoint_6a22185c_5_(((((a0_32.iteration << 14u) | _e7) | 268435456u) | 536870912u), a1_19, FeLocal_fe_Complex_f32_87ec9249_4_(a0_32.magnitude, a2_5));
+}
+
+fn is_glitched(a0_33: FeLocal_fe_NativeCheckpoint_6a22185c_5_) -> bool {
+    let _e2 = oracle_is_glitched(a0_33.control);
+    return _e2;
+}
+
+fn clamp_(a0_34: f32, a1_20: f32, a2_6: f32) -> f32 {
+    var local_62: f32;
+    var local_63: bool = false;
+    var local_64: f32 = f32();
+
+    if (a0_34 < a1_20) {
+        local_64 = a1_20;
     } else {
-        if (a2_16 < a0_69) {
-            local_101 = a2_16;
+        if (a2_6 < a0_34) {
+            local_64 = a2_6;
         } else {
-            local_101 = a0_69;
+            local_64 = a0_34;
         }
     }
-    let _e11 = local_101;
+    let _e11 = local_64;
     return _e11;
 }
 
-fn pack_lab(a0_70: FeLocal_fe_Color_6b73191a_26_) -> u32 {
-    let _e4 = clamp_(a0_70.l, 0f, 1f);
+fn pack_lab(a0_35: FeLocal_fe_Color_6b73191a_22_) -> u32 {
+    let _e4 = clamp_(a0_35.l, 0f, 1f);
     let _e9 = to_i32_(((_e4 * 4095f) + 0.5f));
-    let _e17 = clamp_(((a0_70.a * 2048f) + 512f), 0f, 1023f);
+    let _e17 = clamp_(((a0_35.a * 2048f) + 512f), 0f, 1023f);
     let _e20 = to_i32_((_e17 + 0.5f));
-    let _e28 = clamp_(((a0_70.b * 2048f) + 512f), 0f, 1023f);
+    let _e28 = clamp_(((a0_35.b * 2048f) + 512f), 0f, 1023f);
     let _e31 = to_i32_((_e28 + 0.5f));
     return (((_e9 & 4095u) | ((_e20 & 1023u) << 12u)) | (_e31 << 22u));
 }
 
 fn glitch() -> u32 {
-    let _e4 = pack_lab(FeLocal_fe_Color_6b73191a_26_(0.72f, 0.18f, -0.09f));
+    let _e4 = pack_lab(FeLocal_fe_Color_6b73191a_22_(0.72f, 0.18f, -0.09f));
     return _e4;
 }
 
-fn impl_NativeCheckpoint_is_escaped(a0_71: FeLocal_fe_NativeCheckpoint_6a22185c_1_) -> bool {
-    let _e2 = progress_is_escaped(a0_71.control);
+fn progress_is_escaped(a0_36: u32) -> bool {
+    return (((a0_36 & 2147483648u) == 0u) == false);
+}
+
+fn is_escaped(a0_37: FeLocal_fe_NativeCheckpoint_6a22185c_5_) -> bool {
+    let _e2 = progress_is_escaped(a0_37.control);
     return _e2;
 }
 
-fn impl_trait_f32_floor(a0_72: f32) -> f32 {
-    return floor(a0_72);
+fn iteration(a0_38: FeLocal_fe_NativeCheckpoint_6a22185c_5_) -> u32 {
+    return ((a0_38.control >> 14u) & 16383u);
 }
 
-fn fract_(a0_73: f32) -> f32 {
-    let _e1 = impl_trait_f32_floor(a0_73);
-    return (a0_73 - _e1);
+fn magnitude(a0_39: FeLocal_fe_NativeCheckpoint_6a22185c_5_) -> f32 {
+    var local_65: f32;
+    var local_66: bool = false;
+    var local_67: f32 = f32();
+
+    if (((a0_39.control & 268435456u) == 0u) == false) {
+        local_67 = a0_39.payload.re;
+    } else {
+        local_67 = 4f;
+    }
+    let _e16 = local_67;
+    return _e16;
 }
 
-fn anchor(a0_74: u32) -> FeLocal_fe_Oklch_77e78738_4_ {
-    var local_102: FeLocal_fe_Oklch_77e78738_4_;
-    var local_103: bool = false;
-    var local_104: FeLocal_fe_Oklch_77e78738_4_ = FeLocal_fe_Oklch_77e78738_4_();
+fn impl_trait_f32_floor(a0_40: f32) -> f32 {
+    return floor(a0_40);
+}
 
-    switch a0_74 {
+fn fract_(a0_41: f32) -> f32 {
+    let _e1 = impl_trait_f32_floor(a0_41);
+    return (a0_41 - _e1);
+}
+
+fn anchor(a0_42: u32) -> FeLocal_fe_Oklch_77e78738_0_ {
+    var local_68: FeLocal_fe_Oklch_77e78738_0_;
+    var local_69: bool = false;
+    var local_70: FeLocal_fe_Oklch_77e78738_0_ = FeLocal_fe_Oklch_77e78738_0_();
+
+    switch a0_42 {
         case 0u: {
-            local_104 = FeLocal_fe_Oklch_77e78738_4_(0.58f, 0.215f, 275f);
+            local_70 = FeLocal_fe_Oklch_77e78738_0_(0.58f, 0.215f, 275f);
         }
         case 1u: {
-            local_104 = FeLocal_fe_Oklch_77e78738_4_(0.65f, 0.24f, 335f);
+            local_70 = FeLocal_fe_Oklch_77e78738_0_(0.65f, 0.24f, 335f);
         }
         case 2u: {
-            local_104 = FeLocal_fe_Oklch_77e78738_4_(0.78f, 0.155f, 65f);
+            local_70 = FeLocal_fe_Oklch_77e78738_0_(0.78f, 0.155f, 65f);
         }
         case 3u: {
-            local_104 = FeLocal_fe_Oklch_77e78738_4_(0.73f, 0.142f, 165f);
+            local_70 = FeLocal_fe_Oklch_77e78738_0_(0.73f, 0.142f, 165f);
         }
         default: {
-            local_104 = FeLocal_fe_Oklch_77e78738_4_(0.65f, 0.127f, 235f);
+            local_70 = FeLocal_fe_Oklch_77e78738_0_(0.65f, 0.127f, 235f);
         }
     }
-    let _e29 = local_104;
+    let _e29 = local_70;
     return _e29;
 }
 
-fn hue_remainder(a0_75: f32) -> f32 {
-    var local_105: f32;
-    var local_106: bool = false;
-    var local_107: f32;
-    var local_108: bool = false;
-    var local_109: f32;
-    var local_110: bool = false;
-    var local_111: f32 = f32();
-    var local_112: f32;
-    var local_113: bool = false;
-    var local_114: f32 = f32();
-    var local_115: u32 = u32();
-    var local_116: u32 = u32();
-    var loop_result_3: f32;
-    var loop_did_return_3: bool = false;
+fn hue_remainder(a0_43: f32) -> f32 {
+    var local_71: f32;
+    var local_72: bool = false;
+    var local_73: f32;
+    var local_74: bool = false;
+    var local_75: f32;
+    var local_76: bool = false;
+    var local_77: f32 = f32();
+    var local_78: f32;
+    var local_79: bool = false;
+    var local_80: f32 = f32();
+    var local_81: u32 = u32();
+    var local_82: u32 = u32();
+    var loop_result_2: f32;
+    var loop_did_return_2: bool = false;
     var loop_header_carry_51_: bool;
-    var local_117: f32;
-    var local_118: bool = false;
-    var local_119: f32 = f32();
+    var local_83: f32;
+    var local_84: bool = false;
+    var local_85: f32 = f32();
 
-    let _e4 = (bitcast<u32>(a0_75) & 2147483647u);
+    let _e4 = (bitcast<u32>(a0_43) & 2147483647u);
     if (_e4 < 1135869952u) {
-        local_105 = a0_75;
-        local_106 = true;
+        local_71 = a0_43;
+        local_72 = true;
     }
-    let _e89 = local_106;
+    let _e89 = local_72;
     if _e89 {
     } else {
         let _e12 = (_e4 >> 23u);
         if (_e12 == 255u) {
-            local_107 = a0_75;
-            local_108 = true;
+            local_73 = a0_43;
+            local_74 = true;
         }
-        let _e84 = local_108;
+        let _e84 = local_74;
         if _e84 {
         } else {
-            if (a0_75 < 0f) {
-                local_111 = -(a0_75);
+            if (a0_43 < 0f) {
+                local_77 = -(a0_43);
             } else {
-                local_111 = a0_75;
+                local_77 = a0_43;
             }
-            let _e28 = local_111;
+            let _e28 = local_77;
             if (_e12 < 150u) {
                 let _e31 = to_i32_(_e28);
                 let _e34 = from_i32_((_e31 % 360u));
                 let _e35 = from_i32_(_e31);
-                local_114 = (_e34 + (_e28 - _e35));
+                local_80 = (_e34 + (_e28 - _e35));
             } else {
-                local_115 = (((_e4 & 8388607u) | 8388608u) % 360u);
-                local_116 = (_e12 - 150u);
+                local_81 = (((_e4 & 8388607u) | 8388608u) % 360u);
+                local_82 = (_e12 - 150u);
                 loop {
-                    let _e52 = local_115;
-                    let _e54 = local_116;
+                    let _e52 = local_81;
+                    let _e54 = local_82;
                     let _e56 = (0u < _e54);
                     loop_header_carry_51_ = _e56;
                     if _e56 {
-                        local_115 = ((_e52 << 1u) % 360u);
-                        local_116 = (_e54 - 1u);
+                        local_81 = ((_e52 << 1u) % 360u);
+                        local_82 = (_e54 - 1u);
                         continue;
                     } else {
                         break;
                     }
                 }
-                let _e67 = local_115;
+                let _e67 = local_81;
                 let _e68 = from_i32_(_e67);
-                local_114 = _e68;
+                local_80 = _e68;
             }
-            let _e74 = local_114;
-            if (a0_75 < 0f) {
-                local_119 = -(_e74);
+            let _e74 = local_80;
+            if (a0_43 < 0f) {
+                local_85 = -(_e74);
             } else {
-                local_119 = _e74;
+                local_85 = _e74;
             }
-            let _e81 = local_119;
-            local_107 = _e81;
+            let _e81 = local_85;
+            local_73 = _e81;
         }
-        let _e86 = local_107;
-        local_105 = _e86;
+        let _e86 = local_73;
+        local_71 = _e86;
     }
-    let _e91 = local_105;
+    let _e91 = local_71;
     return _e91;
 }
 
-fn interpolate(a0_76: FeLocal_fe_Oklch_77e78738_4_, a1_36: FeLocal_fe_Oklch_77e78738_4_, a2_17: f32) -> FeLocal_fe_Oklch_77e78738_4_ {
-    var local_120: FeLocal_fe_Oklch_77e78738_4_;
-    var local_121: bool = false;
-    var local_122: bool = bool();
-    var local_123: FeLocal_fe_Oklch_77e78738_4_;
-    var local_124: bool = false;
-    var local_125: f32 = f32();
-    var local_126: FeLocal_fe_Oklch_77e78738_4_;
-    var local_127: bool = false;
-    var local_128: f32 = f32();
-    var local_129: FeLocal_fe_Oklch_77e78738_4_;
-    var local_130: bool = false;
-    var local_131: f32 = f32();
-    var local_132: FeLocal_fe_Oklch_77e78738_4_;
-    var local_133: bool = false;
-    var local_134: f32 = f32();
-    var local_135: f32 = f32();
+fn interpolate(a0_44: FeLocal_fe_Oklch_77e78738_0_, a1_21: FeLocal_fe_Oklch_77e78738_0_, a2_7: f32) -> FeLocal_fe_Oklch_77e78738_0_ {
+    var local_86: FeLocal_fe_Oklch_77e78738_0_;
+    var local_87: bool = false;
+    var local_88: bool = bool();
+    var local_89: FeLocal_fe_Oklch_77e78738_0_;
+    var local_90: bool = false;
+    var local_91: f32 = f32();
+    var local_92: FeLocal_fe_Oklch_77e78738_0_;
+    var local_93: bool = false;
+    var local_94: f32 = f32();
+    var local_95: FeLocal_fe_Oklch_77e78738_0_;
+    var local_96: bool = false;
+    var local_97: f32 = f32();
+    var local_98: FeLocal_fe_Oklch_77e78738_0_;
+    var local_99: bool = false;
+    var local_100: f32 = f32();
+    var local_101: f32 = f32();
 
-    let _e7 = (a1_36.hue - a0_76.hue);
-    if (-540f <= a0_76.hue) {
-        if (a0_76.hue <= 540f) {
-            if (-540f <= a1_36.hue) {
-                if (a1_36.hue <= 540f) {
+    let _e7 = (a1_21.hue - a0_44.hue);
+    if (-540f <= a0_44.hue) {
+        if (a0_44.hue <= 540f) {
+            if (-540f <= a1_21.hue) {
+                if (a1_21.hue <= 540f) {
                     if (-540f <= _e7) {
                         if (_e7 <= 540f) {
-                            local_122 = true;
+                            local_88 = true;
                         }
                     }
                 }
             }
         }
     }
-    let _e29 = local_122;
+    let _e29 = local_88;
     if _e29 {
-        local_125 = a0_76.hue;
+        local_91 = a0_44.hue;
     } else {
-        let _e32 = hue_remainder(a0_76.hue);
-        local_125 = _e32;
+        let _e32 = hue_remainder(a0_44.hue);
+        local_91 = _e32;
     }
-    let _e38 = local_125;
+    let _e38 = local_91;
     if _e29 {
-        local_128 = _e7;
+        local_94 = _e7;
     } else {
-        let _e40 = hue_remainder(a1_36.hue);
-        local_128 = (_e40 - _e38);
+        let _e40 = hue_remainder(a1_21.hue);
+        local_94 = (_e40 - _e38);
     }
-    let _e47 = local_128;
+    let _e47 = local_94;
     if (180f < _e47) {
-        local_131 = (_e47 - 360f);
+        local_97 = (_e47 - 360f);
     } else {
         if (_e47 < -180f) {
-            local_131 = (_e47 + 360f);
+            local_97 = (_e47 + 360f);
         } else {
-            local_131 = _e47;
+            local_97 = _e47;
         }
     }
-    let _e62 = local_131;
+    let _e62 = local_97;
     if (_e29 == false) {
         if (180f < _e62) {
-            local_135 = (_e62 - 360f);
+            local_101 = (_e62 - 360f);
         } else {
             if (_e62 < -180f) {
-                local_135 = (_e62 + 360f);
+                local_101 = (_e62 + 360f);
             } else {
-                local_135 = _e62;
+                local_101 = _e62;
             }
         }
-        let _e78 = local_135;
+        let _e78 = local_101;
         if (_e78 == -180f) {
-            if (a0_76.hue < a1_36.hue) {
-                local_134 = 180f;
+            if (a0_44.hue < a1_21.hue) {
+                local_100 = 180f;
             } else {
                 if (_e78 == 180f) {
-                    if (a1_36.hue < a0_76.hue) {
-                        local_134 = -180f;
+                    if (a1_21.hue < a0_44.hue) {
+                        local_100 = -180f;
                     } else {
-                        local_134 = _e78;
+                        local_100 = _e78;
                     }
                 } else {
-                    local_134 = _e78;
+                    local_100 = _e78;
                 }
             }
         } else {
             if (_e78 == 180f) {
-                if (a1_36.hue < a0_76.hue) {
-                    local_134 = -180f;
+                if (a1_21.hue < a0_44.hue) {
+                    local_100 = -180f;
                 } else {
-                    local_134 = _e78;
+                    local_100 = _e78;
                 }
             } else {
-                local_134 = _e78;
+                local_100 = _e78;
             }
         }
     } else {
-        local_134 = _e62;
+        local_100 = _e62;
     }
-    let _e106 = local_134;
-    return FeLocal_fe_Oklch_77e78738_4_((a0_76.l + ((a1_36.l - a0_76.l) * a2_17)), (a0_76.chroma + ((a1_36.chroma - a0_76.chroma) * a2_17)), (_e38 + (_e106 * a2_17)));
+    let _e106 = local_100;
+    return FeLocal_fe_Oklch_77e78738_0_((a0_44.l + ((a1_21.l - a0_44.l) * a2_7)), (a0_44.chroma + ((a1_21.chroma - a0_44.chroma) * a2_7)), (_e38 + (_e106 * a2_7)));
 }
 
-fn wrap_pi(a0_77: f32) -> f32 {
-    let _e5 = impl_trait_f32_floor(((a0_77 / 6.2831855f) + 0.5f));
-    return (a0_77 - (6.2831855f * _e5));
+fn wrap_pi(a0_45: f32) -> f32 {
+    let _e5 = impl_trait_f32_floor(((a0_45 / 6.2831855f) + 0.5f));
+    return (a0_45 - (6.2831855f * _e5));
 }
 
-fn sin_(a0_78: f32) -> f32 {
-    let _e1 = wrap_pi(a0_78);
+fn impl_trait_f32_abs(a0_46: f32) -> f32 {
+    return bitcast<f32>((bitcast<u32>(a0_46) & 2147483647u));
+}
+
+fn sin_(a0_47: f32) -> f32 {
+    let _e1 = wrap_pi(a0_47);
     let _e6 = impl_trait_f32_abs(_e1);
     let _e8 = ((1.2732395f * _e1) - ((0.40528473f * _e1) * _e6));
     let _e9 = impl_trait_f32_abs(_e8);
     return ((0.225f * ((_e8 * _e9) - _e8)) + _e8);
 }
 
-fn cos_(a0_79: f32) -> f32 {
-    let _e3 = sin_((a0_79 + 1.5707964f));
+fn cos_(a0_48: f32) -> f32 {
+    let _e3 = sin_((a0_48 + 1.5707964f));
     return _e3;
 }
 
-fn to_color(a0_80: FeLocal_fe_Oklch_77e78738_4_) -> FeLocal_fe_Color_6b73191a_26_ {
-    let _e3 = (a0_80.hue * 0.017453292f);
+fn to_color(a0_49: FeLocal_fe_Oklch_77e78738_0_) -> FeLocal_fe_Color_6b73191a_22_ {
+    let _e3 = (a0_49.hue * 0.017453292f);
     let _e6 = cos_(_e3);
     let _e9 = sin_(_e3);
-    return FeLocal_fe_Color_6b73191a_26_(a0_80.l, (a0_80.chroma * _e6), (a0_80.chroma * _e9));
+    return FeLocal_fe_Color_6b73191a_22_(a0_49.l, (a0_49.chroma * _e6), (a0_49.chroma * _e9));
 }
 
-fn escape_palette(a0_81: u32, a1_37: f32, fe_trapped_13: ptr<function, bool>) -> u32 {
-    var local_136: u32;
-    var local_137: bool = false;
-    var local_138: u32 = u32();
+fn escape_palette(a0_50: u32, a1_22: f32, fe_trapped_9: ptr<function, bool>) -> u32 {
+    var local_102: u32;
+    var local_103: bool = false;
+    var local_104: u32 = u32();
 
-    let _e5 = from_i32_(a0_81);
-    let _e11 = fract_(((_e5 + (4f / a1_37)) / 256f));
+    let _e5 = from_i32_(a0_50);
+    let _e11 = fract_(((_e5 + (4f / a1_22)) / 256f));
     let _e13 = (_e11 * 5f);
     let _e14 = to_i32_(_e13);
     let _e15 = from_i32_(_e14);
@@ -1672,12 +1171,12 @@ fn escape_palette(a0_81: u32, a1_37: f32, fe_trapped_13: ptr<function, bool>) ->
     } else {
         let _e29 = (_e14 + 1u);
         if ((((_e14 ^ _e29) & (1u ^ _e29)) & 2147483648u) != 0u) {
-            (*fe_trapped_13) = true;
+            (*fe_trapped_9) = true;
         } else {
-            local_138 = _e29;
+            local_104 = _e29;
         }
     }
-    let _e38 = local_138;
+    let _e38 = local_104;
     let _e39 = anchor(_e38);
     let _e40 = interpolate(_e23, _e39, ((_e16 * _e16) * (3f - (2f * _e16))));
     let _e41 = to_color(_e40);
@@ -1686,32 +1185,32 @@ fn escape_palette(a0_81: u32, a1_37: f32, fe_trapped_13: ptr<function, bool>) ->
 }
 
 fn interior() -> u32 {
-    let _e4 = pack_lab(FeLocal_fe_Color_6b73191a_26_(0.14f, 0.008f, -0.018f));
+    let _e4 = pack_lab(FeLocal_fe_Color_6b73191a_22_(0.14f, 0.008f, -0.018f));
     return _e4;
 }
 
-fn color(a0_82: FeLocal_fe_NativeCheckpoint_6a22185c_1_, fe_trapped_14: ptr<function, bool>) -> u32 {
-    var local_139: u32;
-    var local_140: bool = false;
-    var local_141: u32 = u32();
+fn color(a0_51: FeLocal_fe_NativeCheckpoint_6a22185c_5_, fe_trapped_10: ptr<function, bool>) -> u32 {
+    var local_105: u32;
+    var local_106: bool = false;
+    var local_107: u32 = u32();
 
-    let _e4 = impl_NativeCheckpoint_is_glitched(a0_82);
+    let _e4 = is_glitched(a0_51);
     if _e4 {
         let _e5 = glitch();
-        local_141 = _e5;
+        local_107 = _e5;
     } else {
-        let _e6 = impl_NativeCheckpoint_is_escaped(a0_82);
+        let _e6 = is_escaped(a0_51);
         if _e6 {
-            let _e7 = iteration(a0_82);
-            let _e8 = magnitude(a0_82);
-            let _e9 = escape_palette(_e7, _e8, fe_trapped_14);
-            local_141 = _e9;
+            let _e7 = iteration(a0_51);
+            let _e8 = magnitude(a0_51);
+            let _e9 = escape_palette(_e7, _e8, fe_trapped_10);
+            local_107 = _e9;
         } else {
             let _e10 = interior();
-            local_141 = _e10;
+            local_107 = _e10;
         }
     }
-    let _e15 = local_141;
+    let _e15 = local_107;
     return _e15;
 }
 
@@ -1720,132 +1219,198 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
     var fe_trapped: bool = false;
     var local: u32;
     var local_1: bool = false;
-    var fixed_local_301_: FeLocal_fe_MandelbrotViewState_c524184f_21_ = FeLocal_fe_MandelbrotViewState_c524184f_21_();
+    var fixed_local_333_: FeLocal_fe_MandelbrotViewState_c524184f_21_ = FeLocal_fe_MandelbrotViewState_c524184f_21_();
     var local_2: u32;
     var local_3: bool = false;
-    var local_4: u32;
-    var local_5: bool = false;
-    var local_6: FeLocal_fe_NativeCheckpoint_6a22185c_1_ = FeLocal_fe_NativeCheckpoint_6a22185c_1_();
-    var local_7: u32;
-    var local_8: bool = false;
-    var local_9: u32;
-    var local_10: bool = false;
+    var local_4: u32 = u32();
 
-    let _e13 = params.p29_;
-    let _e15 = params.p30_;
-    let _e17 = params.p31_;
-    let _e19 = params.p32_;
-    let _e21 = params.p33_;
-    let _e23 = params.p34_;
-    let _e25 = params.p35_;
-    let _e27 = params.p36_;
-    let _e29 = params.p37_;
-    let _e31 = params.p38_;
-    let _e33 = params.p39_;
-    let _e35 = params.p40_;
-    let _e37 = params.p41_;
-    let _e39 = params.p42_;
-    let _e41 = params.p43_;
-    let _e43 = params.p44_;
-    let _e45 = params.p45_;
-    let _e47 = params.p46_;
-    let _e51 = params.p47_;
-    let _e53 = params.p48_;
-    let _e55 = params.p49_;
-    let _e57 = params.p50_;
-    let _e61 = params.p51_;
-    let _e63 = params.p52_;
-    let _e65 = params.p53_;
-    let _e67 = params.p54_;
-    let _e69 = params.p55_;
-    let _e71 = params.p56_;
-    let _e73 = params.p57_;
-    let _e75 = params.p58_;
-    let _e79 = params.p59_;
-    let _e81 = params.p60_;
-    let _e83 = params.p61_;
-    let _e85 = params.p62_;
-    let _e89 = params.p63_;
-    let _e91 = params.p64_;
-    let _e93 = params.p65_;
-    let _e95 = params.p66_;
-    let _e97 = params.p67_;
-    let _e99 = params.p68_;
-    let _e101 = params.p69_;
-    let _e103 = params.p70_;
-    let _e105 = params.p71_;
-    let _e107 = params.p72_;
-    let _e109 = params.p73_;
-    let _e111 = params.p74_;
-    let _e113 = params.p75_;
-    let _e115 = params.p76_;
-    let _e117 = params.p77_;
-    let _e119 = params.p78_;
-    let _e123 = params.p79_;
-    let _e137 = FeLocal_fe_Camera_03494b0d_14_(FeLocal_fe_Complex_Coordinate_d4657101_13_(FeLocal_fe_Coordinate_bdc10f09_12_(FeLocal_fe_More_More_More_Last_e6310ae8_11_(_e13, FeLocal_fe_More_More_Last_60a5ba63_10_(_e15, FeLocal_fe_More_Last_1ac585f5_9_(_e17, FeLocal_fe_Last_eb970eb0_8_(_e19))))), FeLocal_fe_Coordinate_bdc10f09_12_(FeLocal_fe_More_More_More_Last_e6310ae8_11_(_e21, FeLocal_fe_More_More_Last_60a5ba63_10_(_e23, FeLocal_fe_More_Last_1ac585f5_9_(_e25, FeLocal_fe_Last_eb970eb0_8_(_e27)))))), _e29, _e31, FeLocal_fe_Complex_f32_87ec9249_0_(_e33, _e35));
-    let _e173 = reference[i32(0u)].active_;
-    let _e175 = reference[i32(0u)].active_valid;
-    let _e177 = reference[i32(0u)].pending;
-    let _e179 = reference[i32(0u)].index;
-    let _e181 = reference[i32(0u)].zx_s;
-    let _e183 = reference[i32(0u)].zy_s;
-    let _e185 = reference[i32(0u)].ready_at;
-    fixed_local_301_ = FeLocal_fe_MandelbrotViewState_c524184f_21_(_e137, _e37, _e39, _e41, _e43, _e45, FeLocal_fe_GestureSession_6b679731_19_(FeLocal_fe_Contacts_2_ac13bf77_17_(array<FeLocal_fe_Contact_2b5c3d26_16_, 2>(FeLocal_fe_Contact_2b5c3d26_16_((_e47 != 0u), _e51, FeLocal_fe_Vec2_f32_2772165c_15_(_e53, _e55)), FeLocal_fe_Contact_2b5c3d26_16_((_e57 != 0u), _e61, FeLocal_fe_Vec2_f32_2772165c_15_(_e63, _e65)))), FeLocal_fe_Viewport_91e53b90_18_(FeLocal_fe_Vec2_f32_2772165c_15_(_e67, _e69), FeLocal_fe_Vec2_f32_2772165c_15_(_e71, _e73)), FeLocal_fe_Contacts_2_ac13bf77_17_(array<FeLocal_fe_Contact_2b5c3d26_16_, 2>(FeLocal_fe_Contact_2b5c3d26_16_((_e75 != 0u), _e79, FeLocal_fe_Vec2_f32_2772165c_15_(_e81, _e83)), FeLocal_fe_Contact_2b5c3d26_16_((_e85 != 0u), _e89, FeLocal_fe_Vec2_f32_2772165c_15_(_e91, _e93)))), FeLocal_fe_Camera_03494b0d_14_(FeLocal_fe_Complex_Coordinate_d4657101_13_(FeLocal_fe_Coordinate_bdc10f09_12_(FeLocal_fe_More_More_More_Last_e6310ae8_11_(_e95, FeLocal_fe_More_More_Last_60a5ba63_10_(_e97, FeLocal_fe_More_Last_1ac585f5_9_(_e99, FeLocal_fe_Last_eb970eb0_8_(_e101))))), FeLocal_fe_Coordinate_bdc10f09_12_(FeLocal_fe_More_More_More_Last_e6310ae8_11_(_e103, FeLocal_fe_More_More_Last_60a5ba63_10_(_e105, FeLocal_fe_More_Last_1ac585f5_9_(_e107, FeLocal_fe_Last_eb970eb0_8_(_e109)))))), _e111, _e113, FeLocal_fe_Complex_f32_87ec9249_0_(_e115, _e117))), FeLocal_fe_BackingRequest_2bcae9f8_20_((_e119 != 0u), _e123));
-    let _e189 = can_refine(FeLocal_fe_ReferenceControl_7d077120_7_(_e173, _e175, _e177, _e179, _e181, _e183, _e185), (&fixed_local_301_));
-    if _e189 {
+    let _e14 = params.p30_;
+    let _e16 = params.p31_;
+    let _e18 = params.p32_;
+    let _e20 = params.p33_;
+    let _e22 = params.p34_;
+    let _e24 = params.p35_;
+    let _e26 = params.p36_;
+    let _e28 = params.p37_;
+    let _e30 = params.p38_;
+    let _e32 = params.p39_;
+    let _e34 = params.p40_;
+    let _e36 = params.p41_;
+    let _e38 = params.p42_;
+    let _e40 = params.p43_;
+    let _e42 = params.p44_;
+    let _e44 = params.p45_;
+    let _e46 = params.p46_;
+    let _e48 = params.p47_;
+    let _e52 = params.p48_;
+    let _e54 = params.p49_;
+    let _e56 = params.p50_;
+    let _e58 = params.p51_;
+    let _e62 = params.p52_;
+    let _e64 = params.p53_;
+    let _e66 = params.p54_;
+    let _e68 = params.p55_;
+    let _e70 = params.p56_;
+    let _e72 = params.p57_;
+    let _e74 = params.p58_;
+    let _e76 = params.p59_;
+    let _e80 = params.p60_;
+    let _e82 = params.p61_;
+    let _e84 = params.p62_;
+    let _e86 = params.p63_;
+    let _e90 = params.p64_;
+    let _e92 = params.p65_;
+    let _e94 = params.p66_;
+    let _e96 = params.p67_;
+    let _e98 = params.p68_;
+    let _e100 = params.p69_;
+    let _e102 = params.p70_;
+    let _e104 = params.p71_;
+    let _e106 = params.p72_;
+    let _e108 = params.p73_;
+    let _e110 = params.p74_;
+    let _e112 = params.p75_;
+    let _e114 = params.p76_;
+    let _e116 = params.p77_;
+    let _e118 = params.p78_;
+    let _e120 = params.p79_;
+    let _e124 = params.p80_;
+    let _e126 = params.p81_;
+    let _e130 = params.p82_;
+    let _e132 = params.p83_;
+    let _e134 = params.p84_;
+    let _e136 = params.p85_;
+    let _e138 = params.p86_;
+    let _e140 = params.p87_;
+    let _e142 = params.p88_;
+    let _e144 = params.p89_;
+    let _e146 = params.p90_;
+    let _e148 = params.p91_;
+    let _e150 = params.p92_;
+    let _e152 = params.p93_;
+    let _e154 = params.p94_;
+    let _e156 = params.p95_;
+    fixed_local_333_ = FeLocal_fe_MandelbrotViewState_c524184f_21_(FeLocal_fe_Camera_03494b0d_12_(FeLocal_fe_Complex_Coordinate_d4657101_11_(FeLocal_fe_Coordinate_bdc10f09_10_(FeLocal_fe_More_More_More_Last_e6310ae8_9_(_e14, FeLocal_fe_More_More_Last_60a5ba63_8_(_e16, FeLocal_fe_More_Last_1ac585f5_7_(_e18, FeLocal_fe_Last_eb970eb0_6_(_e20))))), FeLocal_fe_Coordinate_bdc10f09_10_(FeLocal_fe_More_More_More_Last_e6310ae8_9_(_e22, FeLocal_fe_More_More_Last_60a5ba63_8_(_e24, FeLocal_fe_More_Last_1ac585f5_7_(_e26, FeLocal_fe_Last_eb970eb0_6_(_e28)))))), _e30, _e32, FeLocal_fe_Complex_f32_87ec9249_4_(_e34, _e36)), _e38, _e40, _e42, _e44, _e46, FeLocal_fe_GestureSession_6b679731_18_(FeLocal_fe_Contacts_2_ac13bf77_16_(array<FeLocal_fe_Contact_2b5c3d26_15_, 2>(FeLocal_fe_Contact_2b5c3d26_15_((_e48 != 0u), _e52, FeLocal_fe_Vec2_f32_2772165c_14_(_e54, _e56)), FeLocal_fe_Contact_2b5c3d26_15_((_e58 != 0u), _e62, FeLocal_fe_Vec2_f32_2772165c_14_(_e64, _e66)))), FeLocal_fe_Viewport_91e53b90_17_(FeLocal_fe_Vec2_f32_2772165c_14_(_e68, _e70), FeLocal_fe_Vec2_f32_2772165c_14_(_e72, _e74)), FeLocal_fe_Contacts_2_ac13bf77_16_(array<FeLocal_fe_Contact_2b5c3d26_15_, 2>(FeLocal_fe_Contact_2b5c3d26_15_((_e76 != 0u), _e80, FeLocal_fe_Vec2_f32_2772165c_14_(_e82, _e84)), FeLocal_fe_Contact_2b5c3d26_15_((_e86 != 0u), _e90, FeLocal_fe_Vec2_f32_2772165c_14_(_e92, _e94)))), FeLocal_fe_Camera_03494b0d_12_(FeLocal_fe_Complex_Coordinate_d4657101_11_(FeLocal_fe_Coordinate_bdc10f09_10_(FeLocal_fe_More_More_More_Last_e6310ae8_9_(_e96, FeLocal_fe_More_More_Last_60a5ba63_8_(_e98, FeLocal_fe_More_Last_1ac585f5_7_(_e100, FeLocal_fe_Last_eb970eb0_6_(_e102))))), FeLocal_fe_Coordinate_bdc10f09_10_(FeLocal_fe_More_More_More_Last_e6310ae8_9_(_e104, FeLocal_fe_More_More_Last_60a5ba63_8_(_e106, FeLocal_fe_More_Last_1ac585f5_7_(_e108, FeLocal_fe_Last_eb970eb0_6_(_e110)))))), _e112, _e114, FeLocal_fe_Complex_f32_87ec9249_4_(_e116, _e118))), FeLocal_fe_BackingRequest_2bcae9f8_19_((_e120 != 0u), _e124), FeLocal_fe_CameraTrace_7ca62f00_20_((_e126 != 0u), array<u32, 14>(_e130, _e132, _e134, _e136, _e138, _e140, _e142, _e144, _e146, _e148, _e150, _e152, _e154, _e156)));
+    let _e206 = is_input_settled((&fixed_local_333_));
+    if _e206 {
     } else {
         local_1 = true;
     }
-    let _e270 = local_1;
-    if _e270 {
+    let _e405 = local_1;
+    if _e405 {
     } else {
-        let _e197 = cache[i32(0u)].cursor;
-        let _e199 = cache[i32(0u)].epoch;
-        let _e200 = for_view(_e29, _e31, (&fe_trapped));
-        let _e201 = rect_pixel(_e200, _e197, global_invocation_id.x, global_invocation_id.y, _e31, (&fe_trapped));
-        if _e201.active_ {
+        let _e214 = cache[i32(0u)].camera_u002e_center_u002e_re_u002e_value_u002e_lead;
+        let _e216 = cache[i32(0u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_lead;
+        let _e218 = cache[i32(0u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_tail_u002e_lead;
+        let _e220 = cache[i32(0u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value;
+        let _e222 = cache[i32(0u)].camera_u002e_center_u002e_im_u002e_value_u002e_lead;
+        let _e224 = cache[i32(0u)].camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_lead;
+        let _e226 = cache[i32(0u)].camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_lead;
+        let _e228 = cache[i32(0u)].camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value;
+        let _e230 = cache[i32(0u)].camera_u002e_zoom;
+        let _e232 = cache[i32(0u)].camera_u002e_res;
+        let _e234 = cache[i32(0u)].camera_u002e_orientation_u002e_re;
+        let _e236 = cache[i32(0u)].camera_u002e_orientation_u002e_im;
+        let _e238 = cache[i32(0u)].cursor;
+        let _e240 = cache[i32(0u)].aa;
+        let _e242 = cache[i32(0u)].budget;
+        let _e244 = cache[i32(0u)].radius;
+        let _e246 = cache[i32(0u)].preview_dirty;
+        let _e248 = cache[i32(0u)].blur_dirty;
+        let _e250 = cache[i32(0u)].epoch;
+        let _e252 = cache[i32(0u)].completed;
+        let _e271 = cache[i32(1u)].camera_u002e_center_u002e_re_u002e_value_u002e_lead;
+        let _e273 = cache[i32(1u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_lead;
+        let _e275 = cache[i32(1u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_tail_u002e_lead;
+        let _e277 = cache[i32(1u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value;
+        let _e279 = cache[i32(1u)].camera_u002e_center_u002e_im_u002e_value_u002e_lead;
+        let _e281 = cache[i32(1u)].camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_lead;
+        let _e283 = cache[i32(1u)].camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_lead;
+        let _e285 = cache[i32(1u)].camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value;
+        let _e287 = cache[i32(1u)].camera_u002e_zoom;
+        let _e289 = cache[i32(1u)].camera_u002e_res;
+        let _e291 = cache[i32(1u)].camera_u002e_orientation_u002e_re;
+        let _e293 = cache[i32(1u)].camera_u002e_orientation_u002e_im;
+        let _e295 = cache[i32(1u)].cursor;
+        let _e297 = cache[i32(1u)].aa;
+        let _e299 = cache[i32(1u)].budget;
+        let _e301 = cache[i32(1u)].radius;
+        let _e303 = cache[i32(1u)].preview_dirty;
+        let _e305 = cache[i32(1u)].blur_dirty;
+        let _e307 = cache[i32(1u)].epoch;
+        let _e309 = cache[i32(1u)].completed;
+        let _e324 = for_view(_e30, _e32, (&fe_trapped));
+        if (_e309 == 0u) {
         } else {
-            local_3 = true;
-        }
-        let _e268 = local_3;
-        if _e268 {
-        } else {
-            let _e207 = impl_CohortPixel_index(_e201);
-            let _e211 = progress_pixels[i32(_e207)].control;
-            let _e213 = progress_pixels[i32(_e207)].epoch;
-            let _e215 = progress_pixels[i32(_e207)].payload_u002e_re;
-            let _e217 = progress_pixels[i32(_e207)].payload_u002e_im;
-            if (_e213 == _e199) {
-                local_6 = FeLocal_fe_NativeCheckpoint_6a22185c_1_(_e211, _e213, FeLocal_fe_Complex_f32_87ec9249_0_(_e215, _e217));
-            } else {
-                let _e221 = initial(_e199);
-                local_6 = _e221;
+            if (_e299 < _e324.limit) {
+                local_3 = true;
             }
-            let _e226 = local_6;
-            let _e228 = impl_NativeCheckpoint_is_terminal(_e226, _e200.limit);
-            if _e228 {
-                local_8 = true;
-            }
-            let _e266 = local_8;
-            if _e266 {
+            let _e403 = local_3;
+            if _e403 {
             } else {
-                let _e237 = (_e173 != 0u);
-                if (_e237 && (8195u > (4294967295u / select(1u, _e173, _e237)))) {
-                    fe_trapped = true;
+                let _e331 = same_camera(FeLocal_fe_ViewCache_da6e2ccc_23_(FeLocal_fe_Camera_03494b0d_12_(FeLocal_fe_Complex_Coordinate_d4657101_11_(FeLocal_fe_Coordinate_bdc10f09_10_(FeLocal_fe_More_More_More_Last_e6310ae8_9_(_e271, FeLocal_fe_More_More_Last_60a5ba63_8_(_e273, FeLocal_fe_More_Last_1ac585f5_7_(_e275, FeLocal_fe_Last_eb970eb0_6_(_e277))))), FeLocal_fe_Coordinate_bdc10f09_10_(FeLocal_fe_More_More_More_Last_e6310ae8_9_(_e279, FeLocal_fe_More_More_Last_60a5ba63_8_(_e281, FeLocal_fe_More_Last_1ac585f5_7_(_e283, FeLocal_fe_Last_eb970eb0_6_(_e285)))))), _e287, _e289, FeLocal_fe_Complex_f32_87ec9249_4_(_e291, _e293)), _e295, _e297, _e299, _e301, _e303, _e305, _e307, _e309), FeLocal_fe_ViewCache_da6e2ccc_23_(FeLocal_fe_Camera_03494b0d_12_(FeLocal_fe_Complex_Coordinate_d4657101_11_(FeLocal_fe_Coordinate_bdc10f09_10_(FeLocal_fe_More_More_More_Last_e6310ae8_9_(_e214, FeLocal_fe_More_More_Last_60a5ba63_8_(_e216, FeLocal_fe_More_Last_1ac585f5_7_(_e218, FeLocal_fe_Last_eb970eb0_6_(_e220))))), FeLocal_fe_Coordinate_bdc10f09_10_(FeLocal_fe_More_More_More_Last_e6310ae8_9_(_e222, FeLocal_fe_More_More_Last_60a5ba63_8_(_e224, FeLocal_fe_More_Last_1ac585f5_7_(_e226, FeLocal_fe_Last_eb970eb0_6_(_e228)))))), _e230, _e232, FeLocal_fe_Complex_f32_87ec9249_4_(_e234, _e236)), _e238, _e240, _e242, _e244, _e246, _e248, _e250, _e252));
+                if _e331 {
+                } else {
+                    local_3 = true;
                 }
-                let _e243 = impl_CohortPixel_sample(_e201);
-                let _e246 = continue_native_pixel((_e173 * 8195u), _e137, _e243, _e200.limit, _e200.quantum, _e226, (&fe_trapped));
-                let _e248 = present_if_terminal(_e246, _e200.limit, _e37);
-                progress_pixels[i32(_e207)].control = _e248.control;
-                progress_pixels[i32(_e207)].epoch = _e248.epoch;
-                progress_pixels[i32(_e207)].payload_u002e_re = _e248.payload.re;
-                progress_pixels[i32(_e207)].payload_u002e_im = _e248.payload.im;
-                let _e260 = color(_e246, (&fe_trapped));
-                native_pixels[i32(_e207)] = _e260;
-                antialiased_pixels[i32(_e207)] = _e260;
+                let _e401 = local_3;
+                if _e401 {
+                } else {
+                    let _e334 = rect_pixel(_e324, _e238, global_invocation_id.x, global_invocation_id.y, _e32, (&fe_trapped));
+                    if _e334.active_ {
+                    } else {
+                        local_3 = true;
+                    }
+                    let _e399 = local_3;
+                    if _e399 {
+                    } else {
+                        let _e338 = impl_CohortPixel_index(_e334);
+                        let _e342 = progress_pixels[i32(_e338)].control;
+                        let _e344 = progress_pixels[i32(_e338)].epoch;
+                        let _e346 = progress_pixels[i32(_e338)].payload_u002e_re;
+                        let _e348 = progress_pixels[i32(_e338)].payload_u002e_im;
+                        let _e351 = is_presentable_in(FeLocal_fe_NativeCheckpoint_6a22185c_5_(_e342, _e344, FeLocal_fe_Complex_f32_87ec9249_4_(_e346, _e348)), _e250);
+                        if _e351 {
+                            local_3 = true;
+                        }
+                        let _e397 = local_3;
+                        if _e397 {
+                        } else {
+                            let _e357 = snapshot_oracle[i32(_e338)].iteration;
+                            let _e359 = snapshot_oracle[i32(_e338)].magnitude;
+                            let _e361 = snapshot_oracle[i32(_e338)].flags;
+                            let _e362 = FeLocal_fe_SampleOracle_cc1ce944_13_(_e357, _e359, _e361);
+                            let _e363 = is_usable(_e362);
+                            if _e363 {
+                            } else {
+                                local_3 = true;
+                            }
+                            let _e395 = local_3;
+                            if _e395 {
+                            } else {
+                                let _e367 = from_oracle(_e362, _e250, _e38);
+                                let _e368 = color(_e367, (&fe_trapped));
+                                progress_pixels[i32(_e338)].control = _e367.control;
+                                progress_pixels[i32(_e338)].epoch = _e367.epoch;
+                                progress_pixels[i32(_e338)].payload_u002e_re = _e367.payload.re;
+                                progress_pixels[i32(_e338)].payload_u002e_im = _e367.payload.im;
+                                native_pixels[i32(_e338)] = _e368;
+                                if (_e297 == _e42) {
+                                    let _e385 = snapshot_pixels[i32(_e338)];
+                                    local_4 = _e385;
+                                } else {
+                                    local_4 = _e368;
+                                }
+                                let _e389 = local_4;
+                                antialiased_pixels[i32(_e338)] = _e389;
+                                local_3 = true;
+                            }
+                        }
+                    }
+                }
             }
         }
     }
-    let _e281 = fe_trapped;
-    trap[((global_invocation_id.x + (global_invocation_id.y * 128u)) + (global_invocation_id.z * 32768u))] = u32(_e281);
+    let _e416 = fe_trapped;
+    trap[((global_invocation_id.x + (global_invocation_id.y * 128u)) + (global_invocation_id.z * 32768u))] = u32(_e416);
 }

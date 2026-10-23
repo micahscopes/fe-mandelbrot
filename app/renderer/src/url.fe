@@ -579,16 +579,34 @@ fn decode_hash_view(
     _ fallback: PersistedView,
     _ bounds: PersistedBounds,
 ) -> DecodedPersistedView {
-    if hash.len() != URL_V1_ENCODED_LEN - 1 && hash.len() != URL_ENCODED_LEN - 1 {
+    let traced_len = URL_ENCODED_LEN - 1 + ingot::trace::TRACE_SUFFIX_LEN
+    let mut length = hash.len()
+    if length == traced_len {
+        let start = URL_ENCODED_LEN - 1
+        if hash.byte(index: start) != 126 || hash.byte(index: start + 1) != 103
+            || hash.byte(index: start + 2) != 58 {
+            return DecodedPersistedView { view: fallback, valid: false }
+        }
+        let mut i: u32 = 3
+        while i < ingot::trace::TRACE_SUFFIX_LEN {
+            let byte = hash.byte(index: start + i)
+            let valid = if (i - 3) % 9 == 8 { byte == 46 }
+                else { (byte >= 48 && byte <= 57) || (byte >= 97 && byte <= 102) }
+            if !valid { return DecodedPersistedView { view: fallback, valid: false } }
+            i += 1
+        }
+        length = URL_ENCODED_LEN - 1
+    }
+    if length != URL_V1_ENCODED_LEN - 1 && length != URL_ENCODED_LEN - 1 {
         return DecodedPersistedView { view: fallback, valid: false }
     }
     let mut decoder: UrlDecodeState = UrlDecodeState::initial().step(0, 35)
     let mut i: u32 = 0
-    while i < hash.len() {
+    while i < length {
         decoder = decoder.step(i + 1, hash.byte(index: i))
         i = i + 1
     }
-    decoder.finish(hash.len() + 1, fallback, bounds)
+    decoder.finish(length + 1, fallback, bounds)
 }
 
 fn write_u32_cell(address: u32, value: u32) {
@@ -624,6 +642,9 @@ pub fn sync_url_state(
             if !location.valid {
                 next_state = fallback.apply_to(next_state)
             } else {
+                let trace = location.query.single([116, 114, 97, 99, 101])
+                next_state.trace.enabled = trace.valid && trace.present
+                    && trace.value.equals_literal([49])
                 let hash: Utf8View = location.hash.view()
                 if hash.is_empty() {
                     next_state = fallback.apply_to(next_state)
@@ -637,18 +658,23 @@ pub fn sync_url_state(
             }
         }
     }
-    if event.out_ptr != 0 && event.out_cap >= URL_ENCODED_LEN {
+    let traced_len = URL_ENCODED_LEN + ingot::trace::TRACE_SUFFIX_LEN
+    let length = if next_state.trace.enabled && event.out_cap >= traced_len {
+        traced_len
+    } else { URL_ENCODED_LEN }
+    if event.out_ptr != 0 && event.out_cap >= length {
         let persisted: PersistedView = PersistedView::from_state(next_state)
         let mut i: u32 = 0
-        while i < URL_ENCODED_LEN {
+        while i < length {
             write_u8_cell(
                 address: event.out_ptr + i,
-                value: persisted.encoded_byte(i),
+                value: if i < URL_ENCODED_LEN { persisted.encoded_byte(i) }
+                    else { next_state.trace.encoded_byte(i - URL_ENCODED_LEN) },
             )
             i = i + 1
         }
         if event.out_len_ptr != 0 {
-            write_u32_cell(address: event.out_len_ptr, value: URL_ENCODED_LEN)
+            write_u32_cell(address: event.out_len_ptr, value: length)
         }
     } else {
         if event.out_len_ptr != 0 {

@@ -224,6 +224,7 @@ pub struct MandelbrotViewState {
     pub magnification: f32,
     pub gesture: GestureSession,
     pub backing: BackingRequest,
+    pub trace: ingot::trace::CameraTrace,
 }
 
 impl Copy for MandelbrotViewState {}
@@ -272,6 +273,7 @@ pub const fn initial_view() -> MandelbrotViewState {
         magnification: 3.0 / camera.zoom,
         gesture: GestureSession::empty(),
         backing: BackingRequest::automatic(),
+        trace: ingot::trace::CameraTrace::empty(),
     }
 }
 

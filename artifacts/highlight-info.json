@@ -2,20 +2,20 @@
   "source": "fe doc json SCIP export",
   "files": {
     "lib.fe": {
-      "bytes": 46474,
-      "semanticOccurrences": 1039
+      "bytes": 48126,
+      "semanticOccurrences": 1078
     },
     "policy.fe": {
-      "bytes": 13980,
-      "semanticOccurrences": 493
+      "bytes": 14073,
+      "semanticOccurrences": 501
     },
     "interaction.fe": {
       "bytes": 3754,
       "semanticOccurrences": 121
     },
     "url.fe": {
-      "bytes": 21155,
-      "semanticOccurrences": 566
+      "bytes": 22440,
+      "semanticOccurrences": 591
     },
     "orbit.fe": {
       "bytes": 26155,
@@ -30,8 +30,8 @@
       "semanticOccurrences": 144
     },
     "cache.fe": {
-      "bytes": 13880,
-      "semanticOccurrences": 428
+      "bytes": 13949,
+      "semanticOccurrences": 431
     },
     "palette.fe": {
       "bytes": 1350,
@@ -84,6 +84,10 @@
     "array_fixed.fe": {
       "bytes": 12418,
       "semanticOccurrences": 240
+    },
+    "trace.fe": {
+      "bytes": 3329,
+      "semanticOccurrences": 128
     }
   }
 }

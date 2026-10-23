@@ -318,6 +318,7 @@ pub struct PreviewCache {
     pub epoch: u32,
     pub completed: u32,
     pub history: HistoryOffsets,
+    pub trace_clock: f32,
 }
 
 impl Copy for PreviewCache {}
@@ -371,6 +372,7 @@ impl PreviewCache {
             },
             completed: completed,
             history: self.history,
+            trace_clock: self.trace_clock,
         }
     }
     pub fn commit_step(self) -> Self {

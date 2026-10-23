@@ -44,7 +44,7 @@ async function trace(directory, signedZero) {
   const field=name=>binding.members.findIndex(member=>member.name===name);
   const semantic=values=>[...values.slice(0,10),...['clock','last_input','antialias','drag_active','magnification'].map(name=>values[field(name)])];
   const orientation=values=>{const index=binding.members.findIndex(member=>member.name==='re'||member.name==='camera.orientation.re');if(index>=0)assert.deepEqual(values.slice(index,index+2),[1,0],'Legacy events preserve identity orientation');};
-  const suffix=initial.slice(-2);
+  const suffix=initial.slice(49,51);
   if (signedZero) {
     // Hidden low coefficients must survive whole-camera updates bit for bit.
     initial[3] = -0;
@@ -74,7 +74,7 @@ async function trace(directory, signedZero) {
       const next = api.fe_surface_transition_scheduled_v1(pointer, 1, ...resources);
       assert.equal(next.length, initial.length);
       orientation(next);
-      assert.deepEqual(next.slice(-2),suffix,"Legacy input must preserve backing request");
+      assert.deepEqual(next.slice(49,51),suffix,"Legacy input must preserve backing request");
       samples.push(words(semantic(next)));
     } finally {
       if (cursor !== null && api.fe_cabi_rewind) api.fe_cabi_rewind(cursor);
