@@ -81,6 +81,6 @@ try{
   await touch('touchEnd',[]);
  }
  assert.deepEqual(errors,[]);
- const receipt={actualCompiledFe:true,actualBrowserTouchTransport:true,physicalPhone:false,renderSchedulingCovered:false,freshDeepPan:true,releaseStable:true,quarterTurnAtZoomLimit:true,centroidAnchor:true,errors};
+ const receipt={actualCompiledFe:true,actualBrowserTouchTransport:true,physicalPhone:false,renderSchedulingCovered:false,freshDeepPan:true,releaseStable:true,quarterTurnAtZoomLimit:true,centroidAnchor:true,oneFingerPanWithChangingBounds:true,twoFingerPanWithChangingBounds:true,errors};
  if(receiptPath)await fs.writeFile(receiptPath,JSON.stringify(receipt,null,2)+'\n');console.log(JSON.stringify(receipt));
 }finally{if(owned)await browser.close();else await releaseTestPage(browser,page);}

@@ -6,12 +6,12 @@
       "semanticOccurrences": 1039
     },
     "policy.fe": {
-      "bytes": 13843,
-      "semanticOccurrences": 489
+      "bytes": 13980,
+      "semanticOccurrences": 493
     },
     "interaction.fe": {
-      "bytes": 3126,
-      "semanticOccurrences": 112
+      "bytes": 3754,
+      "semanticOccurrences": 121
     },
     "url.fe": {
       "bytes": 21155,

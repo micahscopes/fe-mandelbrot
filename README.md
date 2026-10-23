@@ -189,8 +189,10 @@ camera.follow(motion, viewport)
 ```
 
 A membership-stable baseline prevents asynchronous finger events from accumulating
-zoom-limit or center-limit errors. Membership changes, cancellation, viewport
-changes, and external camera edits establish a new anchor. The same complex
+zoom-limit or center-limit errors. Membership changes, cancellation, and external
+camera edits establish a new anchor. The CSS frame stays fixed until all contacts
+end, so mobile layout changes cannot erase pan or introduce a false pinch. The
+next gesture measures a fresh frame. The same complex
 camera basis defines pixel projection and inverse history reprojection. The
 precise center stays in expansion arithmetic; orientation never widens per-pixel
 checkpoints or allocates another image buffer.
