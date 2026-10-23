@@ -217,21 +217,8 @@ actor SmoothPerturbationalMandelbrot uses (
         let keep_active: bool = if control.pending == 0 { reusable } else { false }
         let defer_rebuild: bool = if control.active_valid == 1 { age < 60.0 } else { false }
         let skip_build: bool = if keep_active { true } else { defer_rebuild }
-        if skip_build {
-            let preview_bank: u32 = control.preview_bank(s)
-            let preview_anchor: ReferenceAnchor = self.anchor.load(index: preview_bank)
-            let next_preview: PreviewCache = previous_preview.sync_with_view(
-                s,
-                control,
-                preview_anchor.generation,
-                budget,
-            )
-            self.preview_cache.store(index: 0, value: next_preview)
-            self.cache.store(
-                index: 0,
-                value: previous.sync_for_frame(s, control, next_preview, initial),
-            )
-        } else {
+        let mut published: bool = false
+        if !skip_build {
             let bank: u32 = 1 - control.active
             let base: u32 = bank * 8195
             let existing_pending: ReferenceAnchor = self.anchor.load(index: bank)
@@ -279,7 +266,7 @@ actor SmoothPerturbationalMandelbrot uses (
                 index: base + ORBIT_META_INDEX,
                 value: PackedReference::from_metadata(i + 1, pending_anchor.limit),
             )
-            let published: bool = escaped || i >= pending_anchor.limit
+            published = escaped || i >= pending_anchor.limit
             let next_control: ReferenceControl = if published {
                 ReferenceControl::publish(bank, i, z.re.sign(), z.im.sign(), s.clock)
             } else {
@@ -287,31 +274,26 @@ actor SmoothPerturbationalMandelbrot uses (
                 control.advance_pending(i, z.re.sign(), z.im.sign())
             }
             self.reference.store(index: 0, value: next_control)
-            // Checkpoints belong to the orbit actually selected for preview.
-            // During live input that can still be the active bank while its
-            // replacement is being built in the other bank.
-            let preview_bank: u32 = next_control.preview_bank(s)
-            let preview_anchor: ReferenceAnchor = self.anchor.load(index: preview_bank)
-            let next_preview: PreviewCache = previous_preview.sync_with_view(
-                s,
-                next_control,
-                preview_anchor.generation,
-                budget,
-            )
-            self.preview_cache.store(index: 0, value: next_preview)
-            let synced_view: ViewCache = previous.sync_for_frame(
-                s,
-                next_control,
-                next_preview,
-                initial,
-            )
-            let next_view: ViewCache = if published {
-                synced_view.invalidate_for_new_reference()
-            } else {
-                synced_view
-            }
-            self.cache.store(index: 0, value: next_view)
         }
+        // Synchronization has one meaning for both a retained reference and a
+        // newly advanced one. Keep its interpretation outside the build branch.
+        let next_control: ReferenceControl = self.reference.load(index: 0)
+        let preview_bank: u32 = next_control.preview_bank(s)
+        let preview_anchor: ReferenceAnchor = self.anchor.load(index: preview_bank)
+        let next_preview: PreviewCache = previous_preview.sync_with_view(
+            s,
+            next_control,
+            preview_anchor.generation,
+            budget,
+        )
+        self.preview_cache.store(index: 0, value: next_preview)
+        let synced_view: ViewCache = previous.sync_for_frame(s, next_control, next_preview, initial)
+        let next_view: ViewCache = if published {
+            synced_view.invalidate_for_new_reference()
+        } else {
+            synced_view
+        }
+        self.cache.store(index: 0, value: next_view)
         // Integer center differences are camera work, not per-pixel work.
         // Refresh both live banks after building/publishing the reference.
         let current = self.reference.load(index: 0)
