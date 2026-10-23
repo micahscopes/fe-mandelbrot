@@ -281,7 +281,7 @@ impl RefinementSchedule {
 }
 
 #[test]
-fn refinement_quantum_covers_depth_and_revisits_each_cohort() {
+fn refinement_policy_rounds_cover_depth_and_revisit_cohorts() {
     let schedule = RefinementSchedule::for_grid(1856, 4, 2)
     assert(schedule.quantum == REFINEMENT_QUANTUM)
     assert(schedule.rounds * schedule.quantum >= schedule.limit)
@@ -299,7 +299,7 @@ fn refinement_quantum_covers_depth_and_revisits_each_cohort() {
 }
 
 #[test]
-fn refinement_aa_density_scales_with_iteration_depth() {
+fn refinement_policy_aa_density_scales_with_depth() {
     let shallow = RefinementSchedule::for_grid(256, 4, 2)
     let deep = RefinementSchedule::for_grid(8192, 4, 2)
     assert(deep.aa_stride >= shallow.aa_stride)
