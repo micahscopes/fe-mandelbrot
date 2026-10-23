@@ -10,18 +10,7 @@ use ingot::cache::{ReferenceAnchor, ReferenceControl, SampleOracle}
 use ingot::palette::{escape_palette, interior, glitch}
 use ingot::policy::Camera
 use precision::{Expansion, from_quad, to_quad, two_sum}
-use precision::field::{Limbs, Zero}
-use precision::fixed::{
-    add as fixed_add,
-    escaped as fixed_escaped,
-    fixed_magnitude_from_words,
-    fixed_magnitude_to_words,
-    from_qf_offset,
-    mul as fixed_mul,
-    sqr as fixed_sqr,
-    sub as fixed_sub,
-    to_f32_quad_bits,
-}
+use precision::array_fixed::ArrayFixed
 
 extern {
     const fn __bitcast<From, To>(_: From) -> To
@@ -80,75 +69,46 @@ pub fn is_non_finite_complex(_ value: Complex<f32>) -> bool {
     non_finite(value.re) || non_finite(value.im)
 }
 
-/// Exact sign-magnitude `Fixed<8>` coordinate used in the reference recurrence.
-/// Keeping recursive `Limbs<8>` inside the value avoids per-operation array
-/// conversions while preserving exact sign and negative-zero semantics.
-pub struct ReferenceReal { pub sign: u32, pub magnitude: Limbs<8> }
+/// Exact 91-fractional-bit reference value, interpreted by bounded array loops.
+/// Sign and limb serialization remain explicit at the existing buffer boundary.
+pub struct ReferenceReal { value: ArrayFixed<8> }
 
 impl Copy for ReferenceReal {}
 
 impl Default for ReferenceReal {
-    fn default() -> Self {
-        Self { sign: 0, magnitude: <Limbs<8> as Zero>::zero() }
-    }
+    fn default() -> Self { Self::zero() }
 }
 
 impl ReferenceReal {
-    pub fn zero() -> Self {
-        Self::default()
-    }
+    pub fn zero() -> Self { Self { value: ArrayFixed<8>::zero() } }
+
     pub fn from_quad(_ w0: f32, _ w1: f32, _ w2: f32, _ w3: f32) -> Self {
-        let (sign, magnitude) = from_qf_offset<8>(w0, w1, w2, w3, 0.0)
-        Self { sign: sign, magnitude: magnitude }
+        Self::from_expansion(precision::from_quad(w0, w1, w2, w3))
     }
+
     pub fn from_expansion(_ value: Expansion<4>) -> Self {
-        let (w0, w1, w2, w3) = to_quad(value)
-        Self::from_quad(w0, w1, w2, w3)
+        Self { value: ArrayFixed<8>::from_expansion(value) }
     }
+
     pub fn from_words(_ sign: u32, _ words: [u32; 8]) -> Self {
-        Self { sign: sign, magnitude: fixed_magnitude_from_words<8>(words) }
+        assert(sign <= 1)
+        Self { value: ArrayFixed<8>::from_digits(sign == 1, words) }
     }
-    pub fn to_words(self) -> [u32; 8] {
-        fixed_magnitude_to_words<8>(self.magnitude)
-    }
-    pub fn to_quad_bits(self) -> (u32, u32, u32, u32) {
-        to_f32_quad_bits<8>(self.sign, self.magnitude)
-    }
-    pub fn square(self) -> Self {
-        let (sign, magnitude) = fixed_sqr<8>(self.sign, self.magnitude)
-        Self { sign: sign, magnitude: magnitude }
-    }
-    pub fn multiply(self, _ other: Self) -> Self {
-        let (sign, magnitude) = fixed_mul<8>(self.sign, self.magnitude, other.sign, other.magnitude)
-        Self { sign: sign, magnitude: magnitude }
-    }
-    pub fn escaped(self) -> bool {
-        fixed_escaped<8>(self.magnitude) == 1
-    }
+
+    pub fn sign(self) -> u32 { self.value.sign() }
+    pub fn to_words(self) -> [u32; 8] { self.value.to_digits() }
+    pub fn to_quad_bits(self) -> (u32, u32, u32, u32) { self.value.to_quad_bits() }
+    pub fn square(self) -> Self { self.multiply(self) }
+    pub fn multiply(self, _ other: Self) -> Self { Self { value: self.value * other.value } }
+    pub fn escaped(self) -> bool { self.value.magnitude_exceeds_four() }
 }
 
 impl Add for ReferenceReal {
-    fn add(own self, _ other: own Self) -> Self {
-        let (sign, magnitude) = fixed_add<Limbs<8>>(
-            self.sign,
-            self.magnitude,
-            other.sign,
-            other.magnitude,
-        )
-        Self { sign: sign, magnitude: magnitude }
-    }
+    fn add(own self, _ other: own Self) -> Self { Self { value: self.value + other.value } }
 }
 
 impl Sub for ReferenceReal {
-    fn sub(own self, _ other: own Self) -> Self {
-        let (sign, magnitude) = fixed_sub<Limbs<8>>(
-            self.sign,
-            self.magnitude,
-            other.sign,
-            other.magnitude,
-        )
-        Self { sign: sign, magnitude: magnitude }
-    }
+    fn sub(own self, _ other: own Self) -> Self { Self { value: self.value - other.value } }
 }
 
 pub struct ReferenceStep { pub value: Complex<ReferenceReal>, pub escaped: bool }

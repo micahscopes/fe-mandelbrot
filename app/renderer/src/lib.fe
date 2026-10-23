@@ -217,21 +217,8 @@ actor SmoothPerturbationalMandelbrot uses (
         let keep_active: bool = if control.pending == 0 { reusable } else { false }
         let defer_rebuild: bool = if control.active_valid == 1 { age < 60.0 } else { false }
         let skip_build: bool = if keep_active { true } else { defer_rebuild }
-        if skip_build {
-            let preview_bank: u32 = control.preview_bank(s)
-            let preview_anchor: ReferenceAnchor = self.anchor.load(index: preview_bank)
-            let next_preview: PreviewCache = previous_preview.sync_with_view(
-                s,
-                control,
-                preview_anchor.generation,
-                budget,
-            )
-            self.preview_cache.store(index: 0, value: next_preview)
-            self.cache.store(
-                index: 0,
-                value: previous.sync_for_frame(s, control, next_preview, initial),
-            )
-        } else {
+        let mut published: bool = false
+        if !skip_build {
             let bank: u32 = 1 - control.active
             let base: u32 = bank * 8195
             let existing_pending: ReferenceAnchor = self.anchor.load(index: bank)
@@ -279,39 +266,34 @@ actor SmoothPerturbationalMandelbrot uses (
                 index: base + ORBIT_META_INDEX,
                 value: PackedReference::from_metadata(i + 1, pending_anchor.limit),
             )
-            let published: bool = escaped || i >= pending_anchor.limit
+            published = escaped || i >= pending_anchor.limit
             let next_control: ReferenceControl = if published {
-                ReferenceControl::publish(bank, i, z.re.sign, z.im.sign, s.clock)
+                ReferenceControl::publish(bank, i, z.re.sign(), z.im.sign(), s.clock)
             } else {
                 store_reference_checkpoint(self.reference_words, z)
-                control.advance_pending(i, z.re.sign, z.im.sign)
+                control.advance_pending(i, z.re.sign(), z.im.sign())
             }
             self.reference.store(index: 0, value: next_control)
-            // Checkpoints belong to the orbit actually selected for preview.
-            // During live input that can still be the active bank while its
-            // replacement is being built in the other bank.
-            let preview_bank: u32 = next_control.preview_bank(s)
-            let preview_anchor: ReferenceAnchor = self.anchor.load(index: preview_bank)
-            let next_preview: PreviewCache = previous_preview.sync_with_view(
-                s,
-                next_control,
-                preview_anchor.generation,
-                budget,
-            )
-            self.preview_cache.store(index: 0, value: next_preview)
-            let synced_view: ViewCache = previous.sync_for_frame(
-                s,
-                next_control,
-                next_preview,
-                initial,
-            )
-            let next_view: ViewCache = if published {
-                synced_view.invalidate_for_new_reference()
-            } else {
-                synced_view
-            }
-            self.cache.store(index: 0, value: next_view)
         }
+        // Synchronization has one meaning for both a retained reference and a
+        // newly advanced one. Keep its interpretation outside the build branch.
+        let next_control: ReferenceControl = self.reference.load(index: 0)
+        let preview_bank: u32 = next_control.preview_bank(s)
+        let preview_anchor: ReferenceAnchor = self.anchor.load(index: preview_bank)
+        let next_preview: PreviewCache = previous_preview.sync_with_view(
+            s,
+            next_control,
+            preview_anchor.generation,
+            budget,
+        )
+        self.preview_cache.store(index: 0, value: next_preview)
+        let synced_view: ViewCache = previous.sync_for_frame(s, next_control, next_preview, initial)
+        let next_view: ViewCache = if published {
+            synced_view.invalidate_for_new_reference()
+        } else {
+            synced_view
+        }
+        self.cache.store(index: 0, value: next_view)
         // Integer center differences are camera work, not per-pixel work.
         // Refresh both live banks after building/publishing the reference.
         let current = self.reference.load(index: 0)
@@ -641,12 +623,12 @@ actor SmoothPerturbationalMandelbrot uses (
             s.camera,
             pixel.sample(),
             limit,
-            limit,
+            ingot::partition::REFINEMENT_QUANTUM,
             saved,
         )
         self.progress_pixels.store(
             index: index,
-            value: next.with_fade_start(s.clock),
+            value: next.present_if_terminal(limit, s.clock),
         )
         let bits: u32 = next.color()
         self.native_pixels.store(index: index, value: bits)
@@ -688,15 +670,11 @@ actor SmoothPerturbationalMandelbrot uses (
             s.camera,
             pixel.sample(),
             schedule.limit,
-            2048,
+            schedule.quantum,
             saved,
         )
         // The finished checkpoint carries the exact magnitude and fade start time.
-        let stored: NativeCheckpoint = if next.is_terminal(schedule.limit) {
-            next.with_fade_start(s.clock)
-        } else {
-            next
-        }
+        let stored: NativeCheckpoint = next.present_if_terminal(schedule.limit, s.clock)
         self.progress_pixels.store(index: index, value: stored)
         let bits: u32 = next.color()
         self.native_pixels.store(index: index, value: bits)
@@ -1058,18 +1036,18 @@ fn assert_step_matches_oracle(
 ) -> ReferenceStep {
     let result: ReferenceStep = reference_step(z, center)
     let (nx_s, nx, ny_s, ny, did_escape) = mandelbrot_advance8(
-        z.re.sign,
-        z.re.magnitude,
-        z.im.sign,
-        z.im.magnitude,
-        center.re.sign,
-        center.re.magnitude,
-        center.im.sign,
-        center.im.magnitude,
+        z.re.sign(),
+        precision::fixed::fixed_magnitude_from_words<8>(z.re.to_words()),
+        z.im.sign(),
+        precision::fixed::fixed_magnitude_from_words<8>(z.im.to_words()),
+        center.re.sign(),
+        precision::fixed::fixed_magnitude_from_words<8>(center.re.to_words()),
+        center.im.sign(),
+        precision::fixed::fixed_magnitude_from_words<8>(center.im.to_words()),
     )
     assert(result.escaped == (did_escape == 1))
-    assert(result.value.re.sign == nx_s)
-    assert(result.value.im.sign == ny_s)
+    assert(result.value.re.sign() == nx_s)
+    assert(result.value.im.sign() == ny_s)
     let actual_re: [u32; 8] = result.value.re.to_words()
     let actual_im: [u32; 8] = result.value.im.to_words()
     let expected_re: [u32; 8] = fixed_magnitude_to_words<8>(nx)
@@ -1128,8 +1106,8 @@ fn reference_step_escape_cancellation_and_negative_zero() {
     }
     let escaped_step: ReferenceStep = assert_step_matches_oracle(escaped_z, center)
     assert(escaped_step.escaped)
-    assert(escaped_step.value.re.sign == 1)
-    assert(escaped_step.value.im.sign == 1)
+    assert(escaped_step.value.re.sign() == 1)
+    assert(escaped_step.value.im.sign() == 1)
 
     // 2. Boundary |z|^2 == 4 (antenna tip z = -2 + 0i): must NOT escape on input.
     let antenna: Complex<ReferenceReal> = Complex {
@@ -1180,8 +1158,8 @@ fn reference_step_resumed_64_step_batches_match_oracle() {
     let saved_re: [u32; 8] = z_batch.re.to_words()
     let saved_im: [u32; 8] = z_batch.im.to_words()
     let mut z_resumed: Complex<ReferenceReal> = Complex {
-        re: ReferenceReal::from_words(z_batch.re.sign, saved_re),
-        im: ReferenceReal::from_words(z_batch.im.sign, saved_im),
+        re: ReferenceReal::from_words(z_batch.re.sign(), saved_re),
+        im: ReferenceReal::from_words(z_batch.im.sign(), saved_im),
     }
     while step < 128 {
         let result: ReferenceStep = assert_step_matches_oracle(z_resumed, center)

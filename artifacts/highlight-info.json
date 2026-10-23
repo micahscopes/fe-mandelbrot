@@ -2,8 +2,8 @@
   "source": "fe doc json SCIP export",
   "files": {
     "lib.fe": {
-      "bytes": 46948,
-      "semanticOccurrences": 1043
+      "bytes": 46474,
+      "semanticOccurrences": 1039
     },
     "policy.fe": {
       "bytes": 12076,
@@ -18,19 +18,19 @@
       "semanticOccurrences": 508
     },
     "orbit.fe": {
-      "bytes": 27240,
-      "semanticOccurrences": 704
+      "bytes": 26197,
+      "semanticOccurrences": 670
     },
     "native_checkpoint.fe": {
-      "bytes": 6618,
-      "semanticOccurrences": 182
+      "bytes": 6862,
+      "semanticOccurrences": 187
     },
     "image.fe": {
       "bytes": 5652,
       "semanticOccurrences": 144
     },
     "cache.fe": {
-      "bytes": 13719,
+      "bytes": 13725,
       "semanticOccurrences": 431
     },
     "palette.fe": {
@@ -38,8 +38,8 @@
       "semanticOccurrences": 38
     },
     "partition.fe": {
-      "bytes": 8520,
-      "semanticOccurrences": 237
+      "bytes": 10287,
+      "semanticOccurrences": 283
     },
     "algebra.fe": {
       "bytes": 23249,
@@ -50,12 +50,12 @@
       "semanticOccurrences": 575
     },
     "precision.fe": {
-      "bytes": 17187,
-      "semanticOccurrences": 466
+      "bytes": 17207,
+      "semanticOccurrences": 467
     },
     "fixed.fe": {
-      "bytes": 38059,
-      "semanticOccurrences": 894
+      "bytes": 38629,
+      "semanticOccurrences": 896
     },
     "fmath.fe": {
       "bytes": 14651,
@@ -74,12 +74,16 @@
       "semanticOccurrences": 113
     },
     "viewer.fe": {
-      "bytes": 21728,
-      "semanticOccurrences": 614
+      "bytes": 21813,
+      "semanticOccurrences": 615
     },
     "viewer_highlight.fe": {
       "bytes": 9107,
       "semanticOccurrences": 158
+    },
+    "array_fixed.fe": {
+      "bytes": 12418,
+      "semanticOccurrences": 240
     }
   }
 }

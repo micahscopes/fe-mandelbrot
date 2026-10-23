@@ -1,121 +1,121 @@
-struct FeLocal_fe_shader_private_layout_0_ {
-    f0_: f32,
+struct FeLocal_fe_Last_eb970eb0_0_ {
+    value: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_1_ {
-    f0_: f32,
-    f1_: FeLocal_fe_shader_private_layout_0_,
+struct FeLocal_fe_More_Last_1ac585f5_1_ {
+    lead: f32,
+    tail: FeLocal_fe_Last_eb970eb0_0_,
 }
 
-struct FeLocal_fe_shader_private_layout_2_ {
-    f0_: f32,
-    f1_: FeLocal_fe_shader_private_layout_1_,
+struct FeLocal_fe_More_More_Last_60a5ba63_2_ {
+    lead: f32,
+    tail: FeLocal_fe_More_Last_1ac585f5_1_,
 }
 
-struct FeLocal_fe_shader_private_layout_3_ {
-    f0_: f32,
-    f1_: FeLocal_fe_shader_private_layout_2_,
+struct FeLocal_fe_More_More_More_Last_e6310ae8_3_ {
+    lead: f32,
+    tail: FeLocal_fe_More_More_Last_60a5ba63_2_,
 }
 
-struct FeLocal_fe_shader_private_layout_4_ {
-    f0_: FeLocal_fe_shader_private_layout_3_,
+struct FeLocal_fe_Coordinate_bdc10f09_4_ {
+    value: FeLocal_fe_More_More_More_Last_e6310ae8_3_,
 }
 
-struct FeLocal_fe_shader_private_layout_5_ {
-    f0_: FeLocal_fe_shader_private_layout_4_,
-    f1_: FeLocal_fe_shader_private_layout_4_,
+struct FeLocal_fe_Complex_Coordinate_d4657101_5_ {
+    re: FeLocal_fe_Coordinate_bdc10f09_4_,
+    im: FeLocal_fe_Coordinate_bdc10f09_4_,
 }
 
-struct FeLocal_fe_shader_private_layout_6_ {
-    f0_: FeLocal_fe_shader_private_layout_5_,
-    f1_: f32,
-    f2_: f32,
+struct FeLocal_fe_Camera_03494b0d_6_ {
+    center: FeLocal_fe_Complex_Coordinate_d4657101_5_,
+    zoom: f32,
+    res: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_7_ {
-    f0_: FeLocal_fe_shader_private_layout_6_,
-    f1_: u32,
-    f2_: f32,
-    f3_: u32,
-    f4_: f32,
-    f5_: u32,
-    f6_: u32,
-    f7_: u32,
-    f8_: u32,
+struct FeLocal_fe_ViewCache_da6e2ccc_7_ {
+    camera: FeLocal_fe_Camera_03494b0d_6_,
+    cursor: u32,
+    aa: f32,
+    budget: u32,
+    radius: f32,
+    preview_dirty: u32,
+    blur_dirty: u32,
+    epoch: u32,
+    completed: u32,
 }
 
-struct FeLocal_fe_shader_private_layout_9_ {
-    f0_: f32,
-    f1_: f32,
+struct FeLocal_fe_Vec2_f32_2772165c_9_ {
+    x: f32,
+    y: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_10_ {
-    f0_: bool,
-    f1_: u32,
-    f2_: FeLocal_fe_shader_private_layout_9_,
+struct FeLocal_fe_Contact_2b5c3d26_10_ {
+    active_: bool,
+    id: u32,
+    position: FeLocal_fe_Vec2_f32_2772165c_9_,
 }
 
-struct FeLocal_fe_shader_private_layout_11_ {
-    f0_: array<FeLocal_fe_shader_private_layout_10_, 10>,
+struct FeLocal_fe_Contacts_10_9aa61bf4_11_ {
+    entries: array<FeLocal_fe_Contact_2b5c3d26_10_, 10>,
 }
 
-struct FeLocal_fe_shader_private_layout_12_ {
-    f0_: FeLocal_fe_shader_private_layout_9_,
-    f1_: FeLocal_fe_shader_private_layout_9_,
+struct FeLocal_fe_Viewport_91e53b90_12_ {
+    origin: FeLocal_fe_Vec2_f32_2772165c_9_,
+    extent: FeLocal_fe_Vec2_f32_2772165c_9_,
 }
 
-struct FeLocal_fe_shader_private_layout_13_ {
-    f0_: FeLocal_fe_shader_private_layout_11_,
-    f1_: FeLocal_fe_shader_private_layout_12_,
+struct FeLocal_fe_GestureSession_6b679731_13_ {
+    contacts: FeLocal_fe_Contacts_10_9aa61bf4_11_,
+    viewport: FeLocal_fe_Viewport_91e53b90_12_,
 }
 
-struct FeLocal_fe_shader_private_layout_14_ {
-    f0_: bool,
-    f1_: f32,
+struct FeLocal_fe_BackingRequest_2bcae9f8_14_ {
+    fixed: bool,
+    side: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_15_ {
-    f0_: FeLocal_fe_shader_private_layout_6_,
-    f1_: f32,
-    f2_: f32,
-    f3_: f32,
-    f4_: f32,
-    f5_: f32,
-    f6_: FeLocal_fe_shader_private_layout_13_,
-    f7_: FeLocal_fe_shader_private_layout_14_,
+struct FeLocal_fe_MandelbrotViewState_c524184f_15_ {
+    camera: FeLocal_fe_Camera_03494b0d_6_,
+    clock: f32,
+    last_input: f32,
+    antialias: f32,
+    drag_active: f32,
+    magnification: f32,
+    gesture: FeLocal_fe_GestureSession_6b679731_13_,
+    backing: FeLocal_fe_BackingRequest_2bcae9f8_14_,
 }
 
-struct FeLocal_fe_shader_private_layout_8_ {
-    f0_: u32,
-    f1_: u32,
-    f2_: u32,
-    f3_: u32,
-    f4_: u32,
-    f5_: u32,
-    f6_: f32,
+struct FeLocal_fe_ReferenceControl_7d077120_8_ {
+    active_: u32,
+    active_valid: u32,
+    pending: u32,
+    index: u32,
+    zx_s: u32,
+    zy_s: u32,
+    ready_at: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_16_ {
-    f0_: f32,
-    f1_: f32,
+struct FeLocal_fe_Complex_f32_87ec9249_16_ {
+    re: f32,
+    im: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_17_ {
-    f0_: FeLocal_fe_shader_private_layout_16_,
-    f1_: FeLocal_fe_shader_private_layout_16_,
+struct FeLocal_fe_HistoryOffsets_646326b2_17_ {
+    full: FeLocal_fe_Complex_f32_87ec9249_16_,
+    initial: FeLocal_fe_Complex_f32_87ec9249_16_,
 }
 
-struct FeLocal_fe_shader_private_layout_18_ {
-    f0_: FeLocal_fe_shader_private_layout_6_,
-    f1_: u32,
-    f2_: u32,
-    f3_: u32,
-    f4_: u32,
-    f5_: u32,
-    f6_: u32,
-    f7_: u32,
-    f8_: u32,
-    f9_: FeLocal_fe_shader_private_layout_17_,
+struct FeLocal_fe_PreviewCache_6792a3e2_18_ {
+    camera: FeLocal_fe_Camera_03494b0d_6_,
+    reference_generation: u32,
+    reference_bank: u32,
+    prefix_only: u32,
+    step_target: u32,
+    completed_steps: u32,
+    budget: u32,
+    epoch: u32,
+    completed: u32,
+    history: FeLocal_fe_HistoryOffsets_646326b2_17_,
 }
 
 struct preview_cache_element {
@@ -247,13 +247,13 @@ var<storage, read_write> reference: array<reference_element>;
 @group(0) @binding(3)
 var<storage> params: Params;
 
-fn as_published_initial(a0_: FeLocal_fe_shader_private_layout_7_) -> FeLocal_fe_shader_private_layout_7_ {
-    var fixed_local_2_: FeLocal_fe_shader_private_layout_7_ = FeLocal_fe_shader_private_layout_7_();
+fn as_published_initial(a0_: FeLocal_fe_ViewCache_da6e2ccc_7_) -> FeLocal_fe_ViewCache_da6e2ccc_7_ {
+    var fixed_local_2_: FeLocal_fe_ViewCache_da6e2ccc_7_ = FeLocal_fe_ViewCache_da6e2ccc_7_();
 
     fixed_local_2_ = a0_;
-    fixed_local_2_.f5_ = 0u;
-    fixed_local_2_.f6_ = 0u;
-    fixed_local_2_.f8_ = 1u;
+    fixed_local_2_.preview_dirty = 0u;
+    fixed_local_2_.blur_dirty = 0u;
+    fixed_local_2_.completed = 1u;
     let _e9 = fixed_local_2_;
     return _e9;
 }
@@ -272,18 +272,18 @@ fn max_(a0_1: f32, a1_: f32) -> f32 {
     return _e8;
 }
 
-fn can_publish_initial(a0_2: FeLocal_fe_shader_private_layout_8_, a1_1: ptr<function, FeLocal_fe_shader_private_layout_15_>, a2_: u32, a3_: u32) -> bool {
+fn can_publish_initial(a0_2: FeLocal_fe_ReferenceControl_7d077120_8_, a1_1: ptr<function, FeLocal_fe_MandelbrotViewState_c524184f_15_>, a2_: u32, a3_: u32) -> bool {
     var local_5: bool;
     var local_6: bool = false;
     var local_7: bool = bool();
 
-    if (a0_2.f1_ == 1u) {
-        if (a0_2.f2_ == 0u) {
-            let _e13 = (*a1_1).f4_;
+    if (a0_2.active_valid == 1u) {
+        if (a0_2.pending == 0u) {
+            let _e13 = (*a1_1).drag_active;
             if (_e13 < 0.5f) {
-                let _e17 = (*a1_1).f1_;
-                let _e19 = (*a1_1).f2_;
-                let _e21 = max_(_e19, a0_2.f6_);
+                let _e17 = (*a1_1).clock;
+                let _e19 = (*a1_1).last_input;
+                let _e21 = max_(_e19, a0_2.ready_at);
                 if (360f <= (_e17 - _e21)) {
                     if ((a3_ == a2_) == false) {
                         local_7 = true;
@@ -300,7 +300,7 @@ fn can_publish_initial(a0_2: FeLocal_fe_shader_private_layout_8_, a1_1: ptr<func
 fn main() {
     var local: u32;
     var local_1: bool = false;
-    var fixed_local_737_: FeLocal_fe_shader_private_layout_15_ = FeLocal_fe_shader_private_layout_15_();
+    var fixed_local_737_: FeLocal_fe_MandelbrotViewState_c524184f_15_ = FeLocal_fe_MandelbrotViewState_c524184f_15_();
 
     let _e5 = params.p16_;
     let _e7 = params.p17_;
@@ -392,28 +392,28 @@ fn main() {
     let _e268 = preview_cache[i32(0u)].completed;
     if (_e268 == 0u) {
     } else {
-        fixed_local_737_ = FeLocal_fe_shader_private_layout_15_(FeLocal_fe_shader_private_layout_6_(FeLocal_fe_shader_private_layout_5_(FeLocal_fe_shader_private_layout_4_(FeLocal_fe_shader_private_layout_3_(_e5, FeLocal_fe_shader_private_layout_2_(_e7, FeLocal_fe_shader_private_layout_1_(_e9, FeLocal_fe_shader_private_layout_0_(_e11))))), FeLocal_fe_shader_private_layout_4_(FeLocal_fe_shader_private_layout_3_(_e13, FeLocal_fe_shader_private_layout_2_(_e15, FeLocal_fe_shader_private_layout_1_(_e17, FeLocal_fe_shader_private_layout_0_(_e19)))))), _e21, _e23), _e25, _e27, _e29, _e31, _e33, FeLocal_fe_shader_private_layout_13_(FeLocal_fe_shader_private_layout_11_(array<FeLocal_fe_shader_private_layout_10_, 10>(FeLocal_fe_shader_private_layout_10_((_e35 != 0u), _e39, FeLocal_fe_shader_private_layout_9_(_e41, _e43)), FeLocal_fe_shader_private_layout_10_((_e45 != 0u), _e49, FeLocal_fe_shader_private_layout_9_(_e51, _e53)), FeLocal_fe_shader_private_layout_10_((_e55 != 0u), _e59, FeLocal_fe_shader_private_layout_9_(_e61, _e63)), FeLocal_fe_shader_private_layout_10_((_e65 != 0u), _e69, FeLocal_fe_shader_private_layout_9_(_e71, _e73)), FeLocal_fe_shader_private_layout_10_((_e75 != 0u), _e79, FeLocal_fe_shader_private_layout_9_(_e81, _e83)), FeLocal_fe_shader_private_layout_10_((_e85 != 0u), _e89, FeLocal_fe_shader_private_layout_9_(_e91, _e93)), FeLocal_fe_shader_private_layout_10_((_e95 != 0u), _e99, FeLocal_fe_shader_private_layout_9_(_e101, _e103)), FeLocal_fe_shader_private_layout_10_((_e105 != 0u), _e109, FeLocal_fe_shader_private_layout_9_(_e111, _e113)), FeLocal_fe_shader_private_layout_10_((_e115 != 0u), _e119, FeLocal_fe_shader_private_layout_9_(_e121, _e123)), FeLocal_fe_shader_private_layout_10_((_e125 != 0u), _e129, FeLocal_fe_shader_private_layout_9_(_e131, _e133)))), FeLocal_fe_shader_private_layout_12_(FeLocal_fe_shader_private_layout_9_(_e135, _e137), FeLocal_fe_shader_private_layout_9_(_e139, _e141))), FeLocal_fe_shader_private_layout_14_((_e143 != 0u), _e147));
-        let _e273 = can_publish_initial(FeLocal_fe_shader_private_layout_8_(_e250, _e252, _e254, _e256, _e258, _e260, _e262), (&fixed_local_737_), _e225, _e245);
+        fixed_local_737_ = FeLocal_fe_MandelbrotViewState_c524184f_15_(FeLocal_fe_Camera_03494b0d_6_(FeLocal_fe_Complex_Coordinate_d4657101_5_(FeLocal_fe_Coordinate_bdc10f09_4_(FeLocal_fe_More_More_More_Last_e6310ae8_3_(_e5, FeLocal_fe_More_More_Last_60a5ba63_2_(_e7, FeLocal_fe_More_Last_1ac585f5_1_(_e9, FeLocal_fe_Last_eb970eb0_0_(_e11))))), FeLocal_fe_Coordinate_bdc10f09_4_(FeLocal_fe_More_More_More_Last_e6310ae8_3_(_e13, FeLocal_fe_More_More_Last_60a5ba63_2_(_e15, FeLocal_fe_More_Last_1ac585f5_1_(_e17, FeLocal_fe_Last_eb970eb0_0_(_e19)))))), _e21, _e23), _e25, _e27, _e29, _e31, _e33, FeLocal_fe_GestureSession_6b679731_13_(FeLocal_fe_Contacts_10_9aa61bf4_11_(array<FeLocal_fe_Contact_2b5c3d26_10_, 10>(FeLocal_fe_Contact_2b5c3d26_10_((_e35 != 0u), _e39, FeLocal_fe_Vec2_f32_2772165c_9_(_e41, _e43)), FeLocal_fe_Contact_2b5c3d26_10_((_e45 != 0u), _e49, FeLocal_fe_Vec2_f32_2772165c_9_(_e51, _e53)), FeLocal_fe_Contact_2b5c3d26_10_((_e55 != 0u), _e59, FeLocal_fe_Vec2_f32_2772165c_9_(_e61, _e63)), FeLocal_fe_Contact_2b5c3d26_10_((_e65 != 0u), _e69, FeLocal_fe_Vec2_f32_2772165c_9_(_e71, _e73)), FeLocal_fe_Contact_2b5c3d26_10_((_e75 != 0u), _e79, FeLocal_fe_Vec2_f32_2772165c_9_(_e81, _e83)), FeLocal_fe_Contact_2b5c3d26_10_((_e85 != 0u), _e89, FeLocal_fe_Vec2_f32_2772165c_9_(_e91, _e93)), FeLocal_fe_Contact_2b5c3d26_10_((_e95 != 0u), _e99, FeLocal_fe_Vec2_f32_2772165c_9_(_e101, _e103)), FeLocal_fe_Contact_2b5c3d26_10_((_e105 != 0u), _e109, FeLocal_fe_Vec2_f32_2772165c_9_(_e111, _e113)), FeLocal_fe_Contact_2b5c3d26_10_((_e115 != 0u), _e119, FeLocal_fe_Vec2_f32_2772165c_9_(_e121, _e123)), FeLocal_fe_Contact_2b5c3d26_10_((_e125 != 0u), _e129, FeLocal_fe_Vec2_f32_2772165c_9_(_e131, _e133)))), FeLocal_fe_Viewport_91e53b90_12_(FeLocal_fe_Vec2_f32_2772165c_9_(_e135, _e137), FeLocal_fe_Vec2_f32_2772165c_9_(_e139, _e141))), FeLocal_fe_BackingRequest_2bcae9f8_14_((_e143 != 0u), _e147));
+        let _e273 = can_publish_initial(FeLocal_fe_ReferenceControl_7d077120_8_(_e250, _e252, _e254, _e256, _e258, _e260, _e262), (&fixed_local_737_), _e225, _e245);
         if _e273 {
-            let _e274 = as_published_initial(FeLocal_fe_shader_private_layout_7_(FeLocal_fe_shader_private_layout_6_(FeLocal_fe_shader_private_layout_5_(FeLocal_fe_shader_private_layout_4_(FeLocal_fe_shader_private_layout_3_(_e193, FeLocal_fe_shader_private_layout_2_(_e195, FeLocal_fe_shader_private_layout_1_(_e197, FeLocal_fe_shader_private_layout_0_(_e199))))), FeLocal_fe_shader_private_layout_4_(FeLocal_fe_shader_private_layout_3_(_e201, FeLocal_fe_shader_private_layout_2_(_e203, FeLocal_fe_shader_private_layout_1_(_e205, FeLocal_fe_shader_private_layout_0_(_e207)))))), _e209, _e211), _e213, _e215, _e217, _e219, _e221, _e223, _e225, _e227));
-            cache[i32(2u)].camera_u002e_center_u002e_re_u002e_value_u002e_lead = _e274.f0_.f0_.f0_.f0_.f0_;
-            cache[i32(2u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_lead = _e274.f0_.f0_.f0_.f0_.f1_.f0_;
-            cache[i32(2u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_tail_u002e_lead = _e274.f0_.f0_.f0_.f0_.f1_.f1_.f0_;
-            cache[i32(2u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value = _e274.f0_.f0_.f0_.f0_.f1_.f1_.f1_.f0_;
-            cache[i32(2u)].camera_u002e_center_u002e_im_u002e_value_u002e_lead = _e274.f0_.f0_.f1_.f0_.f0_;
-            cache[i32(2u)].camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_lead = _e274.f0_.f0_.f1_.f0_.f1_.f0_;
-            cache[i32(2u)].camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_lead = _e274.f0_.f0_.f1_.f0_.f1_.f1_.f0_;
-            cache[i32(2u)].camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value = _e274.f0_.f0_.f1_.f0_.f1_.f1_.f1_.f0_;
-            cache[i32(2u)].camera_u002e_zoom = _e274.f0_.f1_;
-            cache[i32(2u)].camera_u002e_res = _e274.f0_.f2_;
-            cache[i32(2u)].cursor = _e274.f1_;
-            cache[i32(2u)].aa = _e274.f2_;
-            cache[i32(2u)].budget = _e274.f3_;
-            cache[i32(2u)].radius = _e274.f4_;
-            cache[i32(2u)].preview_dirty = _e274.f5_;
-            cache[i32(2u)].blur_dirty = _e274.f6_;
-            cache[i32(2u)].epoch = _e274.f7_;
-            cache[i32(2u)].completed = _e274.f8_;
+            let _e274 = as_published_initial(FeLocal_fe_ViewCache_da6e2ccc_7_(FeLocal_fe_Camera_03494b0d_6_(FeLocal_fe_Complex_Coordinate_d4657101_5_(FeLocal_fe_Coordinate_bdc10f09_4_(FeLocal_fe_More_More_More_Last_e6310ae8_3_(_e193, FeLocal_fe_More_More_Last_60a5ba63_2_(_e195, FeLocal_fe_More_Last_1ac585f5_1_(_e197, FeLocal_fe_Last_eb970eb0_0_(_e199))))), FeLocal_fe_Coordinate_bdc10f09_4_(FeLocal_fe_More_More_More_Last_e6310ae8_3_(_e201, FeLocal_fe_More_More_Last_60a5ba63_2_(_e203, FeLocal_fe_More_Last_1ac585f5_1_(_e205, FeLocal_fe_Last_eb970eb0_0_(_e207)))))), _e209, _e211), _e213, _e215, _e217, _e219, _e221, _e223, _e225, _e227));
+            cache[i32(2u)].camera_u002e_center_u002e_re_u002e_value_u002e_lead = _e274.camera.center.re.value.lead;
+            cache[i32(2u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_lead = _e274.camera.center.re.value.tail.lead;
+            cache[i32(2u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_tail_u002e_lead = _e274.camera.center.re.value.tail.tail.lead;
+            cache[i32(2u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value = _e274.camera.center.re.value.tail.tail.tail.value;
+            cache[i32(2u)].camera_u002e_center_u002e_im_u002e_value_u002e_lead = _e274.camera.center.im.value.lead;
+            cache[i32(2u)].camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_lead = _e274.camera.center.im.value.tail.lead;
+            cache[i32(2u)].camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_lead = _e274.camera.center.im.value.tail.tail.lead;
+            cache[i32(2u)].camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value = _e274.camera.center.im.value.tail.tail.tail.value;
+            cache[i32(2u)].camera_u002e_zoom = _e274.camera.zoom;
+            cache[i32(2u)].camera_u002e_res = _e274.camera.res;
+            cache[i32(2u)].cursor = _e274.cursor;
+            cache[i32(2u)].aa = _e274.aa;
+            cache[i32(2u)].budget = _e274.budget;
+            cache[i32(2u)].radius = _e274.radius;
+            cache[i32(2u)].preview_dirty = _e274.preview_dirty;
+            cache[i32(2u)].blur_dirty = _e274.blur_dirty;
+            cache[i32(2u)].epoch = _e274.epoch;
+            cache[i32(2u)].completed = _e274.completed;
             local_1 = true;
         }
         let _e329 = local_1;

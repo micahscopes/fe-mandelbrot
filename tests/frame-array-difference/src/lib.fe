@@ -1,0 +1,192 @@
+use core::marker::Copy
+use precision::array_fixed::ArrayFixed
+use precision::field::{Limbs, Mac, SubBorrow, Select, Head, ShiftAppend, Zero}
+use precision::fixed::{Binary32View, add, sub, to_f32_bits, fixed_magnitude_from_words, fixed_magnitude_to_words}
+pub use conversion
+
+fn next_seed(_ seed: u32) -> u32 {
+    let a: u32 = seed ^ (seed << 13)
+    let b: u32 = a ^ (a >> 17)
+    b ^ (b << 5)
+}
+
+fn suite<const L: usize>()
+    where Limbs<L>: Copy + Mac + SubBorrow + Select + Head + ShiftAppend + Zero + Binary32View,
+{
+    let mut seed: u32 = 539365409
+    let mut trial: u32 = 0
+    while trial < 256 {
+        let mut left: [u32; L] = [0; L]
+        let mut right: [u32; L] = [0; L]
+        let mut slot: usize = 0
+        while slot < L {
+            seed = next_seed(seed)
+            left[slot] = if trial == 0 { 0 } else if trial == 1 { 8191 } else { seed & 8191 }
+            seed = next_seed(seed)
+            right[slot] = if trial == 0 { 0 } else if trial == 1 { 8191 }
+                else if trial == 2 { left[slot] } else { seed & 8191 }
+            slot = slot + 1
+        }
+        let old_left = fixed_magnitude_from_words<L>(left)
+        let old_right = fixed_magnitude_from_words<L>(right)
+        let mut signs: u32 = 0
+        while signs < 4 {
+            let a_sign: u32 = signs & 1
+            let b_sign: u32 = signs >> 1
+            let a = ArrayFixed<L>::from_digits(a_sign == 1, left)
+            let b = ArrayFixed<L>::from_digits(b_sign == 1, right)
+            let sum = a + b
+            let difference = a - b
+            let (sum_sign, sum_mag) = add<Limbs<L>>(a_sign, old_left, b_sign, old_right)
+            let (diff_sign, diff_mag) = sub<Limbs<L>>(a_sign, old_left, b_sign, old_right)
+            let expected_sum = ArrayFixed<L>::from_digits(sum_sign == 1, fixed_magnitude_to_words<L>(sum_mag))
+            let expected_difference = ArrayFixed<L>::from_digits(diff_sign == 1, fixed_magnitude_to_words<L>(diff_mag))
+            assert(sum == expected_sum)
+            assert(difference == expected_difference)
+            assert(sum.to_binary32_bits() == to_f32_bits<L>(sum_sign, sum_mag))
+            assert(difference.to_binary32_bits() == to_f32_bits<L>(diff_sign, diff_mag))
+            signs = signs + 1
+        }
+        trial = trial + 1
+    }
+}
+
+#[test]
+fn array_fixed_l2_arithmetic_and_projection() { suite<2>() }
+#[test]
+fn array_fixed_l8_arithmetic_and_projection() { suite<8>() }
+#[test]
+fn array_fixed_l10_arithmetic_and_projection() { suite<10>() }
+
+#[test]
+fn array_fixed_zero_sign_and_minimum_camera_displacement() {
+    let zero = ArrayFixed<10>::zero()
+    let negative_zero = -zero
+    assert(negative_zero != zero)
+    assert(negative_zero.to_binary32_bits() == 0)
+    assert(negative_zero + zero == negative_zero)
+    assert(zero + negative_zero == zero)
+    assert(negative_zero - negative_zero == negative_zero)
+    assert(ArrayFixed<10>::from_binary32_bits(2147483648) == zero)
+    assert(ArrayFixed<10>::from_binary32_bits(2147483649) == negative_zero)
+    // One 117-bit lattice unit, and the previously collapsed 2^-95 movement.
+    assert(ArrayFixed<10>::from_binary32_bits(83886080).to_binary32_bits() == 83886080)
+    assert(ArrayFixed<10>::from_binary32_bits(268435456).to_binary32_bits() == 268435456)
+    assert(ArrayFixed<8>::from_binary32_bits(268435456).to_binary32_bits() == 0)
+}
+
+#[test]
+fn array_fixed_rne_guard_sticky_tie_and_carry() {
+    // At magnitude 2^24, the binary32 step is two integer lattice units.
+    let even_tie = ArrayFixed<2>::from_digits(false, [1, 2048])
+    let odd_tie = ArrayFixed<2>::from_digits(false, [3, 2048])
+    let carry_tie = ArrayFixed<2>::from_digits(false, [8191, 4095])
+    assert(even_tie.to_binary32_bits() == 1157627904)
+    assert(odd_tie.to_binary32_bits() == 1157627906)
+    assert(carry_tie.to_binary32_bits() == 1166016512)
+    // Magnitude 2^25+3: guard and sticky both set; round upward.
+    let sticky = ArrayFixed<2>::from_digits(false, [3, 4096])
+    assert(sticky.to_binary32_bits() == 1166016513)
+}
+
+#[test]
+fn canonical_radix_highest_bit_matches_shift_count() {
+    let mut digit: u32 = 0
+    while digit < 8192 {
+        let mut value: u32 = digit
+        let mut expected: i32 = -1
+        while value > 0 {
+            expected = expected + 1
+            value = value >> 1
+        }
+        assert(precision::fixed::limb_highest_bit(digit) == expected)
+        digit = digit + 1
+    }
+}
+
+#[test]
+fn array_reference_quad_matches_recursive_projection() {
+    let mut seed: u32 = 327109
+    let mut trial: u32 = 0
+    while trial < 128 {
+        let mut digits: [u32; 8] = [0; 8]
+        let mut index: usize = 0
+        while index < 8 {
+            seed = next_seed(seed)
+            digits[index] = seed & 8191
+            index = index + 1
+        }
+        let mut sign: u32 = 0
+        while sign < 2 {
+            let value = ArrayFixed<8>::from_digits(sign == 1, digits)
+            let (a, b, c, d) = value.to_quad_bits()
+            let (w, x, y, z) = precision::fixed::to_f32_quad_bits<8>(sign, fixed_magnitude_from_words<8>(digits))
+            assert(a == w && b == x && c == y && d == z)
+            sign = sign + 1
+        }
+        trial = trial + 1
+    }
+}
+
+// Compare every sign and limb against the independent recursive interpretation.
+// The first rows exercise zero, full carries, and equal magnitudes.
+fn multiplication_suite<const L: usize>()
+    where Limbs<L>: Copy + Mac + Head + ShiftAppend + Zero
+        + precision::fixed::Carry + precision::fixed::TruncRows<Limbs<L>>,
+{
+    let mut seed: u32 = 20261022
+    let mut trial: u32 = 0
+    while trial < 128 {
+        let mut left: [u32; L] = [0; L]
+        let mut right: [u32; L] = [0; L]
+        let mut slot: usize = 0
+        while slot < L {
+            seed = next_seed(seed)
+            left[slot] = if trial == 0 { 0 } else if trial == 1 { 8191 } else { seed & 8191 }
+            seed = next_seed(seed)
+            right[slot] = if trial == 0 { 8191 } else if trial == 1 { 8191 }
+                else if trial == 2 { left[slot] } else { seed & 8191 }
+            slot = slot + 1
+        }
+        let mut signs: u32 = 0
+        while signs < 4 {
+            let a_sign: u32 = signs & 1
+            let b_sign: u32 = signs >> 1
+            let a = ArrayFixed<L>::from_digits(a_sign == 1, left)
+            let b = ArrayFixed<L>::from_digits(b_sign == 1, right)
+            let product = a * b
+            let (expected_sign, expected_magnitude) = precision::fixed::mul<L>(
+                a_sign, fixed_magnitude_from_words<L>(left),
+                b_sign, fixed_magnitude_from_words<L>(right),
+            )
+            let expected = ArrayFixed<L>::from_digits(
+                expected_sign == 1, fixed_magnitude_to_words<L>(expected_magnitude),
+            )
+            assert(product == expected)
+            signs = signs + 1
+        }
+        trial = trial + 1
+    }
+}
+
+#[test]
+fn array_reference_multiplication_matches_recursive_kernel() {
+    multiplication_suite<2>()
+    multiplication_suite<8>()
+    multiplication_suite<10>()
+}
+
+#[test]
+fn array_reference_multiplication_rounding_and_escape_boundary() {
+    let unit: [u32; 8] = [1, 0, 0, 0, 0, 0, 0, 0]
+    let half: [u32; 8] = [0, 0, 0, 0, 0, 0, 4096, 0]
+    let tiny = ArrayFixed<8>::from_digits(false, unit)
+    let half_value = ArrayFixed<8>::from_digits(false, half)
+    assert(tiny * half_value == tiny)
+    assert((-tiny) * half_value == -tiny)
+    assert((-ArrayFixed<8>::zero()) * tiny == -ArrayFixed<8>::zero())
+    let four = ArrayFixed<8>::from_digits(false, [0, 0, 0, 0, 0, 0, 0, 4])
+    assert(!four.magnitude_exceeds_four())
+    assert((four + tiny).magnitude_exceeds_four())
+    assert(!(four - tiny).magnitude_exceeds_four())
+}

@@ -1,28 +1,28 @@
-struct FeLocal_fe_shader_private_layout_0_ {
-    f0_: u32,
-    f1_: u32,
-    f2_: u32,
-    f3_: u32,
-    f4_: u32,
-    f5_: u32,
-    f6_: u32,
-    f7_: u32,
+struct FeLocal_fe_PackedReference_e11ca04a_0_ {
+    re_w0_bits: u32,
+    re_w1_bits: u32,
+    re_w2_bits: u32,
+    re_w3_bits: u32,
+    im_w0_bits: u32,
+    im_w1_bits: u32,
+    im_w2_bits: u32,
+    im_w3_bits: u32,
 }
 
-struct FeLocal_fe_shader_private_layout_1_ {
-    f0_: u32,
-    f1_: u32,
-    f2_: u32,
-    f3_: u32,
-    f4_: u32,
-    f5_: u32,
-    f6_: f32,
+struct FeLocal_fe_ReferenceControl_7d077120_1_ {
+    active_: u32,
+    active_valid: u32,
+    pending: u32,
+    index: u32,
+    zx_s: u32,
+    zy_s: u32,
+    ready_at: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_2_ {
-    f0_: u32,
-    f1_: u32,
-    f2_: u32,
+struct FeLocal_fe_InvocationId_3c625d5f_2_ {
+    x: u32,
+    y: u32,
+    z: u32,
 }
 
 struct orbit_element {
@@ -324,12 +324,12 @@ fn order_word(a0_: u32) -> u32 {
     return _e132;
 }
 
-fn from_words(a0_1: u32, a1_: u32, a2_: u32, a3_: u32, a4_: u32, a5_: u32, a6_: u32, a7_: u32) -> FeLocal_fe_shader_private_layout_0_ {
-    return FeLocal_fe_shader_private_layout_0_(a0_1, a1_, a2_, a3_, a4_, a5_, a6_, a7_);
+fn from_words(a0_1: u32, a1_: u32, a2_: u32, a3_: u32, a4_: u32, a5_: u32, a6_: u32, a7_: u32) -> FeLocal_fe_PackedReference_e11ca04a_0_ {
+    return FeLocal_fe_PackedReference_e11ca04a_0_(a0_1, a1_, a2_, a3_, a4_, a5_, a6_, a7_);
 }
 
-fn order_block(a0_2: u32, fe_trapped_1: ptr<function, bool>) -> FeLocal_fe_shader_private_layout_0_ {
-    var local_5: FeLocal_fe_shader_private_layout_0_;
+fn order_block(a0_2: u32, fe_trapped_1: ptr<function, bool>) -> FeLocal_fe_PackedReference_e11ca04a_0_ {
+    var local_5: FeLocal_fe_PackedReference_e11ca04a_0_;
     var local_6: bool = false;
 
     let _e7 = (a0_2 * 8u);
@@ -419,14 +419,14 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
                 fe_trapped = true;
             }
             let _e26 = order_block(global_invocation_id.x, (&fe_trapped));
-            orbit[i32((16390u + global_invocation_id.x))].re_w0_bits = _e26.f0_;
-            orbit[i32((16390u + global_invocation_id.x))].re_w1_bits = _e26.f1_;
-            orbit[i32((16390u + global_invocation_id.x))].re_w2_bits = _e26.f2_;
-            orbit[i32((16390u + global_invocation_id.x))].re_w3_bits = _e26.f3_;
-            orbit[i32((16390u + global_invocation_id.x))].im_w0_bits = _e26.f4_;
-            orbit[i32((16390u + global_invocation_id.x))].im_w1_bits = _e26.f5_;
-            orbit[i32((16390u + global_invocation_id.x))].im_w2_bits = _e26.f6_;
-            orbit[i32((16390u + global_invocation_id.x))].im_w3_bits = _e26.f7_;
+            orbit[i32((16390u + global_invocation_id.x))].re_w0_bits = _e26.re_w0_bits;
+            orbit[i32((16390u + global_invocation_id.x))].re_w1_bits = _e26.re_w1_bits;
+            orbit[i32((16390u + global_invocation_id.x))].re_w2_bits = _e26.re_w2_bits;
+            orbit[i32((16390u + global_invocation_id.x))].re_w3_bits = _e26.re_w3_bits;
+            orbit[i32((16390u + global_invocation_id.x))].im_w0_bits = _e26.im_w0_bits;
+            orbit[i32((16390u + global_invocation_id.x))].im_w1_bits = _e26.im_w1_bits;
+            orbit[i32((16390u + global_invocation_id.x))].im_w2_bits = _e26.im_w2_bits;
+            orbit[i32((16390u + global_invocation_id.x))].im_w3_bits = _e26.im_w3_bits;
             local_1 = true;
         }
     }

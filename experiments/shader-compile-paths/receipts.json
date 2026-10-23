@@ -1,0 +1,70 @@
+{
+  "ARITHMETIC-REPRODUCER-1.json": [
+    {
+      "kind": "multiply",
+      "helper_count": 47,
+      "bytes": 55594,
+      "exit": 0,
+      "log": "/lab/argot/scratch/mb2-sonatina-upstream-rebase-20261022/arithmetic-reproducer-1-multiply.log",
+      "unchanged_generated_arithmetic": true
+    },
+    {
+      "kind": "recurrence",
+      "helper_count": 86,
+      "bytes": 98903,
+      "exit": 124,
+      "log": "/lab/argot/scratch/mb2-sonatina-upstream-rebase-20261022/arithmetic-reproducer-1-recurrence.log",
+      "unchanged_generated_arithmetic": true
+    }
+  ],
+  "REPEATED-MULTIPLY-PROBE-1.json": [
+    {
+      "calls": 2,
+      "exit": 0,
+      "bytes": 55683,
+      "log": "/lab/argot/scratch/mb2-sonatina-upstream-rebase-20261022/repeated-multiply-probe-1-2.log"
+    },
+    {
+      "calls": 3,
+      "exit": 0,
+      "bytes": 55743,
+      "log": "/lab/argot/scratch/mb2-sonatina-upstream-rebase-20261022/repeated-multiply-probe-1-3.log"
+    }
+  ],
+  "LOOP-MULTIPLY-DIAGNOSTIC-1.json": {
+    "diagnostic_only": true,
+    "canonical_13bit_limbs_only": true,
+    "not_deployed": true,
+    "numerical_equivalence_pending": true,
+    "exit": 0,
+    "log": "/lab/argot/scratch/mb2-sonatina-upstream-rebase-20261022/loop-multiply-diagnostic-1.log"
+  },
+  "LOOP-MULTIPLY-GPU-1.json": {
+    "cases": 128,
+    "failures": [],
+    "device": "",
+    "diagnosticOnly": true,
+    "productionIntegrated": false
+  },
+  "BASELINE-MULTIPLY-GPU-1.json": {
+    "cases": 128,
+    "failures": [],
+    "device": "",
+    "diagnosticOnly": true,
+    "productionIntegrated": false
+  },
+  "LOOP-RECURRENCE-DIAGNOSTIC-1.json": [
+    {
+      "variant": "recurrence",
+      "exit": 0,
+      "log": "/lab/argot/scratch/mb2-sonatina-upstream-rebase-20261022/loop-recurrence-diagnostic-1-recurrence.log",
+      "diagnosticOnly": true
+    },
+    {
+      "variant": "full-reference",
+      "exit": 124,
+      "log": "/lab/argot/scratch/mb2-sonatina-upstream-rebase-20261022/loop-recurrence-diagnostic-1-full-reference.log",
+      "diagnosticOnly": true
+    }
+  ]
+}

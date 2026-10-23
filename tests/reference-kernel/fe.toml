@@ -1,0 +1,8 @@
+[ingot]
+name = "probe_reference_kernel"
+version = "0.1.0"
+
+[dependencies]
+core = "../../.cache/fe/ingots/core"
+std = "../../.cache/fe/ingots/std"
+renderer = "../../app/renderer"

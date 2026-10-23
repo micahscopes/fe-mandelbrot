@@ -6,6 +6,7 @@ SOURCES={**{name:('app/renderer',f'src/{name}') for name in ['lib.fe','policy.fe
     'gestures.fe':('lib/gestures','src/lib.fe'),
     'precision.fe':('lib/precision','src/lib.fe'),
     'fixed.fe':('lib/precision','src/fixed.fe'),
+    'array_fixed.fe':('lib/precision','src/array_fixed.fe'),
     'fmath.fe':('lib/fmath','src/lib.fe'),
     'source_inspector.fe':('lib/source_inspector','src/lib.fe'),
     'color_library.fe':('lib/perceptual_color','src/lib.fe'),

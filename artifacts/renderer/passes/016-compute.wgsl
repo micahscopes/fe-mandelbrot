@@ -1,47 +1,47 @@
-struct FeLocal_fe_shader_private_layout_0_ {
-    f0_: f32,
+struct FeLocal_fe_Last_eb970eb0_0_ {
+    value: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_1_ {
-    f0_: f32,
-    f1_: FeLocal_fe_shader_private_layout_0_,
+struct FeLocal_fe_More_Last_1ac585f5_1_ {
+    lead: f32,
+    tail: FeLocal_fe_Last_eb970eb0_0_,
 }
 
-struct FeLocal_fe_shader_private_layout_2_ {
-    f0_: f32,
-    f1_: FeLocal_fe_shader_private_layout_1_,
+struct FeLocal_fe_More_More_Last_60a5ba63_2_ {
+    lead: f32,
+    tail: FeLocal_fe_More_Last_1ac585f5_1_,
 }
 
-struct FeLocal_fe_shader_private_layout_3_ {
-    f0_: f32,
-    f1_: FeLocal_fe_shader_private_layout_2_,
+struct FeLocal_fe_More_More_More_Last_e6310ae8_3_ {
+    lead: f32,
+    tail: FeLocal_fe_More_More_Last_60a5ba63_2_,
 }
 
-struct FeLocal_fe_shader_private_layout_4_ {
-    f0_: FeLocal_fe_shader_private_layout_3_,
+struct FeLocal_fe_Coordinate_bdc10f09_4_ {
+    value: FeLocal_fe_More_More_More_Last_e6310ae8_3_,
 }
 
-struct FeLocal_fe_shader_private_layout_5_ {
-    f0_: FeLocal_fe_shader_private_layout_4_,
-    f1_: FeLocal_fe_shader_private_layout_4_,
+struct FeLocal_fe_Complex_Coordinate_d4657101_5_ {
+    re: FeLocal_fe_Coordinate_bdc10f09_4_,
+    im: FeLocal_fe_Coordinate_bdc10f09_4_,
 }
 
-struct FeLocal_fe_shader_private_layout_6_ {
-    f0_: FeLocal_fe_shader_private_layout_5_,
-    f1_: f32,
-    f2_: f32,
+struct FeLocal_fe_Camera_03494b0d_6_ {
+    center: FeLocal_fe_Complex_Coordinate_d4657101_5_,
+    zoom: f32,
+    res: f32,
 }
 
-struct FeLocal_fe_shader_private_layout_7_ {
-    f0_: FeLocal_fe_shader_private_layout_6_,
-    f1_: u32,
-    f2_: f32,
-    f3_: u32,
-    f4_: f32,
-    f5_: u32,
-    f6_: u32,
-    f7_: u32,
-    f8_: u32,
+struct FeLocal_fe_ViewCache_da6e2ccc_7_ {
+    camera: FeLocal_fe_Camera_03494b0d_6_,
+    cursor: u32,
+    aa: f32,
+    budget: u32,
+    radius: f32,
+    preview_dirty: u32,
+    blur_dirty: u32,
+    epoch: u32,
+    completed: u32,
 }
 
 struct cache_element {

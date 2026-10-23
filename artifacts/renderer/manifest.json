@@ -4,9 +4,9 @@
   "source_entry": "display_preview",
   "artifacts": {
     "wasm": "module.wasm",
-    "wasm_bytes": 83524,
+    "wasm_bytes": 86377,
     "wgsl": "passes/017-fragment.wgsl",
-    "wgsl_bytes": 24039,
+    "wgsl_bytes": 23856,
     "canonical_adapters": []
   },
   "layout": {
@@ -1471,7 +1471,7 @@
     {
       "source_entry": "initialize_order",
       "shader": "passes/000-compute.wgsl",
-      "shader_bytes": 10725,
+      "shader_bytes": 10876,
       "shader_stages": [
         "compute"
       ],
@@ -2115,7 +2115,7 @@
     {
       "source_entry": "discard_stale_reference",
       "shader": "passes/001-compute.wgsl",
-      "shader_bytes": 110339,
+      "shader_bytes": 48948,
       "shader_stages": [
         "compute"
       ],
@@ -2693,7 +2693,7 @@
     {
       "source_entry": "build_reference",
       "shader": "passes/002-compute.wgsl",
-      "shader_bytes": 228660,
+      "shader_bytes": 161920,
       "shader_stages": [
         "compute"
       ],
@@ -3323,7 +3323,7 @@
     {
       "source_entry": "advance_preview",
       "shader": "passes/003-compute.wgsl",
-      "shader_bytes": 46002,
+      "shader_bytes": 46702,
       "shader_stages": [
         "compute"
       ],
@@ -3993,7 +3993,7 @@
     {
       "source_entry": "render_preview",
       "shader": "passes/004-compute.wgsl",
-      "shader_bytes": 41504,
+      "shader_bytes": 41271,
       "shader_stages": [
         "compute"
       ],
@@ -4689,7 +4689,7 @@
     {
       "source_entry": "finish_preview",
       "shader": "passes/005-compute.wgsl",
-      "shader_bytes": 16794,
+      "shader_bytes": 17089,
       "shader_stages": [
         "compute"
       ],
@@ -5248,7 +5248,7 @@
     {
       "source_entry": "cache_initial",
       "shader": "passes/006-compute.wgsl",
-      "shader_bytes": 12620,
+      "shader_bytes": 12741,
       "shader_stages": [
         "compute"
       ],
@@ -5912,7 +5912,7 @@
     {
       "source_entry": "publish_initial",
       "shader": "passes/007-compute.wgsl",
-      "shader_bytes": 15246,
+      "shader_bytes": 15504,
       "shader_stages": [
         "compute"
       ],
@@ -6484,7 +6484,7 @@
     {
       "source_entry": "blur_horizontal",
       "shader": "passes/008-compute.wgsl",
-      "shader_bytes": 19888,
+      "shader_bytes": 19705,
       "shader_stages": [
         "compute"
       ],
@@ -7154,7 +7154,7 @@
     {
       "source_entry": "blur_vertical",
       "shader": "passes/009-compute.wgsl",
-      "shader_bytes": 19917,
+      "shader_bytes": 19734,
       "shader_stages": [
         "compute"
       ],
@@ -7824,7 +7824,7 @@
     {
       "source_entry": "restore_oracle",
       "shader": "passes/010-compute.wgsl",
-      "shader_bytes": 41588,
+      "shader_bytes": 44793,
       "shader_stages": [
         "compute"
       ],
@@ -8520,7 +8520,7 @@
     {
       "source_entry": "seed_refinement",
       "shader": "passes/011-compute.wgsl",
-      "shader_bytes": 60925,
+      "shader_bytes": 62011,
       "shader_stages": [
         "compute"
       ],
@@ -9216,7 +9216,7 @@
     {
       "source_entry": "refine_pixels",
       "shader": "passes/012-compute.wgsl",
-      "shader_bytes": 57049,
+      "shader_bytes": 60934,
       "shader_stages": [
         "compute"
       ],
@@ -9912,7 +9912,7 @@
     {
       "source_entry": "antialias_pixels",
       "shader": "passes/013-compute.wgsl",
-      "shader_bytes": 65881,
+      "shader_bytes": 69643,
       "shader_stages": [
         "compute"
       ],
@@ -10595,7 +10595,7 @@
     {
       "source_entry": "finish_refinement",
       "shader": "passes/014-compute.wgsl",
-      "shader_bytes": 18249,
+      "shader_bytes": 21740,
       "shader_stages": [
         "compute"
       ],
@@ -11173,7 +11173,7 @@
     {
       "source_entry": "cache_snapshot",
       "shader": "passes/015-compute.wgsl",
-      "shader_bytes": 9044,
+      "shader_bytes": 9160,
       "shader_stages": [
         "compute"
       ],
@@ -11856,7 +11856,7 @@
     {
       "source_entry": "publish_snapshot",
       "shader": "passes/016-compute.wgsl",
-      "shader_bytes": 5406,
+      "shader_bytes": 5441,
       "shader_stages": [
         "compute"
       ],
@@ -12402,7 +12402,7 @@
     {
       "source_entry": "display_preview",
       "shader": "passes/017-fragment.wgsl",
-      "shader_bytes": 24039,
+      "shader_bytes": 23856,
       "shader_stages": [
         "fragment"
       ],

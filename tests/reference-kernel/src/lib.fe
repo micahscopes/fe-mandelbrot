@@ -1,0 +1,116 @@
+//! Runtime-word reference recurrence and packing probe. No generated arithmetic
+//! is edited by the runner; independent integer expectations live outside Fe.
+use core::marker::Copy
+use std::webgpu::{
+    ComputeSurface, FixedDispatch, Workgroup, StorageBuffer, FragmentSurface,
+    GpuProgram, ContinuousFrames, StandardSurfaceRecovery, SurfaceQuality,
+    SurfaceQualityFacts, SurfaceBackingExtent, SurfaceRecovery,
+    SurfaceScheduling, SurfaceTransition, WebGpuBackend,
+}
+use std::web::view::{
+    ApplyParamBindings, Extent, Param, ParamBindingsProvider,
+    Surface, SurfaceEvent, SurfaceState,
+}
+use renderer::native_checkpoint::NativeCheckpoint
+use renderer::orbit::{Complex, PackedReference, ReferenceReal, reference_step}
+
+pub struct ProbeParams { pub result: Param }
+pub struct ProbeState { pub result: f32 }
+impl Copy for ProbeState {}
+impl SurfaceState for ProbeState { type Params = ProbeParams }
+derive ApplyParamBindings for ProbeState using ParamBindingsProvider<ProbeParams>
+pub struct ProbeEnvelope { pub state: ProbeState }
+impl Copy for ProbeEnvelope {}
+
+pub struct ProbeBacking {}
+impl ProbeBacking {
+    pub fn choose(_ facts: own SurfaceQualityFacts) -> SurfaceBackingExtent {
+        let _ = facts
+        SurfaceBackingExtent { width: 64.0, height: 64.0 }
+    }
+}
+
+fn read_real(_ input: StorageBuffer<u32, 36>, _ offset: u32) -> ReferenceReal {
+    let mut digits: [u32; 8] = [0; 8]
+    let mut index: u32 = 0
+    while index < 8 {
+        digits[index as usize] = input.load(index: offset + index + 1)
+        index = index + 1
+    }
+    ReferenceReal::from_words(input.load(index: offset), digits)
+}
+
+fn write_real(_ output: StorageBuffer<u32, 28>, _ offset: u32, _ value: ReferenceReal) {
+    output.store(index: offset, value: value.sign())
+    let digits: [u32; 8] = value.to_words()
+    let mut index: u32 = 0
+    while index < 8 {
+        output.store(index: offset + index + 1, value: digits[index as usize])
+        index = index + 1
+    }
+}
+
+fn partial_publication_contract(_ clock: f32) -> bool {
+    let initial = NativeCheckpoint::initial(7)
+    let partial = initial.present_if_terminal(128, clock)
+    let finished = initial.present_if_terminal(0, clock)
+    !partial.is_presentable() && !partial.is_terminal(128)
+        && partial.iteration() == 0 && partial.reference_index() == 0 && partial.epoch == 7
+        && finished.is_terminal(0) && finished.is_presentable()
+        && finished.iteration() == 0 && finished.epoch == 7
+}
+
+actor ReferenceKernelProbe uses (
+    GpuProgram<WebGpuBackend>,
+    SurfaceQuality<ProbeBacking>,
+    SurfaceRecovery<StandardSurfaceRecovery>,
+) {
+    inputs: StorageBuffer<u32, 36>,
+    outputs: StorageBuffer<u32, 28>,
+    state: ProbeState,
+
+    fn initial() -> ProbeEnvelope uses (core::actor::InitialState) {
+        ProbeEnvelope { state: ProbeState { result: if partial_publication_contract(0.0) { 1.0 } else { 0.0 } } }
+    }
+
+    const fn view() -> Surface<ProbeParams> {
+        Surface { extent: Extent::square(64), params: ProbeParams { result: Param::fixed(0.0) } }
+    }
+
+    fn reference_case(self) uses (ComputeSurface<Workgroup<1, 1, 1>, FixedDispatch<1, 1, 1>>) {
+        let z: Complex<ReferenceReal> = Complex {
+            re: read_real(self.inputs, 0), im: read_real(self.inputs, 9),
+        }
+        let center: Complex<ReferenceReal> = Complex {
+            re: read_real(self.inputs, 18), im: read_real(self.inputs, 27),
+        }
+        let step = reference_step(z, center)
+        write_real(self.outputs, 0, step.value.re)
+        write_real(self.outputs, 9, step.value.im)
+        self.outputs.store(index: 18, value: if step.escaped { 1 } else { 0 })
+        self.outputs.store(index: 19, value: if partial_publication_contract(self.state.result) { 0 } else { 1 })
+        let packed = PackedReference::from_fixed(step.value)
+        let words: [u32; 8] = [
+            packed.re_w0_bits, packed.re_w1_bits, packed.re_w2_bits, packed.re_w3_bits,
+            packed.im_w0_bits, packed.im_w1_bits, packed.im_w2_bits, packed.im_w3_bits,
+        ]
+        let mut index: u32 = 0
+        while index < 8 {
+            self.outputs.store(index: 20 + index, value: words[index as usize])
+            index = index + 1
+        }
+    }
+
+    fn display_probe(self, px: i32, py: i32) -> i32 uses (FragmentSurface) {
+        let _ = px
+        let _ = py
+        0
+    }
+
+    fn navigate(self, event: own SurfaceEvent) -> ProbeEnvelope
+        uses (SurfaceTransition, SurfaceScheduling<ContinuousFrames>)
+    {
+        let _ = event
+        ProbeEnvelope { state: self.state }
+    }
+}

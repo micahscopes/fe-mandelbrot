@@ -212,9 +212,14 @@ pub fn seed_pixel(
     CohortPixel::at(x, y, res)
 }
 
+/// Bound native work without reducing the target iteration depth. AA cohort
+/// density scales with depth so its two full-orbit samples stay bounded too.
+pub const REFINEMENT_QUANTUM: u32 = 128
+
 pub struct RefinementSchedule {
     pub limit: u32,
     pub rounds: u32,
+    pub quantum: u32,
     pub sx: u32,
     pub sy: u32,
     pub phases: u32,
@@ -225,17 +230,25 @@ impl Copy for RefinementSchedule {}
 
 impl RefinementSchedule {
     pub fn for_view(_ zoom: f32, _ res: f32) -> Self {
-        let limit: u32 = iteration_limit(zoom)
-        let rounds: u32 = (limit + 2047) / 2048
         let sx: u32 = __bitcast<i32, u32>(to_i32((res + 127.0) / 128.0))
         let sy: u32 = __bitcast<i32, u32>(to_i32((res + 255.0) / 256.0))
+        Self::for_grid(iteration_limit(zoom), sx, sy)
+    }
+    fn for_grid(_ limit: u32, _ sx: u32, _ sy: u32) -> Self {
+        assert(limit > 0 && limit <= 8192 && sx > 0 && sy > 0)
+        let rounds: u32 = (limit + REFINEMENT_QUANTUM - 1) / REFINEMENT_QUANTUM
+        let mut aa_scale: u32 = 2
+        while aa_scale * aa_scale * REFINEMENT_QUANTUM < limit {
+            aa_scale = aa_scale * 2
+        }
         RefinementSchedule {
             limit: limit,
             rounds: rounds,
+            quantum: REFINEMENT_QUANTUM,
             sx: sx,
             sy: sy,
             phases: sx * sy,
-            aa_stride: sy,
+            aa_stride: sy * aa_scale,
         }
     }
     pub fn refine_steps(self) -> u32 {
@@ -244,11 +257,12 @@ impl RefinementSchedule {
     pub fn total_steps(self) -> u32 {
         self.refine_steps() + self.aa_stride * self.aa_stride
     }
+    fn cohort(self, _ cursor: u32) -> u32 { cursor % self.phases }
     pub fn rect_pixel(self, _ cursor: u32, _ gx: u32, _ gy: u32, _ res: f32) -> CohortPixel {
         if cursor >= self.refine_steps() {
             return CohortPixel::default()
         }
-        let phase: u32 = phase_order_rect(cursor / self.rounds, gx, gy, self.sx, self.sy)
+        let phase: u32 = phase_order_rect(self.cohort(cursor), gx, gy, self.sx, self.sy)
         let x: u32 = gx * self.sx + phase % self.sx
         let y: u32 = gy * self.sy + phase / self.sx
         CohortPixel::at(x, y, res)
@@ -264,4 +278,31 @@ impl RefinementSchedule {
         let y: u32 = gy * self.aa_stride + phase / self.aa_stride
         CohortPixel::at(x, y, res)
     }
+}
+
+#[test]
+fn refinement_policy_rounds_cover_depth_and_revisit_cohorts() {
+    let schedule = RefinementSchedule::for_grid(1856, 4, 2)
+    assert(schedule.quantum == REFINEMENT_QUANTUM)
+    assert(schedule.rounds * schedule.quantum >= schedule.limit)
+    assert((schedule.rounds - 1) * schedule.quantum < schedule.limit)
+    let mut phase: u32 = 0
+    while phase < schedule.phases {
+        let first: u32 = phase_order_rect(schedule.cohort(phase), 17, 29, schedule.sx, schedule.sy)
+        let mut round: u32 = 1
+        while round < schedule.rounds {
+            assert(phase_order_rect(schedule.cohort(round * schedule.phases + phase), 17, 29, schedule.sx, schedule.sy) == first)
+            round = round + 1
+        }
+        phase = phase + 1
+    }
+}
+
+#[test]
+fn refinement_policy_aa_density_scales_with_depth() {
+    let shallow = RefinementSchedule::for_grid(256, 4, 2)
+    let deep = RefinementSchedule::for_grid(8192, 4, 2)
+    assert(deep.aa_stride >= shallow.aa_stride)
+    assert(deep.quantum == shallow.quantum)
+    assert(deep.total_steps() == deep.refine_steps() + deep.aa_stride * deep.aa_stride)
 }
