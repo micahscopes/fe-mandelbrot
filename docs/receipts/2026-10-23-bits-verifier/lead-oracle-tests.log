@@ -1,0 +1,33 @@
+   Compiling toy-stark-oracle v0.1.0 (/lab/argot/worktrees/fe-mandelbrot/zk-toy-ood/tests/toy-stark-oracle)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.07s
+     Running unittests src/lib.rs (/lab/argot/scratch/mb2-bits-oracle-20261023/build/debug/build/toy-stark-oracle/edd44b1cd3896e01/out/toy_stark_oracle-edd44b1cd3896e01)
+
+running 13 tests
+test argument::tests::sampler_controls ... ok
+test interoperability::extension_multiplication_against_integer_convolution ... ok
+test tests::domains ... ok
+test interoperability::hash_block_boundaries_match_existing_oracle ... ok
+test tests::canonical_inputs ... ok
+test tests::polynomial_against_integer_arithmetic ... ok
+test tests::extension_relation_and_inverse ... ok
+test tests::transforms_roundtrip ... ok
+test tests::paths_all_positions_and_mutations ... ok
+test argument::coverage::tags_and_status_execution_order ... ok
+test argument::tests::honest_cases_and_audit ... ok
+test argument::coverage::honest_witnesses_exercise_all_initial_pairs_and_duplicates ... ok
+test argument::tests::malformed_and_named_attacks ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+
+     Running unittests src/main.rs (/lab/argot/scratch/mb2-bits-oracle-20261023/build/debug/build/toy-stark-oracle/054c6efa4d7caeee/out/toy_stark_oracle-054c6efa4d7caeee)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests toy_stark_oracle
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

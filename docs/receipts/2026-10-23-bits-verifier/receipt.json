@@ -1,0 +1,120 @@
+{
+  "sourceCommit": "d8e8a4258fc06ff1737b0f37ffcf98ad31039c35",
+  "compilerSha256": "4afa2698ba2b7b248ca4fb85e5200c64b2d1f2d8509faf865e38a04d3134230f",
+  "sourceHashes": {
+    "tests/toy-stark-bits/fe.toml": "f258d2b81f8dff84a8b941d010b2267503a03f81a5eaa88b102d14cd86115e25",
+    "tests/toy-stark-bits/src/profile.fe": "1c560c6e58d930e72bb3be0dede9f22cc2ccac15bd4c3a9ecde9efc2c896825f",
+    "tests/toy-stark-bits/src/transcript.fe": "cd48839093872bbf49cba3b957a6b6a3bb87b9e2f457bed77d6ffcb035b33a61",
+    "tests/toy-stark-bits/src/merkle.fe": "f962541beb1dc0f3cb77b670b45f4ee522fb46c6bb5f9537362fd5acce3cd554",
+    "tests/toy-stark-bits/src/fri.fe": "3461ceef9b4065db2841eab6e71f429a1e3512b0478555228556e4d4ed794d8e",
+    "tests/toy-stark-bits/src/verifier.fe": "4c7a05df3c3bb4713ec7f00151537c313196c80dc1cf5656756e4ecb94582435",
+    "tests/toy-stark-bits/src/lib.fe": "c0d0b24618481d2ed47a0a93e1c6078da651c229e56a0242a917387185c70df8",
+    "tests/toy-stark-bits-verifier.mjs": "bb1c25d0b532bd7bccd76bec5bfe7a2ddd39ba7ec9c92ce3ffa7bfa814ea7d8d"
+  },
+  "bundleHashes": {
+    "fe-render-runtime.js": "cc1ad17c078980d736bf239d51738fdd700d92f818b077dd8bbf6890ea5ecba7",
+    "index.html": "f99c53c7bdfd6f649ade7ced7c74055428eb63271042c215e833b127b4aae84c",
+    "interface.d.ts": "f0b6a93e358453e145d0232a6424d950275f95e85094478fd41a2a2dfb2442aa",
+    "interface.js": "077df32f73708daf6162b30ea531f606e08a3d20e0a49cebf72ae38debdb94a5",
+    "manifest.json": "a53900b7a890563eae24541738de87bfc3d6543021a48baf242081d49bad2dcf",
+    "module.wasm": "8da13989d39d144f242b699f31e1495791ffdcb0b56ea7bf1ea6f22fe996ff9d",
+    "shader.wgsl": "7adc66293d1a38db30c4d1e8abdd286947c579a1a46cd77f30a9b074ebb91c3c"
+  },
+  "fixturePath": "/lab/argot/scratch/mb2-bits-oracle-20261023/fixtures-final.json",
+  "fixtureJsonSha256": "b35d1f07520b7cdc119274f505d20adac39abf358ae3f3c2b06a0ef5ae5b10fe",
+  "oracleSourceCommit": "7c7495a3",
+  "tests": {
+    "oracleCases": 30,
+    "boundaryCases": 7,
+    "samplerCases": 63,
+    "repeatCases": 8,
+    "verifierPass": true,
+    "algebraPass": true,
+    "algebraCases": 385
+  },
+  "timing": {
+    "scope": "Node/Wasm module loading, instantiation and caller setup; verification calls only. Not browser/GPU startup or proof generation.",
+    "setupMilliseconds": 16.939058999999986,
+    "honest": [
+      {
+        "name": "honest-weight3-a",
+        "status": 0,
+        "milliseconds": 56.28072500000002
+      },
+      {
+        "name": "honest-weight3-b",
+        "status": 0,
+        "milliseconds": 26.845358000000004
+      },
+      {
+        "name": "honest-weight0",
+        "status": 0,
+        "milliseconds": 22.356870000000015
+      },
+      {
+        "name": "honest-weight8",
+        "status": 0,
+        "milliseconds": 22.176350999999983
+      }
+    ],
+    "repeat": [
+      {
+        "name": "repeat 0 honest-weight3-a",
+        "status": 0,
+        "milliseconds": 23.01240999999999
+      },
+      {
+        "name": "repeat 1 honest-weight3-b",
+        "status": 0,
+        "milliseconds": 21.347797000000014
+      },
+      {
+        "name": "repeat 2 honest-weight0",
+        "status": 0,
+        "milliseconds": 21.493791999999985
+      },
+      {
+        "name": "repeat 3 honest-weight8",
+        "status": 0,
+        "milliseconds": 20.941174999999987
+      },
+      {
+        "name": "repeat 4 honest-weight3-a",
+        "status": 0,
+        "milliseconds": 20.409006999999974
+      },
+      {
+        "name": "repeat 5 honest-weight3-b",
+        "status": 0,
+        "milliseconds": 20.26212099999998
+      },
+      {
+        "name": "repeat 6 honest-weight0",
+        "status": 0,
+        "milliseconds": 20.378269000000046
+      },
+      {
+        "name": "repeat 7 honest-weight8",
+        "status": 0,
+        "milliseconds": 20.109405000000038
+      }
+    ],
+    "initialMemoryBytes": 65536,
+    "beforeRepeatsMemoryBytes": 131072,
+    "repeatMemoryBytes": [
+      131072,
+      131072,
+      131072,
+      131072,
+      131072,
+      131072,
+      131072,
+      131072
+    ]
+  },
+  "buildLog": "/lab/argot/scratch/mb2-bits-verifier-20261023/build-final-with-samplers.log",
+  "resultsPath": "/lab/argot/scratch/mb2-bits-verifier-20261023/results-final.json",
+  "preservedInitialResults": "/lab/argot/scratch/mb2-bits-verifier-20261023/results-correctness-run1.json",
+  "preservedInitialSourceHashes": "/lab/argot/scratch/mb2-bits-verifier-20261023/source-hashes-correctness-run1.json",
+  "limitations": "Public verifier differential execution against independent Rust fixtures; no replay inputs, security-bit estimate, protocol acceptance or hiding claim."
+}
