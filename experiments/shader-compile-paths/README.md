@@ -71,4 +71,4 @@ They are not a portable package. Set `MB2_COMPILER_PROBE_ROOT` to a scratch fold
 containing `renderer-upstream-4`, and provide the referenced browser probe.
 Run extraction, repeated-multiplication and loop-multiplication scripts in that
 order. Preserve the original bundle; every variant goes into its own directory.
-The GPU harness additionally consumes `LOOP-MULTIPLY-CORPUS-1.json` in that root.
+Copy the included `corpus.json` to `LOOP-MULTIPLY-CORPUS-1.json` in that scratch root before running the GPU harness.
