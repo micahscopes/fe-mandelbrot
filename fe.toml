@@ -2,6 +2,7 @@
 name = "FeMandelbrot"
 version = "0.1.0"
 members = [
+  { path = "tests/reference-kernel", name = "probe_reference_kernel" },
   { path = "tests/frame-array-difference-wasm", name = "probe_frame_array_difference_wasm" },
   { path = "tests/frame-array-difference", name = "probe_frame_array_difference" },
   { path = "tests/camera-difference", name = "probe_camera_difference" },
