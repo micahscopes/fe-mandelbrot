@@ -149,11 +149,15 @@ its performance improvement is measured separately from protocol correctness.
 ## Primary sources and unresolved access
 
 - [DEEP-FRI / DEEP-ALI](https://arxiv.org/abs/1903.12243), especially the ALI
-  construction. Primary abstract retrieved2026-10-23; full construction still
-  needs a recorded read and protocol mapping.
+  construction. Primary abstract and the APR definition, Protocol6.4 and
+  Theorem6.2 statement read2026-10-23; complete proof/construction mapping
+  to the implementation still needs independent review.
 - [Haboeck-Kindi](https://eprint.iacr.org/2024/1037), small-field masking and
-  quotient decomposition. Abstract retrieved; full PDF request still returns403.
-  Indexed excerpts do NOT discharge the full-paper review gate.
+  quotient decomposition. Abstract retrieved; direct PDF request still returns403.
+  Exa subsequently returned text through all21 page markers, retained with SHA
+  in the direction review's primary directory. Some mathematical spans are
+  missing/malformed in that extraction. It improves source access but does NOT
+  discharge faithful equation/proof verification or the full-paper review gate.
 - [Pinned Plonky3 hiding PCS](https://github.com/Plonky3/Plonky3/blob/208b64744cf56fe8eeb6afcb7be37ed669d9d6eb/fri/src/hiding_pcs.rs).
   Local reference bytes and SHA are recorded in reference-sources.json.
 
