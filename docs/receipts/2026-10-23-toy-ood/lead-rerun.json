@@ -1,0 +1,159 @@
+{
+  "pass": true,
+  "field": 2013265921,
+  "generator": 1728404513,
+  "fixture": {
+    "trace": [
+      1006632962,
+      864202256,
+      1006632960,
+      1149063664
+    ],
+    "transition": 1728404513,
+    "boundary": [
+      1006632959,
+      142430703,
+      1149063664
+    ],
+    "z": 11,
+    "trace_z": 774797897,
+    "trace_gz": 1238466685,
+    "transition_z": 1728404513,
+    "boundary_z": 681459566
+  },
+  "cases": [
+    {
+      "name": "honest z=0",
+      "status": 0
+    },
+    {
+      "name": "honest z=2",
+      "status": 0
+    },
+    {
+      "name": "honest z=11",
+      "status": 0
+    },
+    {
+      "name": "honest z=19",
+      "status": 0
+    },
+    {
+      "name": "honest z=123456",
+      "status": 0
+    },
+    {
+      "name": "EXPECTED ACCEPT: adaptive quotient without commit-before-challenge binding",
+      "status": 0
+    },
+    {
+      "name": "false trace with polynomial division quotient",
+      "status": 4
+    },
+    {
+      "name": "unrelated zero quotient, source-linked opening",
+      "status": 4
+    },
+    {
+      "name": "wrong shifted opening",
+      "status": 3
+    },
+    {
+      "name": "unrelated boundary source",
+      "status": 5
+    },
+    {
+      "name": "wrong boundary opening",
+      "status": 3
+    },
+    {
+      "name": "invalid initial row, linked quotient",
+      "status": 5
+    },
+    {
+      "name": "forbidden H point 1",
+      "status": 2
+    },
+    {
+      "name": "forbidden H point 1728404513",
+      "status": 2
+    },
+    {
+      "name": "forbidden H point 2013265920",
+      "status": 2
+    },
+    {
+      "name": "forbidden H point 284861408",
+      "status": 2
+    },
+    {
+      "name": "forbidden D point 7",
+      "status": 2
+    },
+    {
+      "name": "forbidden D point 19236065",
+      "status": 2
+    },
+    {
+      "name": "forbidden D point 2013265914",
+      "status": 2
+    },
+    {
+      "name": "forbidden D point 1994029856",
+      "status": 2
+    },
+    {
+      "name": "noncanonical z",
+      "status": 1
+    },
+    {
+      "name": "noncanonical transition",
+      "status": 1
+    },
+    {
+      "name": "noncanonical trace_z",
+      "status": 1
+    },
+    {
+      "name": "noncanonical trace_gz",
+      "status": 1
+    },
+    {
+      "name": "noncanonical transition_z",
+      "status": 1
+    },
+    {
+      "name": "noncanonical boundary_z",
+      "status": 1
+    },
+    {
+      "name": "noncanonical trace[0]",
+      "status": 1
+    },
+    {
+      "name": "noncanonical trace[1]",
+      "status": 1
+    },
+    {
+      "name": "noncanonical trace[2]",
+      "status": 1
+    },
+    {
+      "name": "noncanonical trace[3]",
+      "status": 1
+    },
+    {
+      "name": "noncanonical boundary[0]",
+      "status": 1
+    },
+    {
+      "name": "noncanonical boundary[1]",
+      "status": 1
+    },
+    {
+      "name": "noncanonical boundary[2]",
+      "status": 1
+    }
+  ],
+  "limitations": "Coefficient-backed source linkage exposes the source; deterministic OOD checks are not a PCS, proof of low degree, soundness claim, or zero knowledge."
+}

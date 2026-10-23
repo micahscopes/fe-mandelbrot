@@ -1,0 +1,37 @@
+{
+  "scope": "Executed historical Q12 Fe/Wasm preflight, not the exact interval checker; no cryptographic conclusions",
+  "cases": [
+    {
+      "point": {
+        "re": -8192,
+        "im": 0
+      },
+      "result": {
+        "code": 0,
+        "terminal_step": 1
+      }
+    },
+    {
+      "point": {
+        "re": 0,
+        "im": 0
+      },
+      "result": {
+        "code": 1,
+        "terminal_step": 4294967294
+      }
+    },
+    {
+      "point": {
+        "re": -6000,
+        "im": 3000
+      },
+      "result": {
+        "code": 0,
+        "terminal_step": 3
+      }
+    }
+  ],
+  "minusTwoExpectedExactMeaning": "bounded orbit 0,-2,2,2,...; equality at radius2 is not escape",
+  "minusTwoHistoricalMismatch": true
+}

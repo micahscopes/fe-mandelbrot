@@ -1,0 +1,25 @@
+{
+  "sourceCommit": "ddc99695680d41867fef6469a762c0d97cc54eb3",
+  "compilerSha256": "4afa2698ba2b7b248ca4fb85e5200c64b2d1f2d8509faf865e38a04d3134230f",
+  "sourceHashes": {
+    "fe.toml": "d171998878c9427a1d2bd01ab1593c71c1fbac36dc06c40ddaaa3421cb61510e",
+    "tests/toy-deep-air/fe.toml": "fba95c4a87cc3aa51d290cff4427ce3029379b6b84c57f1e064e8ba3db495bc9",
+    "tests/toy-deep-air/src/lib.fe": "6d755b320518fca95377215c71355cfc3c318ea3556ea3ddf38ca114c0bd4598",
+    "tests/toy-deep-air.mjs": "06b453eaec42dcf49b94b32b80935c06bff4161a689916afc8f9843fe554afe1"
+  },
+  "bundleHashes": {
+    "fe-render-runtime.js": "cc1ad17c078980d736bf239d51738fdd700d92f818b077dd8bbf6890ea5ecba7",
+    "index.html": "f99c53c7bdfd6f649ade7ced7c74055428eb63271042c215e833b127b4aae84c",
+    "interface.d.ts": "b76f32b7bf5897f8393a6cc77fa2c2444f716b706f8288a68677517ec584645e",
+    "interface.js": "7c9a238f719ff3d253963f884c695e8ba8711febe2b1e06ae8d0d898272d81ba",
+    "manifest.json": "6a254f4220c59d887339d40bede506bf6756c15f654cdffde950718093f2dad2",
+    "module.wasm": "2479cd6e2b88dfade69cdd75eb71081d0ec37834b549904993867d324e7af66e",
+    "shader.wgsl": "7adc66293d1a38db30c4d1e8abdd286947c579a1a46cd77f30a9b074ebb91c3c"
+  },
+  "cases": 33,
+  "pass": true,
+  "expectedAdaptiveAttackAccepts": true,
+  "resultsPath": "/lab/argot/scratch/mb2-toy-ood-20261023/results.json",
+  "buildLog": "/lab/argot/scratch/mb2-toy-ood-20261023/build-final-new-destination.log",
+  "limitations": "Coefficient-backed source linkage exposes the source; deterministic OOD checks are not a PCS, proof of low degree, soundness claim, or zero knowledge."
+}
