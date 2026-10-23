@@ -1,0 +1,6 @@
+[ingot]
+name = "probe_toy_deep_air"
+version = "0.1.0"
+[dependencies]
+core = "../../.cache/fe/ingots/core"
+std = "../../.cache/fe/ingots/std"

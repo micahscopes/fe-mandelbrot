@@ -1,0 +1,80 @@
+//! Test-only OOD AIR arithmetic. Coefficients expose the entire source polynomial:
+//! this is neither a succinct polynomial commitment nor a hiding proof.
+//! Deterministic challenges in the driver provide no soundness probability.
+use core::ops::Eq
+const P: u32 = 2013265921
+// g = 31^((P-1)/4), H = {1,g,-1,-g}.
+const G: u32 = 1728404513
+fn add(_ a: u32, _ b: u32) -> u32 {
+    let s = a + b
+    if s >= P { s - P } else { s }
+}
+fn sub(_ a: u32, _ b: u32) -> u32 { if a >= b { a - b } else { P - (b - a) } }
+fn mul(_ a: u32, _ b: u32) -> u32 {
+    let mut x = a
+    let mut y = b
+    let mut r: u32 = 0
+    while y != 0 {
+        if (y & 1) != 0 { r = add(r, x) }
+        x = add(x, x)
+        y = y >> 1
+    }
+    r
+}
+fn inverse_nonzero(_ a: u32) -> u32 {
+    let mut x = a
+    let mut n = P - 2
+    let mut r: u32 = 1
+    while n != 0 {
+        if (n & 1) != 0 { r = mul(r, x) }
+        x = mul(x, x)
+        n = n >> 1
+    }
+    r
+}
+fn evaluate<const N: usize>(_ coefficients: [u32; N], _ x: u32) -> u32 {
+    let mut r: u32 = 0
+    let mut i = N
+    while i > 0 { i = i - 1
+        r = add(mul(r, x), coefficients[i]) }
+    r
+}
+pub struct Request {
+    pub trace: [u32; 4],
+    pub transition: u32,
+    pub boundary: [u32; 3],
+    pub z: u32,
+    pub trace_z: u32,
+    pub trace_gz: u32,
+    pub transition_z: u32,
+    pub boundary_z: u32,
+}
+pub struct Result { pub status: u32 }
+// Status: 0 accept, 1 noncanonical, 2 forbidden domain, 3 source mismatch,
+// 4 transition relation, 5 boundary relation. No inversion precedes the guards.
+pub fn check(_ request: own Request) -> Result {
+    let r = request
+    if r.z >= P || r.transition >= P || r.trace_z >= P || r.trace_gz >= P
+        || r.transition_z >= P || r.boundary_z >= P { return Result { status: 1 } }
+    for i in 0..4 { if r.trace[i] >= P { return Result { status: 1 } } }
+    for i in 0..3 { if r.boundary[i] >= P { return Result { status: 1 } } }
+    let z = r.z
+    let z2 = mul(z, z)
+    let zh = sub(mul(z2, z2), 1)
+    // Exclude all H, including the removed final transition row.
+    // D = 7H is the example evaluation coset. Its fourth powers are 7^4.
+    if zh == 0 || mul(z2, z2) == 2401 { return Result { status: 2 } }
+    if evaluate<4>(r.trace, z) != r.trace_z
+        || evaluate<4>(r.trace, mul(G, z)) != r.trace_gz
+        || r.transition != r.transition_z
+        || evaluate<3>(r.boundary, z) != r.boundary_z { return Result { status: 3 } }
+    let last = sub(0, G)
+    let transition_divisor = mul(zh, inverse_nonzero(sub(z, last)))
+    let transition_value = mul(sub(sub(r.trace_gz, r.trace_z), 1), inverse_nonzero(transition_divisor))
+    if transition_value != r.transition_z { return Result { status: 4 } }
+    let boundary_value = mul(r.trace_z, inverse_nonzero(sub(z, 1)))
+    if boundary_value != r.boundary_z { return Result { status: 5 } }
+    Result { status: 0 }
+}
+pub fn wasm_anchor(_ x: i32, _ y: i32, _ res: f32) -> u32 { let _ = (x, y, res)
+    0 }
