@@ -43618,21 +43618,7 @@
             "text": "TraceFrame"
           },
           {
-            "text": ") {\n    output.store(index: 5, value: __bitcast<f32, u32>(frame."
-          },
-          {
-            "link": "perturbational_mandelbrot_smooth::trace::TraceFrame/struct~field.offsets",
-            "text": "offsets"
-          },
-          {
-            "text": ".full.re))\n    output.store(index: 6, value: __bitcast<f32, u32>(frame."
-          },
-          {
-            "link": "perturbational_mandelbrot_smooth::trace::TraceFrame/struct~field.offsets",
-            "text": "offsets"
-          },
-          {
-            "text": ".full.im))\n    output.store(index: 7, value: __bitcast<f32, u32>(frame."
+            "text": ") {\n    let (_, cached_x, _, _) = to_quad(frame.initial.camera.center.re.value)\n    let (_, cached_y, _, _) = to_quad(frame.initial.camera.center.im.value)\n    output.store(index: 5, value: __bitcast<f32, u32>(cached_x))\n    output.store(index: 6, value: __bitcast<f32, u32>(cached_y))\n    output.store(index: 7, value: __bitcast<f32, u32>(frame."
           },
           {
             "link": "perturbational_mandelbrot_smooth::trace::TraceFrame/struct~field.offsets",
@@ -43678,13 +43664,13 @@
           }
         ],
         "sig_scope": "__sig__/perturbational_mandelbrot_smooth::trace/mod",
-        "signature": "//! Temporary GPU camera observations, enabled in shared URLs with ?trace=1.\n//! A matching begin/end stamp distinguishes a completed pass from stale data.\nuse core::{BrowserBytes, BrowserPtr, Copy}\nuse std::webgpu::ReadbackWords\nuse precision::to_quad\nuse ingot::policy::Camera\nuse ingot::cache::{HistoryOffsets, ReferenceControl, ReprojectionTap, ViewCache}\n\nextern { const fn __bitcast<From, To>(_: From) -> To }\n\npub const TRACE_WORDS: u32 = 14\npub const TRACE_SUFFIX_LEN: u32 = 128\npub struct TraceMessage { pub bytes: BrowserBytes }\nimpl Copy for TraceMessage {}\n\npub struct CameraTrace { pub enabled: bool, pub words: [u32; 14] }\nimpl Copy for CameraTrace {}\n\nimpl CameraTrace {\n    pub const fn empty() -> Self { Self { enabled: false, words: [0; 14] } }\n    pub fn accept(self, _ message: TraceMessage) -> Self {\n        let mut next = self\n        if message.bytes.len == TRACE_WORDS * 4 && (message.bytes.ptr & 3) == 0 {\n            let mut i: u32 = 0\n            while i < TRACE_WORDS {\n                let word: BrowserPtr<u32> = BrowserPtr::from_u32(message.bytes.ptr + i * 4)\n                next.words[i as usize] = word.read()\n                i += 1\n            }\n        }\n        next\n    }\n    pub fn encoded_byte(self, _ index: u32) -> u8 {\n        if index == 0 { return 126 }\n        if index == 1 { return 103 }\n        if index == 2 { return 58 }\n        let position = index - 3\n        let slot = position % 9\n        if slot == 8 { return 46 }\n        let value = (self.words[(position / 9) as usize] >> ((7 - slot) * 4)) & 15\n        (if value < 10 { value + 48 } else { value + 87 }).downcast_truncate()\n    }\n}\n\npub fn begin(_ output: ReadbackWords<TraceMessage, 14>, _ clock: f32, _ camera: Camera) {\n    let (xr, xt, _, _) = to_quad(camera.center.re.value)\n    let (yr, yt, _, _) = to_quad(camera.center.im.value)\n    output.store(index: 0, value: __bitcast<f32, u32>(clock))\n    output.store(index: 1, value: __bitcast<f32, u32>(xr))\n    output.store(index: 2, value: __bitcast<f32, u32>(xt))\n    output.store(index: 3, value: __bitcast<f32, u32>(yr))\n    output.store(index: 4, value: __bitcast<f32, u32>(yt))\n}\n\npub struct TraceFrame {\n    pub clock: f32,\n    pub offsets: HistoryOffsets,\n    pub view: ViewCache,\n    pub full: ViewCache,\n    pub initial: ViewCache,\n    pub reference: ReferenceControl,\n    pub tap: ReprojectionTap,\n}\n\npub fn finish(_ output: ReadbackWords<TraceMessage, 14>, _ frame: TraceFrame) {\n    output.store(index: 5, value: __bitcast<f32, u32>(frame.offsets.full.re))\n    output.store(index: 6, value: __bitcast<f32, u32>(frame.offsets.full.im))\n    output.store(index: 7, value: __bitcast<f32, u32>(frame.offsets.initial.re))\n    output.store(index: 8, value: __bitcast<f32, u32>(frame.offsets.initial.im))\n    let cache_flags = frame.full.completed | (frame.initial.completed << 1)\n        | ((frame.view.epoch & 65535) << 16)\n    output.store(index: 9, value: cache_flags)\n    let reference_flags = frame.reference.active_valid | (frame.reference.pending << 1)\n        | (frame.reference.index << 2)\n    output.store(index: 10, value: reference_flags)\n    output.store(index: 11, value: __bitcast<f32, u32>(frame.tap.sx))\n    output.store(index: 12, value: __bitcast<f32, u32>(frame.tap.sy))\n    output.store(index: 13, value: __bitcast<f32, u32>(frame.clock))\n}",
+        "signature": "//! Temporary GPU camera observations, enabled in shared URLs with ?trace=1.\n//! A matching begin/end stamp distinguishes a completed pass from stale data.\nuse core::{BrowserBytes, BrowserPtr, Copy}\nuse std::webgpu::ReadbackWords\nuse precision::to_quad\nuse ingot::policy::Camera\nuse ingot::cache::{HistoryOffsets, ReferenceControl, ReprojectionTap, ViewCache}\n\nextern { const fn __bitcast<From, To>(_: From) -> To }\n\npub const TRACE_WORDS: u32 = 14\npub const TRACE_SUFFIX_LEN: u32 = 128\npub struct TraceMessage { pub bytes: BrowserBytes }\nimpl Copy for TraceMessage {}\n\npub struct CameraTrace { pub enabled: bool, pub words: [u32; 14] }\nimpl Copy for CameraTrace {}\n\nimpl CameraTrace {\n    pub const fn empty() -> Self { Self { enabled: false, words: [0; 14] } }\n    pub fn accept(self, _ message: TraceMessage) -> Self {\n        let mut next = self\n        if message.bytes.len == TRACE_WORDS * 4 && (message.bytes.ptr & 3) == 0 {\n            let mut i: u32 = 0\n            while i < TRACE_WORDS {\n                let word: BrowserPtr<u32> = BrowserPtr::from_u32(message.bytes.ptr + i * 4)\n                next.words[i as usize] = word.read()\n                i += 1\n            }\n        }\n        next\n    }\n    pub fn encoded_byte(self, _ index: u32) -> u8 {\n        if index == 0 { return 126 }\n        if index == 1 { return 103 }\n        if index == 2 { return 58 }\n        let position = index - 3\n        let slot = position % 9\n        if slot == 8 { return 46 }\n        let value = (self.words[(position / 9) as usize] >> ((7 - slot) * 4)) & 15\n        (if value < 10 { value + 48 } else { value + 87 }).downcast_truncate()\n    }\n}\n\npub fn begin(_ output: ReadbackWords<TraceMessage, 14>, _ clock: f32, _ camera: Camera) {\n    let (xr, xt, _, _) = to_quad(camera.center.re.value)\n    let (yr, yt, _, _) = to_quad(camera.center.im.value)\n    output.store(index: 0, value: __bitcast<f32, u32>(clock))\n    output.store(index: 1, value: __bitcast<f32, u32>(xr))\n    output.store(index: 2, value: __bitcast<f32, u32>(xt))\n    output.store(index: 3, value: __bitcast<f32, u32>(yr))\n    output.store(index: 4, value: __bitcast<f32, u32>(yt))\n}\n\npub struct TraceFrame {\n    pub clock: f32,\n    pub offsets: HistoryOffsets,\n    pub view: ViewCache,\n    pub full: ViewCache,\n    pub initial: ViewCache,\n    pub reference: ReferenceControl,\n    pub tap: ReprojectionTap,\n}\n\npub fn finish(_ output: ReadbackWords<TraceMessage, 14>, _ frame: TraceFrame) {\n    let (_, cached_x, _, _) = to_quad(frame.initial.camera.center.re.value)\n    let (_, cached_y, _, _) = to_quad(frame.initial.camera.center.im.value)\n    output.store(index: 5, value: __bitcast<f32, u32>(cached_x))\n    output.store(index: 6, value: __bitcast<f32, u32>(cached_y))\n    output.store(index: 7, value: __bitcast<f32, u32>(frame.offsets.initial.re))\n    output.store(index: 8, value: __bitcast<f32, u32>(frame.offsets.initial.im))\n    let cache_flags = frame.full.completed | (frame.initial.completed << 1)\n        | ((frame.view.epoch & 65535) << 16)\n    output.store(index: 9, value: cache_flags)\n    let reference_flags = frame.reference.active_valid | (frame.reference.pending << 1)\n        | (frame.reference.index << 2)\n    output.store(index: 10, value: reference_flags)\n    output.store(index: 11, value: __bitcast<f32, u32>(frame.tap.sx))\n    output.store(index: 12, value: __bitcast<f32, u32>(frame.tap.sy))\n    output.store(index: 13, value: __bitcast<f32, u32>(frame.clock))\n}",
         "source": {
           "column": 0,
           "display_file": "trace.fe",
           "line": 1
         },
-        "source_text": "//! Temporary GPU camera observations, enabled in shared URLs with ?trace=1.\n//! A matching begin/end stamp distinguishes a completed pass from stale data.\nuse core::{BrowserBytes, BrowserPtr, Copy}\nuse std::webgpu::ReadbackWords\nuse precision::to_quad\nuse ingot::policy::Camera\nuse ingot::cache::{HistoryOffsets, ReferenceControl, ReprojectionTap, ViewCache}\n\nextern { const fn __bitcast<From, To>(_: From) -> To }\n\npub const TRACE_WORDS: u32 = 14\npub const TRACE_SUFFIX_LEN: u32 = 128\npub struct TraceMessage { pub bytes: BrowserBytes }\nimpl Copy for TraceMessage {}\n\npub struct CameraTrace { pub enabled: bool, pub words: [u32; 14] }\nimpl Copy for CameraTrace {}\n\nimpl CameraTrace {\n    pub const fn empty() -> Self { Self { enabled: false, words: [0; 14] } }\n    pub fn accept(self, _ message: TraceMessage) -> Self {\n        let mut next = self\n        if message.bytes.len == TRACE_WORDS * 4 && (message.bytes.ptr & 3) == 0 {\n            let mut i: u32 = 0\n            while i < TRACE_WORDS {\n                let word: BrowserPtr<u32> = BrowserPtr::from_u32(message.bytes.ptr + i * 4)\n                next.words[i as usize] = word.read()\n                i += 1\n            }\n        }\n        next\n    }\n    pub fn encoded_byte(self, _ index: u32) -> u8 {\n        if index == 0 { return 126 }\n        if index == 1 { return 103 }\n        if index == 2 { return 58 }\n        let position = index - 3\n        let slot = position % 9\n        if slot == 8 { return 46 }\n        let value = (self.words[(position / 9) as usize] >> ((7 - slot) * 4)) & 15\n        (if value < 10 { value + 48 } else { value + 87 }).downcast_truncate()\n    }\n}\n\npub fn begin(_ output: ReadbackWords<TraceMessage, 14>, _ clock: f32, _ camera: Camera) {\n    let (xr, xt, _, _) = to_quad(camera.center.re.value)\n    let (yr, yt, _, _) = to_quad(camera.center.im.value)\n    output.store(index: 0, value: __bitcast<f32, u32>(clock))\n    output.store(index: 1, value: __bitcast<f32, u32>(xr))\n    output.store(index: 2, value: __bitcast<f32, u32>(xt))\n    output.store(index: 3, value: __bitcast<f32, u32>(yr))\n    output.store(index: 4, value: __bitcast<f32, u32>(yt))\n}\n\npub struct TraceFrame {\n    pub clock: f32,\n    pub offsets: HistoryOffsets,\n    pub view: ViewCache,\n    pub full: ViewCache,\n    pub initial: ViewCache,\n    pub reference: ReferenceControl,\n    pub tap: ReprojectionTap,\n}\n\npub fn finish(_ output: ReadbackWords<TraceMessage, 14>, _ frame: TraceFrame) {\n    output.store(index: 5, value: __bitcast<f32, u32>(frame.offsets.full.re))\n    output.store(index: 6, value: __bitcast<f32, u32>(frame.offsets.full.im))\n    output.store(index: 7, value: __bitcast<f32, u32>(frame.offsets.initial.re))\n    output.store(index: 8, value: __bitcast<f32, u32>(frame.offsets.initial.im))\n    let cache_flags = frame.full.completed | (frame.initial.completed << 1)\n        | ((frame.view.epoch & 65535) << 16)\n    output.store(index: 9, value: cache_flags)\n    let reference_flags = frame.reference.active_valid | (frame.reference.pending << 1)\n        | (frame.reference.index << 2)\n    output.store(index: 10, value: reference_flags)\n    output.store(index: 11, value: __bitcast<f32, u32>(frame.tap.sx))\n    output.store(index: 12, value: __bitcast<f32, u32>(frame.tap.sy))\n    output.store(index: 13, value: __bitcast<f32, u32>(frame.clock))\n}\n",
+        "source_text": "//! Temporary GPU camera observations, enabled in shared URLs with ?trace=1.\n//! A matching begin/end stamp distinguishes a completed pass from stale data.\nuse core::{BrowserBytes, BrowserPtr, Copy}\nuse std::webgpu::ReadbackWords\nuse precision::to_quad\nuse ingot::policy::Camera\nuse ingot::cache::{HistoryOffsets, ReferenceControl, ReprojectionTap, ViewCache}\n\nextern { const fn __bitcast<From, To>(_: From) -> To }\n\npub const TRACE_WORDS: u32 = 14\npub const TRACE_SUFFIX_LEN: u32 = 128\npub struct TraceMessage { pub bytes: BrowserBytes }\nimpl Copy for TraceMessage {}\n\npub struct CameraTrace { pub enabled: bool, pub words: [u32; 14] }\nimpl Copy for CameraTrace {}\n\nimpl CameraTrace {\n    pub const fn empty() -> Self { Self { enabled: false, words: [0; 14] } }\n    pub fn accept(self, _ message: TraceMessage) -> Self {\n        let mut next = self\n        if message.bytes.len == TRACE_WORDS * 4 && (message.bytes.ptr & 3) == 0 {\n            let mut i: u32 = 0\n            while i < TRACE_WORDS {\n                let word: BrowserPtr<u32> = BrowserPtr::from_u32(message.bytes.ptr + i * 4)\n                next.words[i as usize] = word.read()\n                i += 1\n            }\n        }\n        next\n    }\n    pub fn encoded_byte(self, _ index: u32) -> u8 {\n        if index == 0 { return 126 }\n        if index == 1 { return 103 }\n        if index == 2 { return 58 }\n        let position = index - 3\n        let slot = position % 9\n        if slot == 8 { return 46 }\n        let value = (self.words[(position / 9) as usize] >> ((7 - slot) * 4)) & 15\n        (if value < 10 { value + 48 } else { value + 87 }).downcast_truncate()\n    }\n}\n\npub fn begin(_ output: ReadbackWords<TraceMessage, 14>, _ clock: f32, _ camera: Camera) {\n    let (xr, xt, _, _) = to_quad(camera.center.re.value)\n    let (yr, yt, _, _) = to_quad(camera.center.im.value)\n    output.store(index: 0, value: __bitcast<f32, u32>(clock))\n    output.store(index: 1, value: __bitcast<f32, u32>(xr))\n    output.store(index: 2, value: __bitcast<f32, u32>(xt))\n    output.store(index: 3, value: __bitcast<f32, u32>(yr))\n    output.store(index: 4, value: __bitcast<f32, u32>(yt))\n}\n\npub struct TraceFrame {\n    pub clock: f32,\n    pub offsets: HistoryOffsets,\n    pub view: ViewCache,\n    pub full: ViewCache,\n    pub initial: ViewCache,\n    pub reference: ReferenceControl,\n    pub tap: ReprojectionTap,\n}\n\npub fn finish(_ output: ReadbackWords<TraceMessage, 14>, _ frame: TraceFrame) {\n    let (_, cached_x, _, _) = to_quad(frame.initial.camera.center.re.value)\n    let (_, cached_y, _, _) = to_quad(frame.initial.camera.center.im.value)\n    output.store(index: 5, value: __bitcast<f32, u32>(cached_x))\n    output.store(index: 6, value: __bitcast<f32, u32>(cached_y))\n    output.store(index: 7, value: __bitcast<f32, u32>(frame.offsets.initial.re))\n    output.store(index: 8, value: __bitcast<f32, u32>(frame.offsets.initial.im))\n    let cache_flags = frame.full.completed | (frame.initial.completed << 1)\n        | ((frame.view.epoch & 65535) << 16)\n    output.store(index: 9, value: cache_flags)\n    let reference_flags = frame.reference.active_valid | (frame.reference.pending << 1)\n        | (frame.reference.index << 2)\n    output.store(index: 10, value: reference_flags)\n    output.store(index: 11, value: __bitcast<f32, u32>(frame.tap.sx))\n    output.store(index: 12, value: __bitcast<f32, u32>(frame.tap.sy))\n    output.store(index: 13, value: __bitcast<f32, u32>(frame.clock))\n}\n",
         "trait_impls": [],
         "visibility": "public",
         "where_bounds": []
@@ -44135,7 +44121,7 @@
           "display_file": "trace.fe",
           "line": 65
         },
-        "source_text": "pub fn finish(_ output: ReadbackWords<TraceMessage, 14>, _ frame: TraceFrame) {\n    output.store(index: 5, value: __bitcast<f32, u32>(frame.offsets.full.re))\n    output.store(index: 6, value: __bitcast<f32, u32>(frame.offsets.full.im))\n    output.store(index: 7, value: __bitcast<f32, u32>(frame.offsets.initial.re))\n    output.store(index: 8, value: __bitcast<f32, u32>(frame.offsets.initial.im))\n    let cache_flags = frame.full.completed | (frame.initial.completed << 1)\n        | ((frame.view.epoch & 65535) << 16)\n    output.store(index: 9, value: cache_flags)\n    let reference_flags = frame.reference.active_valid | (frame.reference.pending << 1)\n        | (frame.reference.index << 2)\n    output.store(index: 10, value: reference_flags)\n    output.store(index: 11, value: __bitcast<f32, u32>(frame.tap.sx))\n    output.store(index: 12, value: __bitcast<f32, u32>(frame.tap.sy))\n    output.store(index: 13, value: __bitcast<f32, u32>(frame.clock))\n}",
+        "source_text": "pub fn finish(_ output: ReadbackWords<TraceMessage, 14>, _ frame: TraceFrame) {\n    let (_, cached_x, _, _) = to_quad(frame.initial.camera.center.re.value)\n    let (_, cached_y, _, _) = to_quad(frame.initial.camera.center.im.value)\n    output.store(index: 5, value: __bitcast<f32, u32>(cached_x))\n    output.store(index: 6, value: __bitcast<f32, u32>(cached_y))\n    output.store(index: 7, value: __bitcast<f32, u32>(frame.offsets.initial.re))\n    output.store(index: 8, value: __bitcast<f32, u32>(frame.offsets.initial.im))\n    let cache_flags = frame.full.completed | (frame.initial.completed << 1)\n        | ((frame.view.epoch & 65535) << 16)\n    output.store(index: 9, value: cache_flags)\n    let reference_flags = frame.reference.active_valid | (frame.reference.pending << 1)\n        | (frame.reference.index << 2)\n    output.store(index: 10, value: reference_flags)\n    output.store(index: 11, value: __bitcast<f32, u32>(frame.tap.sx))\n    output.store(index: 12, value: __bitcast<f32, u32>(frame.tap.sy))\n    output.store(index: 13, value: __bitcast<f32, u32>(frame.clock))\n}",
         "trait_impls": [],
         "visibility": "public",
         "where_bounds": []
@@ -120432,219 +120418,255 @@
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#"
         },
         {
-          "ce": 43,
-          "cs": 34,
+          "ce": 37,
+          "cs": 30,
           "line": 65,
-          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/__bitcast."
+          "sym": "fe fe precision 0.1.0 lib/to_quad."
         },
         {
-          "ce": 67,
-          "cs": 60,
+          "ce": 51,
+          "cs": 44,
           "line": 65,
-          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#offsets."
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#initial."
         },
         {
-          "ce": 72,
-          "cs": 68,
+          "ce": 58,
+          "cs": 52,
           "line": 65,
-          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/HistoryOffsets#full."
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/ViewCache#camera."
         },
         {
-          "ce": 75,
-          "cs": 73,
+          "ce": 65,
+          "cs": 59,
+          "line": 65,
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/Camera#center."
+        },
+        {
+          "ce": 68,
+          "cs": 66,
           "line": 65,
           "sym": "fe fe algebra 0.1.0 lib/Complex#re."
         },
         {
-          "ce": 43,
-          "cs": 34,
-          "line": 66,
-          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/__bitcast."
+          "ce": 74,
+          "cs": 69,
+          "line": 65,
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/Coordinate#value."
         },
         {
-          "ce": 67,
-          "cs": 60,
+          "ce": 37,
+          "cs": 30,
           "line": 66,
-          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#offsets."
+          "sym": "fe fe precision 0.1.0 lib/to_quad."
         },
         {
-          "ce": 72,
-          "cs": 68,
+          "ce": 51,
+          "cs": 44,
           "line": 66,
-          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/HistoryOffsets#full."
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#initial."
         },
         {
-          "ce": 75,
-          "cs": 73,
+          "ce": 58,
+          "cs": 52,
+          "line": 66,
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/ViewCache#camera."
+        },
+        {
+          "ce": 65,
+          "cs": 59,
+          "line": 66,
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/Camera#center."
+        },
+        {
+          "ce": 68,
+          "cs": 66,
           "line": 66,
           "sym": "fe fe algebra 0.1.0 lib/Complex#im."
         },
         {
+          "ce": 74,
+          "cs": 69,
+          "line": 66,
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/Coordinate#value."
+        },
+        {
           "ce": 43,
           "cs": 34,
           "line": 67,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/__bitcast."
         },
         {
+          "ce": 43,
+          "cs": 34,
+          "line": 68,
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/__bitcast."
+        },
+        {
+          "ce": 43,
+          "cs": 34,
+          "line": 69,
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/__bitcast."
+        },
+        {
           "ce": 67,
           "cs": 60,
-          "line": 67,
+          "line": 69,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#offsets."
         },
         {
           "ce": 75,
           "cs": 68,
-          "line": 67,
+          "line": 69,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/HistoryOffsets#initial."
         },
         {
           "ce": 78,
           "cs": 76,
-          "line": 67,
+          "line": 69,
           "sym": "fe fe algebra 0.1.0 lib/Complex#re."
         },
         {
           "ce": 43,
           "cs": 34,
-          "line": 68,
+          "line": 70,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/__bitcast."
         },
         {
           "ce": 67,
           "cs": 60,
-          "line": 68,
+          "line": 70,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#offsets."
         },
         {
           "ce": 75,
           "cs": 68,
-          "line": 68,
+          "line": 70,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/HistoryOffsets#initial."
         },
         {
           "ce": 78,
           "cs": 76,
-          "line": 68,
+          "line": 70,
           "sym": "fe fe algebra 0.1.0 lib/Complex#im."
         },
         {
           "ce": 32,
           "cs": 28,
-          "line": 69,
+          "line": 71,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#full."
         },
         {
           "ce": 42,
           "cs": 33,
-          "line": 69,
+          "line": 71,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/ViewCache#completed."
         },
         {
           "ce": 59,
           "cs": 52,
-          "line": 69,
+          "line": 71,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#initial."
         },
         {
           "ce": 69,
           "cs": 60,
-          "line": 69,
+          "line": 71,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/ViewCache#completed."
         },
         {
           "ce": 22,
           "cs": 18,
-          "line": 70,
+          "line": 72,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#view."
         },
         {
           "ce": 28,
           "cs": 23,
-          "line": 70,
+          "line": 72,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/ViewCache#epoch."
         },
         {
           "ce": 41,
           "cs": 32,
-          "line": 72,
+          "line": 74,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#reference."
         },
         {
           "ce": 54,
           "cs": 42,
-          "line": 72,
+          "line": 74,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/ReferenceControl#active_valid."
         },
         {
           "ce": 73,
           "cs": 64,
-          "line": 72,
+          "line": 74,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#reference."
         },
         {
           "ce": 81,
           "cs": 74,
-          "line": 72,
+          "line": 74,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/ReferenceControl#pending."
         },
         {
           "ce": 26,
           "cs": 17,
-          "line": 73,
+          "line": 75,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#reference."
         },
         {
           "ce": 32,
           "cs": 27,
-          "line": 73,
+          "line": 75,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/ReferenceControl#index."
         },
         {
           "ce": 44,
           "cs": 35,
-          "line": 75,
+          "line": 77,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/__bitcast."
         },
         {
           "ce": 64,
           "cs": 61,
-          "line": 75,
+          "line": 77,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#tap."
         },
         {
           "ce": 67,
           "cs": 65,
-          "line": 75,
+          "line": 77,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/ReprojectionTap#sx."
         },
         {
           "ce": 44,
           "cs": 35,
-          "line": 76,
+          "line": 78,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/__bitcast."
         },
         {
           "ce": 64,
           "cs": 61,
-          "line": 76,
+          "line": 78,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#tap."
         },
         {
           "ce": 67,
           "cs": 65,
-          "line": 76,
+          "line": 78,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/ReprojectionTap#sy."
         },
         {
           "ce": 44,
           "cs": 35,
-          "line": 77,
+          "line": 79,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/__bitcast."
         },
         {
           "ce": 66,
           "cs": 61,
-          "line": 77,
+          "line": 79,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#clock."
         }
       ],
@@ -148512,219 +148534,255 @@
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#"
         },
         {
-          "ce": 43,
-          "cs": 34,
+          "ce": 37,
+          "cs": 30,
           "line": 65,
-          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/__bitcast."
+          "sym": "fe fe precision 0.1.0 lib/to_quad."
         },
         {
-          "ce": 67,
-          "cs": 60,
+          "ce": 51,
+          "cs": 44,
           "line": 65,
-          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#offsets."
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#initial."
         },
         {
-          "ce": 72,
-          "cs": 68,
+          "ce": 58,
+          "cs": 52,
           "line": 65,
-          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/HistoryOffsets#full."
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/ViewCache#camera."
         },
         {
-          "ce": 75,
-          "cs": 73,
+          "ce": 65,
+          "cs": 59,
+          "line": 65,
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/Camera#center."
+        },
+        {
+          "ce": 68,
+          "cs": 66,
           "line": 65,
           "sym": "fe fe algebra 0.1.0 lib/Complex#re."
         },
         {
-          "ce": 43,
-          "cs": 34,
-          "line": 66,
-          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/__bitcast."
+          "ce": 74,
+          "cs": 69,
+          "line": 65,
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/Coordinate#value."
         },
         {
-          "ce": 67,
-          "cs": 60,
+          "ce": 37,
+          "cs": 30,
           "line": 66,
-          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#offsets."
+          "sym": "fe fe precision 0.1.0 lib/to_quad."
         },
         {
-          "ce": 72,
-          "cs": 68,
+          "ce": 51,
+          "cs": 44,
           "line": 66,
-          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/HistoryOffsets#full."
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#initial."
         },
         {
-          "ce": 75,
-          "cs": 73,
+          "ce": 58,
+          "cs": 52,
+          "line": 66,
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/ViewCache#camera."
+        },
+        {
+          "ce": 65,
+          "cs": 59,
+          "line": 66,
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/Camera#center."
+        },
+        {
+          "ce": 68,
+          "cs": 66,
           "line": 66,
           "sym": "fe fe algebra 0.1.0 lib/Complex#im."
         },
         {
+          "ce": 74,
+          "cs": 69,
+          "line": 66,
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/Coordinate#value."
+        },
+        {
           "ce": 43,
           "cs": 34,
           "line": 67,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/__bitcast."
         },
         {
+          "ce": 43,
+          "cs": 34,
+          "line": 68,
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/__bitcast."
+        },
+        {
+          "ce": 43,
+          "cs": 34,
+          "line": 69,
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/__bitcast."
+        },
+        {
           "ce": 67,
           "cs": 60,
-          "line": 67,
+          "line": 69,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#offsets."
         },
         {
           "ce": 75,
           "cs": 68,
-          "line": 67,
+          "line": 69,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/HistoryOffsets#initial."
         },
         {
           "ce": 78,
           "cs": 76,
-          "line": 67,
+          "line": 69,
           "sym": "fe fe algebra 0.1.0 lib/Complex#re."
         },
         {
           "ce": 43,
           "cs": 34,
-          "line": 68,
+          "line": 70,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/__bitcast."
         },
         {
           "ce": 67,
           "cs": 60,
-          "line": 68,
+          "line": 70,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#offsets."
         },
         {
           "ce": 75,
           "cs": 68,
-          "line": 68,
+          "line": 70,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/HistoryOffsets#initial."
         },
         {
           "ce": 78,
           "cs": 76,
-          "line": 68,
+          "line": 70,
           "sym": "fe fe algebra 0.1.0 lib/Complex#im."
         },
         {
           "ce": 32,
           "cs": 28,
-          "line": 69,
+          "line": 71,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#full."
         },
         {
           "ce": 42,
           "cs": 33,
-          "line": 69,
+          "line": 71,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/ViewCache#completed."
         },
         {
           "ce": 59,
           "cs": 52,
-          "line": 69,
+          "line": 71,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#initial."
         },
         {
           "ce": 69,
           "cs": 60,
-          "line": 69,
+          "line": 71,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/ViewCache#completed."
         },
         {
           "ce": 22,
           "cs": 18,
-          "line": 70,
+          "line": 72,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#view."
         },
         {
           "ce": 28,
           "cs": 23,
-          "line": 70,
+          "line": 72,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/ViewCache#epoch."
         },
         {
           "ce": 41,
           "cs": 32,
-          "line": 72,
+          "line": 74,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#reference."
         },
         {
           "ce": 54,
           "cs": 42,
-          "line": 72,
+          "line": 74,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/ReferenceControl#active_valid."
         },
         {
           "ce": 73,
           "cs": 64,
-          "line": 72,
+          "line": 74,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#reference."
         },
         {
           "ce": 81,
           "cs": 74,
-          "line": 72,
+          "line": 74,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/ReferenceControl#pending."
         },
         {
           "ce": 26,
           "cs": 17,
-          "line": 73,
+          "line": 75,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#reference."
         },
         {
           "ce": 32,
           "cs": 27,
-          "line": 73,
+          "line": 75,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/ReferenceControl#index."
         },
         {
           "ce": 44,
           "cs": 35,
-          "line": 75,
+          "line": 77,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/__bitcast."
         },
         {
           "ce": 64,
           "cs": 61,
-          "line": 75,
+          "line": 77,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#tap."
         },
         {
           "ce": 67,
           "cs": 65,
-          "line": 75,
+          "line": 77,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/ReprojectionTap#sx."
         },
         {
           "ce": 44,
           "cs": 35,
-          "line": 76,
+          "line": 78,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/__bitcast."
         },
         {
           "ce": 64,
           "cs": 61,
-          "line": 76,
+          "line": 78,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#tap."
         },
         {
           "ce": 67,
           "cs": 65,
-          "line": 76,
+          "line": 78,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/cache/ReprojectionTap#sy."
         },
         {
           "ce": 44,
           "cs": 35,
-          "line": 77,
+          "line": 79,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/__bitcast."
         },
         {
           "ce": 66,
           "cs": 61,
-          "line": 77,
+          "line": 79,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TraceFrame#clock."
         }
       ],
@@ -157810,7 +157868,7 @@
       },
       "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/finish/`{fn_body}`:": {
         "docs": [
-          "```fe\n{\n    output.store(index: 5, value: __bitcast<f32, u32>(frame.offsets.full.re))\n    output.store(index: 6, value: __bitcast<f32, u32>(frame.offsets.full.im))\n    output.store(index: 7, value: __bitcast<f32, u32>(frame.offsets.initial.re))\n    output.store(index: 8, value: __bitcast<f32, u32>(frame.offsets.initial.im))\n    let cache_flags = frame.full.completed | (frame.initial.completed << 1)\n        | ((frame.view.epoch & 65535) << 16)\n    output.store(index: 9, value: cache_flags)\n    let reference_flags = frame.reference.active_valid | (frame.reference.pending << 1)\n        | (frame.reference.index << 2)\n    output.store(index: 10, value: reference_flags)\n    output.store(index: 11, value: __bitcast<f32, u32>(frame.tap.sx))\n    output.store(index: 12, value: __bitcast<f32, u32>(frame.tap.sy))\n    output.store(index: 13, value: __bitcast<f32, u32>(frame.clock))\n}\n```"
+          "```fe\n{\n    let (_, cached_x, _, _) = to_quad(frame.initial.camera.center.re.value)\n    let (_, cached_y, _, _) = to_quad(frame.initial.camera.center.im.value)\n    output.store(index: 5, value: __bitcast<f32, u32>(cached_x))\n    output.store(index: 6, value: __bitcast<f32, u32>(cached_y))\n    output.store(index: 7, value: __bitcast<f32, u32>(frame.offsets.initial.re))\n    output.store(index: 8, value: __bitcast<f32, u32>(frame.offsets.initial.im))\n    let cache_flags = frame.full.completed | (frame.initial.completed << 1)\n        | ((frame.view.epoch & 65535) << 16)\n    output.store(index: 9, value: cache_flags)\n    let reference_flags = frame.reference.active_valid | (frame.reference.pending << 1)\n        | (frame.reference.index << 2)\n    output.store(index: 10, value: reference_flags)\n    output.store(index: 11, value: __bitcast<f32, u32>(frame.tap.sx))\n    output.store(index: 12, value: __bitcast<f32, u32>(frame.tap.sy))\n    output.store(index: 13, value: __bitcast<f32, u32>(frame.clock))\n}\n```"
         ],
         "kind": 0,
         "name": "{fn_body}"
@@ -157818,7 +157876,7 @@
       "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace:": {
         "doc_url": "perturbational_mandelbrot_smooth::trace/mod",
         "docs": [
-          "```fe\n//! Temporary GPU camera observations, enabled in shared URLs with ?trace=1.\n//! A matching begin/end stamp distinguishes a completed pass from stale data.\nuse core::{BrowserBytes, BrowserPtr, Copy}\nuse std::webgpu::ReadbackWords\nuse precision::to_quad\nuse ingot::policy::Camera\nuse ingot::cache::{HistoryOffsets, ReferenceControl, ReprojectionTap, ViewCache}\n\nextern { const fn __bitcast<From, To>(_: From) -> To }\n\npub const TRACE_WORDS: u32 = 14\npub const TRACE_SUFFIX_LEN: u32 = 128\npub struct TraceMessage { pub bytes: BrowserBytes }\nimpl Copy for TraceMessage {}\n\npub struct CameraTrace { pub enabled: bool, pub words: [u32; 14] }\nimpl Copy for CameraTrace {}\n\nimpl CameraTrace {\n    pub const fn empty() -> Self { Self { enabled: false, words: [0; 14] } }\n    pub fn accept(self, _ message: TraceMessage) -> Self {\n        let mut next = self\n        if message.bytes.len == TRACE_WORDS * 4 && (message.bytes.ptr & 3) == 0 {\n            let mut i: u32 = 0\n            while i < TRACE_WORDS {\n                let word: BrowserPtr<u32> = BrowserPtr::from_u32(message.bytes.ptr + i * 4)\n                next.words[i as usize] = word.read()\n                i += 1\n            }\n        }\n        next\n    }\n    pub fn encoded_byte(self, _ index: u32) -> u8 {\n        if index == 0 { return 126 }\n        if index == 1 { return 103 }\n        if index == 2 { return 58 }\n        let position = index - 3\n        let slot = position % 9\n        if slot == 8 { return 46 }\n        let value = (self.words[(position / 9) as usize] >> ((7 - slot) * 4)) & 15\n        (if value < 10 { value + 48 } else { value + 87 }).downcast_truncate()\n    }\n}\n\npub fn begin(_ output: ReadbackWords<TraceMessage, 14>, _ clock: f32, _ camera: Camera) {\n    let (xr, xt, _, _) = to_quad(camera.center.re.value)\n    let (yr, yt, _, _) = to_quad(camera.center.im.value)\n    output.store(index: 0, value: __bitcast<f32, u32>(clock))\n    output.store(index: 1, value: __bitcast<f32, u32>(xr))\n    output.store(index: 2, value: __bitcast<f32, u32>(xt))\n    output.store(index: 3, value: __bitcast<f32, u32>(yr))\n    output.store(index: 4, value: __bitcast<f32, u32>(yt))\n}\n\npub struct TraceFrame {\n    pub clock: f32,\n    pub offsets: HistoryOffsets,\n    pub view: ViewCache,\n    pub full: ViewCache,\n    pub initial: ViewCache,\n    pub reference: ReferenceControl,\n    pub tap: ReprojectionTap,\n}\n\npub fn finish(_ output: ReadbackWords<TraceMessage, 14>, _ frame: TraceFrame) {\n    output.store(index: 5, value: __bitcast<f32, u32>(frame.offsets.full.re))\n    output.store(index: 6, value: __bitcast<f32, u32>(frame.offsets.full.im))\n    output.store(index: 7, value: __bitcast<f32, u32>(frame.offsets.initial.re))\n    output.store(index: 8, value: __bitcast<f32, u32>(frame.offsets.initial.im))\n    let cache_flags = frame.full.completed | (frame.initial.completed << 1)\n        | ((frame.view.epoch & 65535) << 16)\n    output.store(index: 9, value: cache_flags)\n    let reference_flags = frame.reference.active_valid | (frame.reference.pending << 1)\n        | (frame.reference.index << 2)\n    output.store(index: 10, value: reference_flags)\n    output.store(index: 11, value: __bitcast<f32, u32>(frame.tap.sx))\n    output.store(index: 12, value: __bitcast<f32, u32>(frame.tap.sy))\n    output.store(index: 13, value: __bitcast<f32, u32>(frame.clock))\n}\n```"
+          "```fe\n//! Temporary GPU camera observations, enabled in shared URLs with ?trace=1.\n//! A matching begin/end stamp distinguishes a completed pass from stale data.\nuse core::{BrowserBytes, BrowserPtr, Copy}\nuse std::webgpu::ReadbackWords\nuse precision::to_quad\nuse ingot::policy::Camera\nuse ingot::cache::{HistoryOffsets, ReferenceControl, ReprojectionTap, ViewCache}\n\nextern { const fn __bitcast<From, To>(_: From) -> To }\n\npub const TRACE_WORDS: u32 = 14\npub const TRACE_SUFFIX_LEN: u32 = 128\npub struct TraceMessage { pub bytes: BrowserBytes }\nimpl Copy for TraceMessage {}\n\npub struct CameraTrace { pub enabled: bool, pub words: [u32; 14] }\nimpl Copy for CameraTrace {}\n\nimpl CameraTrace {\n    pub const fn empty() -> Self { Self { enabled: false, words: [0; 14] } }\n    pub fn accept(self, _ message: TraceMessage) -> Self {\n        let mut next = self\n        if message.bytes.len == TRACE_WORDS * 4 && (message.bytes.ptr & 3) == 0 {\n            let mut i: u32 = 0\n            while i < TRACE_WORDS {\n                let word: BrowserPtr<u32> = BrowserPtr::from_u32(message.bytes.ptr + i * 4)\n                next.words[i as usize] = word.read()\n                i += 1\n            }\n        }\n        next\n    }\n    pub fn encoded_byte(self, _ index: u32) -> u8 {\n        if index == 0 { return 126 }\n        if index == 1 { return 103 }\n        if index == 2 { return 58 }\n        let position = index - 3\n        let slot = position % 9\n        if slot == 8 { return 46 }\n        let value = (self.words[(position / 9) as usize] >> ((7 - slot) * 4)) & 15\n        (if value < 10 { value + 48 } else { value + 87 }).downcast_truncate()\n    }\n}\n\npub fn begin(_ output: ReadbackWords<TraceMessage, 14>, _ clock: f32, _ camera: Camera) {\n    let (xr, xt, _, _) = to_quad(camera.center.re.value)\n    let (yr, yt, _, _) = to_quad(camera.center.im.value)\n    output.store(index: 0, value: __bitcast<f32, u32>(clock))\n    output.store(index: 1, value: __bitcast<f32, u32>(xr))\n    output.store(index: 2, value: __bitcast<f32, u32>(xt))\n    output.store(index: 3, value: __bitcast<f32, u32>(yr))\n    output.store(index: 4, value: __bitcast<f32, u32>(yt))\n}\n\npub struct TraceFrame {\n    pub clock: f32,\n    pub offsets: HistoryOffsets,\n    pub view: ViewCache,\n    pub full: ViewCache,\n    pub initial: ViewCache,\n    pub reference: ReferenceControl,\n    pub tap: ReprojectionTap,\n}\n\npub fn finish(_ output: ReadbackWords<TraceMessage, 14>, _ frame: TraceFrame) {\n    let (_, cached_x, _, _) = to_quad(frame.initial.camera.center.re.value)\n    let (_, cached_y, _, _) = to_quad(frame.initial.camera.center.im.value)\n    output.store(index: 5, value: __bitcast<f32, u32>(cached_x))\n    output.store(index: 6, value: __bitcast<f32, u32>(cached_y))\n    output.store(index: 7, value: __bitcast<f32, u32>(frame.offsets.initial.re))\n    output.store(index: 8, value: __bitcast<f32, u32>(frame.offsets.initial.im))\n    let cache_flags = frame.full.completed | (frame.initial.completed << 1)\n        | ((frame.view.epoch & 65535) << 16)\n    output.store(index: 9, value: cache_flags)\n    let reference_flags = frame.reference.active_valid | (frame.reference.pending << 1)\n        | (frame.reference.index << 2)\n    output.store(index: 10, value: reference_flags)\n    output.store(index: 11, value: __bitcast<f32, u32>(frame.tap.sx))\n    output.store(index: 12, value: __bitcast<f32, u32>(frame.tap.sy))\n    output.store(index: 13, value: __bitcast<f32, u32>(frame.clock))\n}\n```"
         ],
         "kind": 0,
         "name": "trace"

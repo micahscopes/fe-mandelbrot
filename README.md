@@ -174,6 +174,9 @@ unpublished assets in a remote CDP browser.
 URL lanes directly. `node tests/mobile-url-browser.mjs` exercises real touch,
 restoration before the first frame, resizing and browser history in responsive
 Chrome. `node tests/startup.mjs` checks one GPU graph and stable buffer reuse.
+`node tests/pan-presentation.mjs` checks the actual GPU cache during one- and
+two-finger drags, nonzero camera displacement, and changed presented pixels.
+Set `OWNED_SOFTWARE_BROWSER=1` to launch an isolated software-GPU test browser.
 
 ### Gesture geometry in Fe
 
@@ -218,8 +221,8 @@ GPU camera tracing is temporarily available with `?trace=1`. Fe reads back one
 view URL as `~g:` followed by fourteen hexadecimal words. Ordinary view URLs
 remain unchanged; diagnostic words are never restored as camera state. The
 packet records begin/end frame stamps, the GPU camera's first two words per
-axis, full/initial cache offsets, cache/reference status, and the reprojected
-center tap. This diagnostic adds two small GPU passes and a readback; it is
+axis, cached-camera lower words, initial-cache offsets, cache/reference status,
+and the reprojected center tap. This diagnostic adds two small GPU passes and a readback; it is
 intended to locate the outstanding physical-phone rendering failure. The URL
 contains the last observation available when input synchronizes location, so
 its GPU camera may precede the CPU camera by a frame.

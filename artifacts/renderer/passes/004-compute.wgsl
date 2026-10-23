@@ -107,6 +107,13 @@ struct FeLocal_fe_MandelbrotViewState_c524184f_20_ {
     trace: FeLocal_fe_CameraTrace_7ca62f00_19_,
 }
 
+struct FeLocal_fe_f32_f32_f32_f32_83f8ffa4_21_ {
+    f0_: f32,
+    f1_: f32,
+    f2_: f32,
+    f3_: f32,
+}
+
 struct FeLocal_fe_HistoryOffsets_646326b2_1_ {
     full: FeLocal_fe_Complex_f32_87ec9249_0_,
     initial: FeLocal_fe_Complex_f32_87ec9249_0_,
@@ -122,7 +129,7 @@ struct FeLocal_fe_ReferenceControl_7d077120_10_ {
     ready_at: f32,
 }
 
-struct FeLocal_fe_PreviewCache_6792a3e2_21_ {
+struct FeLocal_fe_PreviewCache_6792a3e2_22_ {
     camera: FeLocal_fe_Camera_03494b0d_8_,
     reference_generation: u32,
     reference_bank: u32,
@@ -440,9 +447,15 @@ fn reproject_coarse_pixel(a0_10: ptr<function, FeLocal_fe_MandelbrotViewState_c5
     return _e125;
 }
 
+fn to_quad(a0_11: FeLocal_fe_More_More_More_Last_e6310ae8_5_) -> FeLocal_fe_f32_f32_f32_f32_83f8ffa4_21_ {
+    return FeLocal_fe_f32_f32_f32_f32_83f8ffa4_21_(a0_11.lead, a0_11.tail.lead, a0_11.tail.tail.lead, a0_11.tail.tail.tail.value);
+}
+
 fn finish(a1_7: FeLocal_fe_TraceFrame_75ddedf8_12_) {
-    camera_trace[i32(5u)] = bitcast<u32>(a1_7.offsets.full.re);
-    camera_trace[i32(6u)] = bitcast<u32>(a1_7.offsets.full.im);
+    let _e7 = to_quad(a1_7.initial.camera.center.re.value);
+    let _e14 = to_quad(a1_7.initial.camera.center.im.value);
+    camera_trace[i32(5u)] = bitcast<u32>(_e7.f1_);
+    camera_trace[i32(6u)] = bitcast<u32>(_e14.f1_);
     camera_trace[i32(7u)] = bitcast<u32>(a1_7.offsets.initial.re);
     camera_trace[i32(8u)] = bitcast<u32>(a1_7.offsets.initial.im);
     camera_trace[i32(9u)] = ((a1_7.full.completed | (a1_7.initial.completed << 1u)) | (a1_7.view.epoch << 16u));

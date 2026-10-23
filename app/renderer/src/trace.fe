@@ -63,8 +63,10 @@ pub struct TraceFrame {
 }
 
 pub fn finish(_ output: ReadbackWords<TraceMessage, 14>, _ frame: TraceFrame) {
-    output.store(index: 5, value: __bitcast<f32, u32>(frame.offsets.full.re))
-    output.store(index: 6, value: __bitcast<f32, u32>(frame.offsets.full.im))
+    let (_, cached_x, _, _) = to_quad(frame.initial.camera.center.re.value)
+    let (_, cached_y, _, _) = to_quad(frame.initial.camera.center.im.value)
+    output.store(index: 5, value: __bitcast<f32, u32>(cached_x))
+    output.store(index: 6, value: __bitcast<f32, u32>(cached_y))
     output.store(index: 7, value: __bitcast<f32, u32>(frame.offsets.initial.re))
     output.store(index: 8, value: __bitcast<f32, u32>(frame.offsets.initial.im))
     let cache_flags = frame.full.completed | (frame.initial.completed << 1)

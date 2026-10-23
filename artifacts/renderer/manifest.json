@@ -4117,7 +4117,7 @@
     {
       "source_entry": "finish_camera_trace",
       "shader": "passes/004-compute.wgsl",
-      "shader_bytes": 25493,
+      "shader_bytes": 25938,
       "shader_stages": [
         "compute"
       ],
