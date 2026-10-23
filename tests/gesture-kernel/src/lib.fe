@@ -55,7 +55,7 @@ actor GestureKernelProbe uses (
         self.outputs.store(index: 2, value: restored.re)
         self.outputs.store(index: 3, value: restored.im)
         let map = Similarity2 { linear: camera.orientation.scale(camera.zoom),
-            offset: Complex { re: 0.0, im: 0.0 } }
+            offset: Complex { re: self.inputs.load(index: 5), im: self.inputs.load(index: 6) } }
         let roundtrip = map.then(map.inverse()).apply(point)
         self.outputs.store(index: 4, value: roundtrip.re)
         self.outputs.store(index: 5, value: roundtrip.im)

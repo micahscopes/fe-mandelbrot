@@ -26,14 +26,20 @@ struct FeLocal_fe_Complex_Coordinate_d4657101_5_ {
     im: FeLocal_fe_Coordinate_bdc10f09_4_,
 }
 
-struct FeLocal_fe_Camera_03494b0d_6_ {
+struct FeLocal_fe_Complex_f32_87ec9249_6_ {
+    re: f32,
+    im: f32,
+}
+
+struct FeLocal_fe_Camera_03494b0d_7_ {
     center: FeLocal_fe_Complex_Coordinate_d4657101_5_,
     zoom: f32,
     res: f32,
+    orientation: FeLocal_fe_Complex_f32_87ec9249_6_,
 }
 
-struct FeLocal_fe_ViewCache_da6e2ccc_7_ {
-    camera: FeLocal_fe_Camera_03494b0d_6_,
+struct FeLocal_fe_ViewCache_da6e2ccc_8_ {
+    camera: FeLocal_fe_Camera_03494b0d_7_,
     cursor: u32,
     aa: f32,
     budget: u32,
@@ -55,6 +61,8 @@ struct cache_element {
     camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value: f32,
     camera_u002e_zoom: f32,
     camera_u002e_res: f32,
+    camera_u002e_orientation_u002e_re: f32,
+    camera_u002e_orientation_u002e_im: f32,
     cursor: u32,
     aa: f32,
     budget: u32,
@@ -81,52 +89,42 @@ struct Params {
     p28_: f32,
     p29_: f32,
     p30_: f32,
-    p31_: u32,
-    p32_: u32,
-    p33_: f32,
-    p34_: f32,
-    p35_: u32,
-    p36_: u32,
-    p37_: f32,
-    p38_: f32,
-    p39_: u32,
-    p40_: u32,
+    p31_: f32,
+    p32_: f32,
+    p33_: u32,
+    p34_: u32,
+    p35_: f32,
+    p36_: f32,
+    p37_: u32,
+    p38_: u32,
+    p39_: f32,
+    p40_: f32,
     p41_: f32,
     p42_: f32,
-    p43_: u32,
-    p44_: u32,
-    p45_: f32,
-    p46_: f32,
-    p47_: u32,
-    p48_: u32,
-    p49_: f32,
-    p50_: f32,
-    p51_: u32,
-    p52_: u32,
+    p43_: f32,
+    p44_: f32,
+    p45_: u32,
+    p46_: u32,
+    p47_: f32,
+    p48_: f32,
+    p49_: u32,
+    p50_: u32,
+    p51_: f32,
+    p52_: f32,
     p53_: f32,
     p54_: f32,
-    p55_: u32,
-    p56_: u32,
+    p55_: f32,
+    p56_: f32,
     p57_: f32,
     p58_: f32,
-    p59_: u32,
-    p60_: u32,
+    p59_: f32,
+    p60_: f32,
     p61_: f32,
     p62_: f32,
-    p63_: u32,
-    p64_: u32,
-    p65_: f32,
+    p63_: f32,
+    p64_: f32,
+    p65_: u32,
     p66_: f32,
-    p67_: u32,
-    p68_: u32,
-    p69_: f32,
-    p70_: f32,
-    p71_: f32,
-    p72_: f32,
-    p73_: f32,
-    p74_: f32,
-    p75_: u32,
-    p76_: f32,
 }
 
 @group(0) @binding(0)
@@ -149,15 +147,17 @@ fn main() {
     let _e20 = cache[i32(0u)].camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value;
     let _e22 = cache[i32(0u)].camera_u002e_zoom;
     let _e24 = cache[i32(0u)].camera_u002e_res;
-    let _e26 = cache[i32(0u)].cursor;
-    let _e28 = cache[i32(0u)].aa;
-    let _e30 = cache[i32(0u)].budget;
-    let _e32 = cache[i32(0u)].radius;
-    let _e34 = cache[i32(0u)].preview_dirty;
-    let _e36 = cache[i32(0u)].blur_dirty;
-    let _e38 = cache[i32(0u)].epoch;
-    let _e40 = cache[i32(0u)].completed;
-    if (_e40 == 1u) {
+    let _e26 = cache[i32(0u)].camera_u002e_orientation_u002e_re;
+    let _e28 = cache[i32(0u)].camera_u002e_orientation_u002e_im;
+    let _e30 = cache[i32(0u)].cursor;
+    let _e32 = cache[i32(0u)].aa;
+    let _e34 = cache[i32(0u)].budget;
+    let _e36 = cache[i32(0u)].radius;
+    let _e38 = cache[i32(0u)].preview_dirty;
+    let _e40 = cache[i32(0u)].blur_dirty;
+    let _e42 = cache[i32(0u)].epoch;
+    let _e44 = cache[i32(0u)].completed;
+    if (_e44 == 1u) {
         cache[i32(1u)].camera_u002e_center_u002e_re_u002e_value_u002e_lead = _e6;
         cache[i32(1u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_lead = _e8;
         cache[i32(1u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_tail_u002e_lead = _e10;
@@ -168,13 +168,15 @@ fn main() {
         cache[i32(1u)].camera_u002e_center_u002e_im_u002e_value_u002e_tail_u002e_tail_u002e_tail_u002e_value = _e20;
         cache[i32(1u)].camera_u002e_zoom = _e22;
         cache[i32(1u)].camera_u002e_res = _e24;
-        cache[i32(1u)].cursor = _e26;
-        cache[i32(1u)].aa = _e28;
-        cache[i32(1u)].budget = _e30;
-        cache[i32(1u)].radius = _e32;
-        cache[i32(1u)].preview_dirty = _e34;
-        cache[i32(1u)].blur_dirty = _e36;
-        cache[i32(1u)].epoch = _e38;
-        cache[i32(1u)].completed = _e40;
+        cache[i32(1u)].camera_u002e_orientation_u002e_re = _e26;
+        cache[i32(1u)].camera_u002e_orientation_u002e_im = _e28;
+        cache[i32(1u)].cursor = _e30;
+        cache[i32(1u)].aa = _e32;
+        cache[i32(1u)].budget = _e34;
+        cache[i32(1u)].radius = _e36;
+        cache[i32(1u)].preview_dirty = _e38;
+        cache[i32(1u)].blur_dirty = _e40;
+        cache[i32(1u)].epoch = _e42;
+        cache[i32(1u)].completed = _e44;
     }
 }

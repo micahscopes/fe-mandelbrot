@@ -205,3 +205,7 @@ rotation at zoom limits. `tests/contact-browser.mjs` exercises actual browser to
 transport and Fe recognition; it does not substitute for GPU presentation or a
 physical-phone check. `tests/gesture-kernel/gpu.mjs` checks generated GPU projection,
 inverse mapping, and similarity composition down to `1e-27` zoom.
+
+`Similarity2.inverse()` requires a nonzero finite multiplier and a finite,
+representable inverse map. As with the other floating-point algebra primitives,
+callers own that domain; it is not an arbitrary-input matrix validation API.

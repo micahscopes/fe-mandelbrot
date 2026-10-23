@@ -6,20 +6,20 @@
       "semanticOccurrences": 1039
     },
     "policy.fe": {
-      "bytes": 12076,
-      "semanticOccurrences": 419
+      "bytes": 13843,
+      "semanticOccurrences": 489
     },
     "interaction.fe": {
-      "bytes": 2743,
-      "semanticOccurrences": 94
+      "bytes": 3126,
+      "semanticOccurrences": 112
     },
     "url.fe": {
-      "bytes": 19212,
-      "semanticOccurrences": 508
+      "bytes": 21155,
+      "semanticOccurrences": 566
     },
     "orbit.fe": {
-      "bytes": 26197,
-      "semanticOccurrences": 670
+      "bytes": 26155,
+      "semanticOccurrences": 667
     },
     "native_checkpoint.fe": {
       "bytes": 6862,
@@ -30,8 +30,8 @@
       "semanticOccurrences": 144
     },
     "cache.fe": {
-      "bytes": 13725,
-      "semanticOccurrences": 431
+      "bytes": 13880,
+      "semanticOccurrences": 428
     },
     "palette.fe": {
       "bytes": 1350,
@@ -42,12 +42,12 @@
       "semanticOccurrences": 283
     },
     "algebra.fe": {
-      "bytes": 23249,
-      "semanticOccurrences": 1360
+      "bytes": 25222,
+      "semanticOccurrences": 1439
     },
     "gestures.fe": {
-      "bytes": 17311,
-      "semanticOccurrences": 575
+      "bytes": 20516,
+      "semanticOccurrences": 660
     },
     "precision.fe": {
       "bytes": 17207,

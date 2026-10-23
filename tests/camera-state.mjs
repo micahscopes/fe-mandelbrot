@@ -43,7 +43,7 @@ async function trace(directory, signedZero) {
   assert.equal(initial.length, binding.members.length);
   const field=name=>binding.members.findIndex(member=>member.name===name);
   const semantic=values=>[...values.slice(0,10),...['clock','last_input','antialias','drag_active','magnification'].map(name=>values[field(name)])];
-  const orientation=values=>{const index=field('re');if(index>=0)assert.deepEqual(values.slice(index,index+2),[1,0],'Legacy events preserve identity orientation');};
+  const orientation=values=>{const index=binding.members.findIndex(member=>member.name==='re'||member.name==='camera.orientation.re');if(index>=0)assert.deepEqual(values.slice(index,index+2),[1,0],'Legacy events preserve identity orientation');};
   const suffix=initial.slice(-2);
   if (signedZero) {
     // Hidden low coefficients must survive whole-camera updates bit for bit.

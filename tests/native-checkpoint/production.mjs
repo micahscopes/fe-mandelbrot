@@ -124,8 +124,7 @@ async function measure(label, directory) {
           const result = {current: cache(0), snapshot: cache(1), initial: cache(2),
             reference: {active, valid: field(1, 0, 'active_valid'), pending: field(1, 0, 'pending'),
               generation: field(2, active, 'generation')},
-            previewCompleted: field(3, 0, 'completed'), residentCamera: cache(0).camera.length===12
-              ? bits([...surface._uniforms.slice(0,10),...(fieldsHaveOrientation?surface._uniforms.slice(10,12):[1,0])]) : [],
+            previewCompleted: field(3, 0, 'completed'), residentCamera: bits([...surface._uniforms.slice(0,10),...(fieldsHaveOrientation?surface._uniforms.slice(10,12):[1,0])]),
             residentAA: surface._paramsSnapshot().antialias, inputSettled: surface._paramsSnapshot().drag_active < 0.5
               && surface._paramsSnapshot().clock - surface._paramsSnapshot().last_input >= 60,
             frame: ++h.frames};
@@ -204,8 +203,8 @@ async function measure(label, directory) {
         const next = [...surface._uniforms];
         const fields=surface.manifest.layout.bindings.find(b=>b.role==='input').members;
         const index=name=>fields.findIndex(f=>f.name===name);
-        const cameraLength=index('re')>=0?12:10;
-        camera.slice(0,cameraLength).forEach((value, i) => { next[i] = value; });
+        const cameraLength=surface.manifest.resources.find(r=>r.name==='cache').element.Record.fields.some(f=>f.name==='camera.orientation.re')?12:10;
+        [...camera.slice(0,10),...(cameraLength===12?(camera.length>=12?camera.slice(10,12):[1,0]):[])].forEach((value, i) => { next[i] = value; });
         next[index('last_input')]=next[index('clock')];
         next[index('antialias')]=aa;
         next[index('drag_active')]=0;

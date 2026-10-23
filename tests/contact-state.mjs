@@ -80,6 +80,24 @@ reset();state[0]=1;api.fe_surface_state_replace_v1(...state);
 contact(0,7,256,256);contact(1,7,200,256);contact(1,7,256,256);
 near(center()[0],1,'Returning a constrained pan to its anchor restores the original center');
 groups.push('constrained-pan-returns-to-anchor');
+reset();contact(0,7,256,256);contact(1,7,280,256);
+const editedCenter=center();
+{
+ const mark=api.fe_cabi_checkpoint?.();
+ try{
+  const ptr=api.fe_cabi_alloc(52,4),event=new DataView(api.memory.buffer,ptr,52);
+  event.setFloat32(28,200,true);event.setFloat32(32,512,true);event.setFloat32(36,512,true);
+  event.setUint32(40,1,true);
+  const ordinal=manifest.surface.params.findIndex(p=>p.name==='zoom'||p.name.endsWith('.zoom'));
+  assert.ok(ordinal>=0);event.setUint32(44,ordinal,true);event.setFloat32(48,1,true);
+  state=Array.from(api.fe_surface_transition_scheduled_v1(ptr,1,...resources));
+ }finally{if(mark!==undefined)api.fe_cabi_rewind(mark);}
+}
+contact(1,7,300,256);
+near(state[8],1,'An external zoom edit survives the next contact motion');
+near(center()[0],editedCenter[0]-0.078125,'An external camera edit reanchors active contacts');
+groups.push('external-edit-reanchors-active-contact');
+
 
 
 assert.deepEqual(state.slice(-2),initial.slice(-2),'Contact transitions preserve backing request');
