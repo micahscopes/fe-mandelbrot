@@ -31,3 +31,21 @@ FE_BITS_VERIFIER_BUNDLE=/lab/argot/scratch/mb2-bits-verifier-example node tests/
 ```
 
 This argument is non-hiding and remains test-only. Passing differential fixtures establishes particular implementation behavior, not a soundness probability, complete theorem mapping, or zero-knowledge property. Reported setup/verification timings cover Node/Wasm only; they exclude browser/GPU startup and proof generation.
+
+## Deterministic Fe producer
+
+`prove` accepts `{ statement: { weight }, witness: { bits: [u32; 8] } }` and returns `{ status, proof }`. The producer checks boolean inputs and their sum, interpolates both trace columns, computes the shared AIR composition, checks its degree, derives OOD answers, folds the virtual DEEP table, and writes authenticated paths. The output is exactly 9824 little-endian bytes and contains no separate witness input field. It remains non-hiding: commitments, answers and openings depend on the witness.
+
+Producer statuses are zero for a proof, one for an invalid witness/statement, two for sampler exhaustion, and three for an internal invariant failure. These producer statuses are distinct from the verifier's path-status namespace. Failure returns an empty proof. Output storage is explicitly zero-initialized before header/path construction.
+
+Prover and verifier share consuming transcript-prefix helpers. Their private fields avoid direct construction by other modules, but the intended phase order is documented rather than enforced by the prefix type. Neither caller substitutes injected challenges or placeholder proof roots.
+
+The producer driver checks byte equality against four independent Rust proofs, verifies Fe-produced proofs through the public Fe verifier, rejects changed statements, and exercises invalid witnesses and repeated calls. Using a fresh output path:
+
+```sh
+fe web build tests/toy-stark-bits --out /lab/argot/scratch/mb2-bits-prover-example --entry wasm_anchor --mode render --canonical required --canonical-entry prove --canonical-entry verify --canonical-entry sampler_control --canonical-entry air8 --canonical-entry deep --canonical-entry domains
+FE_BITS_PROVER_BUNDLE=/lab/argot/scratch/mb2-bits-prover-example node tests/toy-stark-bits-prover.mjs
+FE_BITS_VERIFIER_BUNDLE=/lab/argot/scratch/mb2-bits-prover-example node tests/toy-stark-bits-verifier.mjs
+```
+
+`FE_BITS_PROVER_OUTPUT` optionally writes produced proof words to a scratch JSON file for independent verification. Node/Wasm timings separate module setup, proof generation, and verification. This eight-bit relation does not measure Mandelbrot proof generation or browser/GPU startup.

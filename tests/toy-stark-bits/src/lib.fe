@@ -97,3 +97,8 @@ pub fn sampler_control(_ r: own SamplerRequest) -> SamplerResult {
     result.status = if result.q_found && result.query_found { 0 } else { 2 }
     result
 }
+
+/// Private witness input belongs to the producer only. Output is non-hiding.
+pub fn prove(_ request: own ingot::prover::ProveRequest) -> ingot::prover::ProveResult {
+    ingot::prover::prove(request)
+}

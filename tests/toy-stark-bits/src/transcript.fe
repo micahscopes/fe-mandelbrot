@@ -35,52 +35,94 @@ impl Sampler {
     }
 }
 pub fn query_allowed(_ candidate: u32) -> bool { candidate < P - 1 }
-pub fn derive(_ proof: Proof, _ statement: BabyBear) -> Derived {
+/// A consumed prefix shares derivation between prover and verifier. Fields are
+/// private; the intended phase order is documented, not enforced by its type.
+pub struct Prefix { value: Derived, digest: Poseidon2Digest }
+impl Prefix {
+    pub fn ready(ref self) -> bool { self.value.valid }
+    pub fn constraints(ref self) -> [BabyBearExt4; 8] { self.value.r }
+    pub fn point(ref self) -> BabyBearExt4 { self.value.q }
+    pub fn deep_weights(ref self) -> [BabyBearExt4; 5] { self.value.r_f }
+    pub fn folds(ref self) -> [BabyBearExt4; 3] { self.value.beta }
+}
+pub fn after_trace(_ statement: BabyBear, _ trace_root: Poseidon2Digest) -> Prefix {
     let t0 = commit_fields<TKP0, 12>([BabyBear::one(), BabyBear::from_u32(3),
         BabyBear::from_u32(5), BabyBear::from_u32(31), BabyBear::from_u32(11),
         BabyBear::from_u32(8), BabyBear::from_u32(3), BabyBear::one(),
         BabyBear::one(), BabyBear::from_u32(4), BabyBear::one(), statement])
-    let t1 = bind<TKT1>(t0, proof.digest(0))
+    let t1 = bind<TKT1>(t0, trace_root)
     let mut r = [BabyBearExt4::zero(); 8]
     for i in 0..8 { r[i] = squeeze_ext4_indexed<TKR1>(t1, i.downcast_truncate()) }
-    let t2 = bind<TKC1>(t1, proof.digest(8))
-    let mut q = BabyBearExt4::zero()
-    let mut q_sampler = Sampler::q()
-    while q_sampler.open() {
-        let candidate = squeeze_ext4_indexed<TKZ1>(t2, q_sampler.counter())
-        if q_sampler.step(q_allowed(candidate)) { q = candidate }
+    Prefix { digest: t1, value: Derived { valid: false, r: r, q: BabyBearExt4::zero(),
+        r_f: [BabyBearExt4::zero(); 5], beta: [BabyBearExt4::zero(); 3], indices: [0; 8] } }
+}
+pub fn after_composition(_ previous: own Prefix, _ root: Poseidon2Digest) -> Prefix {
+    let mut stage = previous
+    stage.digest = bind<TKC1>(stage.digest, root)
+    let mut sampler = Sampler::q()
+    while sampler.open() {
+        let candidate = squeeze_ext4_indexed<TKZ1>(stage.digest, sampler.counter())
+        if sampler.step(q_allowed(candidate)) { stage.value.q = candidate }
     }
-    let mut result = Derived { valid: false, r: r, q: q,
-        r_f: [BabyBearExt4::zero(); 5], beta: [BabyBearExt4::zero(); 3], indices: [0; 8] }
-    if !q_sampler.found() { return result }
-    let mut answer_fields = [BabyBear::zero(); 28]
-    for i in 0..8 { answer_fields[i] = t2.field(i.downcast_truncate()) }
-    for i in 0..20 { answer_fields[i + 8] = BabyBear::from_u32(proof.word(16 + i.downcast_truncate())) }
-    let t3 = commit_fields<TKA1, 28>(answer_fields)
-    for i in 0..5 { result.r_f[i] = squeeze_ext4_indexed<TKG1>(t3, i.downcast_truncate()) }
-    result.beta[0] = squeeze_ext4_indexed<TKB1>(t3, 1)
-    let t4 = bind<TKL1>(t3, proof.digest(36))
-    result.beta[1] = squeeze_ext4_indexed<TKB1>(t4, 2)
-    let t5 = bind<TKL2>(t4, proof.digest(44))
-    result.beta[2] = squeeze_ext4_indexed<TKB1>(t5, 3)
-    let mut final_fields = [BabyBear::zero(); 12]
-    for i in 0..8 { final_fields[i] = t5.field(i.downcast_truncate()) }
-    for i in 0..4 { final_fields[i + 8] = BabyBear::from_u32(proof.word(52 + i.downcast_truncate())) }
-    let t6 = commit_fields<TKE1, 12>(final_fields)
+    stage.value.valid = sampler.found()
+    stage
+}
+pub fn after_answers(_ previous: own Prefix, _ answers: [BabyBearExt4; 5]) -> Prefix {
+    let mut stage = previous
+    if !stage.ready() { return stage }
+    let mut fields = [BabyBear::zero(); 28]
+    for i in 0..8 { fields[i] = stage.digest.field(i.downcast_truncate()) }
+    for i in 0..20 { fields[i + 8] = answers[i / 4].coefficient(i % 4) }
+    stage.digest = commit_fields<TKA1, 28>(fields)
+    for i in 0..5 { stage.value.r_f[i] = squeeze_ext4_indexed<TKG1>(stage.digest, i.downcast_truncate()) }
+    stage.value.beta[0] = squeeze_ext4_indexed<TKB1>(stage.digest, 1)
+    stage
+}
+pub fn after_layer_one(_ previous: own Prefix, _ root: Poseidon2Digest) -> Prefix {
+    let mut stage = previous
+    if !stage.ready() { return stage }
+    stage.digest = bind<TKL1>(stage.digest, root)
+    stage.value.beta[1] = squeeze_ext4_indexed<TKB1>(stage.digest, 2)
+    stage
+}
+pub fn after_layer_two(_ previous: own Prefix, _ root: Poseidon2Digest) -> Prefix {
+    let mut stage = previous
+    if !stage.ready() { return stage }
+    stage.digest = bind<TKL2>(stage.digest, root)
+    stage.value.beta[2] = squeeze_ext4_indexed<TKB1>(stage.digest, 3)
+    stage
+}
+pub fn finish(_ previous: own Prefix, _ constant: BabyBearExt4) -> Derived {
+    let stage = previous
+    let mut result = stage.value
+    if !result.valid { return result }
+    let mut fields = [BabyBear::zero(); 12]
+    for i in 0..8 { fields[i] = stage.digest.field(i.downcast_truncate()) }
+    for i in 0..4 { fields[i + 8] = constant.coefficient(i) }
+    let t6 = commit_fields<TKE1, 12>(fields)
     let mut query: usize = 0
     while query < 8 {
-        let mut fields = [BabyBear::zero(); 10]
-        for i in 0..8 { fields[i] = t6.field(i.downcast_truncate()) }
-        fields[8] = BabyBear::from_u32(query.downcast_truncate())
+        let mut query_fields = [BabyBear::zero(); 10]
+        for i in 0..8 { query_fields[i] = t6.field(i.downcast_truncate()) }
+        query_fields[8] = BabyBear::from_u32(query.downcast_truncate())
         let mut sampler = Sampler::queries()
         while sampler.open() {
-            fields[9] = BabyBear::from_u32(sampler.counter())
-            let candidate = commit_fields<TKQ1, 10>(fields).field(0).to_u32()
+            query_fields[9] = BabyBear::from_u32(sampler.counter())
+            let candidate = commit_fields<TKQ1, 10>(query_fields).field(0).to_u32()
             if sampler.step(query_allowed(candidate)) { result.indices[query] = candidate % 16 }
         }
-        if !sampler.found() { return result }
+        if !sampler.found() { result.valid = false
+            return result }
         query = query + 1
     }
-    result.valid = true
     result
+}
+pub fn derive(_ proof: Proof, _ statement: BabyBear) -> Derived {
+    let prefix = after_trace(statement, proof.digest(0))
+    let prefix = after_composition(prefix, proof.digest(8))
+    let answers = [proof.extension(16), proof.extension(20), proof.extension(24), proof.extension(28), proof.extension(32)]
+    let prefix = after_answers(prefix, answers)
+    let prefix = after_layer_one(prefix, proof.digest(36))
+    let prefix = after_layer_two(prefix, proof.digest(44))
+    finish(prefix, proof.extension(52))
 }

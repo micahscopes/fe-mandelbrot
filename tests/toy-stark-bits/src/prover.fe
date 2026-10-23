@@ -1,0 +1,211 @@
+//! Deterministic, non-hiding experimental producer. No application interface.
+use core::{BrowserBytes, BrowserPtr, alloc_browser_bytes}
+use core::marker::Copy
+use core::ops::{Add, Eq, Mul}
+use precision::baby_bear::{BabyBear, BabyBearExt4}
+use precision::polynomial::{radix2_intt_in_place, write_radix2_coset_lde, evaluate_coefficients}
+use poseidon_baby_bear::{Poseidon2Digest, Poseidon2FieldDomain, commit_fields, commit_ext4_fields, compress}
+use fri_baby_bear::fold_fri_pair_value_at_point
+use ingot::profile::{BYTES, WORDS, P, TKTL, TKCL, TKF1, TKF2, g, omega}
+use ingot::verifier::Statement
+use ingot::air::constraint_combination
+use ingot::deep::deep_value
+use ingot::transcript::{after_trace, after_composition, after_answers, after_layer_one, after_layer_two, finish}
+
+pub struct Witness { pub bits: [u32; 8] }
+pub struct ProveRequest { pub statement: Statement, pub witness: Witness }
+pub struct ProveResult { pub status: u32, pub proof: BrowserBytes }
+// Producer statuses: 1 invalid witness/statement, 2 sampler exhaustion,
+// 3 internal invariant failure. This namespace differs from verifier statuses.
+fn failure(_ status: u32) -> ProveResult {
+    ProveResult { status: status, proof: BrowserBytes { ptr: 0, len: 0 } }
+}
+struct Writer { bytes: BrowserBytes }
+impl Copy for Writer {}
+impl Writer {
+    fn new() -> Self {
+        let writer = Self { bytes: BrowserBytes { ptr: alloc_browser_bytes(BYTES).address(), len: BYTES } }
+        let mut i: u32 = 0
+        while i < WORDS { writer.word(i, 0)
+            i = i + 1 }
+        writer
+    }
+    fn word(self, _ index: u32, _ value: u32) {
+        let mut i: u32 = 0
+        while i < 4 {
+            let p: BrowserPtr<u8> = BrowserPtr::from_u32(self.bytes.ptr + index * 4 + i)
+            p.write((value >> (i * 8)).downcast_truncate())
+            i = i + 1
+        }
+    }
+    fn extension(self, _ offset: u32, _ value: BabyBearExt4) {
+        let words = value.to_u32s()
+        for i in 0..4 { self.word(offset + i.downcast_truncate(), words[i]) }
+    }
+    fn digest(self, _ offset: u32, _ value: Poseidon2Digest) {
+        let mut i: u32 = 0
+        while i < 8 { self.word(offset + i, value.field(i).to_u32())
+            i = i + 1 }
+    }
+}
+// Private fixed capacity suffices for the profile's 32/16/8-leaf trees.
+// Node one is the root; leaves begin at `leaves`. Node zero is unused.
+struct Tree { nodes: [Poseidon2Digest; 64], leaves: u32 }
+fn build_tree<const N: usize>(_ leaves: ref [Poseidon2Digest; N]) -> Tree
+where { N == 32 || N == 16 || N == 8 },
+{
+    let mut tree = Tree { nodes: [Poseidon2Digest::zero(); 64], leaves: N.downcast_truncate() }
+    for i in 0..N { tree.nodes[N + i] = leaves[i] }
+    let mut i = N - 1
+    while i > 0 {
+        tree.nodes[i] = compress(tree.nodes[i * 2], tree.nodes[i * 2 + 1])
+        i = i - 1
+    }
+    tree
+}
+fn extension_tree<D: Poseidon2FieldDomain, const N: usize>(_ values: ref [BabyBearExt4; N]) -> Tree
+where { N == 32 || N == 16 || N == 8 },
+{
+    let mut leaves = [Poseidon2Digest::zero(); N]
+    for i in 0..N { leaves[i] = commit_ext4_fields<D, 1>([values[i]]) }
+    build_tree<N>(ref leaves)
+}
+fn write_path(_ writer: Writer, _ offset: u32, _ index: u32, _ tree: ref Tree) {
+    let mut node = tree.leaves + index
+    let mut level: u32 = 0
+    while node > 1 {
+        writer.digest(offset + level * 8, tree.nodes[(node ^ 1) as usize])
+        node = node >> 1
+        level = level + 1
+    }
+}
+fn write_trace(_ writer: Writer, _ offset: u32, _ index: u32,
+    _ b: ref [BabyBear; 32], _ a: ref [BabyBear; 32], _ tree: ref Tree) {
+    writer.word(offset, b[index as usize].to_u32())
+    writer.word(offset + 1, a[index as usize].to_u32())
+    write_path(writer, offset + 2, index, ref tree)
+}
+fn write_extension<const N: usize>(_ writer: Writer, _ offset: u32, _ index: u32,
+    _ values: ref [BabyBearExt4; N], _ tree: ref Tree) {
+    writer.extension(offset, values[index as usize])
+    write_path(writer, offset + 4, index, ref tree)
+}
+pub fn prove(_ request: own ProveRequest) -> ProveResult {
+    if request.statement.weight >= P { return failure(1) }
+    let mut b = [BabyBear::zero(); 8]
+    let mut a = [BabyBear::zero(); 8]
+    let mut sum: u32 = 0
+    for i in 0..8 {
+        let bit = request.witness.bits[i]
+        if bit > 1 { return failure(1) }
+        sum = sum + bit
+        b[i] = BabyBear::from_u32(bit)
+        a[i] = BabyBear::from_u32(sum)
+    }
+    if sum != request.statement.weight { return failure(1) }
+    let statement = BabyBear::from_u32(sum)
+    let writer = Writer::new()
+    let mut b_coefficients = b
+    let mut a_coefficients = a
+    radix2_intt_in_place<8, BabyBear>(mut b_coefficients)
+    radix2_intt_in_place<8, BabyBear>(mut a_coefficients)
+    let mut b_lde = [BabyBear::zero(); 32]
+    let mut a_lde = [BabyBear::zero(); 32]
+    let shift = BabyBear::from_u32(31)
+    if !write_radix2_coset_lde<8, 32, BabyBear>(ref b, shift, mut b_lde)
+        || !write_radix2_coset_lde<8, 32, BabyBear>(ref a, shift, mut a_lde) { return failure(3) }
+    let mut trace_leaves = [Poseidon2Digest::zero(); 32]
+    for i in 0..32 { trace_leaves[i] = commit_fields<TKTL, 2>([b_lde[i], a_lde[i]]) }
+    let trace_tree = build_tree<32>(ref trace_leaves)
+    writer.digest(0, trace_tree.nodes[1])
+    let prefix = after_trace(statement, trace_tree.nodes[1])
+    let r = prefix.constraints()
+    let mut composition = [BabyBearExt4::zero(); 32]
+    for i in 0..32 {
+        let point = shift * omega().pow_u32(i.downcast_truncate())
+        let next = (i + 4) % 32
+        let mask = [BabyBearExt4::from_base(b_lde[i]), BabyBearExt4::from_base(b_lde[next]),
+            BabyBearExt4::from_base(a_lde[i]), BabyBearExt4::from_base(a_lde[next])]
+        let value = constraint_combination<8>(BabyBearExt4::from_base(point), mask, r, statement)
+        if !value.valid { return failure(3) }
+        composition[i] = value.value
+    }
+    let comp_tree = extension_tree<TKCL, 32>(ref composition)
+    writer.digest(8, comp_tree.nodes[1])
+    let prefix = after_composition(prefix, comp_tree.nodes[1])
+    if !prefix.ready() { return failure(2) }
+    let q = prefix.point()
+    let mut composition_coefficients = composition
+    radix2_intt_in_place<32, BabyBearExt4>(mut composition_coefficients)
+    let inverse_shift = BabyBearExt4::from_base(shift.inverse_or_zero())
+    let mut shift_power = BabyBearExt4::one()
+    for i in 0..32 {
+        composition_coefficients[i] = composition_coefficients[i] * shift_power
+        shift_power = shift_power * inverse_shift
+        if i >= 8 && !composition_coefficients[i].is_zero() { return failure(3) }
+    }
+    let mut b_ext = [BabyBearExt4::zero(); 8]
+    let mut a_ext = [BabyBearExt4::zero(); 8]
+    for i in 0..8 {
+        b_ext[i] = BabyBearExt4::from_base(b_coefficients[i])
+        a_ext[i] = BabyBearExt4::from_base(a_coefficients[i])
+    }
+    let gq = q * BabyBearExt4::from_base(g())
+    let answers = [evaluate_coefficients<BabyBearExt4, 8>(ref b_ext, q),
+        evaluate_coefficients<BabyBearExt4, 8>(ref b_ext, gq),
+        evaluate_coefficients<BabyBearExt4, 8>(ref a_ext, q),
+        evaluate_coefficients<BabyBearExt4, 8>(ref a_ext, gq),
+        evaluate_coefficients<BabyBearExt4, 32>(ref composition_coefficients, q)]
+    for i in 0..5 { writer.extension(16 + 4 * i.downcast_truncate(), answers[i]) }
+    let prefix = after_answers(prefix, answers)
+    let r_f = prefix.deep_weights()
+    let mut virtual_layer = [BabyBearExt4::zero(); 32]
+    for i in 0..32 {
+        let point = shift * omega().pow_u32(i.downcast_truncate())
+        let value = deep_value(BabyBearExt4::from_base(point), BabyBearExt4::from_base(b_lde[i]),
+            BabyBearExt4::from_base(a_lde[i]), composition[i], answers, r_f, q, BabyBearExt4::from_base(g()))
+        if !value.valid { return failure(3) }
+        virtual_layer[i] = value.value
+    }
+    let mut layer1 = [BabyBearExt4::zero(); 16]
+    for i in 0..16 {
+        let point = shift * omega().pow_u32(i.downcast_truncate())
+        layer1[i] = fold_fri_pair_value_at_point(virtual_layer[i], virtual_layer[i + 16], prefix.folds()[0], point)
+    }
+    let layer1_tree = extension_tree<TKF1, 16>(ref layer1)
+    writer.digest(36, layer1_tree.nodes[1])
+    let prefix = after_layer_one(prefix, layer1_tree.nodes[1])
+    let mut layer2 = [BabyBearExt4::zero(); 8]
+    for i in 0..8 {
+        let point = shift.square() * omega().pow_u32(2 * i.downcast_truncate())
+        layer2[i] = fold_fri_pair_value_at_point(layer1[i], layer1[i + 8], prefix.folds()[1], point)
+    }
+    let layer2_tree = extension_tree<TKF2, 8>(ref layer2)
+    writer.digest(44, layer2_tree.nodes[1])
+    let prefix = after_layer_two(prefix, layer2_tree.nodes[1])
+    let mut final_layer = [BabyBearExt4::zero(); 4]
+    for i in 0..4 {
+        let point = shift.pow_u32(4) * omega().pow_u32(4 * i.downcast_truncate())
+        final_layer[i] = fold_fri_pair_value_at_point(layer2[i], layer2[i + 4], prefix.folds()[2], point)
+    }
+    let constant = final_layer[0]
+    for i in 0..4 { if !final_layer[i].equals(constant) { return failure(3) } }
+    writer.extension(52, constant)
+    let derived = finish(prefix, constant)
+    if !derived.valid { return failure(2) }
+    for m in 0..8 {
+        let offset = 56 + 300 * m.downcast_truncate()
+        let j = derived.indices[m]
+        let j1 = j % 8
+        let j2 = j1 % 4
+        write_trace(writer, offset, j, ref b_lde, ref a_lde, ref trace_tree)
+        write_trace(writer, offset + 42, j + 16, ref b_lde, ref a_lde, ref trace_tree)
+        write_extension<32>(writer, offset + 84, j, ref composition, ref comp_tree)
+        write_extension<32>(writer, offset + 128, j + 16, ref composition, ref comp_tree)
+        write_extension<16>(writer, offset + 172, j1, ref layer1, ref layer1_tree)
+        write_extension<16>(writer, offset + 208, j1 + 8, ref layer1, ref layer1_tree)
+        write_extension<8>(writer, offset + 244, j2, ref layer2, ref layer2_tree)
+        write_extension<8>(writer, offset + 272, j2 + 4, ref layer2, ref layer2_tree)
+    }
+    ProveResult { status: 0, proof: writer.bytes }
+}
