@@ -102,7 +102,11 @@ the selected construction. Unsalted leaf hashes are not a hiding commitment.
 Independent review covers the ENTIRE verifier view and the selected theorem,
 not just trace masking. Pad the tiny test trace to a separate public domain
 large enough for the chosen disclosure budget; the four-row algebra fixture is
-not automatically a feasible hiding profile. Fixed public profiles and padded execution keep escape
+not automatically a feasible hiding profile. The increment-by1 toy with fixed
+initial value has a unique public witness, so it cannot test hiding across
+secrets. A separate hiding fixture must admit at least two distinct satisfying
+private witnesses for the SAME public statement. Seeded distribution checks
+remain diagnostic and do not establish ZK. Fixed public profiles and padded execution keep escape
 index, data shape and mask reuse out of the exported witness interface.
 
 ## Gate4: exact Mandelbrot constraints
