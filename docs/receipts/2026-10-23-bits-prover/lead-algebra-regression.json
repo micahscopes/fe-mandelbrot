@@ -1,0 +1,82 @@
+{
+  "pass": true,
+  "domains": {
+    "g": 1592366214,
+    "omega": 760005850,
+    "shift": 31
+  },
+  "airCalls": 199,
+  "deepCalls": 162,
+  "invalidCalls": 24,
+  "witnessResults": [
+    {
+      "statement": 3,
+      "bits": [
+        1,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0
+      ],
+      "compositionDegreeBound": 8,
+      "deepDegreeBound": 7
+    },
+    {
+      "statement": 3,
+      "bits": [
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "compositionDegreeBound": 8,
+      "deepDegreeBound": 7
+    },
+    {
+      "statement": 0,
+      "bits": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "compositionDegreeBound": 8,
+      "deepDegreeBound": 7
+    },
+    {
+      "statement": 8,
+      "bits": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "compositionDegreeBound": 8,
+      "deepDegreeBound": 7
+    }
+  ],
+  "adversarialChecks": [
+    "unrelated quotient differs",
+    "false shifted source differs",
+    "degree correction matters",
+    "OOD-consistent forged answers produce high-degree DEEP table",
+    "nonboolean source produces high-degree composition",
+    "S9 evaluates and produces high-degree composition"
+  ],
+  "limitations": "Arithmetic and deterministic full-table interpolation evidence only. No commitments, transcript, succinct proof, witness hiding, or soundness probability."
+}

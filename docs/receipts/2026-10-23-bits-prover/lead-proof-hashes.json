@@ -1,0 +1,26 @@
+[
+  {
+    "name": "honest-weight3-a",
+    "statement": 3,
+    "bytes": 9824,
+    "sha256": "496672e89a9a2117b76b186daec6d848b2761bf7a54385ba77aa0c40fa76d379"
+  },
+  {
+    "name": "honest-weight3-b",
+    "statement": 3,
+    "bytes": 9824,
+    "sha256": "bdbf9e1f0c2a4a2ef505790d480abbe76eca824384eb3a6b9937af1040689069"
+  },
+  {
+    "name": "honest-weight0",
+    "statement": 0,
+    "bytes": 9824,
+    "sha256": "34a6e3d1741647d37deb5c4f4e0be643a7df860e7bb36bb14ea19b9e90ef2288"
+  },
+  {
+    "name": "honest-weight8",
+    "statement": 8,
+    "bytes": 9824,
+    "sha256": "0c90410ab383a968c8efa308331266afd7d953a52741d8ea5d19f37b670074ce"
+  }
+]

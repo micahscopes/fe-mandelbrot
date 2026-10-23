@@ -1,0 +1,139 @@
+{
+  "sourceCommit": "ca97dfc4fc8c01eae0393e1f1773a6f22eb87c7f",
+  "baseCommit": "382d504",
+  "compilerSha256": "4afa2698ba2b7b248ca4fb85e5200c64b2d1f2d8509faf865e38a04d3134230f",
+  "sourceHashes": {
+    "tests/toy-stark-bits/src/prover.fe": "9ab83df8e2ecd0b18da83d3edb953767eed343b5836f4f6f1b3449a2a5e6d472",
+    "tests/toy-stark-bits/src/transcript.fe": "fd8a7cbf1611826d534522da1357f6d04b2b71e1bfb62380c292334bc6ec461b",
+    "tests/toy-stark-bits/src/lib.fe": "2d41bc4f45fa3dd6e12d90ca18e97d0dcbe53d1938d3a15d2b9369dfce76bcd0",
+    "tests/toy-stark-bits/README.md": "7f3282d613e71988f15d86fcaf1ea2b2c18f14945c88431061bef09dc8464cdc",
+    "tests/toy-stark-bits-prover.mjs": "94abbb5f8c51d8369bb44d7cc8d8b9f66fb70ec40c66d3020ff2d6095ca65da7"
+  },
+  "bundleHashes": {
+    "fe-render-runtime.js": "cc1ad17c078980d736bf239d51738fdd700d92f818b077dd8bbf6890ea5ecba7",
+    "index.html": "f99c53c7bdfd6f649ade7ced7c74055428eb63271042c215e833b127b4aae84c",
+    "interface.d.ts": "0a6f55c2afdf6bd4e65b7874345abb589957257d842b1bb30267d30d8dab21bd",
+    "interface.js": "128e757e3d13dd0435ccc944425338c651c8735776cf21351ea20f36fe918980",
+    "manifest.json": "348f6b09f2955d1ebc4995cb2c2f24ff1eaf03a844770055f9d9fb8e92c62466",
+    "module.wasm": "24dd03d4c8cc57c734fb9e497d42bfe1631006fbdf18356cf4a241bac7fd5c35",
+    "shader.wgsl": "7adc66293d1a38db30c4d1e8abdd286947c579a1a46cd77f30a9b074ebb91c3c"
+  },
+  "proofHashes": [
+    {
+      "name": "honest-weight3-a",
+      "statement": 3,
+      "bytes": 9824,
+      "sha256": "496672e89a9a2117b76b186daec6d848b2761bf7a54385ba77aa0c40fa76d379"
+    },
+    {
+      "name": "honest-weight3-b",
+      "statement": 3,
+      "bytes": 9824,
+      "sha256": "bdbf9e1f0c2a4a2ef505790d480abbe76eca824384eb3a6b9937af1040689069"
+    },
+    {
+      "name": "honest-weight0",
+      "statement": 0,
+      "bytes": 9824,
+      "sha256": "34a6e3d1741647d37deb5c4f4e0be643a7df860e7bb36bb14ea19b9e90ef2288"
+    },
+    {
+      "name": "honest-weight8",
+      "statement": 8,
+      "bytes": 9824,
+      "sha256": "0c90410ab383a968c8efa308331266afd7d953a52741d8ea5d19f37b670074ce"
+    }
+  ],
+  "fixtureJsonSha256": "b35d1f07520b7cdc119274f505d20adac39abf358ae3f3c2b06a0ef5ae5b10fe",
+  "tests": {
+    "proofByteParityCases": 4,
+    "publicVerifyCases": 8,
+    "changedStatementCases": 4,
+    "repeatCases": 4,
+    "invalidCases": 7,
+    "producerPass": true,
+    "verifierPass": true,
+    "oracleCases": 30,
+    "boundaryCases": 7,
+    "samplerCases": 63,
+    "verifierRepeatCases": 8,
+    "algebraPass": true,
+    "algebraCases": 385
+  },
+  "timing": {
+    "scope": "Node/Wasm module setup, Fe proof generation and Fe verification measured separately. Not browser/GPU startup or Mandelbrot proof generation.",
+    "setupMilliseconds": 17.361188999999996,
+    "timings": [
+      {
+        "name": "honest-weight3-a",
+        "repeat": false,
+        "proveMilliseconds": 63.248847999999995,
+        "verifyMilliseconds": 50.55908599999998,
+        "memoryBytes": 131072
+      },
+      {
+        "name": "honest-weight3-b",
+        "repeat": false,
+        "proveMilliseconds": 20.97456900000003,
+        "verifyMilliseconds": 25.017466000000013,
+        "memoryBytes": 131072
+      },
+      {
+        "name": "honest-weight0",
+        "repeat": false,
+        "proveMilliseconds": 17.129372999999987,
+        "verifyMilliseconds": 20.795142999999996,
+        "memoryBytes": 131072
+      },
+      {
+        "name": "honest-weight8",
+        "repeat": false,
+        "proveMilliseconds": 26.681748999999968,
+        "verifyMilliseconds": 22.22067800000002,
+        "memoryBytes": 131072
+      },
+      {
+        "name": "honest-weight3-a",
+        "repeat": true,
+        "proveMilliseconds": 15.997770000000003,
+        "verifyMilliseconds": 21.23300499999999,
+        "memoryBytes": 131072
+      },
+      {
+        "name": "honest-weight3-b",
+        "repeat": true,
+        "proveMilliseconds": 15.744764999999973,
+        "verifyMilliseconds": 20.148648999999978,
+        "memoryBytes": 131072
+      },
+      {
+        "name": "honest-weight0",
+        "repeat": true,
+        "proveMilliseconds": 16.167147999999997,
+        "verifyMilliseconds": 20.469171000000017,
+        "memoryBytes": 131072
+      },
+      {
+        "name": "honest-weight8",
+        "repeat": true,
+        "proveMilliseconds": 15.98452500000002,
+        "verifyMilliseconds": 20.971633999999995,
+        "memoryBytes": 131072
+      }
+    ],
+    "initialMemoryBytes": 65536,
+    "memoryBeforeRepeats": 131072
+  },
+  "environment": {
+    "FE_BITS_PROVER_BUNDLE": "compiled bundle directory, required",
+    "FE_BITS_FIXTURES": "optional .json/.json.gz fixture path; default repository fixture",
+    "FE_BITS_PROVER_OUTPUT": "optional scratch output JSON path",
+    "FE_BITS_VERIFIER_BUNDLE": "compiled bundle directory for separate verifier regression",
+    "FE_BITS_ALGEBRA_BUNDLE": "compiled bundle directory for algebra regression"
+  },
+  "resultsPath": "/lab/argot/scratch/mb2-bits-prover-20261023/results.json",
+  "producedProofsPath": "/lab/argot/scratch/mb2-bits-prover-20261023/produced-proofs.json",
+  "buildLog": "/lab/argot/scratch/mb2-bits-prover-20261023/build.log",
+  "limitations": "Deterministic non-hiding test argument. No masking, ZK, theorem mapping or soundness-bit acceptance.",
+  "independentReview": "Prefix factoring/prover source review and independent Rust verification of produced file are lead gates; byte-equality to Rust fixtures already executed."
+}

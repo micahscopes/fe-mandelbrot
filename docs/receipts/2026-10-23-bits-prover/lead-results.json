@@ -1,0 +1,103 @@
+{
+  "pass": true,
+  "fixturePath": "/lab/argot/worktrees/fe-mandelbrot/zk-toy-ood/tests/fixtures/toy-stark-bits/fixtures.json.gz",
+  "fixtureJsonSha256": "b35d1f07520b7cdc119274f505d20adac39abf358ae3f3c2b06a0ef5ae5b10fe",
+  "setupMilliseconds": 20.847414999999984,
+  "initialMemoryBytes": 65536,
+  "memoryBeforeRepeats": 131072,
+  "proofByteParityCases": 4,
+  "publicVerifyCases": 8,
+  "changedStatementCases": 4,
+  "repeatCases": 4,
+  "invalidCases": 7,
+  "timings": [
+    {
+      "name": "honest-weight3-a",
+      "repeat": false,
+      "proveMilliseconds": 77.110297,
+      "verifyMilliseconds": 51.637911,
+      "memoryBytes": 131072
+    },
+    {
+      "name": "honest-weight3-b",
+      "repeat": false,
+      "proveMilliseconds": 20.845822,
+      "verifyMilliseconds": 28.38508200000001,
+      "memoryBytes": 131072
+    },
+    {
+      "name": "honest-weight0",
+      "repeat": false,
+      "proveMilliseconds": 20.375710000000026,
+      "verifyMilliseconds": 21.49839700000001,
+      "memoryBytes": 131072
+    },
+    {
+      "name": "honest-weight8",
+      "repeat": false,
+      "proveMilliseconds": 18.462999999999965,
+      "verifyMilliseconds": 22.410459000000003,
+      "memoryBytes": 131072
+    },
+    {
+      "name": "honest-weight3-a",
+      "repeat": true,
+      "proveMilliseconds": 16.398435000000006,
+      "verifyMilliseconds": 22.828633999999965,
+      "memoryBytes": 131072
+    },
+    {
+      "name": "honest-weight3-b",
+      "repeat": true,
+      "proveMilliseconds": 17.464947999999993,
+      "verifyMilliseconds": 22.30300699999998,
+      "memoryBytes": 131072
+    },
+    {
+      "name": "honest-weight0",
+      "repeat": true,
+      "proveMilliseconds": 16.273961999999983,
+      "verifyMilliseconds": 21.69205999999997,
+      "memoryBytes": 131072
+    },
+    {
+      "name": "honest-weight8",
+      "repeat": true,
+      "proveMilliseconds": 16.018402000000037,
+      "verifyMilliseconds": 20.99794799999995,
+      "memoryBytes": 131072
+    }
+  ],
+  "invalidResults": [
+    {
+      "name": "bit2",
+      "status": 1
+    },
+    {
+      "name": "bit-p",
+      "status": 1
+    },
+    {
+      "name": "bit-u32max",
+      "status": 1
+    },
+    {
+      "name": "wrong sum",
+      "status": 1
+    },
+    {
+      "name": "false weight9",
+      "status": 1
+    },
+    {
+      "name": "noncanonical statement",
+      "status": 1
+    },
+    {
+      "name": "statement-u32max",
+      "status": 1
+    }
+  ],
+  "scope": "Node/Wasm module setup, Fe proof generation and Fe verification measured separately. Not browser/GPU startup or Mandelbrot proof generation.",
+  "limitations": "Deterministic non-hiding test argument. No masking, ZK, theorem mapping or soundness-bit acceptance."
+}

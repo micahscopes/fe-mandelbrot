@@ -34,8 +34,9 @@ meaning, positive extreme-depth evidence and measured performance.
 The earlier `c8d11c0` arithmetic-only OOD exercise passes33 Fe/Wasm cases.
 `c081ec8` adds shared polynomial arithmetic with68 checks; `d5bac20` adds the
 bit-weight AIR/DEEP algebra with385 checks. The selected experimental protocol
-is in [TOY-BITS-CONTRACT.md](TOY-BITS-CONTRACT.md); independent oracle and Fe
-verifier implementation are the current gate. No complete private proof is claimed.
+is in [TOY-BITS-CONTRACT.md](TOY-BITS-CONTRACT.md); the independent oracle, Fe prover and public-only Fe verifier now execute
+the non-hiding toy argument. Hiding, Mandelbrot constraints, GPU placement and
+viewer integration remain required. No complete private proof is claimed.
 The deployed viewer/checker remains `c9908bc`. [Protocol gates](PROTOCOL-GATES.md)
 name the gap between those checkpoints and the completion evidence above.
 
