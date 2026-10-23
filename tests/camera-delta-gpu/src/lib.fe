@@ -1,0 +1,117 @@
+//! Camera-difference arithmetic on the GPU that runs it.
+//! One single-invocation workgroup per case evaluates the production
+//! `expansion_difference<10>` and the stages it is made of, so a wrong result
+//! can be attributed to conversion, accumulation, subtraction or projection.
+//! Expected words come from the independent Fraction oracle in oracle.py.
+use core::marker::Copy
+use std::webgpu::{
+    ComputeInvocation, ComputeSurface, FixedDispatch, Workgroup, StorageBuffer,
+    FragmentSurface, GpuProgram, ContinuousFrames, StandardSurfaceRecovery,
+    SurfaceQuality, SurfaceQualityFacts, SurfaceBackingExtent, SurfaceRecovery,
+    SurfaceScheduling, SurfaceTransition, WebGpuBackend,
+}
+use std::web::view::{
+    ApplyParamBindings, Extent, Param, ParamBindingsProvider,
+    Surface, SurfaceEvent, SurfaceState,
+}
+use precision::{Expansion, from_quad}
+use precision::array_fixed::{ArrayFixed, expansion_difference}
+
+extern { const fn __bitcast<From, To>(_: From) -> To }
+
+pub const CASES: u32 = 512
+pub const WORDS_PER_CASE: u32 = 16
+
+pub struct ProbeParams { pub unused: Param }
+pub struct ProbeState { pub unused: f32 }
+impl Copy for ProbeState {}
+impl SurfaceState for ProbeState { type Params = ProbeParams }
+derive ApplyParamBindings for ProbeState using ParamBindingsProvider<ProbeParams>
+pub struct ProbeEnvelope { pub state: ProbeState }
+impl Copy for ProbeEnvelope {}
+
+pub struct ProbeBacking {}
+impl ProbeBacking {
+    pub fn choose(_ facts: own SurfaceQualityFacts) -> SurfaceBackingExtent {
+        let _ = facts
+        SurfaceBackingExtent { width: 64.0, height: 64.0 }
+    }
+}
+
+fn read_f32(_ buffer: StorageBuffer<u32, 4096>, _ index: u32) -> f32 {
+    __bitcast<u32, f32>(buffer.load(index: index))
+}
+
+fn read_expansion(_ buffer: StorageBuffer<u32, 4096>, _ base: u32) -> Expansion<4> {
+    from_quad(
+        read_f32(buffer, base), read_f32(buffer, base + 1),
+        read_f32(buffer, base + 2), read_f32(buffer, base + 3),
+    )
+}
+
+/// Order-sensitive fold of canonical 13-bit digits; mirrored in oracle.py.
+fn digest(_ digits: [u32; 10]) -> u32 {
+    let mut folded: u32 = 0
+    let mut index: u32 = 0
+    while index < 10 {
+        folded = folded ^ (digits[index as usize] << ((index * 7) % 19))
+        index = index + 1
+    }
+    folded
+}
+
+actor CameraDeltaProbe uses (
+    GpuProgram<WebGpuBackend>,
+    SurfaceQuality<ProbeBacking>,
+    SurfaceRecovery<StandardSurfaceRecovery>,
+) {
+    inputs: StorageBuffer<u32, 4096>,
+    outputs: StorageBuffer<u32, 8192>,
+    state: ProbeState,
+
+    fn initial() -> ProbeEnvelope uses (core::actor::InitialState) {
+        ProbeEnvelope { state: ProbeState { unused: 0.0 } }
+    }
+
+    const fn view() -> Surface<ProbeParams> {
+        Surface { extent: Extent::square(64), params: ProbeParams { unused: Param::fixed(0.0) } }
+    }
+
+    fn delta_case(self, invocation: ComputeInvocation)
+        uses (ComputeSurface<Workgroup<1, 1, 1>, FixedDispatch<512, 1, 1>>)
+    {
+        let case: u32 = invocation.global.x
+        let input: u32 = case * 8
+        let output: u32 = case * 16
+        let from: Expansion<4> = read_expansion(self.inputs, input)
+        let to: Expansion<4> = read_expansion(self.inputs, input + 4)
+        let origin: ArrayFixed<10> = ArrayFixed<10>::from_expansion(from)
+        let target: ArrayFixed<10> = ArrayFixed<10>::from_expansion(to)
+        let difference: ArrayFixed<10> = target - origin
+        self.outputs.store(index: output, value: __bitcast<f32, u32>(expansion_difference<10>(from, to)))
+        let target_digits: [u32; 10] = target.to_digits()
+        let mut index: u32 = 0
+        while index < 10 {
+            self.outputs.store(index: output + 1 + index, value: target_digits[index as usize])
+            index = index + 1
+        }
+        self.outputs.store(index: output + 11, value: target.sign())
+        self.outputs.store(index: output + 12, value: origin.to_binary32_bits())
+        self.outputs.store(index: output + 13, value: target.to_binary32_bits())
+        self.outputs.store(index: output + 14, value: difference.sign())
+        self.outputs.store(index: output + 15, value: digest(difference.to_digits()))
+    }
+
+    fn display_probe(self, px: i32, py: i32) -> i32 uses (FragmentSurface) {
+        let _ = px
+        let _ = py
+        0
+    }
+
+    fn navigate(self, event: own SurfaceEvent) -> ProbeEnvelope
+        uses (SurfaceTransition, SurfaceScheduling<ContinuousFrames>)
+    {
+        let _ = event
+        ProbeEnvelope { state: self.state }
+    }
+}

@@ -1,0 +1,8 @@
+[ingot]
+name = "probe_camera_delta_gpu"
+version = "0.1.0"
+
+[dependencies]
+core = "../../.cache/fe/ingots/core"
+std = "../../.cache/fe/ingots/std"
+precision = "../../lib/precision"
