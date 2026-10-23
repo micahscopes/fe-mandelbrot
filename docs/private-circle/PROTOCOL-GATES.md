@@ -63,8 +63,12 @@ Absorb the claimed out-of-domain values before sampling their batching challenge
 FRI queries must verify both source openings and the matching DEEP relation.
 A low-degree composition alone must not substitute for low-degree source binding.
 
-The concrete multipoint opening and quotient/chunk reconstruction construction
-is still UNSELECTED. The multipoint quotient in DEEP-ALI and independently
+For the test-only Gate2 implementation, Opus selected ethSTARKv1.2 §5.3 with
+split factor1, degree-corrected independent constraint coefficients and five
+independently weighted single-point quotients. Astra accepted the corrected
+[implementation contract](TOY-BITS-CONTRACT.md) after primary-source review.
+This selects an experimental non-hiding argument, not a production private-
+region protocol or a reviewed hiding extension. The multipoint quotient in DEEP-ALI and independently
 batched single-point quotients are not interchangeable merely because both use
 OOD points. Name one exact construction and map its theorem/hypotheses to the
 source/shift degree ledger before implementing the PCS format. Name whether
