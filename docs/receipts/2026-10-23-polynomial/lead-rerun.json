@@ -1,0 +1,251 @@
+{
+  "pass": true,
+  "ext4Cases": 24,
+  "falseOpeningCases": 24,
+  "baseCases": 16,
+  "invalidInputs": 4,
+  "relation": "P(X)=(X-z)Q(X)+r; Ext4 U^4=11",
+  "results": [
+    {
+      "name": "zero",
+      "point": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "zero",
+      "point": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "zero",
+      "point": [
+        2,
+        3,
+        5,
+        7
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "zero",
+      "point": [
+        2013265920,
+        2013265919,
+        2013265918,
+        2013265917
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "constant",
+      "point": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "constant",
+      "point": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "constant",
+      "point": [
+        2,
+        3,
+        5,
+        7
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "constant",
+      "point": [
+        2013265920,
+        2013265919,
+        2013265918,
+        2013265917
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "zero padded",
+      "point": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "zero padded",
+      "point": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "zero padded",
+      "point": [
+        2,
+        3,
+        5,
+        7
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "zero padded",
+      "point": [
+        2013265920,
+        2013265919,
+        2013265918,
+        2013265917
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "degree three",
+      "point": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "degree three",
+      "point": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "degree three",
+      "point": [
+        2,
+        3,
+        5,
+        7
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "degree three",
+      "point": [
+        2013265920,
+        2013265919,
+        2013265918,
+        2013265917
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "leading zeros",
+      "point": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "leading zeros",
+      "point": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "leading zeros",
+      "point": [
+        2,
+        3,
+        5,
+        7
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "leading zeros",
+      "point": [
+        2013265920,
+        2013265919,
+        2013265918,
+        2013265917
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "near modulus",
+      "point": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "near modulus",
+      "point": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "near modulus",
+      "point": [
+        2,
+        3,
+        5,
+        7
+      ],
+      "falseOpeningRejected": true
+    },
+    {
+      "name": "near modulus",
+      "point": [
+        2013265920,
+        2013265919,
+        2013265918,
+        2013265917
+      ],
+      "falseOpeningRejected": true
+    }
+  ],
+  "limitations": "Arithmetic primitives only; no commitments, transcript, PCS, or proof claim."
+}

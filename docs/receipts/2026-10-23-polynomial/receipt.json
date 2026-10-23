@@ -1,0 +1,32 @@
+{
+  "sourceCommit": "9091067d1470e90d642e472ca9c2edbe09f65183",
+  "compilerSha256": "4afa2698ba2b7b248ca4fb85e5200c64b2d1f2d8509faf865e38a04d3134230f",
+  "sourceHashes": {
+    "fe.toml": "0d2281f1b1b4601f31032647fef6ed446f6c3a64316752f277619b3525eca28c",
+    "lib/precision/src/polynomial.fe": "92881844c2ffb456d198fc5d1b3bc80849d526661faf1cb085f4095a2cb36c71",
+    "tests/polynomial-primitives/fe.toml": "3a266a395449a37f5aedab3864382a253205c1d21ca085ab28b497eed118990b",
+    "tests/polynomial-primitives/src/lib.fe": "e83b394d2668008d14cae9aaf0b8988ba7bbf708316d7a6dd01a87d102c3eb89",
+    "tests/polynomial-primitives.mjs": "b95c12449a78add60771c63f3fc47e2365e51ac2035a0d27e2c8cafe7a174629"
+  },
+  "bundleHashes": {
+    "fe-render-runtime.js": "cc1ad17c078980d736bf239d51738fdd700d92f818b077dd8bbf6890ea5ecba7",
+    "index.html": "f99c53c7bdfd6f649ade7ced7c74055428eb63271042c215e833b127b4aae84c",
+    "interface.d.ts": "ac322d27e4ee42628ed9e91e336726c8ca0645fd5a4c2284ac75abd7b62963a0",
+    "interface.js": "73243a66f44691fa7bd6c62acc7f399b4a85e31d918fe6320afc52ec39e62b3f",
+    "manifest.json": "41d0c7f0ff52e15fb1da376a45018b28f517a712b71a4669aee9567574045543",
+    "module.wasm": "a91fe5b1fc14403906708eeafdf4e9121aaea8d8ec75caec00af17ce69f1eb68",
+    "shader.wgsl": "7adc66293d1a38db30c4d1e8abdd286947c579a1a46cd77f30a9b074ebb91c3c"
+  },
+  "tests": {
+    "ext4": 24,
+    "falseClaims": 24,
+    "base": 16,
+    "invalidInputs": 4,
+    "pass": true
+  },
+  "results": "/lab/argot/scratch/mb2-polynomial-primitives-20261023/results.json",
+  "buildLog": "/lab/argot/scratch/mb2-polynomial-primitives-20261023/build-nonempty-final.log",
+  "preservedCompilerFailure": "/lab/argot/scratch/mb2-polynomial-primitives-20261023/build-final.log",
+  "contract": "N>0; zero polynomial represented by one zero coefficient",
+  "limitations": "Arithmetic primitives only; no commitments, transcript, PCS, or proof claim."
+}

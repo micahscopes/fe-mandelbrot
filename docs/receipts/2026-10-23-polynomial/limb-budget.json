@@ -1,0 +1,168 @@
+{
+  "pass_checks": true,
+  "integer_product_checks": 30,
+  "modulus": 2013265921,
+  "profiles": [
+    {
+      "precision": 128,
+      "limb_bits": 11,
+      "limbs": 12,
+      "product_macs": 144,
+      "per_mac_max": 4194303,
+      "per_mac_no_wrap": true,
+      "diagonal_max": 50309119,
+      "diagonal_no_wrap": true
+    },
+    {
+      "precision": 128,
+      "limb_bits": 13,
+      "limbs": 10,
+      "product_macs": 100,
+      "per_mac_max": 67108863,
+      "per_mac_no_wrap": true,
+      "diagonal_max": 671014911,
+      "diagonal_no_wrap": true
+    },
+    {
+      "precision": 128,
+      "limb_bits": 15,
+      "limbs": 9,
+      "product_macs": 81,
+      "per_mac_max": 1073741823,
+      "per_mac_no_wrap": true,
+      "diagonal_max": 9663414271,
+      "diagonal_no_wrap": false
+    },
+    {
+      "precision": 128,
+      "limb_bits": 16,
+      "limbs": 8,
+      "product_macs": 64,
+      "per_mac_max": 4294967295,
+      "per_mac_no_wrap": false,
+      "diagonal_max": 34359279615,
+      "diagonal_no_wrap": false
+    },
+    {
+      "precision": 256,
+      "limb_bits": 11,
+      "limbs": 24,
+      "product_macs": 576,
+      "per_mac_max": 4194303,
+      "per_mac_no_wrap": true,
+      "diagonal_max": 100616191,
+      "diagonal_no_wrap": true
+    },
+    {
+      "precision": 256,
+      "limb_bits": 13,
+      "limbs": 20,
+      "product_macs": 400,
+      "per_mac_max": 67108863,
+      "per_mac_no_wrap": true,
+      "diagonal_max": 1342021631,
+      "diagonal_no_wrap": true
+    },
+    {
+      "precision": 256,
+      "limb_bits": 15,
+      "limbs": 18,
+      "product_macs": 324,
+      "per_mac_max": 1073741823,
+      "per_mac_no_wrap": true,
+      "diagonal_max": 19326795775,
+      "diagonal_no_wrap": false
+    },
+    {
+      "precision": 256,
+      "limb_bits": 16,
+      "limbs": 16,
+      "product_macs": 256,
+      "per_mac_max": 4294967295,
+      "per_mac_no_wrap": false,
+      "diagonal_max": 68718493695,
+      "diagonal_no_wrap": false
+    },
+    {
+      "precision": 1024,
+      "limb_bits": 11,
+      "limbs": 94,
+      "product_macs": 8836,
+      "per_mac_max": 4194303,
+      "per_mac_no_wrap": true,
+      "diagonal_max": 394074111,
+      "diagonal_no_wrap": true
+    },
+    {
+      "precision": 1024,
+      "limb_bits": 13,
+      "limbs": 79,
+      "product_macs": 6241,
+      "per_mac_max": 67108863,
+      "per_mac_no_wrap": true,
+      "diagonal_max": 5300961279,
+      "diagonal_no_wrap": false
+    },
+    {
+      "precision": 1024,
+      "limb_bits": 15,
+      "limbs": 69,
+      "product_macs": 4761,
+      "per_mac_max": 1073741823,
+      "per_mac_no_wrap": true,
+      "diagonal_max": 74085957631,
+      "diagonal_no_wrap": false
+    },
+    {
+      "precision": 1024,
+      "limb_bits": 16,
+      "limbs": 64,
+      "product_macs": 4096,
+      "per_mac_max": 4294967295,
+      "per_mac_no_wrap": false,
+      "diagonal_max": 274873778175,
+      "diagonal_no_wrap": false
+    },
+    {
+      "precision": 4096,
+      "limb_bits": 11,
+      "limbs": 373,
+      "product_macs": 139129,
+      "per_mac_max": 4194303,
+      "per_mac_no_wrap": true,
+      "diagonal_max": 1563713535,
+      "diagonal_no_wrap": true
+    },
+    {
+      "precision": 4096,
+      "limb_bits": 13,
+      "limbs": 316,
+      "product_macs": 99856,
+      "per_mac_max": 67108863,
+      "per_mac_no_wrap": true,
+      "diagonal_max": 21203820543,
+      "diagonal_no_wrap": false
+    },
+    {
+      "precision": 4096,
+      "limb_bits": 15,
+      "limbs": 274,
+      "product_macs": 75076,
+      "per_mac_max": 1073741823,
+      "per_mac_no_wrap": true,
+      "diagonal_max": 294196314111,
+      "diagonal_no_wrap": false
+    },
+    {
+      "precision": 4096,
+      "limb_bits": 16,
+      "limbs": 256,
+      "product_macs": 65536,
+      "per_mac_max": 4294967295,
+      "per_mac_no_wrap": false,
+      "diagonal_max": 1099494916095,
+      "diagonal_no_wrap": false
+    }
+  ],
+  "limits": "Requires explicit range constraints on every digit and carry; no AIR, ZK, soundness-bit or timing claim. Counts are schoolbook MACs, not actual prover rows or GPU work."
+}
