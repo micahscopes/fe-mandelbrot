@@ -15,9 +15,9 @@ assert.ok(Number.isInteger(side) && side >= 128 && side <= 2048);
 const base = new URL(process.env.BASE_URL || 'https://micahscopes.github.io/fe-mandelbrot/');
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const word = value => new Uint32Array(new Float32Array([value]).buffer)[0];
-const cameraWords = camera => camera.map(word);
+const cameraWords = camera => [...camera.slice(0,10),...(camera.length>=12?camera.slice(10,12):[1,0])].map(word);
 const fragment = camera => {
-  const hex = [...camera, 1].map(value => word(value).toString(16).padStart(8, '0'));
+  const hex = [...camera.slice(0,10), 1].map(value => word(value).toString(16).padStart(8, '0'));
   return '#v1:' + hex.slice(0, 4).join('.') + ':' + hex.slice(4, 8).join('.') + ':' + hex.slice(8).join(':');
 };
 const deep = [
@@ -41,7 +41,9 @@ const wasmFile = path.resolve(baselineRoot, decodeURIComponent(wasmUrl.pathname.
 assert.ok(wasmFile.startsWith(baselineRoot + path.sep));
 const initialWasm = await fs.readFile(wasmFile);
 const {instance} = await WebAssembly.instantiate(initialWasm, {});
-const initial = [...instance.exports.fe_surface_initialize_v1()].slice(0, 10);
+const initialValues=[...instance.exports.fe_surface_initialize_v1()];
+const hasOrientation=initialManifest.resources.find(r=>r.name==='cache').element.Record.fields.some(f=>f.name==='camera.orientation.re');
+const initial=[...initialValues.slice(0,10),...(hasOrientation?initialValues.slice(10,12):[1,0])];
 initial[9] = side;
 const {chromium} = await import(process.env.PLAYWRIGHT_MODULE || 'playwright-core');
 
@@ -108,12 +110,13 @@ async function measure(label, directory) {
             const offset = offsets[record] + index * resource.stride + member.offset;
             return member.scalar === 'f32' ? bytes.getFloat32(offset, true) : bytes.getUint32(offset, true);
           };
+          const fieldsHaveOrientation=resources[0].element.Record.fields.some(f=>f.name==='camera.orientation.re');
           const cache = index => {
-            const fields = resources[0].element.Record.fields.slice(0, 10);
-            if (fields.length !== 10 || fields.some((field, i) => field.scalar !== 'f32' || field.offset !== i * 4)) {
-              throw Error('Camera cache prefix is not the validated ten-f32 layout');
+            const fields = resources[0].element.Record.fields.filter(field=>field.name.startsWith('camera.'));
+            if (![10,12].includes(fields.length) || fields.some((field, i) => field.scalar !== 'f32' || field.offset !== i * 4)) {
+              throw Error('Camera cache prefix is not the validated twelve-f32 layout');
             }
-            return {camera: fields.map(field => bytes.getUint32(offsets[0] + index * resources[0].stride + field.offset, true)),
+            return {camera: [...fields.map(field => bytes.getUint32(offsets[0] + index * resources[0].stride + field.offset, true)),...(fields.length===10?[1065353216,0]:[])],
               epoch: field(0, index, 'epoch'), completed: field(0, index, 'completed'),
               cursor: field(0, index, 'cursor'), budget: field(0, index, 'budget'), aa: field(0, index, 'aa')};
           };
@@ -121,9 +124,10 @@ async function measure(label, directory) {
           const result = {current: cache(0), snapshot: cache(1), initial: cache(2),
             reference: {active, valid: field(1, 0, 'active_valid'), pending: field(1, 0, 'pending'),
               generation: field(2, active, 'generation')},
-            previewCompleted: field(3, 0, 'completed'), residentCamera: bits(surface._uniforms.slice(0, 10)),
-            residentAA: surface._uniforms[12], inputSettled: surface._uniforms[13] < 0.5
-              && surface._uniforms[10] - surface._uniforms[11] >= 60,
+            previewCompleted: field(3, 0, 'completed'), residentCamera: cache(0).camera.length===12
+              ? bits([...surface._uniforms.slice(0,10),...(fieldsHaveOrientation?surface._uniforms.slice(10,12):[1,0])]) : [],
+            residentAA: surface._paramsSnapshot().antialias, inputSettled: surface._paramsSnapshot().drag_active < 0.5
+              && surface._paramsSnapshot().clock - surface._paramsSnapshot().last_input >= 60,
             frame: ++h.frames};
           buffer.unmap();
           return result;
@@ -198,10 +202,13 @@ async function measure(label, directory) {
           throw Error('Replacement requires one held presentation, no queued stale presentations, and actual resident Fe state export');
         }
         const next = [...surface._uniforms];
-        camera.forEach((value, index) => { next[index] = value; });
-        next[11] = next[10]; // A new input starts the ordinary Fe settling interval.
-        next[12] = aa;
-        next[13] = 0;
+        const fields=surface.manifest.layout.bindings.find(b=>b.role==='input').members;
+        const index=name=>fields.findIndex(f=>f.name===name);
+        const cameraLength=index('re')>=0?12:10;
+        camera.slice(0,cameraLength).forEach((value, i) => { next[i] = value; });
+        next[index('last_input')]=next[index('clock')];
+        next[index('antialias')]=aa;
+        next[index('drag_active')]=0;
         surface._replaceSurfaceState(next);
       };
       h.capture = async side => {
@@ -301,7 +308,7 @@ async function measure(label, directory) {
       const h = window.checkpointProbe, s = document.querySelector('fe-surface');
       return {errors: h.errors, state: s.state, observedFrames: h.frames, stableCaptures: h.stableCaptures, graphSubmissions: h.graphSubmissions,
         visibilityBuffersReused: [...h.resourcesBeforeSuspend].every(([name, buffer]) => s._gpu.resourceBuffers.get(name) === buffer),
-        camera: s._uniforms.slice(0, 10), actualAdapter: s._gpu.adapter?.info || null};
+        camera: s._uniforms.slice(0, 12), actualAdapter: s._gpu.adapter?.info || null};
     });
     assert.deepEqual(errors, []);
     assert.deepEqual(diagnostics.errors, []);

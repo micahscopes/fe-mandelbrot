@@ -1,0 +1,9 @@
+[ingot]
+name = "probe_gesture_kernel"
+version = "0.1.0"
+
+[dependencies]
+core = "../../.cache/fe/ingots/core"
+std = "../../.cache/fe/ingots/std"
+renderer = "../../app/renderer"
+algebra = "../../lib/algebra"

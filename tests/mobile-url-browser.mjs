@@ -39,7 +39,7 @@ try{
  await page.waitForFunction(()=>document.querySelector('fe-surface')?.state==='live',null,{timeout:90000});
  let actual=await snapshot();
  assert.deepEqual(actual.state.slice(0,10).map(bits),restoredCamera.map(bits));
- assert.equal(bits(actual.state[12]),bits(-0));
+ assert.equal(bits(actual.state[14]),bits(-0));
  assert.deepEqual(actual.canvas,[1024,1024]);
  assert.ok(actual.first,'Actual presentation was observed');
  assert.deepEqual(actual.first.slice(0,10).map(bits),restoredCamera.map(bits),'Restore precedes the first presentation');
@@ -73,9 +73,9 @@ try{
  const pannedCenter=[panned.state.slice(0,4).reduce((a,b)=>a+b,0),panned.state.slice(4,8).reduce((a,b)=>a+b,0)];
  for(let i=0;i<2;i++)assert.ok(Math.abs(pannedCenter[i]-expected[i])<2e-5,'Two-finger pan uses CSS viewport geometry');
  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
- await page.waitForFunction(()=>document.querySelector('fe-surface')._uniforms[13]===0);
+ await page.waitForFunction(()=>document.querySelector('fe-surface')._uniforms[15]===0);
  const released=await snapshot();await page.waitForTimeout(300);
- assert.deepEqual((await snapshot()).state.slice(0,10).map(bits),released.state.slice(0,10).map(bits),'Release and delayed rendering do not shift the camera');
+ assert.deepEqual((await snapshot()).state.slice(0,12).map(bits),released.state.slice(0,12).map(bits),'Release and delayed rendering do not shift the camera');
  assert.equal(new URL(released.url).searchParams.get('keep'),'this');
  assert.deepEqual(errors,[]);
  const receipt={actualCompiledBrowser:true,responsiveDesktop:true,physicalPhone:false,restoredBeforeFirstFrame:true,backForward:true,queryPreserved:true,restoredBackingAcrossResize:true,pinchWorldAnchor:true,twoFingerPan:true,releaseStable:true,errors};

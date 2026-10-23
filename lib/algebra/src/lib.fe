@@ -12,6 +12,7 @@ use core::ops::{Add, Div, Eq, Mul, Neg, Sub}
 
 extern {
     const fn __sqrt_f32(_: f32) -> f32
+    const fn __bitcast<From, To>(_: From) -> To
 }
 
 // ---------------------------------------------------------------------------
@@ -287,6 +288,47 @@ impl<T: Copy + Mul<Output = T> + Add<Output = T> + Sub<Output = T>> Mul for Comp
             re: (self.re * other.re) - (self.im * other.im),
             im: (self.re * other.im) + (self.im * other.re),
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Orientation-preserving similarities of the complex plane
+// ---------------------------------------------------------------------------
+
+/// A point map `z -> linear * z + offset`. The complex coefficient combines
+/// rotation and uniform scale; translation remains a point in the same plane.
+pub struct Similarity2 { pub linear: Complex<f32>, pub offset: Complex<f32> }
+
+impl Copy for Similarity2 {}
+
+impl Similarity2 {
+    pub fn identity() -> Self {
+        Self { linear: Complex::one(), offset: Complex::zero() }
+    }
+    pub fn anchored(_ linear: Complex<f32>, _ source: Complex<f32>, _ target: Complex<f32>) -> Self {
+        Self { linear: linear, offset: target - linear * source }
+    }
+    pub fn apply(self, _ point: Complex<f32>) -> Complex<f32> {
+        self.linear * point + self.offset
+    }
+    /// Apply this map first, then `next`.
+    pub fn then(self, _ next: Self) -> Self {
+        Self { linear: next.linear * self.linear, offset: next.apply(self.offset) }
+    }
+    pub fn inverse(self) -> Self {
+        let x = if self.linear.re < 0.0 { -self.linear.re } else { self.linear.re }
+        let y = if self.linear.im < 0.0 { -self.linear.im } else { self.linear.im }
+        let scale = if x > y { x } else { y }
+        assert(scale > 0.0 && (__bitcast<f32, u32>(scale) & 2139095040) != 2139095040)
+        let unit = Complex { re: self.linear.re / scale, im: self.linear.im / scale }
+        let denominator = unit.norm_squared()
+        let reciprocal = Complex {
+            re: (unit.re / denominator) / scale,
+            im: (-unit.im / denominator) / scale,
+        }
+        assert((__bitcast<f32, u32>(reciprocal.re) & 2139095040) != 2139095040)
+        assert((__bitcast<f32, u32>(reciprocal.im) & 2139095040) != 2139095040)
+        Self { linear: reciprocal, offset: -(reciprocal * self.offset) }
     }
 }
 

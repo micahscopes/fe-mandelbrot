@@ -34,8 +34,33 @@ async function attachStagedSite(page) {
   });
 }
 
+// Decode controls from their compiler-declared schema, never field ordinals.
+function installControlReadback() {
+  window.readFeControls = async surface => {
+    const names=['cache','preview_cache','reference','anchor'];
+    let size=0;
+    const resources=names.map(name=>{
+      const resource=surface.manifest.resources.find(r=>r.name===name);
+      const offset=size;size+=resource.stride*resource.length;
+      return {...resource,offset};
+    });
+    const device=surface._gpu.device;
+    const buffer=device.createBuffer({size,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ});
+    try {
+      const encoder=device.createCommandEncoder();
+      for(const r of resources)encoder.copyBufferToBuffer(surface._gpu.resourceBuffers.get(r.name),0,buffer,r.offset,r.stride*r.length);
+      device.queue.submit([encoder.finish()]);await buffer.mapAsync(GPUMapMode.READ);
+      const bytes=new DataView(buffer.getMappedRange());
+      return Object.fromEntries(resources.map(r=>[r.name,Array.from({length:r.length},(_,i)=>
+        Object.fromEntries(r.element.Record.fields.map(f=>[f.name,f.scalar==='f32'
+          ?bytes.getFloat32(r.offset+i*r.stride+f.offset,true):bytes.getUint32(r.offset+i*r.stride+f.offset,true)])))]));
+    } finally {buffer.destroy();}
+  };
+}
+
 async function measureColdViewOnset(viewSpec) {
   const page = await browser.newPage({viewport: {width: 512, height: 512}, deviceScaleFactor: 1});
+  await page.addInitScript(installControlReadback);
   const errors = [];
   page.on('pageerror', err => errors.push(String(err)));
   await attachStagedSite(page);
@@ -83,25 +108,28 @@ async function measureColdViewOnset(viewSpec) {
             }
             this._onsetInFlight = (this._onsetInFlight || 0) + 1;
             const device = gpu.device;
+            const previewLayout=this.manifest.resources.find(r=>r.name==='preview_cache');
+            const colorOffset=(32+previewLayout.stride+15)&~15;
             const buffer = device.createBuffer({
-              size: 320,
+              size: colorOffset+192,
               usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
             });
             const encoder = device.createCommandEncoder();
             encoder.copyBufferToBuffer(reference, 0, buffer, 0, 28);
-            encoder.copyBufferToBuffer(previewCache, 0, buffer, 32, 72);
+            encoder.copyBufferToBuffer(previewCache, 0, buffer, 32, previewLayout.stride);
             for (let y = 0; y < 4; y++) {
               for (let x = 0; x < 4; x++) {
                 const index = (32 + y * 64) * 256 + 32 + x * 64;
-                encoder.copyBufferToBuffer(pixels, index * 12, buffer, 112 + (y * 4 + x) * 12, 12);
+                encoder.copyBufferToBuffer(pixels, index * 12, buffer, colorOffset + (y * 4 + x) * 12, 12);
               }
             }
             device.queue.submit([encoder.finish()]);
             const capture = buffer.mapAsync(GPUMapMode.READ).then(() => {
               const bytes = buffer.getMappedRange();
               const refWords = new Uint32Array(bytes, 0, 7);
-              const pcacheWords = new Uint32Array(bytes, 32, 18);
-              const colors = new Float32Array(bytes, 112, 48);
+              const previewBytes=new DataView(bytes,32,previewLayout.stride);
+              const field=name=>previewBytes.getUint32(previewLayout.element.Record.fields.find(f=>f.name===name).offset,true);
+              const colors = new Float32Array(bytes, colorOffset, 48);
               onsetSamples.push({
                 frameStartMs: start,
                 observedMs: performance.now(),
@@ -109,14 +137,14 @@ async function measureColdViewOnset(viewSpec) {
                 activeValid: refWords[1],
                 pending: refWords[2],
                 referenceSteps: refWords[3],
-                previewRefGen: pcacheWords[10],
-                previewBank: pcacheWords[11],
-                previewPrefixOnly: pcacheWords[12],
-                previewStepTarget: pcacheWords[13],
-                previewCompletedSteps: pcacheWords[14],
-                previewBudget: pcacheWords[15],
-                previewEpoch: pcacheWords[16],
-                previewCompleted: pcacheWords[17],
+                previewRefGen: field('reference_generation'),
+                previewBank: field('reference_bank'),
+                previewPrefixOnly: field('prefix_only'),
+                previewStepTarget: field('step_target'),
+                previewCompletedSteps: field('completed_steps'),
+                previewBudget: field('budget'),
+                previewEpoch: field('epoch'),
+                previewCompleted: field('completed'),
                 nonzeroComponents: [...colors].filter(v => v !== 0).length,
               });
               buffer.unmap();
@@ -189,6 +217,7 @@ async function measureColdViewOnset(viewSpec) {
 
 async function measureTransitionsAndPhaseSeparatedDrag() {
   const page = await browser.newPage({viewport: {width: 512, height: 512}, deviceScaleFactor: 1});
+  await page.addInitScript(installControlReadback);
   const errors = [];
   page.on('pageerror', err => errors.push(String(err)));
   await attachStagedSite(page);
@@ -210,24 +239,15 @@ async function measureTransitionsAndPhaseSeparatedDrag() {
     for (let i = 0; i < 300; i++) {
       initialSettled = await page.evaluate(async () => {
         const s = document.querySelector('fe-surface');
-        const d = s._gpu.device;
-        const b = d.createBuffer({size: 400, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ});
-        const e = d.createCommandEncoder();
-        e.copyBufferToBuffer(s._gpu.resourceBuffers.get('cache'), 0, b, 0, 216);
-        e.copyBufferToBuffer(s._gpu.resourceBuffers.get('preview_cache'), 0, b, 224, 72);
-        e.copyBufferToBuffer(s._gpu.resourceBuffers.get('reference'), 0, b, 296, 24);
-        d.queue.submit([e.finish()]);
-        await b.mapAsync(GPUMapMode.READ);
-        const w = new Uint32Array(b.getMappedRange());
+        const {cache,preview_cache,reference}=await readFeControls(s);
         const state = {
-          c0_epoch: w[16], c0_completed: w[17],
-          c1_epoch: w[34], c1_completed: w[35],
-          c2_epoch: w[52], c2_completed: w[53],
-          preview_gen: w[56 + 10], preview_epoch: w[56 + 16], preview_completed: w[56 + 17],
-          ref_active: w[74], ref_valid: w[75], ref_pending: w[76],
+          c0_epoch: cache[0].epoch, c0_completed: cache[0].completed,
+          c1_epoch: cache[1].epoch, c1_completed: cache[1].completed,
+          c2_epoch: cache[2].epoch, c2_completed: cache[2].completed,
+          preview_gen: preview_cache[0].reference_generation, preview_epoch: preview_cache[0].epoch,
+          preview_completed: preview_cache[0].completed,
+          ref_active: reference[0].active, ref_valid: reference[0].active_valid, ref_pending: reference[0].pending,
         };
-        b.unmap();
-        b.destroy();
         return state;
       });
       if (initialSettled.c0_completed === 1 && initialSettled.c1_completed === 1 && initialSettled.c2_completed === 1) {
@@ -250,42 +270,20 @@ async function measureTransitionsAndPhaseSeparatedDrag() {
         const start = performance.now();
         await render(...args);
         const submitted = performance.now();
-        const d = this._gpu.device;
-        const b = d.createBuffer({size: 400, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ});
-        const e = d.createCommandEncoder();
-        e.copyBufferToBuffer(this._gpu.resourceBuffers.get('cache'), 0, b, 0, 216);
-        e.copyBufferToBuffer(this._gpu.resourceBuffers.get('preview_cache'), 0, b, 224, 72);
-        e.copyBufferToBuffer(this._gpu.resourceBuffers.get('reference'), 0, b, 296, 24);
-        e.copyBufferToBuffer(this._gpu.resourceBuffers.get('anchor'), 0, b, 320, 80);
-        d.queue.submit([e.finish()]);
-        await b.mapAsync(GPUMapMode.READ);
-        const w = new Uint32Array(b.getMappedRange());
-        const dragActive = this._uniforms ? this._uniforms[13] >= 0.5 : false;
+        const {cache,preview_cache,reference,anchor}=await readFeControls(this);
+        const preview=preview_cache[0],ref=reference[0];
         const sample = {
-          atMs: start,
-          cpuMs: submitted - start,
-          completionWithReadbackMs: performance.now() - start,
-          dragActive,
-          refActive: w[74],
-          refValid: w[75],
-          refPending: w[76],
-          refSteps: w[77],
-          previewGen: w[56 + 10],
-          previewBank: w[56 + 11],
-          selectedAnchorGen: w[80 + w[56 + 11] * 10 + 9],
-          previewPrefixOnly: w[56 + 12],
-          previewCompletedSteps: w[56 + 14],
-          previewEpoch: w[56 + 16],
-          previewCompleted: w[56 + 17],
-          c0Epoch: w[16],
-          c0Completed: w[17],
-          c1Epoch: w[34],
-          c1Completed: w[35],
-          c2Epoch: w[52],
-          c2Completed: w[53],
+          atMs: start, cpuMs: submitted-start, completionWithReadbackMs: performance.now()-start,
+          dragActive: this._paramsSnapshot().drag_active>=0.5,
+          refActive: ref.active, refValid: ref.active_valid, refPending: ref.pending, refSteps: ref.index,
+          previewGen: preview.reference_generation, previewBank: preview.reference_bank,
+          selectedAnchorGen: anchor[preview.reference_bank].generation,
+          previewPrefixOnly: preview.prefix_only, previewCompletedSteps: preview.completed_steps,
+          previewEpoch: preview.epoch, previewCompleted: preview.completed,
+          c0Epoch: cache[0].epoch, c0Completed: cache[0].completed,
+          c1Epoch: cache[1].epoch, c1Completed: cache[1].completed,
+          c2Epoch: cache[2].epoch, c2Completed: cache[2].completed,
         };
-        b.unmap();
-        b.destroy();
         phaseSamples.push(sample);
       };
     });

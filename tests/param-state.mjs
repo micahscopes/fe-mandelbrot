@@ -24,7 +24,7 @@ function scoped(run) {
   }
 }
 function edit(name, value) {
-  const ordinal = manifest.surface.params.findIndex(parameter => parameter.name === name);
+  const ordinal = manifest.surface.params.findIndex(parameter => (parameter.name === name || parameter.name.endsWith('.'+name)));
   assert.ok(ordinal >= 0, `Missing control ${name}`);
   return scoped(() => {
     const pointer = api.fe_cabi_alloc(52, 4), event = new DataView(api.memory.buffer, pointer, 52);
@@ -38,18 +38,18 @@ function edit(name, value) {
 function location(hash, apply) {
   return scoped(() => {
     const bytes = new TextEncoder().encode('https://example.test/fractal' + hash);
-    const input = api.fe_cabi_alloc(bytes.length, 4), output = api.fe_cabi_alloc(102, 4), length = api.fe_cabi_alloc(4, 4);
+    const input = api.fe_cabi_alloc(bytes.length, 4), output = api.fe_cabi_alloc(120, 4), length = api.fe_cabi_alloc(4, 4);
     new Uint8Array(api.memory.buffer, input, bytes.length).set(bytes);
-    state = [...api.fe_surface_location_v1(apply ? 1 : 0, input, bytes.length, output, 102, length, ...resources)];
+    state = [...api.fe_surface_location_v1(apply ? 1 : 0, input, bytes.length, output, 120, length, ...resources)];
     const size = new DataView(api.memory.buffer).getUint32(length, true);
     return new TextDecoder().decode(new Uint8Array(api.memory.buffer, output, size));
   });
 }
 function roundtrip() {
-  const expected = words([...state.slice(0, 10), state[12]]);
+  const expected = words([...state.slice(0, 10), state[14]]);
   const hash = location('', false);
   assert.equal(location(hash, true), hash, 'An ordinary control edit must produce an accepted canonical URL');
-  assert.deepEqual(words([...state.slice(0, 10), state[12]]), expected);
+  assert.deepEqual(words([...state.slice(0, 10), state[14]]), expected);
 }
 reset(); const originalCenter = words(state.slice(0, 8));
 edit('zoom', 0.5); assert.deepEqual(words(state.slice(0, 8)), originalCenter);

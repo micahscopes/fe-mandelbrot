@@ -77,6 +77,8 @@ fn url_persisted_view_roundtrips_deep_zoom_limbs_and_signed_zero() {
         zoom_bits: 0x33271301,
         res_bits: F32_RES_512_BITS,
         antialias_bits: F32_ONE_BITS,
+        orientation_re_bits: F32_ONE_BITS,
+        orientation_im_bits: 0,
     }
     let mut persisted: PersistedView = fallback
     persisted.res_bits = F32_RES_1024_BITS
@@ -143,6 +145,8 @@ fn url_persisted_view_rejects_malformed_nonfinite_and_out_of_range_atomically() 
         zoom_bits: 0x33271301,
         res_bits: F32_RES_512_BITS,
         antialias_bits: F32_ONE_BITS,
+        orientation_re_bits: F32_ONE_BITS,
+        orientation_im_bits: 0,
     }
     assert(is_valid_persisted_view(fallback, bounds))
 
@@ -150,7 +154,7 @@ fn url_persisted_view_rejects_malformed_nonfinite_and_out_of_range_atomically() 
     let r1: DecodedPersistedView = roundtrip_with_mutated_byte(
         fallback,
         2,
-        50,
+        51,
         URL_ENCODED_LEN,
         fallback,
         bounds,

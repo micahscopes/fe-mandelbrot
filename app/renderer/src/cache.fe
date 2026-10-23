@@ -428,12 +428,16 @@ pub fn reproject_coarse_pixel(
 ) -> ReprojectionTap {
     let use_full: bool = full.completed == 1 && full.epoch >= initial.epoch
     let old: ViewCache = if use_full { full } else { initial }
+    if old.completed == 0 {
+        return ReprojectionTap { use_full: use_full, reusable: false, sx: 0.0, sy: 0.0, old_res: 0.0 }
+    }
     let delta: Complex<f32> = if use_full { offsets.full } else { offsets.initial }
     let u: f32 = (from_i32(px) + 0.5) * 2.0 / s.camera.res - 1.0
     let v: f32 = 1.0 - (from_i32(py) + 0.5) * 2.0 / s.camera.res
-    let span: f32 = max(old.camera.zoom, ZOOM_MIN)
-    let sx: f32 = ((delta.re + u * s.camera.zoom) / span + 1.0) * old.camera.res * 0.5 - 0.5
-    let sy: f32 = (1.0 - (delta.im + v * s.camera.zoom) / span) * old.camera.res * 0.5 - 0.5
+    let current = s.camera.plane_offset(Complex { re: u, im: v })
+    let previous = old.camera.normalized_offset(delta + current)
+    let sx = (previous.re + 1.0) * old.camera.res * 0.5 - 0.5
+    let sy = (1.0 - previous.im) * old.camera.res * 0.5 - 0.5
     let reusable: bool = old.completed == 1
         && sx >= 0.0
         && sy >= 0.0

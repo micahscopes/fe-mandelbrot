@@ -7,13 +7,13 @@ fe-surface::part(meta),fe-surface::part(badge),fe-surface::part(controls-toggle)
 fe-surface::part(side){position:absolute;left:50%;right:auto;top:auto;bottom:calc((100% - 100dvh)/2 + 20px);transform:translateX(-50%);width:min(320px,calc(100vw - 40px));padding:14px 18px;background:#111621ed;background:oklch(17% .022 270 / .88);border:1px solid #d0d5ff26;border-radius:18px;box-shadow:0 10px 48px #0003;backdrop-filter:blur(16px);max-height:70dvh;overflow:auto}
 fe-surface::part(panel){margin:0;padding:0}
 fe-surface::part(control){display:none}
-fe-surface::part(control-zoom),fe-surface::part(control-magnification){display:block}
+fe-surface::part(control-zoom),fe-surface::part(control-magnification),fe-surface::part(control-camera\.zoom){display:block}
 fe-surface::part(control-magnification){padding:0 0 7px;border:0}
 fe-surface::part(label-magnification){color:oklch(82% .04 280);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
 fe-surface::part(value-magnification){color:oklch(96% .018 280);font-size:20px;font-weight:450;font-variant-numeric:tabular-nums;letter-spacing:0}
 fe-surface::part(value-magnification)::after{content:'×';margin-left:3px;color:oklch(80% .06 280)}
-fe-surface::part(input-zoom){width:100%;direction:rtl;accent-color:oklch(82% .1 290);cursor:ew-resize}
-fe-surface::part(label-zoom){font-size:11px;color:oklch(78% .025 275)}
+fe-surface::part(input-zoom),fe-surface::part(input-camera\.zoom){width:100%;direction:rtl;accent-color:oklch(82% .1 290);cursor:ew-resize}
+fe-surface::part(label-zoom),fe-surface::part(label-camera\.zoom){font-size:11px;color:oklch(78% .025 275)}
 fe-surface[show-controls]::part(control){display:block}
 nav{position:fixed;left:16px;right:16px;top:16px;display:flex;align-items:center;gap:8px;pointer-events:none}
 nav>*{pointer-events:auto}

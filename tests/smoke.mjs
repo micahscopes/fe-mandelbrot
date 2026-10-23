@@ -11,14 +11,23 @@ try{
  await page.goto(new URL('index.html',base).href);
  await page.waitForFunction(()=>document.querySelector('fe-surface')?.state==='live',null,{timeout:60000});
  await page.evaluate(()=>{window.gpuErrors=[];document.querySelector('fe-surface')._gpu.device.addEventListener('uncapturederror',e=>gpuErrors.push(e.error.message));});
- const zoom=page.locator('fe-surface').locator('[part~="input-zoom"]');
+ const zoom=page.locator('fe-surface').locator('[part~="input-zoom"], [part~="input-camera.zoom"]');
  const readout=page.locator('fe-surface').locator('[part~="value-magnification"]');
  await zoom.waitFor({state:'visible'});await readout.waitFor({state:'visible'});
  const initial=await page.evaluate(()=>document.querySelector('fe-surface')._paramsSnapshot());
- assert.ok(Math.abs(initial.magnification*initial.zoom/3-1)<1e-6);
+ assert.ok(Math.abs(initial.magnification*(initial.zoom??initial['camera.zoom'])/3-1)<1e-6);
  let complete=false;
  for(let i=0;i<300;i++){
-  complete=await page.evaluate(async()=>{const s=document.querySelector('fe-surface'),d=s._gpu.device,b=d.createBuffer({size:144,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ}),e=d.createCommandEncoder();e.copyBufferToBuffer(s._gpu.resourceBuffers.get('cache'),0,b,0,144);d.queue.submit([e.finish()]);await b.mapAsync(GPUMapMode.READ);const w=new Uint32Array(b.getMappedRange()),ok=w[17]===1&&w[16]===w[34];b.unmap();b.destroy();return ok;});
+  complete=await page.evaluate(async()=>{
+   const s=document.querySelector('fe-surface'),d=s._gpu.device;
+   const layout=s.manifest.resources.find(r=>r.name==='cache');
+   const offset=name=>layout.element.Record.fields.find(f=>f.name===name).offset;
+   const size=layout.stride*2,b=d.createBuffer({size,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ}),e=d.createCommandEncoder();
+   e.copyBufferToBuffer(s._gpu.resourceBuffers.get('cache'),0,b,0,size);d.queue.submit([e.finish()]);await b.mapAsync(GPUMapMode.READ);
+   const view=new DataView(b.getMappedRange()),epoch=offset('epoch');
+   const ok=view.getUint32(offset('completed'),true)===1&&view.getUint32(epoch,true)===view.getUint32(layout.stride+epoch,true);
+   b.unmap();b.destroy();return ok;
+  });
   if(complete)break;await page.waitForTimeout(100);
  }
  assert.ok(complete,'Refinement snapshot did not complete');
@@ -46,9 +55,9 @@ try{
  assert.ok(colorCheck.maxError<=2,`GPU OKLab conversion differs from exact sRGB reference: ${JSON.stringify(colorCheck)}`);
  await page.screenshot({path:process.env.SCREENSHOT||'/tmp/fe-mandelbrot.png'});
  await zoom.evaluate(input=>{input.value=String(Number(input.value)+.1);input.dispatchEvent(new Event('input',{bubbles:true}));});
- await page.waitForFunction(old=>document.querySelector('fe-surface')._paramsSnapshot().zoom!==old,initial.zoom);
+ await page.waitForFunction(old=>(document.querySelector('fe-surface')._paramsSnapshot().zoom??document.querySelector('fe-surface')._paramsSnapshot()['camera.zoom'])!==old,(initial.zoom??initial['camera.zoom']));
  const changed=await page.evaluate(()=>document.querySelector('fe-surface')._paramsSnapshot());
- assert.ok(Math.abs(changed.magnification*changed.zoom/3-1)<1e-6);
+ assert.ok(Math.abs(changed.magnification*(changed.zoom??changed['camera.zoom'])/3-1)<1e-6);
  assert.ok((await readout.textContent()).length>0);
  assert.deepEqual(await page.evaluate(()=>gpuErrors),[]);
  await page.goto(new URL('viewer/index.html',base).href);

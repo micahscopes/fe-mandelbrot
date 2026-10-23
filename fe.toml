@@ -2,6 +2,7 @@
 name = "FeMandelbrot"
 version = "0.1.0"
 members = [
+  { path = "tests/gesture-kernel", name = "probe_gesture_kernel" },
   { path = "tests/reference-kernel", name = "probe_reference_kernel" },
   { path = "tests/frame-array-difference-wasm", name = "probe_frame_array_difference_wasm" },
   { path = "tests/frame-array-difference", name = "probe_frame_array_difference" },

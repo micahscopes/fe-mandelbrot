@@ -350,10 +350,7 @@ pub fn pixel_delta_from_reference(
 ) -> Complex<f32> {
     let point = sample.plane(camera.res)
     let offset = orbit.load(index: base + ORBIT_META_INDEX).center_offset()
-    let plane_offset: Complex<f32> = Complex {
-        re: point.u * camera.zoom,
-        im: point.v * camera.zoom,
-    }
+    let plane_offset = camera.plane_offset(Complex { re: point.u, im: point.v })
     offset + plane_offset
 }
 

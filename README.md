@@ -174,3 +174,34 @@ unpublished assets in a remote CDP browser.
 URL lanes directly. `node tests/mobile-url-browser.mjs` exercises real touch,
 restoration before the first frame, resizing and browser history in responsive
 Chrome. `node tests/startup.mjs` checks one GPU graph and stable buffer reuse.
+
+### Gesture geometry in Fe
+
+`gestures` turns stable contact identities into one anchored motion. A finger
+pans; two fingers pan, pinch and rotate together. The explorer uses two contact
+slots; `Contacts<N>` remains reusable at any compile-time capacity. Additional
+contacts are ignored while both slots are occupied.
+
+The application follows one camera operation:
+
+```fe
+camera.follow(motion, viewport)
+```
+
+A membership-stable baseline prevents asynchronous finger events from accumulating
+zoom-limit or center-limit errors. Membership changes, cancellation, viewport
+changes, and external camera edits establish a new anchor. The same complex
+camera basis defines pixel projection and inverse history reprojection. The
+precise center stays in expansion arithmetic; orientation never widens per-pixel
+checkpoints or allocates another image buffer.
+
+Version 2 URLs preserve the exact orientation words. Version 1 links restore an
+unrotated camera. `Similarity2` provides reusable point mapping, composition and
+a scale-aware inverse; gesture translation keeps small deltas separate to preserve
+deep-zoom pan precision.
+
+`tests/contact-state.mjs` checks actual compiled Fe camera behavior, including
+rotation at zoom limits. `tests/contact-browser.mjs` exercises actual browser touch
+transport and Fe recognition; it does not substitute for GPU presentation or a
+physical-phone check. `tests/gesture-kernel/gpu.mjs` checks generated GPU projection,
+inverse mapping, and similarity composition down to `1e-27` zoom.

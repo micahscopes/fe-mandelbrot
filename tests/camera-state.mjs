@@ -41,14 +41,17 @@ async function trace(directory, signedZero) {
   const resources = manifest.resources.map(() => 0n);
   const initial = api.fe_surface_initialize_v1();
   assert.equal(initial.length, binding.members.length);
-  const suffix=initial.slice(15);
+  const field=name=>binding.members.findIndex(member=>member.name===name);
+  const semantic=values=>[...values.slice(0,10),...['clock','last_input','antialias','drag_active','magnification'].map(name=>values[field(name)])];
+  const orientation=values=>{const index=field('re');if(index>=0)assert.deepEqual(values.slice(index,index+2),[1,0],'Legacy events preserve identity orientation');};
+  const suffix=initial.slice(-2);
   if (signedZero) {
     // Hidden low coefficients must survive whole-camera updates bit for bit.
     initial[3] = -0;
     initial[7] = -0;
   }
   api.fe_surface_state_replace_v1(...initial);
-  const samples = [words(initial.slice(0,15))];
+  const samples = [words(semantic(initial))];
   for (const event of gestures) {
     const cursor = api.fe_cabi_checkpoint?.() ?? null;
     if (cursor === null) api.fe_cabi_reset?.();
@@ -64,14 +67,15 @@ async function trace(directory, signedZero) {
       view.setUint32(24, event.buttons ?? 0, true);
       view.setUint32(40, event.kind, true);
       const ordinal = event.parameter
-        ? manifest.surface.params.findIndex(parameter => parameter.name === event.parameter)
+        ? manifest.surface.params.findIndex(parameter => (parameter.name === event.parameter || parameter.name.endsWith('.'+event.parameter)))
         : 0;
       assert.ok(ordinal >= 0, 'Missing semantic control: ' + event.parameter);
       view.setUint32(44, ordinal, true);
       const next = api.fe_surface_transition_scheduled_v1(pointer, 1, ...resources);
       assert.equal(next.length, initial.length);
-      assert.deepEqual(next.slice(15),suffix,"Legacy input must preserve appended state");
-      samples.push(words(next.slice(0,15)));
+      orientation(next);
+      assert.deepEqual(next.slice(-2),suffix,"Legacy input must preserve backing request");
+      samples.push(words(semantic(next)));
     } finally {
       if (cursor !== null && api.fe_cabi_rewind) api.fe_cabi_rewind(cursor);
       else api.fe_cabi_reset?.();
@@ -86,7 +90,7 @@ for (const signedZero of [false, true]) {
   assert.deepEqual(await trace(candidate, signedZero), await trace(baseline, signedZero),
     'Camera state differs at the actual Wasm ABI, signed-zero case: ' + signedZero);
 }
-const result = {exactCameraWords: true, statesPerCase: 9, cases: 2, cameraPrefixLeaves: 15, cameraPrefixSpan: 60, appendedStatePreserved: true,
+const result = {exactCameraWords: true, statesPerCase: 9, cases: 2, cameraPrefixLeaves: 15, cameraPrefixSpan: 60, backingRequestPreserved: true,
   semanticControlOrdinals: true, hiddenSignedZero: true};
 if (receipt) await fs.writeFile(receipt, JSON.stringify(result, null, 2) + '\n');
 console.log(JSON.stringify(result));
