@@ -38,12 +38,41 @@ near(center()[0],c[0]-0.0625,'Remaining finger pans horizontally');
 near(center()[1],c[1]+0.03125,'Remaining finger pans vertically');
 before=camera();contact(2,0xffffffff,136,208);assert.deepEqual(camera(),before);assert.equal(state[15],0);
 groups.push('membership-reanchors-and-one-finger-continuation');
-reset();contact(0,1,200,200);before=camera();
-contact(1,1,220,220,{left:0,top:0,width:640,height:640});assert.deepEqual(camera(),before);
+reset();contact(0,1,200,200);
+contact(1,1,220,220,{left:0,top:0,width:640,height:640});
+near(center()[0],-0.15625,'Resize preserves horizontal motion in the gesture frame');
+near(center()[1],0.15625,'Resize preserves vertical motion in the gesture frame');
 contact(1,1,224,224,{left:0,top:0,width:640,height:640});
-near(center()[0],-0.025,'Changed viewport reanchors before later horizontal motion');
-near(center()[1],0.025,'Changed viewport reanchors before later vertical motion');
-groups.push('resize-reanchor');
+near(center()[0],-0.1875,'Continued motion retains its original frame');
+near(center()[1],0.1875,'Continued vertical motion retains its original frame');
+contact(2,1,224,224);
+const resizedCenter=center();
+contact(0,1,200,200,{left:0,top:0,width:640,height:640});
+contact(1,1,204,204,{left:0,top:0,width:640,height:640});
+near(center()[0],resizedCenter[0]-0.025,'The next gesture uses the new viewport');
+near(center()[1],resizedCenter[1]+0.025,'The next gesture uses the new vertical viewport');
+groups.push('resize-retains-frame-until-release');
+for(const fingers of [1,2]){
+ reset();contact(0,7,160,200);if(fingers===2)contact(0,90,240,200);
+ for(let step=1;step<=20;step++){
+  const bounds={left:step*0.001,top:step*0.002,width:512+step*0.003,height:512+step*0.003};
+  contact(1,7,160+step*2,200+step,bounds);
+  if(fingers===2)contact(1,90,240+step*2,200+step,{...bounds,left:bounds.left+0.0001});
+ }
+ near(center()[0],-0.3125,'Changing bounds do not erase horizontal finger motion');
+ near(center()[1],0.15625,'Changing bounds do not erase vertical finger motion');
+ near(state[8],2,'Changing bounds do not introduce a false pinch');
+ near(state[10],1,'Changing bounds do not introduce a false rotation');
+ near(state[11],0,'Changing bounds preserve the orientation');
+ groups.push(`${fingers}-finger-pan-with-changing-bounds`);
+}
+reset();contact(0,7,200,200);state[9]=1024;api.fe_surface_state_replace_v1(...state);
+contact(1,7,220,220);assert.equal(state[9],1024,'A gesture preserves the current backing extent');
+groups.push('gesture-preserves-new-backing-extent');
+reset();contact(0,7,200,200);before=camera();
+contact(1,7,220,220,{left:0,top:0,width:0,height:0});assert.deepEqual(camera(),before);
+contact(3,7,220,220,{left:0,top:0,width:0,height:0});assert.equal(state[15],0);
+groups.push('hidden-canvas-suppresses-motion-and-allows-cleanup');
 reset();contact(0,1,200,200);contact(3,1,200,200);assert.equal(state[15],0);
 before=camera();contact(1,1,220,220);assert.deepEqual(camera(),before);
 groups.push('cancel-clears-membership');

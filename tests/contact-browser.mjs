@@ -62,6 +62,24 @@ try{
  const center=[rotated.camera.slice(0,4).reduce((a,b)=>a+b),rotated.camera.slice(4,8).reduce((a,b)=>a+b)];
  near(center[0]-q[1]*3,q[0]*3,'Rotated centroid retains world real coordinate');
  near(center[1]+q[0]*3,q[1]*3,'Rotated centroid retains world imaginary coordinate');
+ // Browser-measured bounds may change between the two asynchronous pointer
+ // events belonging to one two-finger move. Keep the same gesture metric.
+ for(const fingers of [1,2]){
+  await page.evaluate(()=>{resetCamera(2);const canvas=document.querySelector('canvas');canvas.style.left='-227px';canvas.style.width='844px';});
+  const points=[{x:140,y:350,id:7},...(fingers===2?[{x:240,y:350,id:90}]:[])];
+  await touch('touchStart',points);
+  for(let step=1;step<=6;step++){
+   await page.evaluate(step=>{const canvas=document.querySelector('canvas');canvas.style.left=`${-227+step*0.125}px`;canvas.style.width=`${844+step*0.25}px`;},step);
+   await touch('touchMove',points.map(p=>({...p,x:p.x+step*4,y:p.y+step*3})));
+  }
+  const panned=await snapshot();
+  near(panned.camera.slice(0,4).reduce((a,b)=>a+b,0),-24*4/844,`${fingers}-finger horizontal pan with shifting canvas`);
+  near(panned.camera.slice(4,8).reduce((a,b)=>a+b,0),18*4/844,`${fingers}-finger vertical pan with shifting canvas`);
+  near(panned.camera[8],2,'Layout changes introduce no false pinch');
+  near(panned.camera[10],1,'Layout changes introduce no false rotation');
+  near(panned.camera[11],0,'Layout changes retain the original orientation');
+  await touch('touchEnd',[]);
+ }
  assert.deepEqual(errors,[]);
  const receipt={actualCompiledFe:true,actualBrowserTouchTransport:true,physicalPhone:false,renderSchedulingCovered:false,freshDeepPan:true,releaseStable:true,quarterTurnAtZoomLimit:true,centroidAnchor:true,errors};
  if(receiptPath)await fs.writeFile(receiptPath,JSON.stringify(receipt,null,2)+'\n');console.log(JSON.stringify(receipt));

@@ -21,7 +21,10 @@ Full sets ignore additional downs rather than replacing a captured identity.
 
 `Viewport` maps CSS observations into a normalized, y-up plane. `update_in` and
 `update_from` fit in that same metric, including rectangular views. Extents must
-be positive. A changed frame establishes a new anchor before accepting motion.
+be positive. The application retains one viewport for a contact sequence, so
+mobile layout changes do not reset motion between asynchronous finger events.
+After all contacts end, the next gesture measures a fresh viewport. A hidden
+canvas suppresses motion while preserving contact cleanup.
 
 `GestureTransform.pullback(viewport)` maps new view coordinates back to old view
 coordinates. It exposes a shared `algebra::Similarity2`: a complex multiplier and

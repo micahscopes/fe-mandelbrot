@@ -140,6 +140,11 @@ impl Default for Camera {
 }
 
 impl Camera {
+    pub fn at_resolution(self, _ resolution: f32) -> Self {
+        let mut next = self
+        next.res = resolution
+        next
+    }
     /// Follow one anchored gesture while keeping the precise center separate
     /// from the small local similarity. Clamped zoom retains the same anchor.
     pub fn follow(self, _ motion: gestures::GestureTransform, _ frame: gestures::Viewport) -> Self {
