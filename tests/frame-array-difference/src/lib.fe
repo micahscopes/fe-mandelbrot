@@ -132,7 +132,7 @@ fn array_reference_quad_matches_recursive_projection() {
 // The first rows exercise zero, full carries, and equal magnitudes.
 fn multiplication_suite<const L: usize>()
     where Limbs<L>: Copy + Mac + Head + ShiftAppend + Zero
-        + precision::field::Carry + precision::fixed::TruncRows<Limbs<L>>,
+        + precision::fixed::Carry + precision::fixed::TruncRows<Limbs<L>>,
 {
     let mut seed: u32 = 20261022
     let mut trial: u32 = 0
