@@ -1,0 +1,786 @@
+//! Shared finite-dimensional vector, matrix and complex algebra in Fe.
+//!
+//! Pure arithmetic operators (`+`, `-`, unary `-`, `*`, `/`) use owned operands
+//! from `core::ops` with fixed left-to-right evaluation order. `Default`
+//! constructs componentwise defaults; `Zero` and `One` express additive and
+//! multiplicative identities explicitly. Selectable execution policies and
+//! operation accounting use the explicit `VectorExecution` capability trait.
+
+use core::default::Default
+use core::marker::Copy
+use core::ops::{Add, Div, Eq, Mul, Neg, Sub}
+
+extern {
+    const fn __sqrt_f32(_: f32) -> f32
+}
+
+// ---------------------------------------------------------------------------
+// Additive and multiplicative identities
+// ---------------------------------------------------------------------------
+
+pub trait Zero {
+    fn zero() -> Self
+}
+
+pub trait One {
+    fn one() -> Self
+}
+
+impl Zero for f32 {
+    fn zero() -> Self {
+        0.0
+    }
+}
+
+impl One for f32 {
+    fn one() -> Self {
+        1.0
+    }
+}
+
+impl Zero for i32 {
+    fn zero() -> Self {
+        0
+    }
+}
+
+impl One for i32 {
+    fn one() -> Self {
+        1
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Vectors: Vec2<T> and Vec3<T>
+// ---------------------------------------------------------------------------
+
+#[derive(Eq, Default)]
+pub struct Vec2<T> { pub x: T, pub y: T }
+
+impl<T: Copy> Copy for Vec2<T> {}
+
+impl<T: Zero> Zero for Vec2<T> {
+    fn zero() -> Self {
+        Self { x: T::zero(), y: T::zero() }
+    }
+}
+
+impl<T> Vec2<T> {
+    pub fn zero() -> Self where T: Zero {
+        <Self as Zero>::zero()
+    }
+    pub fn dot(self, _ other: Self) -> T where T: Mul<Output = T> + Add<Output = T> {
+        (self.x * other.x) + (self.y * other.y)
+    }
+}
+
+impl Vec2<f32> {
+    pub fn norm_squared(self) -> f32 {
+        self.dot(self)
+    }
+
+    /// Euclidean norm `sqrt(x*x + y*y)` without dynamic rescaling.
+    pub fn norm(self) -> f32 {
+        __sqrt_f32(self.norm_squared())
+    }
+}
+
+impl<T: Add<Output = T>> Add for Vec2<T> {
+    type Output = Vec2<T>
+
+    fn add(own self, _ other: own Self) -> Self {
+        Self { x: self.x + other.x, y: self.y + other.y }
+    }
+}
+
+impl<T: Sub<Output = T>> Sub for Vec2<T> {
+    type Output = Vec2<T>
+
+    fn sub(own self, _ other: own Self) -> Self {
+        Self { x: self.x - other.x, y: self.y - other.y }
+    }
+}
+
+impl<T: Neg<Output = T>> Neg for Vec2<T> {
+    type Output = Vec2<T>
+
+    fn neg(own self) -> Self {
+        Self { x: -self.x, y: -self.y }
+    }
+}
+
+impl<T: Copy + Mul<Output = T>> Mul<T> for Vec2<T> {
+    type Output = Vec2<T>
+
+    fn mul(own self, _ rhs: own T) -> Self {
+        Self { x: self.x * rhs, y: self.y * rhs }
+    }
+}
+
+impl<T: Copy + Div<Output = T>> Div<T> for Vec2<T> {
+    type Output = Vec2<T>
+
+    fn div(own self, _ rhs: own T) -> Self {
+        Self { x: self.x / rhs, y: self.y / rhs }
+    }
+}
+
+#[derive(Eq, Default)]
+pub struct Vec3<T> { pub x: T, pub y: T, pub z: T }
+
+impl<T: Copy> Copy for Vec3<T> {}
+
+impl<T: Zero> Zero for Vec3<T> {
+    fn zero() -> Self {
+        Self { x: T::zero(), y: T::zero(), z: T::zero() }
+    }
+}
+
+impl<T> Vec3<T> {
+    pub fn zero() -> Self where T: Zero {
+        <Self as Zero>::zero()
+    }
+
+    /// Left-associated three-term inner product: `((x*other.x) + (y*other.y)) + (z*other.z)`.
+    pub fn dot(self, _ other: Self) -> T where T: Mul<Output = T> + Add<Output = T> {
+        ((self.x * other.x) + (self.y * other.y)) + (self.z * other.z)
+    }
+
+    /// Standard right-handed cross product `(ay*bz - az*by, az*bx - ax*bz, ax*by - ay*bx)`.
+    pub fn cross(self, _ other: Self) -> Self where T: Copy + Mul<Output = T> + Sub<Output = T>
+    {
+        Self {
+            x: (self.y * other.z) - (self.z * other.y),
+            y: (self.z * other.x) - (self.x * other.z),
+            z: (self.x * other.y) - (self.y * other.x),
+        }
+    }
+}
+
+impl Vec3<f32> {
+    pub fn norm_squared(self) -> f32 {
+        self.dot(self)
+    }
+
+    /// Euclidean norm `sqrt(((x*x) + (y*y)) + (z*z))` without dynamic rescaling.
+    pub fn norm(self) -> f32 {
+        __sqrt_f32(self.norm_squared())
+    }
+}
+
+impl<T: Add<Output = T>> Add for Vec3<T> {
+    type Output = Vec3<T>
+
+    fn add(own self, _ other: own Self) -> Self {
+        Self { x: self.x + other.x, y: self.y + other.y, z: self.z + other.z }
+    }
+}
+
+impl<T: Sub<Output = T>> Sub for Vec3<T> {
+    type Output = Vec3<T>
+
+    fn sub(own self, _ other: own Self) -> Self {
+        Self { x: self.x - other.x, y: self.y - other.y, z: self.z - other.z }
+    }
+}
+
+impl<T: Neg<Output = T>> Neg for Vec3<T> {
+    type Output = Vec3<T>
+
+    fn neg(own self) -> Self {
+        Self { x: -self.x, y: -self.y, z: -self.z }
+    }
+}
+
+impl<T: Copy + Mul<Output = T>> Mul<T> for Vec3<T> {
+    type Output = Vec3<T>
+
+    fn mul(own self, _ rhs: own T) -> Self {
+        Self { x: self.x * rhs, y: self.y * rhs, z: self.z * rhs }
+    }
+}
+
+impl<T: Copy + Div<Output = T>> Div<T> for Vec3<T> {
+    type Output = Vec3<T>
+
+    fn div(own self, _ rhs: own T) -> Self {
+        Self { x: self.x / rhs, y: self.y / rhs, z: self.z / rhs }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Complex numbers: Complex<T>
+// ---------------------------------------------------------------------------
+
+#[derive(Eq, Default)]
+pub struct Complex<T> { pub re: T, pub im: T }
+
+impl<T: Copy> Copy for Complex<T> {}
+
+impl<T: Zero> Zero for Complex<T> {
+    fn zero() -> Self {
+        Self { re: T::zero(), im: T::zero() }
+    }
+}
+
+impl<T: Zero + One> One for Complex<T> {
+    fn one() -> Self {
+        Self { re: T::one(), im: T::zero() }
+    }
+}
+
+impl<T> Complex<T> {
+    pub fn zero() -> Self where T: Zero {
+        <Self as Zero>::zero()
+    }
+    pub fn one() -> Self where T: Zero + One {
+        <Self as One>::one()
+    }
+    pub fn conjugate(own self) -> Self where T: Neg<Output = T> {
+        Self { re: self.re, im: -self.im }
+    }
+    pub fn scale(self, _ factor: T) -> Self where T: Copy + Mul<Output = T> {
+        Self { re: self.re * factor, im: self.im * factor }
+    }
+}
+
+impl Complex<f32> {
+    pub fn norm_squared(self) -> f32 {
+        self.re * self.re + self.im * self.im
+    }
+
+    /// Complex modulus `sqrt(re*re + im*im)` without dynamic rescaling.
+    pub fn norm(self) -> f32 {
+        __sqrt_f32(self.norm_squared())
+    }
+}
+
+impl<T: Add<Output = T>> Add for Complex<T> {
+    type Output = Complex<T>
+
+    fn add(own self, _ other: own Self) -> Self {
+        Self { re: self.re + other.re, im: self.im + other.im }
+    }
+}
+
+impl<T: Sub<Output = T>> Sub for Complex<T> {
+    type Output = Complex<T>
+
+    fn sub(own self, _ other: own Self) -> Self {
+        Self { re: self.re - other.re, im: self.im - other.im }
+    }
+}
+
+impl<T: Neg<Output = T>> Neg for Complex<T> {
+    type Output = Complex<T>
+
+    fn neg(own self) -> Self {
+        Self { re: -self.re, im: -self.im }
+    }
+}
+
+impl<T: Copy + Mul<Output = T> + Add<Output = T> + Sub<Output = T>> Mul for Complex<T> {
+    type Output = Complex<T>
+
+    fn mul(own self, _ other: own Self) -> Self {
+        Self {
+            re: (self.re * other.re) - (self.im * other.im),
+            im: (self.re * other.im) + (self.im * other.re),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Column-major matrices: Mat2<T> and Mat3<T>
+// ---------------------------------------------------------------------------
+
+/// 2x2 matrix stored as column vectors: `c0` is the image of `(1, 0)`.
+#[derive(Eq, Default)]
+pub struct Mat2<T> { pub c0: Vec2<T>, pub c1: Vec2<T> }
+
+impl<T: Copy> Copy for Mat2<T> {}
+
+impl<T: Zero> Zero for Mat2<T> {
+    fn zero() -> Self {
+        Self { c0: Vec2::zero(), c1: Vec2::zero() }
+    }
+}
+
+impl<T: Zero + One> One for Mat2<T> {
+    fn one() -> Self {
+        Self { c0: Vec2 { x: T::one(), y: T::zero() }, c1: Vec2 { x: T::zero(), y: T::one() } }
+    }
+}
+
+impl<T> Mat2<T> {
+    pub fn zero() -> Self where T: Zero {
+        <Self as Zero>::zero()
+    }
+    pub fn identity() -> Self where T: Zero + One {
+        <Self as One>::one()
+    }
+    pub fn from_rows(_ r0: Vec2<T>, _ r1: Vec2<T>) -> Self where T: Copy {
+        Self { c0: Vec2 { x: r0.x, y: r1.x }, c1: Vec2 { x: r0.y, y: r1.y } }
+    }
+    pub fn transpose(self) -> Self where T: Copy {
+        Self { c0: Vec2 { x: self.c0.x, y: self.c1.x }, c1: Vec2 { x: self.c0.y, y: self.c1.y } }
+    }
+    pub fn scale(self, _ factor: T) -> Self where T: Copy + Mul<Output = T> {
+        Self { c0: self.c0 * factor, c1: self.c1 * factor }
+    }
+
+    /// Apply this column-major matrix to column vector `v`: `(c0 * v.x) + (c1 * v.y)`.
+    /// Named `apply` because `core::ops::Mul` declares `-> Self::Output`, so a
+    /// type that implements `Add`/`Sub`/`Neg` (`Output = Self`) cannot also
+    /// implement `Mul<Vec2<T>>` with a distinct `Output = Vec2<T>`.
+    pub fn apply(self, _ v: Vec2<T>) -> Vec2<T> where T: Copy + Mul<Output = T> + Add<Output = T>
+    {
+        (self.c0 * v.x) + (self.c1 * v.y)
+    }
+}
+
+impl<T: Add<Output = T>> Add for Mat2<T> {
+    type Output = Mat2<T>
+
+    fn add(own self, _ other: own Self) -> Self {
+        Self { c0: self.c0 + other.c0, c1: self.c1 + other.c1 }
+    }
+}
+
+impl<T: Sub<Output = T>> Sub for Mat2<T> {
+    type Output = Mat2<T>
+
+    fn sub(own self, _ other: own Self) -> Self {
+        Self { c0: self.c0 - other.c0, c1: self.c1 - other.c1 }
+    }
+}
+
+impl<T: Neg<Output = T>> Neg for Mat2<T> {
+    type Output = Mat2<T>
+
+    fn neg(own self) -> Self {
+        Self { c0: -self.c0, c1: -self.c1 }
+    }
+}
+
+impl<T: Copy + Mul<Output = T> + Add<Output = T>> Mul for Mat2<T> {
+    type Output = Mat2<T>
+
+    fn mul(own self, _ other: own Mat2<T>) -> Mat2<T> {
+        Mat2 { c0: self.apply(other.c0), c1: self.apply(other.c1) }
+    }
+}
+
+/// 3x3 matrix stored as column vectors: `c0` is the image of `(1, 0, 0)`.
+#[derive(Eq, Default)]
+pub struct Mat3<T> { pub c0: Vec3<T>, pub c1: Vec3<T>, pub c2: Vec3<T> }
+
+impl<T: Copy> Copy for Mat3<T> {}
+
+impl<T: Zero> Zero for Mat3<T> {
+    fn zero() -> Self {
+        Self { c0: Vec3::zero(), c1: Vec3::zero(), c2: Vec3::zero() }
+    }
+}
+
+impl<T: Zero + One> One for Mat3<T> {
+    fn one() -> Self {
+        Self {
+            c0: Vec3 { x: T::one(), y: T::zero(), z: T::zero() },
+            c1: Vec3 { x: T::zero(), y: T::one(), z: T::zero() },
+            c2: Vec3 { x: T::zero(), y: T::zero(), z: T::one() },
+        }
+    }
+}
+
+impl<T> Mat3<T> {
+    pub fn zero() -> Self where T: Zero {
+        <Self as Zero>::zero()
+    }
+    pub fn identity() -> Self where T: Zero + One {
+        <Self as One>::one()
+    }
+    pub fn from_rows(_ r0: Vec3<T>, _ r1: Vec3<T>, _ r2: Vec3<T>) -> Self
+    where T: Copy
+    {
+        Self {
+            c0: Vec3 { x: r0.x, y: r1.x, z: r2.x },
+            c1: Vec3 { x: r0.y, y: r1.y, z: r2.y },
+            c2: Vec3 { x: r0.z, y: r1.z, z: r2.z },
+        }
+    }
+    pub fn transpose(self) -> Self where T: Copy {
+        Self {
+            c0: Vec3 { x: self.c0.x, y: self.c1.x, z: self.c2.x },
+            c1: Vec3 { x: self.c0.y, y: self.c1.y, z: self.c2.y },
+            c2: Vec3 { x: self.c0.z, y: self.c1.z, z: self.c2.z },
+        }
+    }
+    pub fn scale(self, _ factor: T) -> Self where T: Copy + Mul<Output = T> {
+        Self { c0: self.c0 * factor, c1: self.c1 * factor, c2: self.c2 * factor }
+    }
+
+    /// Apply this column-major matrix to column vector `v` in left-associated
+    /// three-term dot order: `((c0 * v.x) + (c1 * v.y)) + (c2 * v.z)`.
+    pub fn apply(self, _ v: Vec3<T>) -> Vec3<T> where T: Copy + Mul<Output = T> + Add<Output = T>
+    {
+        ((self.c0 * v.x) + (self.c1 * v.y)) + (self.c2 * v.z)
+    }
+}
+
+impl<T: Add<Output = T>> Add for Mat3<T> {
+    type Output = Mat3<T>
+
+    fn add(own self, _ other: own Self) -> Self {
+        Self { c0: self.c0 + other.c0, c1: self.c1 + other.c1, c2: self.c2 + other.c2 }
+    }
+}
+
+impl<T: Sub<Output = T>> Sub for Mat3<T> {
+    type Output = Mat3<T>
+
+    fn sub(own self, _ other: own Self) -> Self {
+        Self { c0: self.c0 - other.c0, c1: self.c1 - other.c1, c2: self.c2 - other.c2 }
+    }
+}
+
+impl<T: Neg<Output = T>> Neg for Mat3<T> {
+    type Output = Mat3<T>
+
+    fn neg(own self) -> Self {
+        Self { c0: -self.c0, c1: -self.c1, c2: -self.c2 }
+    }
+}
+
+impl<T: Copy + Mul<Output = T> + Add<Output = T>> Mul for Mat3<T> {
+    type Output = Mat3<T>
+
+    fn mul(own self, _ other: own Mat3<T>) -> Mat3<T> {
+        Mat3 { c0: self.apply(other.c0), c1: self.apply(other.c1), c2: self.apply(other.c2) }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Explicit execution capability over vector operations
+// ---------------------------------------------------------------------------
+
+/// Capability selecting an execution or instrumentation policy for vector
+/// programs while keeping `core::ops` operators pure and effect-free.
+pub trait VectorExecution<V, S> {
+    fn add(mut self, _ a: V, _ b: V) -> V
+    fn scale(mut self, _ v: V, _ factor: S) -> V
+    fn dot(mut self, _ a: V, _ b: V) -> S
+    fn operations(self) -> u32
+}
+
+/// Stateless pure execution policy: delegates directly to the canonical value
+/// operations with zero accounting overhead.
+#[derive(Eq, Default)]
+pub struct DirectExecution {}
+
+impl Copy for DirectExecution {}
+
+impl<T: Copy + Add<Output = T> + Mul<Output = T>> VectorExecution<Vec2<T>, T> for DirectExecution {
+    fn add(mut self, _ a: Vec2<T>, _ b: Vec2<T>) -> Vec2<T> {
+        a + b
+    }
+
+    fn scale(mut self, _ v: Vec2<T>, _ factor: T) -> Vec2<T> {
+        v * factor
+    }
+
+    fn dot(mut self, _ a: Vec2<T>, _ b: Vec2<T>) -> T {
+        a.dot(b)
+    }
+
+    fn operations(self) -> u32 {
+        0
+    }
+}
+
+impl<T: Copy + Add<Output = T> + Mul<Output = T>> VectorExecution<Vec3<T>, T> for DirectExecution {
+    fn add(mut self, _ a: Vec3<T>, _ b: Vec3<T>) -> Vec3<T> {
+        a + b
+    }
+
+    fn scale(mut self, _ v: Vec3<T>, _ factor: T) -> Vec3<T> {
+        v * factor
+    }
+
+    fn dot(mut self, _ a: Vec3<T>, _ b: Vec3<T>) -> T {
+        a.dot(b)
+    }
+
+    fn operations(self) -> u32 {
+        0
+    }
+}
+
+/// Operation-counting execution policy: preserves the exact value and
+/// evaluation sequence of pure arithmetic while tracking primitive calls.
+#[derive(Eq, Default)]
+pub struct CountedExecution { pub count: u32 }
+
+impl Copy for CountedExecution {}
+
+impl<T: Copy + Add<Output = T> + Mul<Output = T>> VectorExecution<Vec2<T>, T> for CountedExecution {
+    fn add(mut self, _ a: Vec2<T>, _ b: Vec2<T>) -> Vec2<T> {
+        self.count = self.count + 1
+        a + b
+    }
+
+    fn scale(mut self, _ v: Vec2<T>, _ factor: T) -> Vec2<T> {
+        self.count = self.count + 1
+        v * factor
+    }
+
+    fn dot(mut self, _ a: Vec2<T>, _ b: Vec2<T>) -> T {
+        self.count = self.count + 1
+        a.dot(b)
+    }
+
+    fn operations(self) -> u32 {
+        self.count
+    }
+}
+
+impl<T: Copy + Add<Output = T> + Mul<Output = T>> VectorExecution<Vec3<T>, T> for CountedExecution {
+    fn add(mut self, _ a: Vec3<T>, _ b: Vec3<T>) -> Vec3<T> {
+        self.count = self.count + 1
+        a + b
+    }
+
+    fn scale(mut self, _ v: Vec3<T>, _ factor: T) -> Vec3<T> {
+        self.count = self.count + 1
+        v * factor
+    }
+
+    fn dot(mut self, _ a: Vec3<T>, _ b: Vec3<T>) -> T {
+        self.count = self.count + 1
+        a.dot(b)
+    }
+
+    fn operations(self) -> u32 {
+        self.count
+    }
+}
+
+/// Interpolate as `start + (end - start) * amount`, preserving this order.
+/// The active execution capability owns scaling and addition; subtraction
+/// remains ordinary value algebra. Color blending uses this same program.
+pub fn interpolate<V: Copy + Sub<Output = V>, S: Copy>(
+    _ start: V,
+    _ end: V,
+    _ amount: S,
+) -> V
+uses (executor: mut VectorExecution<V, S>)
+{
+    let offset: V = end - start
+    let weighted: V = executor.scale(offset, amount)
+    executor.add(start, weighted)
+}
+
+/// Evaluate the linear combination `(a * alpha) + (b * beta)` and its inner
+/// product with `direction` under the active `VectorExecution` capability,
+/// returning the combined vector, the scalar projection and the executor's
+/// observed operation count.
+pub fn execute_linear_projection<V: Copy, S: Copy>(
+    _ a: V,
+    _ alpha: S,
+    _ b: V,
+    _ beta: S,
+    _ direction: V,
+) -> (V, S, u32)
+uses (executor: mut VectorExecution<V, S>)
+{
+    let left: V = executor.scale(a, alpha)
+    let right: V = executor.scale(b, beta)
+    let combined: V = executor.add(left, right)
+    let projection: S = executor.dot(combined, direction)
+    (combined, projection, executor.operations())
+}
+
+// ---------------------------------------------------------------------------
+// Native tests: exact integer laws and capability execution
+// ---------------------------------------------------------------------------
+
+#[test]
+fn vector_addition_scaling_dot_and_identities() {
+    let z2: Vec2<i32> = Vec2::zero()
+    let d2: Vec2<i32> = Vec2::default()
+    assert(z2 == d2)
+
+    let a: Vec2<i32> = Vec2 { x: 3, y: -4 }
+    let b: Vec2<i32> = Vec2 { x: -2, y: 7 }
+    let expected_sum: Vec2<i32> = Vec2 { x: 1, y: 3 }
+    let expected_diff: Vec2<i32> = Vec2 { x: 5, y: -11 }
+    let expected_scaled: Vec2<i32> = Vec2 { x: 9, y: -12 }
+    let expected_div: Vec2<i32> = Vec2 { x: 3, y: -4 }
+    let expected_neg: Vec2<i32> = Vec2 { x: -3, y: 4 }
+    assert(a + b == expected_sum)
+    assert(a - b == expected_diff)
+    assert(a * 3 == expected_scaled)
+    assert((a * 3) / 3 == expected_div)
+    assert(-a == expected_neg)
+    assert(a + z2 == a)
+    assert(a.dot(b) == -34)
+
+    let u: Vec3<i32> = Vec3 { x: 2, y: -3, z: 5 }
+    let v: Vec3<i32> = Vec3 { x: 4, y: 1, z: -2 }
+    let z3: Vec3<i32> = Vec3::zero()
+    let expected_u_plus_v: Vec3<i32> = Vec3 { x: 6, y: -2, z: 3 }
+    let expected_u_sub_v: Vec3<i32> = Vec3 { x: -2, y: -4, z: 7 }
+    assert(u + v == expected_u_plus_v)
+    assert(u - v == expected_u_sub_v)
+    assert(u + z3 == u)
+    assert(u.dot(v) == -5)
+}
+
+#[test]
+fn basis_cross_product_and_orientation() {
+    let ex: Vec3<i32> = Vec3 { x: 1, y: 0, z: 0 }
+    let ey: Vec3<i32> = Vec3 { x: 0, y: 1, z: 0 }
+    let ez: Vec3<i32> = Vec3 { x: 0, y: 0, z: 1 }
+    let zero: Vec3<i32> = Vec3::zero()
+
+    assert(ex.cross(ey) == ez)
+    assert(ey.cross(ez) == ex)
+    assert(ez.cross(ex) == ey)
+    assert(ey.cross(ex) == -ez)
+    assert(ex.cross(ex) == zero)
+
+    let a: Vec3<i32> = Vec3 { x: 2, y: -3, z: 4 }
+    let b: Vec3<i32> = Vec3 { x: -1, y: 5, z: 2 }
+    let c: Vec3<i32> = a.cross(b)
+    let expected_cross: Vec3<i32> = Vec3 { x: -26, y: -8, z: 7 }
+    assert(c == expected_cross)
+    assert(b.cross(a) == -c)
+    assert(c.dot(a) == 0)
+    assert(c.dot(b) == 0)
+}
+
+#[test]
+fn matrix_orientation_transpose_identity_and_composition() {
+    let m2: Mat2<i32> = Mat2::from_rows(Vec2 { x: 1, y: 2 }, Vec2 { x: 3, y: 4 })
+    let expected_c0: Vec2<i32> = Vec2 { x: 1, y: 3 }
+    let expected_c1: Vec2<i32> = Vec2 { x: 2, y: 4 }
+    assert(m2.c0 == expected_c0)
+    assert(m2.c1 == expected_c1)
+    assert(m2.transpose().transpose() == m2)
+
+    let id2: Mat2<i32> = Mat2::identity()
+    assert(id2 * m2 == m2)
+    assert(m2 * id2 == m2)
+
+    let v2: Vec2<i32> = Vec2 { x: 5, y: -2 }
+    let expected_m2_v2: Vec2<i32> = Vec2 { x: 1, y: 7 }
+    assert(m2.apply(v2) == expected_m2_v2)
+
+    let m3: Mat3<i32> = Mat3::from_rows(
+        Vec3 { x: 1, y: 2, z: 3 },
+        Vec3 { x: 0, y: -1, z: 4 },
+        Vec3 { x: 5, y: 6, z: 0 },
+    )
+    let n3: Mat3<i32> = Mat3::from_rows(
+        Vec3 { x: 2, y: 0, z: 1 },
+        Vec3 { x: -1, y: 3, z: 2 },
+        Vec3 { x: 4, y: -2, z: 1 },
+    )
+    let id3: Mat3<i32> = Mat3::identity()
+    assert(m3.transpose().transpose() == m3)
+    assert(id3 * m3 == m3)
+    assert(m3 * id3 == m3)
+
+    let v3: Vec3<i32> = Vec3 { x: 2, y: -3, z: 1 }
+    let expected_m3_v3: Vec3<i32> = Vec3 { x: -1, y: 7, z: -8 }
+    assert(m3.apply(v3) == expected_m3_v3)
+
+    let composed_vec: Vec3<i32> = (m3 * n3).apply(v3)
+    let sequential_vec: Vec3<i32> = m3.apply(n3.apply(v3))
+    let expected_composed: Vec3<i32> = Vec3 { x: 32, y: 69, z: -29 }
+    assert(composed_vec == sequential_vec)
+    assert(composed_vec == expected_composed)
+}
+
+#[test]
+fn complex_multiplication_imaginary_unit_and_conjugation() {
+    let zero: Complex<i32> = Complex::zero()
+    let one: Complex<i32> = Complex::one()
+    let i: Complex<i32> = Complex { re: 0, im: 1 }
+    let minus_one: Complex<i32> = Complex { re: -1, im: 0 }
+
+    assert(i * i == minus_one)
+    assert(one * i == i)
+    assert(i + zero == i)
+
+    let z: Complex<i32> = Complex { re: 3, im: -4 }
+    let w: Complex<i32> = Complex { re: -2, im: 5 }
+    let expected_prod: Complex<i32> = Complex { re: 14, im: 23 }
+    let expected_conj: Complex<i32> = Complex { re: 3, im: 4 }
+    let expected_scaled: Complex<i32> = Complex { re: -6, im: 8 }
+    let norm_sq: Complex<i32> = Complex { re: 25, im: 0 }
+
+    assert(z * w == expected_prod)
+    assert(z.conjugate() == expected_conj)
+    assert(z.conjugate().conjugate() == z)
+    assert(z * z.conjugate() == norm_sq)
+    assert(z.scale(-2) == expected_scaled)
+}
+
+#[test]
+fn explicit_execution_capability_preserves_values_and_tracks_scope() {
+    let a: Vec3<i32> = Vec3 { x: 2, y: -1, z: 3 }
+    let b: Vec3<i32> = Vec3 { x: -4, y: 5, z: 1 }
+    let direction: Vec3<i32> = Vec3 { x: 1, y: 2, z: -1 }
+
+    let pure_combined: Vec3<i32> = (a * 3) + (b * 2)
+    let pure_projection: i32 = pure_combined.dot(direction)
+    let expected_combined: Vec3<i32> = Vec3 { x: -2, y: 7, z: 11 }
+    assert(pure_combined == expected_combined)
+    assert(pure_projection == 1)
+
+    let direct = with (VectorExecution<Vec3<i32>, i32> = DirectExecution {}) {
+        execute_linear_projection(a, 3, b, 2, direction)
+    }
+    assert(direct.0 == pure_combined)
+    assert(direct.1 == pure_projection)
+    assert(direct.2 == 0)
+
+    let counted_fresh = with (VectorExecution<Vec3<i32>, i32> = CountedExecution { count: 0 }) {
+        execute_linear_projection(a, 3, b, 2, direction)
+    }
+    assert(counted_fresh.0 == pure_combined)
+    assert(counted_fresh.1 == pure_projection)
+    assert(counted_fresh.2 == 4)
+
+    let counted_seeded = with (VectorExecution<Vec3<i32>, i32> = CountedExecution { count: 100 }) {
+        execute_linear_projection(a, 3, b, 2, direction)
+    }
+    assert(counted_seeded.0 == pure_combined)
+    assert(counted_seeded.1 == pure_projection)
+    assert(counted_seeded.2 == 104)
+}
+
+fn observe_interpolation() -> (Vec3<i32>, u32)
+uses (executor: mut VectorExecution<Vec3<i32>, i32>)
+{
+    let start: Vec3<i32> = Vec3 { x: 2, y: -1, z: 3 }
+    let end: Vec3<i32> = Vec3 { x: -4, y: 5, z: 1 }
+    let value: Vec3<i32> = interpolate(start, end, 2)
+    (value, executor.operations())
+}
+
+#[test]
+fn interpolation_obeys_the_selected_execution_capability() {
+    let expected: Vec3<i32> = Vec3 { x: -10, y: 11, z: -1 }
+    let direct = with (VectorExecution<Vec3<i32>, i32> = DirectExecution {}) {
+        observe_interpolation()
+    }
+    let counted = with (VectorExecution<Vec3<i32>, i32> = CountedExecution { count: 40 }) {
+        observe_interpolation()
+    }
+    assert(direct.0 == expected)
+    assert(counted.0 == expected)
+    assert(direct.1 == 0)
+    assert(counted.1 == 42)
+}

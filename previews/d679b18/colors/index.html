@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fe color lab</title><style>
+:root{color-scheme:dark;background:#0c1018;color:#e6e5f1;font:15px/1.5 system-ui,sans-serif}
+body{max-width:1080px;margin:28px auto;padding:0 20px}a{color:oklch(80% .12 285)}
+nav{display:flex;gap:20px;flex-wrap:wrap}h1{font-weight:500;margin-bottom:6px}p{max-width:65ch;color:#b9bdd0}
+fe-surface{width:min(720px,100%);max-width:100%;margin:20px 0}
+fe-surface::part(panel){display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+fe-surface::part(side){margin-top:16px}fe-surface::part(meta),fe-surface::part(badge){display:none}
+@media(max-width:650px){fe-surface::part(panel){grid-template-columns:1fr}}
+</style></head><body>
+<nav><a href="../index.html">Mandelbrot</a><a href="../viewer/index.html" target="_blank" rel="noopener">Fe source viewer</a></nav>
+<h1>Fe color lab</h1><p>Rich colors with perceptual blending. Drag to adjust hue and lightness, or use the controls.</p>
+<p>Top: OKLCH hue sweep. Middle: an OKLab blend between two hues. Bottom: lightness from left to right, chroma from top to bottom. Out-of-gamut colors clip to sRGB.</p>
+<fe-surface state="live" boot="manual" manifest="321d18942a5fe97e183ede1b/manifest.json"></fe-surface><p id="status" role="status">Preparing colors…</p>
+<script type="module">
+import './321d18942a5fe97e183ede1b/fe-render-runtime.js';
+const s=document.querySelector('fe-surface'),status=document.querySelector('#status');
+s.addEventListener('fe-error',e=>{status.hidden=false;status.textContent=e.detail?.message||'Rendering stopped';});
+try{await s.load();await s.live();if(s.state!=='error')status.hidden=true;}catch(e){status.textContent=e.message;}
+</script></body></html>
