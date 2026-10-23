@@ -1,0 +1,6 @@
+{
+  "source": "62840e4c6a8b2105f9f3533a9bf791090f15bd69",
+  "sourceHash": "465f6bd7c8797c3e601ba99988e9f734ef6be5f9c4aabccea9b1e7cd2be470f2",
+  "allSourceViewsExact": true,
+  "knownLimitation": "Full browser smoke loses GPU device during readback; phone testing requested"
+}

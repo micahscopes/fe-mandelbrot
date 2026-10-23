@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0c1018">
+<meta name="description" content="A richly colored Mandelbrot explorer written in Fe, running on WebGPU.">
+<title>Fe Mandelbrot</title>
+<link rel="stylesheet" href="style.css?v=4b9709fcb4148c51">
+</head>
+<body>
+<fe-surface state="live" boot="manual" manifest="renderer/f9961fdc519e28620219e78a/manifest.json"></fe-surface>
+<nav aria-label="Explorer"><span class="brand">Fe Mandelbrot</span><a href="colors/index.html">Colors</a><a href="viewer/index.html" target="_blank" rel="noopener">Source</a><a href="https://github.com/micahscopes/fe-mandelbrot" target="_blank" rel="noopener">GitHub</a><button id="controls" aria-label="Show all controls">Settings</button></nav>
+<p id="status" role="status">Loading Fe program…</p>
+<script type="module">
+import './renderer/f9961fdc519e28620219e78a/fe-render-runtime.js';
+const surface=document.querySelector('fe-surface'),status=document.querySelector('#status');
+document.querySelector('#controls').onclick=()=>surface.toggleAttribute('show-controls');
+surface.addEventListener('fe-progress',event=>{if(surface.state!=='live'){status.hidden=false;status.textContent=`Preparing GPU pipeline ${event.detail.index}/${event.detail.total}: ${event.detail.pass}…`;}});
+surface.addEventListener('fe-error',event=>{status.hidden=false;status.textContent=event.detail?.message||'Rendering stopped';});
+try {await surface.load();status.textContent="Preparing GPU pipelines…";await surface.live();if(surface.state!=='error')status.hidden=true;}catch(error){status.textContent=error.message;}
+</script>
+</body></html>

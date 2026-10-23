@@ -1,0 +1,280 @@
+{
+  "protocol": "fe-web-bundle",
+  "protocol_version": 13,
+  "source_entry": "shade",
+  "artifacts": {
+    "wasm": "module.wasm",
+    "wasm_bytes": 5381,
+    "wgsl": "shader.wgsl",
+    "wgsl_bytes": 7065,
+    "canonical_adapters": []
+  },
+  "layout": {
+    "entry_point": "fs_main",
+    "mode": "render",
+    "workgroup_size": [
+      0,
+      0,
+      0
+    ],
+    "word": "u32",
+    "word_bytes": 4,
+    "bindings": [
+      {
+        "group": 0,
+        "binding": 1,
+        "name": "input",
+        "access": "read",
+        "role": "input",
+        "shader_stages": [
+          "fragment"
+        ],
+        "stride": 16,
+        "span": 16,
+        "members": [
+          {
+            "name": "hue",
+            "doc": null,
+            "arg_index": 2,
+            "offset": 0,
+            "width": 4,
+            "scalar": "f32"
+          },
+          {
+            "name": "chroma",
+            "doc": null,
+            "arg_index": 3,
+            "offset": 4,
+            "width": 4,
+            "scalar": "f32"
+          },
+          {
+            "name": "lightness",
+            "doc": null,
+            "arg_index": 4,
+            "offset": 8,
+            "width": 4,
+            "scalar": "f32"
+          },
+          {
+            "name": "res",
+            "doc": null,
+            "arg_index": 5,
+            "offset": 12,
+            "width": 4,
+            "scalar": "f32"
+          }
+        ]
+      }
+    ],
+    "builtin_inputs": [
+      {
+        "arg_index": 0,
+        "source": "fragment_position_x",
+        "scalar": "i32"
+      },
+      {
+        "arg_index": 1,
+        "source": "fragment_position_y",
+        "scalar": "i32"
+      }
+    ],
+    "result": null,
+    "vertex_entry": "vs_fullscreen",
+    "fragment_entry": "fs_main",
+    "color_target_format": "rgba8unorm"
+  },
+  "resources": [],
+  "passes": [
+    {
+      "source_entry": "shade",
+      "shader": "shader.wgsl",
+      "shader_bytes": 7065,
+      "shader_stages": [
+        "fragment"
+      ],
+      "layout": {
+        "entry_point": "fs_main",
+        "mode": "render",
+        "workgroup_size": [
+          0,
+          0,
+          0
+        ],
+        "word": "u32",
+        "word_bytes": 4,
+        "bindings": [
+          {
+            "group": 0,
+            "binding": 1,
+            "name": "input",
+            "access": "read",
+            "role": "input",
+            "shader_stages": [
+              "fragment"
+            ],
+            "stride": 16,
+            "span": 16,
+            "members": [
+              {
+                "name": "hue",
+                "doc": null,
+                "arg_index": 2,
+                "offset": 0,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "chroma",
+                "doc": null,
+                "arg_index": 3,
+                "offset": 4,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "lightness",
+                "doc": null,
+                "arg_index": 4,
+                "offset": 8,
+                "width": 4,
+                "scalar": "f32"
+              },
+              {
+                "name": "res",
+                "doc": null,
+                "arg_index": 5,
+                "offset": 12,
+                "width": 4,
+                "scalar": "f32"
+              }
+            ]
+          }
+        ],
+        "builtin_inputs": [
+          {
+            "arg_index": 0,
+            "source": "fragment_position_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 1,
+            "source": "fragment_position_y",
+            "scalar": "i32"
+          }
+        ],
+        "result": null,
+        "vertex_entry": "vs_fullscreen",
+        "fragment_entry": "fs_main",
+        "color_target_format": "rgba8unorm"
+      }
+    }
+  ],
+  "surface": {
+    "extent": {
+      "width": 768,
+      "height": 768,
+      "dpr": "auto",
+      "filter": "smooth"
+    },
+    "pipeline": {
+      "kind": "authored_raster"
+    },
+    "params": [
+      {
+        "name": "hue",
+        "kind": "range",
+        "min": 0.0,
+        "max": 360.0,
+        "init": 275.0,
+        "source": "initial",
+        "presentation": {
+          "widget": "range",
+          "scale": "linear",
+          "readout": "scalar"
+        }
+      },
+      {
+        "name": "chroma",
+        "kind": "range",
+        "min": 0.0,
+        "max": 0.25,
+        "init": 0.18,
+        "source": "initial",
+        "presentation": {
+          "widget": "range",
+          "scale": "linear",
+          "readout": "scalar"
+        }
+      },
+      {
+        "name": "lightness",
+        "kind": "range",
+        "min": 0.1,
+        "max": 0.95,
+        "init": 0.65,
+        "source": "initial",
+        "presentation": {
+          "widget": "range",
+          "scale": "linear",
+          "readout": "scalar"
+        }
+      },
+      {
+        "name": "res",
+        "kind": "extent_x",
+        "source": "surface_width",
+        "presentation": {
+          "widget": "hidden",
+          "scale": "linear",
+          "readout": "scalar"
+        },
+        "visible": false
+      }
+    ],
+    "state": {
+      "kind": "params"
+    },
+    "pointer_motion": "captured_drag",
+    "activate": "pointer"
+  },
+  "provenance": {
+    "compiler": "fe",
+    "compiler_version": "26.2.0",
+    "source_id": null,
+    "authored_sources": [],
+    "non_fe_authored_sources": [],
+    "generated_artifacts": [
+      "manifest",
+      "wasm",
+      "wgsl"
+    ],
+    "fe_responsibilities": [
+      "gpu_program",
+      "surface_declaration",
+      "control_transition",
+      "backing_quality_policy",
+      "device_recovery_policy"
+    ],
+    "fixed_host": {
+      "name": "fe-render-runtime",
+      "contract": "fixed_versioned_demo_blind_browser_host",
+      "responsibilities": [
+        "dom_surface",
+        "input_transport",
+        "presentation_scheduler",
+        "device_capability_facts",
+        "web_gpu_executor",
+        "lifecycle",
+        "wasm_loader"
+      ]
+    }
+  },
+  "canonical_interface": null,
+  "canonical_status": {
+    "policy": "disabled",
+    "embedded": false,
+    "omission_reason": "canonical interface was not requested"
+  },
+  "browser_runtime": null
+}
