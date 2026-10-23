@@ -97,6 +97,11 @@ impl NativeCheckpoint {
         self.payload.im
     }
 
+    /// Partial deltas remain resumable; only a finished sample becomes visible.
+    pub fn present_if_terminal(self, _ limit: u32, _ clock: f32) -> Self {
+        if self.is_terminal(limit) { self.with_fade_start(clock) } else { self }
+    }
+
     pub fn with_fade_start(self, _ clock: f32) -> Self {
         NativeCheckpoint {
             control: self.control | SAMPLE_PAYLOAD | PROGRESS_PRESENTABLE_BIT,
@@ -213,4 +218,22 @@ pub fn continue_native_pixel(
         steps = steps + 1
     }
     current
+}
+
+#[test]
+fn partial_checkpoint_is_not_published_as_a_finished_sample() {
+    let initial = NativeCheckpoint::initial(7)
+    let partial = initial.present_if_terminal(128, 0.0)
+    assert(!partial.is_presentable())
+    assert(!partial.is_terminal(128))
+    assert(partial.iteration() == 0 && partial.reference_index() == 0)
+    assert(partial.epoch == 7)
+    let exhausted = NativeCheckpoint {
+        control: 128 << ITERATION_SHIFT,
+        epoch: 7,
+        payload: Complex::default(),
+    }
+    let finished = exhausted.present_if_terminal(128, 0.0)
+    assert(finished.is_terminal(128) && finished.is_presentable())
+    assert(finished.iteration() == 128 && finished.epoch == 7)
 }

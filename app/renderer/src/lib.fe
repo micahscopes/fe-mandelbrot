@@ -623,12 +623,12 @@ actor SmoothPerturbationalMandelbrot uses (
             s.camera,
             pixel.sample(),
             limit,
-            limit,
+            ingot::partition::REFINEMENT_QUANTUM,
             saved,
         )
         self.progress_pixels.store(
             index: index,
-            value: next.with_fade_start(s.clock),
+            value: next.present_if_terminal(limit, s.clock),
         )
         let bits: u32 = next.color()
         self.native_pixels.store(index: index, value: bits)
@@ -670,15 +670,11 @@ actor SmoothPerturbationalMandelbrot uses (
             s.camera,
             pixel.sample(),
             schedule.limit,
-            2048,
+            schedule.quantum,
             saved,
         )
         // The finished checkpoint carries the exact magnitude and fade start time.
-        let stored: NativeCheckpoint = if next.is_terminal(schedule.limit) {
-            next.with_fade_start(s.clock)
-        } else {
-            next
-        }
+        let stored: NativeCheckpoint = next.present_if_terminal(schedule.limit, s.clock)
         self.progress_pixels.store(index: index, value: stored)
         let bits: u32 = next.color()
         self.native_pixels.store(index: index, value: bits)
