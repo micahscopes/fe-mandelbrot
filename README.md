@@ -216,7 +216,8 @@ representable inverse map. As with the other floating-point algebra primitives,
 callers own that domain; it is not an arbitrary-input matrix validation API.
 
 
-GPU camera tracing is temporarily available with `?trace=1`. Fe reads back one
+GPU camera tracing is temporarily available with `?trace=1`; other query
+parameters are ignored and neither enable nor disable it (`tests/trace-query.mjs`). Fe reads back one
 56-byte observation per frame and appends the last completed observation to the
 view URL as `~g:` followed by fourteen hexadecimal words. Ordinary view URLs
 remain unchanged; diagnostic words are never restored as camera state. The
@@ -226,3 +227,22 @@ and the reprojected center tap. This diagnostic adds two small GPU passes and a 
 intended to locate the outstanding physical-phone rendering failure. The URL
 contains the last observation available when input synchronizes location, so
 its GPU camera may precede the CPU camera by a frame.
+
+### Camera arithmetic probe
+
+`tests/camera-delta-gpu` runs the production frame-scope camera difference
+(`precision::array_fixed::expansion_difference<10>`) and its stages on a
+device's own GPU, one single-invocation workgroup per case, and compares every
+word with the exact rational model in `oracle.py`. The corpus includes the
+camera pairs reported by the Pixel. The stages (conversion digits and signs,
+binary32 projection, subtraction) are reported separately, so a failure points
+at one operation.
+
+```sh
+fe web build tests/camera-delta-gpu --out /tmp/camera-delta-gpu
+node tests/camera-delta-gpu/assemble.mjs /tmp/camera-delta-gpu /tmp/camera-delta-site
+OWNED_SOFTWARE_BROWSER=1 node tests/camera-delta-gpu/gpu.mjs /tmp/camera-delta-site /tmp/receipt.json
+```
+
+The assembled directory is a static page; `previews/camera-delta-probe/` serves
+it on Pages. Software-GPU results do not describe a physical phone.

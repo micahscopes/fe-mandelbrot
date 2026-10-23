@@ -4,7 +4,7 @@
   "source_entry": "display_preview",
   "artifacts": {
     "wasm": "module.wasm",
-    "wasm_bytes": 103643,
+    "wasm_bytes": 103012,
     "wgsl": "passes/019-fragment.wgsl",
     "wgsl_bytes": 24694,
     "canonical_adapters": []

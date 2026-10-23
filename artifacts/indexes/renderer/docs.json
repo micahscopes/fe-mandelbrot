@@ -46445,7 +46445,7 @@
             "text": "UrlDecodeState"
           },
           {
-            "text": "::initial().step(0, 35)\n    let mut i: u32 = 0\n    while i < length {\n        decoder = decoder.step(i + 1, hash.byte(index: i))\n        i = i + 1\n    }\n    decoder.finish(length + 1, fallback, bounds)\n}\n\nfn write_u32_cell(address: u32, value: u32) {\n    let cell: BrowserPtr<u32> = BrowserPtr::from_u32(address)\n    cell.write(value)\n}\n\nfn write_u8_cell(address: u32, value: u8) {\n    let cell: BrowserPtr<u8> = BrowserPtr::from_u32(address)\n    cell.write(value)\n}\n\n/// Synchronize resident Mandelbrot view state with the `#v1:...` URL fragment and emit\n/// the canonical `#v1:...` fragment into `event.out_ptr`.\n/// Only the URL hash fragment is owned by view persistence; any query parameters on the URL\n/// are ignored during decoding and preserved untouched by the host transport.\npub fn sync_url_state(\n    _ state: "
+            "text": "::initial().step(0, 35)\n    let mut i: u32 = 0\n    while i < length {\n        decoder = decoder.step(i + 1, hash.byte(index: i))\n        i = i + 1\n    }\n    decoder.finish(length + 1, fallback, bounds)\n}\n\nfn write_u32_cell(address: u32, value: u32) {\n    let cell: BrowserPtr<u32> = BrowserPtr::from_u32(address)\n    cell.write(value)\n}\n\nfn write_u8_cell(address: u32, value: u8) {\n    let cell: BrowserPtr<u8> = BrowserPtr::from_u32(address)\n    cell.write(value)\n}\n\n/// True when one `&`-separated query pair is exactly `trace=1`. Other parameters, such\n/// as cache-busters or tracking tags, neither enable nor disable the diagnostic.\nfn query_enables_trace(_ query: Utf8View) -> bool {\n    let length: u32 = query.len()\n    let mut start: u32 = 0\n    let mut index: u32 = 0\n    while index <= length {\n        if index == length || query.byte(index: index) == 38 {\n            let pair = query.slice(start: start, end: index)\n            if pair.valid && pair.view.equals_literal([116, 114, 97, 99, 101, 61, 49]) {\n                return true\n            }\n            start = index + 1\n        }\n        index = index + 1\n    }\n    false\n}\n\n/// Synchronize resident Mandelbrot view state with the `#v1:...` URL fragment and emit\n/// the canonical `#v1:...` fragment into `event.out_ptr`.\n/// Only the URL hash fragment is owned by view persistence; any query parameters on the URL\n/// are ignored during decoding and preserved untouched by the host transport.\npub fn sync_url_state(\n    _ state: "
           },
           {
             "link": "perturbational_mandelbrot_smooth::policy::MandelbrotViewState/struct",
@@ -46508,14 +46508,21 @@
             "text": "policy_persisted_bounds"
           },
           {
-            "text": "()\n        if event.input_len == 0 || event.input_ptr == 0 {\n            next_state = fallback.apply_to(next_state)\n        } else {\n            let location = parse_location(BrowserString {\n                ptr: event.input_ptr,\n                len: event.input_len,\n            })\n            if !location.valid {\n                next_state = fallback.apply_to(next_state)\n            } else {\n                let trace = location.query.single([116, 114, 97, 99, 101])\n                next_state.trace."
+            "text": "()\n        if event.input_len == 0 || event.input_ptr == 0 {\n            next_state = fallback.apply_to(next_state)\n        } else {\n            let location = parse_location(BrowserString {\n                ptr: event.input_ptr,\n                len: event.input_len,\n            })\n            if !location.valid {\n                next_state = fallback.apply_to(next_state)\n            } else {\n                next_state.trace."
           },
           {
             "link": "perturbational_mandelbrot_smooth::trace::CameraTrace/struct~field.enabled",
             "text": "enabled"
           },
           {
-            "text": " = trace.valid && trace.present\n                    && trace.value.equals_literal([49])\n                let hash: Utf8View = location.hash.view()\n                if hash.is_empty() {\n                    next_state = fallback.apply_to(next_state)\n                } else {\n                    let decoded: "
+            "text": " = "
+          },
+          {
+            "link": "perturbational_mandelbrot_smooth::url::query_enables_trace/fn",
+            "text": "query_enables_trace"
+          },
+          {
+            "text": "(location.query.view())\n                let hash: Utf8View = location.hash.view()\n                if hash.is_empty() {\n                    next_state = fallback.apply_to(next_state)\n                } else {\n                    let decoded: "
           },
           {
             "link": "perturbational_mandelbrot_smooth::url::DecodedPersistedView/struct",
@@ -46631,13 +46638,13 @@
           }
         ],
         "sig_scope": "__sig__/perturbational_mandelbrot_smooth::url/mod",
-        "signature": "use core::{BrowserPtr, BrowserString, Copy}\nuse core::default::Default\nuse core::ops::Eq\nuse std::text::Utf8View\nuse std::web::navigation::parse_location\nuse ingot::policy::{\n    MandelbrotViewState,\n    Camera,\n    Coordinate,\n    BackingRequest,\n    initial_view,\n    CENTER_X_MIN,\n    CENTER_X_MAX,\n    CENTER_Y_MIN,\n    CENTER_Y_MAX,\n    ZOOM_MIN,\n    ZOOM_MAX,\n}\n\nuse algebra::Complex\nuse precision::{from_quad, to_quad}\nuse ingot::interaction::GestureSession\n\nextern {\n    const fn __bitcast<From, To>(_: From) -> To\n}\n\n// Version 2 canonical URL fragment format (120 ASCII bytes):\n// `#v1:<cx0>.<cx1>.<cx2>.<cx3>:<cy0>.<cy1>.<cy2>.<cy3>:<zoom>:<res>:<aa>`\n// Version 2 appends `:<orientation-re>:<orientation-im>`; version 1 restores identity.\n// Each field is an exact 8-digit lowercase hexadecimal IEEE-754 f32 word,\n// preserving all finite bit patterns including signed zero (-0.0 = 0x80000000).\npub const URL_V1_ENCODED_LEN: u32 = 102\npub const URL_ENCODED_LEN: u32 = 120\n\npub const F32_ZERO_BITS: u32 = 0x00000000 // +0.0\npub const F32_NEG_ZERO_BITS: u32 = 0x80000000 // -0.0\npub const F32_ONE_BITS: u32 = 0x3f800000 // 1.0\npub const F32_RES_512_BITS: u32 = 0x44000000 // 512.0\npub const F32_RES_1024_BITS: u32 = 0x44800000 // 1024.0\npub const F32_RES_2048_BITS: u32 = 0x45000000 // 2048.0\n\n/// Exact IEEE-754 bit words of a four-word expansion (`QuadFloat`).\npub struct QuadWordBits {\n    pub w0: u32,\n    pub w1: u32,\n    pub w2: u32,\n    pub w3: u32,\n}\n\nimpl Copy for QuadWordBits {}\nderive Eq for QuadWordBits\nderive Default for QuadWordBits\n\nimpl QuadWordBits {\n    pub fn expansion(self) -> precision::Expansion<4> {\n        from_quad(\n            __bitcast<u32, f32>(self.w0),\n            __bitcast<u32, f32>(self.w1),\n            __bitcast<u32, f32>(self.w2),\n            __bitcast<u32, f32>(self.w3),\n        )\n    }\n}\n\n/// Meaningful user-facing view state persisted in the URL fragment (`#v1:...`).\n/// Excludes transient clocks, drag flags, and derived magnification readouts.\npub struct PersistedView {\n    pub center_x: QuadWordBits,\n    pub center_y: QuadWordBits,\n    pub zoom_bits: u32,\n    pub res_bits: u32,\n    pub antialias_bits: u32,\n    pub orientation_re_bits: u32,\n    pub orientation_im_bits: u32,\n}\n\nimpl Copy for PersistedView {}\nderive Eq for PersistedView\nderive Default for PersistedView\n\n/// Camera and parameter domain bounds derived from `ingot::policy`.\npub struct PersistedBounds {\n    pub center_x_min_bits: u32,\n    pub center_x_max_bits: u32,\n    pub center_y_min_bits: u32,\n    pub center_y_max_bits: u32,\n    pub zoom_min_bits: u32,\n    pub zoom_max_bits: u32,\n}\n\nimpl Copy for PersistedBounds {}\nderive Eq for PersistedBounds\n\npub struct DecodedPersistedView {\n    pub view: PersistedView,\n    pub valid: bool,\n}\n\nimpl Copy for DecodedPersistedView {}\nderive Eq for DecodedPersistedView\n\n/// Generic surface location synchronization event lowered to `fe_surface_location_v1`.\npub use std::web::view::SurfaceLocationEvent\n\npub fn raw_f32_bits(_ value: f32) -> u32 {\n    __bitcast<f32, u32>(value)\n}\n\npub fn is_finite_f32_bits(_ raw: u32) -> bool {\n    ((raw >> 23) & 255) != 255\n}\n\nfn unsigned_zero_bits(_ raw: u32) -> u32 {\n    if (raw & 2147483647) == 0 {\n        0\n    } else {\n        raw\n    }\n}\n\n/// Sign-magnitude IEEE-754 numeric ordering on finite f32 bit patterns (`left <= right`),\n/// treating `-0.0` and `+0.0` as numerically equal for range bounds while preserving raw bits elsewhere.\npub fn f32_bits_le(_ left: u32, _ right: u32) -> bool {\n    let a: u32 = unsigned_zero_bits(left)\n    let b: u32 = unsigned_zero_bits(right)\n    let a_neg: bool = (a >> 31) != 0\n    let b_neg: bool = (b >> 31) != 0\n    if a_neg && !b_neg {\n        return true\n    }\n    if !a_neg && b_neg {\n        return false\n    }\n    if !a_neg && !b_neg {\n        return a <= b\n    }\n    a >= b\n}\n\npub fn f32_bits_in_range(_ value_bits: u32, _ min_bits: u32, _ max_bits: u32) -> bool {\n    is_finite_f32_bits(value_bits)\n        && f32_bits_le(min_bits, value_bits)\n        && f32_bits_le(value_bits, max_bits)\n}\n\n/// Exact IEEE-754 binary32 non-overlapping pair condition (`round_to_nearest_even(hi + lo) == hi`):\n/// `|lo| <= 0.5 * ulp(hi)` (with tie-to-even when `|lo| == 0.5 * ulp(hi)`).\npub fn f32_bits_non_overlapping(_ hi_bits: u32, _ lo_bits: u32) -> bool {\n    let hi_mag: u32 = hi_bits & 2147483647\n    let lo_mag: u32 = lo_bits & 2147483647\n    if lo_mag == 0 {\n        return true\n    }\n    if hi_mag == 0 {\n        return false\n    }\n    let hi_exp: u32 = (hi_mag >> 23) & 255\n    if hi_exp <= 1 {\n        return false\n    }\n    let half_ulp_mag: u32 = if hi_exp > 24 {\n        (hi_exp - 24) << 23\n    } else {\n        1 << (hi_exp - 2)\n    }\n    lo_mag < half_ulp_mag || (lo_mag == half_ulp_mag && (hi_bits & 1) == 0)\n}\n\nfn first_nonzero_is_negative(_ w1: u32, _ w2: u32, _ w3: u32) -> bool {\n    if (w1 & 2147483647) != 0 {\n        return (w1 >> 31) != 0\n    }\n    if (w2 & 2147483647) != 0 {\n        return (w2 >> 31) != 0\n    }\n    if (w3 & 2147483647) != 0 {\n        return (w3 >> 31) != 0\n    }\n    false\n}\n\nfn first_nonzero_is_positive(_ w1: u32, _ w2: u32, _ w3: u32) -> bool {\n    if (w1 & 2147483647) != 0 {\n        return (w1 >> 31) == 0\n    }\n    if (w2 & 2147483647) != 0 {\n        return (w2 >> 31) == 0\n    }\n    if (w3 & 2147483647) != 0 {\n        return (w3 >> 31) == 0\n    }\n    false\n}\n\n/// Derive camera domain bounds directly from `ingot::policy` constants.\npub fn policy_persisted_bounds() -> PersistedBounds {\n    PersistedBounds {\n        center_x_min_bits: raw_f32_bits(CENTER_X_MIN),\n        center_x_max_bits: raw_f32_bits(CENTER_X_MAX),\n        center_y_min_bits: raw_f32_bits(CENTER_Y_MIN),\n        center_y_max_bits: raw_f32_bits(CENTER_Y_MAX),\n        zoom_min_bits: raw_f32_bits(ZOOM_MIN),\n        zoom_max_bits: raw_f32_bits(ZOOM_MAX),\n    }\n}\n\n/// Derive the default persisted view directly from `policy::initial_view()`,\n/// preserving the current backing resolution when valid.\npub fn default_persisted_view(_ current_res: f32) -> PersistedView {\n    let mut base: PersistedView = PersistedView::from_state(initial_view())\n    let current_res_bits: u32 = raw_f32_bits(current_res)\n    if f32_bits_in_range(current_res_bits, F32_ONE_BITS, F32_RES_2048_BITS) {\n        base.res_bits = current_res_bits\n    } else {\n        base.res_bits = F32_RES_512_BITS\n    }\n    base\n}\n\nimpl PersistedView {\n    pub fn from_state(_ state: MandelbrotViewState) -> Self {\n        let (x0, x1, x2, x3) = to_quad(state.camera.center.re.value)\n        let (y0, y1, y2, y3) = to_quad(state.camera.center.im.value)\n        Self {\n            center_x: QuadWordBits {\n                w0: raw_f32_bits(x0),\n                w1: raw_f32_bits(x1),\n                w2: raw_f32_bits(x2),\n                w3: raw_f32_bits(x3),\n            },\n            center_y: QuadWordBits {\n                w0: raw_f32_bits(y0),\n                w1: raw_f32_bits(y1),\n                w2: raw_f32_bits(y2),\n                w3: raw_f32_bits(y3),\n            },\n            zoom_bits: raw_f32_bits(state.camera.zoom),\n            res_bits: raw_f32_bits(state.camera.res),\n            antialias_bits: raw_f32_bits(state.antialias),\n            orientation_re_bits: raw_f32_bits(state.camera.orientation.re),\n            orientation_im_bits: raw_f32_bits(state.camera.orientation.im),\n        }\n    }\n\n    pub fn apply_to(self, _ base: MandelbrotViewState) -> MandelbrotViewState {\n        let zoom: f32 = __bitcast<u32, f32>(self.zoom_bits)\n        let mut next: MandelbrotViewState = base\n        next.camera = Camera {\n            center: Complex {\n                re: Coordinate { value: self.center_x.expansion() },\n                im: Coordinate { value: self.center_y.expansion() },\n            },\n            zoom: zoom,\n            res: __bitcast<u32, f32>(self.res_bits),\n            orientation: Complex { re: __bitcast<u32, f32>(self.orientation_re_bits), im: __bitcast<u32, f32>(self.orientation_im_bits) },\n        }\n        next.gesture = GestureSession::empty()\n        next.antialias = __bitcast<u32, f32>(self.antialias_bits)\n        next.drag_active = 0.0\n        next.magnification = 3.0 / zoom\n        next\n    }\n\n    pub fn word(self, _ field: u32) -> u32 {\n        match field {\n            0 => self.center_x.w0\n            1 => self.center_x.w1\n            2 => self.center_x.w2\n            3 => self.center_x.w3\n            4 => self.center_y.w0\n            5 => self.center_y.w1\n            6 => self.center_y.w2\n            7 => self.center_y.w3\n            8 => self.zoom_bits\n            9 => self.res_bits\n            10 => self.antialias_bits\n            11 => self.orientation_re_bits\n            _ => self.orientation_im_bits\n        }\n    }\n\n    pub fn with_word(self, _ field: u32, _ word: u32) -> Self {\n        let mut out: Self = self\n        match field {\n            0 => { out.center_x.w0 = word }\n            1 => { out.center_x.w1 = word }\n            2 => { out.center_x.w2 = word }\n            3 => { out.center_x.w3 = word }\n            4 => { out.center_y.w0 = word }\n            5 => { out.center_y.w1 = word }\n            6 => { out.center_y.w2 = word }\n            7 => { out.center_y.w3 = word }\n            8 => { out.zoom_bits = word }\n            9 => { out.res_bits = word }\n            10 => { out.antialias_bits = word }\n            11 => { out.orientation_re_bits = word }\n            _ => { out.orientation_im_bits = word }\n        }\n        out\n    }\n\n    /// Denotation of the encoded `#v1:...` string as a pure function `index (0..102) -> u8`.\n    pub fn encoded_byte(self, _ index: u32) -> u8 {\n        if index < 4 {\n            return expected_prefix_byte(index)\n        }\n        let rel: u32 = index - 4\n        let field: u32 = rel / 9\n        let slot: u32 = rel % 9\n        if slot == 8 {\n            return expected_separator(field)\n        }\n        let word: u32 = self.word(field)\n        let shift: u32 = (7 - slot) * 4\n        hex_digit(word >> shift)\n    }\n}\n\n/// Validate the full canonical `Expansion<4>` contract within `[lower_bits, upper_bits]`:\n/// 1. Every limb `w0..w3` is finite.\n/// 2. The primary word `w0` lies within `[lower_bits, upper_bits]`.\n/// 3. Adjacent words satisfy the Dekker/Priest non-overlapping rounding-error invariant:\n///    `(w0 + w1) == w0`, `(w1 + w2) == w1`, and `(w2 + w3) == w2` in IEEE-754 binary32,\n///    which prevents finite-but-huge low words from shifting `w0` or poisoning expansion math.\n/// 4. At exact boundary endpoints (`w0 == lower_bits` or `w0 == upper_bits`), low words cannot\n///    push the expansion sum outside `[lower_bits, upper_bits]`.\nfn is_valid_quad(_ q: QuadWordBits, _ lower_bits: u32, _ upper_bits: u32) -> bool {\n    if !f32_bits_in_range(q.w0, lower_bits, upper_bits)\n        || !is_finite_f32_bits(q.w1)\n        || !is_finite_f32_bits(q.w2)\n        || !is_finite_f32_bits(q.w3)\n    {\n        return false\n    }\n    if !f32_bits_non_overlapping(q.w0, q.w1)\n        || !f32_bits_non_overlapping(q.w1, q.w2)\n        || !f32_bits_non_overlapping(q.w2, q.w3)\n    {\n        return false\n    }\n    let w0: u32 = unsigned_zero_bits(q.w0)\n    if w0 == unsigned_zero_bits(lower_bits) && first_nonzero_is_negative(q.w1, q.w2, q.w3) {\n        return false\n    }\n    if w0 == unsigned_zero_bits(upper_bits) && first_nonzero_is_positive(q.w1, q.w2, q.w3) {\n        return false\n    }\n    true\n}\n\n/// Resolutions are positive whole pixel counts. Restricting the exponent\n/// before building the fractional mask keeps every shift within u32 width.\nfn is_whole_resolution(_ bits: u32) -> bool {\n    let exponent: u32 = (bits >> 23) & 255\n    if exponent < 127 || exponent > 138 { return false }\n    let fractional_bits: u32 = 150 - exponent\n    (bits & ((1 << fractional_bits) - 1)) == 0\n}\n\npub fn is_valid_persisted_view(_ view: PersistedView, _ bounds: PersistedBounds) -> bool {\n    is_valid_quad(view.center_x, bounds.center_x_min_bits, bounds.center_x_max_bits)\n        && is_valid_quad(view.center_y, bounds.center_y_min_bits, bounds.center_y_max_bits)\n        && f32_bits_in_range(view.zoom_bits, bounds.zoom_min_bits, bounds.zoom_max_bits)\n        && f32_bits_in_range(view.res_bits, F32_ONE_BITS, F32_RES_2048_BITS)\n        && is_whole_resolution(view.res_bits)\n        && f32_bits_in_range(view.antialias_bits, F32_ZERO_BITS, F32_ONE_BITS)\n        && valid_orientation(view.orientation_re_bits, view.orientation_im_bits)\n}\n\n/// Retain exact orientation bits on restore; rejecting invalid bases is safer\n/// than silently renormalizing a saved view onto a different sample lattice.\nfn valid_orientation(_ re_bits: u32, _ im_bits: u32) -> bool {\n    if !is_finite_f32_bits(re_bits) || !is_finite_f32_bits(im_bits) { return false }\n    let re: f32 = __bitcast<u32, f32>(re_bits)\n    let im: f32 = __bitcast<u32, f32>(im_bits)\n    let norm = re * re + im * im\n    norm >= 0.99999 && norm <= 1.00001\n}\n\nfn expected_prefix_byte(_ index: u32) -> u8 {\n    match index {\n        0 => 35 // '#'\n        1 => 118 // 'v'\n        2 => 50 // '2'\n        _ => 58 // ':'\n    }\n}\n\nfn expected_separator(_ field: u32) -> u8 {\n    if field == 0 || field == 1 || field == 2 || field == 4 || field == 5 || field == 6 {\n        46 // '.'\n    } else {\n        58 // ':'\n    }\n}\n\nfn hex_digit(_ nybble: u32) -> u8 {\n    match nybble & 15 {\n        0 => 48\n        1 => 49\n        2 => 50\n        3 => 51\n        4 => 52\n        5 => 53\n        6 => 54\n        7 => 55\n        8 => 56\n        9 => 57\n        10 => 97\n        11 => 98\n        12 => 99\n        13 => 100\n        14 => 101\n        _ => 102\n    }\n}\n\nfn parse_hex_nybble(_ byte: u8) -> u32 {\n    if byte >= 48 && byte <= 57 {\n        return (byte - 48) as u32\n    }\n    if byte >= 97 && byte <= 102 {\n        return (byte - 87) as u32\n    }\n    if byte >= 65 && byte <= 70 {\n        return (byte - 55) as u32\n    }\n    16\n}\n\n/// Pure streaming left-fold decoder for `#v1:...` URL fragments.\npub struct UrlDecodeState {\n    pub view: PersistedView,\n    pub current_word: u32,\n    pub valid: bool,\n    pub version: u32,\n}\n\nimpl Copy for UrlDecodeState {}\n\nimpl UrlDecodeState {\n    pub fn initial() -> Self {\n        let mut view = PersistedView::default()\n        view.orientation_re_bits = F32_ONE_BITS\n        Self {\n            version: 2,\n            view: view,\n            current_word: 0,\n            valid: true,\n        }\n    }\n\n    pub fn step(self, _ index: u32, _ byte: u8) -> Self {\n        if !self.valid || index >= URL_ENCODED_LEN {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: false,\n            }\n        }\n        if index == 2 {\n            return Self { version: if byte == 49 { 1 } else { 2 }, view: self.view,\n                current_word: 0, valid: byte == 49 || byte == 50 }\n        }\n        if index < 4 {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: byte == expected_prefix_byte(index),\n            }\n        }\n        let rel: u32 = index - 4\n        let field: u32 = rel / 9\n        let slot: u32 = rel % 9\n        if slot == 8 {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: byte == expected_separator(field),\n            }\n        }\n        let nybble: u32 = parse_hex_nybble(byte)\n        if nybble >= 16 {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: false,\n            }\n        }\n        let base: u32 = if slot == 0 { 0 } else { self.current_word }\n        let next_word: u32 = (base << 4) | nybble\n        if slot == 7 {\n            if !is_finite_f32_bits(next_word) {\n                return Self {\n                    version: self.version,\n                    view: self.view,\n                    current_word: 0,\n                    valid: false,\n                }\n            }\n            return Self {\n                version: self.version,\n                view: self.view.with_word(field, next_word),\n                current_word: 0,\n                valid: true,\n            }\n        }\n        Self {\n            version: self.version,\n            view: self.view,\n            current_word: next_word,\n            valid: true,\n        }\n    }\n\n    pub fn finish(\n        self,\n        _ len: u32,\n        _ fallback: PersistedView,\n        _ bounds: PersistedBounds,\n    ) -> DecodedPersistedView {\n        if !self.valid || len != (if self.version == 1 { URL_V1_ENCODED_LEN } else { URL_ENCODED_LEN })\n            || !is_valid_persisted_view(self.view, bounds) {\n            return DecodedPersistedView {\n                view: fallback,\n                valid: false,\n            }\n        }\n        DecodedPersistedView {\n            view: self.view,\n            valid: true,\n        }\n    }\n}\n\npub fn roundtrip_persisted_view(\n    _ view: PersistedView,\n    _ fallback: PersistedView,\n    _ bounds: PersistedBounds,\n) -> DecodedPersistedView {\n    let mut decoder: UrlDecodeState = UrlDecodeState::initial()\n    let mut i: u32 = 0\n    while i < URL_ENCODED_LEN {\n        decoder = decoder.step(i, view.encoded_byte(i))\n        i = i + 1\n    }\n    decoder.finish(URL_ENCODED_LEN, fallback, bounds)\n}\n\npub fn roundtrip_with_mutated_byte(\n    _ view: PersistedView,\n    _ mutate_index: u32,\n    _ mutate_byte: u8,\n    _ len: u32,\n    _ fallback: PersistedView,\n    _ bounds: PersistedBounds,\n) -> DecodedPersistedView {\n    let mut decoder: UrlDecodeState = UrlDecodeState::initial()\n    let mut i: u32 = 0\n    while i < len {\n        let b: u8 = if i == mutate_index {\n            mutate_byte\n        } else {\n            if i < URL_ENCODED_LEN { view.encoded_byte(i) } else { 48 }\n        }\n        decoder = decoder.step(i, b)\n        i = i + 1\n    }\n    decoder.finish(len, fallback, bounds)\n}\n\nfn decode_hash_view(\n    _ hash: Utf8View,\n    _ fallback: PersistedView,\n    _ bounds: PersistedBounds,\n) -> DecodedPersistedView {\n    let traced_len = URL_ENCODED_LEN - 1 + ingot::trace::TRACE_SUFFIX_LEN\n    let mut length = hash.len()\n    if length == traced_len {\n        let start = URL_ENCODED_LEN - 1\n        if hash.byte(index: start) != 126 || hash.byte(index: start + 1) != 103\n            || hash.byte(index: start + 2) != 58 {\n            return DecodedPersistedView { view: fallback, valid: false }\n        }\n        let mut i: u32 = 3\n        while i < ingot::trace::TRACE_SUFFIX_LEN {\n            let byte = hash.byte(index: start + i)\n            let valid = if (i - 3) % 9 == 8 { byte == 46 }\n                else { (byte >= 48 && byte <= 57) || (byte >= 97 && byte <= 102) }\n            if !valid { return DecodedPersistedView { view: fallback, valid: false } }\n            i += 1\n        }\n        length = URL_ENCODED_LEN - 1\n    }\n    if length != URL_V1_ENCODED_LEN - 1 && length != URL_ENCODED_LEN - 1 {\n        return DecodedPersistedView { view: fallback, valid: false }\n    }\n    let mut decoder: UrlDecodeState = UrlDecodeState::initial().step(0, 35)\n    let mut i: u32 = 0\n    while i < length {\n        decoder = decoder.step(i + 1, hash.byte(index: i))\n        i = i + 1\n    }\n    decoder.finish(length + 1, fallback, bounds)\n}\n\nfn write_u32_cell(address: u32, value: u32) {\n    let cell: BrowserPtr<u32> = BrowserPtr::from_u32(address)\n    cell.write(value)\n}\n\nfn write_u8_cell(address: u32, value: u8) {\n    let cell: BrowserPtr<u8> = BrowserPtr::from_u32(address)\n    cell.write(value)\n}\n\n/// Synchronize resident Mandelbrot view state with the `#v1:...` URL fragment and emit\n/// the canonical `#v1:...` fragment into `event.out_ptr`.\n/// Only the URL hash fragment is owned by view persistence; any query parameters on the URL\n/// are ignored during decoding and preserved untouched by the host transport.\npub fn sync_url_state(\n    _ state: MandelbrotViewState,\n    _ event: own SurfaceLocationEvent,\n) -> MandelbrotViewState {\n    let mut next_state: MandelbrotViewState = state\n    if event.apply_input {\n        next_state.backing = BackingRequest::automatic()\n        let fallback: PersistedView = default_persisted_view(state.camera.res)\n        let bounds: PersistedBounds = policy_persisted_bounds()\n        if event.input_len == 0 || event.input_ptr == 0 {\n            next_state = fallback.apply_to(next_state)\n        } else {\n            let location = parse_location(BrowserString {\n                ptr: event.input_ptr,\n                len: event.input_len,\n            })\n            if !location.valid {\n                next_state = fallback.apply_to(next_state)\n            } else {\n                let trace = location.query.single([116, 114, 97, 99, 101])\n                next_state.trace.enabled = trace.valid && trace.present\n                    && trace.value.equals_literal([49])\n                let hash: Utf8View = location.hash.view()\n                if hash.is_empty() {\n                    next_state = fallback.apply_to(next_state)\n                } else {\n                    let decoded: DecodedPersistedView = decode_hash_view(hash, fallback, bounds)\n                    next_state = decoded.view.apply_to(next_state)\n                    next_state.backing = if decoded.valid {\n                        BackingRequest::fixed(next_state.camera.res)\n                    } else { BackingRequest::automatic() }\n                }\n            }\n        }\n    }\n    let traced_len = URL_ENCODED_LEN + ingot::trace::TRACE_SUFFIX_LEN\n    let length = if next_state.trace.enabled && event.out_cap >= traced_len {\n        traced_len\n    } else { URL_ENCODED_LEN }\n    if event.out_ptr != 0 && event.out_cap >= length {\n        let persisted: PersistedView = PersistedView::from_state(next_state)\n        let mut i: u32 = 0\n        while i < length {\n            write_u8_cell(\n                address: event.out_ptr + i,\n                value: if i < URL_ENCODED_LEN { persisted.encoded_byte(i) }\n                    else { next_state.trace.encoded_byte(i - URL_ENCODED_LEN) },\n            )\n            i = i + 1\n        }\n        if event.out_len_ptr != 0 {\n            write_u32_cell(address: event.out_len_ptr, value: length)\n        }\n    } else {\n        if event.out_len_ptr != 0 {\n            write_u32_cell(address: event.out_len_ptr, value: 0)\n        }\n    }\n    next_state\n}",
+        "signature": "use core::{BrowserPtr, BrowserString, Copy}\nuse core::default::Default\nuse core::ops::Eq\nuse std::text::Utf8View\nuse std::web::navigation::parse_location\nuse ingot::policy::{\n    MandelbrotViewState,\n    Camera,\n    Coordinate,\n    BackingRequest,\n    initial_view,\n    CENTER_X_MIN,\n    CENTER_X_MAX,\n    CENTER_Y_MIN,\n    CENTER_Y_MAX,\n    ZOOM_MIN,\n    ZOOM_MAX,\n}\n\nuse algebra::Complex\nuse precision::{from_quad, to_quad}\nuse ingot::interaction::GestureSession\n\nextern {\n    const fn __bitcast<From, To>(_: From) -> To\n}\n\n// Version 2 canonical URL fragment format (120 ASCII bytes):\n// `#v1:<cx0>.<cx1>.<cx2>.<cx3>:<cy0>.<cy1>.<cy2>.<cy3>:<zoom>:<res>:<aa>`\n// Version 2 appends `:<orientation-re>:<orientation-im>`; version 1 restores identity.\n// Each field is an exact 8-digit lowercase hexadecimal IEEE-754 f32 word,\n// preserving all finite bit patterns including signed zero (-0.0 = 0x80000000).\npub const URL_V1_ENCODED_LEN: u32 = 102\npub const URL_ENCODED_LEN: u32 = 120\n\npub const F32_ZERO_BITS: u32 = 0x00000000 // +0.0\npub const F32_NEG_ZERO_BITS: u32 = 0x80000000 // -0.0\npub const F32_ONE_BITS: u32 = 0x3f800000 // 1.0\npub const F32_RES_512_BITS: u32 = 0x44000000 // 512.0\npub const F32_RES_1024_BITS: u32 = 0x44800000 // 1024.0\npub const F32_RES_2048_BITS: u32 = 0x45000000 // 2048.0\n\n/// Exact IEEE-754 bit words of a four-word expansion (`QuadFloat`).\npub struct QuadWordBits {\n    pub w0: u32,\n    pub w1: u32,\n    pub w2: u32,\n    pub w3: u32,\n}\n\nimpl Copy for QuadWordBits {}\nderive Eq for QuadWordBits\nderive Default for QuadWordBits\n\nimpl QuadWordBits {\n    pub fn expansion(self) -> precision::Expansion<4> {\n        from_quad(\n            __bitcast<u32, f32>(self.w0),\n            __bitcast<u32, f32>(self.w1),\n            __bitcast<u32, f32>(self.w2),\n            __bitcast<u32, f32>(self.w3),\n        )\n    }\n}\n\n/// Meaningful user-facing view state persisted in the URL fragment (`#v1:...`).\n/// Excludes transient clocks, drag flags, and derived magnification readouts.\npub struct PersistedView {\n    pub center_x: QuadWordBits,\n    pub center_y: QuadWordBits,\n    pub zoom_bits: u32,\n    pub res_bits: u32,\n    pub antialias_bits: u32,\n    pub orientation_re_bits: u32,\n    pub orientation_im_bits: u32,\n}\n\nimpl Copy for PersistedView {}\nderive Eq for PersistedView\nderive Default for PersistedView\n\n/// Camera and parameter domain bounds derived from `ingot::policy`.\npub struct PersistedBounds {\n    pub center_x_min_bits: u32,\n    pub center_x_max_bits: u32,\n    pub center_y_min_bits: u32,\n    pub center_y_max_bits: u32,\n    pub zoom_min_bits: u32,\n    pub zoom_max_bits: u32,\n}\n\nimpl Copy for PersistedBounds {}\nderive Eq for PersistedBounds\n\npub struct DecodedPersistedView {\n    pub view: PersistedView,\n    pub valid: bool,\n}\n\nimpl Copy for DecodedPersistedView {}\nderive Eq for DecodedPersistedView\n\n/// Generic surface location synchronization event lowered to `fe_surface_location_v1`.\npub use std::web::view::SurfaceLocationEvent\n\npub fn raw_f32_bits(_ value: f32) -> u32 {\n    __bitcast<f32, u32>(value)\n}\n\npub fn is_finite_f32_bits(_ raw: u32) -> bool {\n    ((raw >> 23) & 255) != 255\n}\n\nfn unsigned_zero_bits(_ raw: u32) -> u32 {\n    if (raw & 2147483647) == 0 {\n        0\n    } else {\n        raw\n    }\n}\n\n/// Sign-magnitude IEEE-754 numeric ordering on finite f32 bit patterns (`left <= right`),\n/// treating `-0.0` and `+0.0` as numerically equal for range bounds while preserving raw bits elsewhere.\npub fn f32_bits_le(_ left: u32, _ right: u32) -> bool {\n    let a: u32 = unsigned_zero_bits(left)\n    let b: u32 = unsigned_zero_bits(right)\n    let a_neg: bool = (a >> 31) != 0\n    let b_neg: bool = (b >> 31) != 0\n    if a_neg && !b_neg {\n        return true\n    }\n    if !a_neg && b_neg {\n        return false\n    }\n    if !a_neg && !b_neg {\n        return a <= b\n    }\n    a >= b\n}\n\npub fn f32_bits_in_range(_ value_bits: u32, _ min_bits: u32, _ max_bits: u32) -> bool {\n    is_finite_f32_bits(value_bits)\n        && f32_bits_le(min_bits, value_bits)\n        && f32_bits_le(value_bits, max_bits)\n}\n\n/// Exact IEEE-754 binary32 non-overlapping pair condition (`round_to_nearest_even(hi + lo) == hi`):\n/// `|lo| <= 0.5 * ulp(hi)` (with tie-to-even when `|lo| == 0.5 * ulp(hi)`).\npub fn f32_bits_non_overlapping(_ hi_bits: u32, _ lo_bits: u32) -> bool {\n    let hi_mag: u32 = hi_bits & 2147483647\n    let lo_mag: u32 = lo_bits & 2147483647\n    if lo_mag == 0 {\n        return true\n    }\n    if hi_mag == 0 {\n        return false\n    }\n    let hi_exp: u32 = (hi_mag >> 23) & 255\n    if hi_exp <= 1 {\n        return false\n    }\n    let half_ulp_mag: u32 = if hi_exp > 24 {\n        (hi_exp - 24) << 23\n    } else {\n        1 << (hi_exp - 2)\n    }\n    lo_mag < half_ulp_mag || (lo_mag == half_ulp_mag && (hi_bits & 1) == 0)\n}\n\nfn first_nonzero_is_negative(_ w1: u32, _ w2: u32, _ w3: u32) -> bool {\n    if (w1 & 2147483647) != 0 {\n        return (w1 >> 31) != 0\n    }\n    if (w2 & 2147483647) != 0 {\n        return (w2 >> 31) != 0\n    }\n    if (w3 & 2147483647) != 0 {\n        return (w3 >> 31) != 0\n    }\n    false\n}\n\nfn first_nonzero_is_positive(_ w1: u32, _ w2: u32, _ w3: u32) -> bool {\n    if (w1 & 2147483647) != 0 {\n        return (w1 >> 31) == 0\n    }\n    if (w2 & 2147483647) != 0 {\n        return (w2 >> 31) == 0\n    }\n    if (w3 & 2147483647) != 0 {\n        return (w3 >> 31) == 0\n    }\n    false\n}\n\n/// Derive camera domain bounds directly from `ingot::policy` constants.\npub fn policy_persisted_bounds() -> PersistedBounds {\n    PersistedBounds {\n        center_x_min_bits: raw_f32_bits(CENTER_X_MIN),\n        center_x_max_bits: raw_f32_bits(CENTER_X_MAX),\n        center_y_min_bits: raw_f32_bits(CENTER_Y_MIN),\n        center_y_max_bits: raw_f32_bits(CENTER_Y_MAX),\n        zoom_min_bits: raw_f32_bits(ZOOM_MIN),\n        zoom_max_bits: raw_f32_bits(ZOOM_MAX),\n    }\n}\n\n/// Derive the default persisted view directly from `policy::initial_view()`,\n/// preserving the current backing resolution when valid.\npub fn default_persisted_view(_ current_res: f32) -> PersistedView {\n    let mut base: PersistedView = PersistedView::from_state(initial_view())\n    let current_res_bits: u32 = raw_f32_bits(current_res)\n    if f32_bits_in_range(current_res_bits, F32_ONE_BITS, F32_RES_2048_BITS) {\n        base.res_bits = current_res_bits\n    } else {\n        base.res_bits = F32_RES_512_BITS\n    }\n    base\n}\n\nimpl PersistedView {\n    pub fn from_state(_ state: MandelbrotViewState) -> Self {\n        let (x0, x1, x2, x3) = to_quad(state.camera.center.re.value)\n        let (y0, y1, y2, y3) = to_quad(state.camera.center.im.value)\n        Self {\n            center_x: QuadWordBits {\n                w0: raw_f32_bits(x0),\n                w1: raw_f32_bits(x1),\n                w2: raw_f32_bits(x2),\n                w3: raw_f32_bits(x3),\n            },\n            center_y: QuadWordBits {\n                w0: raw_f32_bits(y0),\n                w1: raw_f32_bits(y1),\n                w2: raw_f32_bits(y2),\n                w3: raw_f32_bits(y3),\n            },\n            zoom_bits: raw_f32_bits(state.camera.zoom),\n            res_bits: raw_f32_bits(state.camera.res),\n            antialias_bits: raw_f32_bits(state.antialias),\n            orientation_re_bits: raw_f32_bits(state.camera.orientation.re),\n            orientation_im_bits: raw_f32_bits(state.camera.orientation.im),\n        }\n    }\n\n    pub fn apply_to(self, _ base: MandelbrotViewState) -> MandelbrotViewState {\n        let zoom: f32 = __bitcast<u32, f32>(self.zoom_bits)\n        let mut next: MandelbrotViewState = base\n        next.camera = Camera {\n            center: Complex {\n                re: Coordinate { value: self.center_x.expansion() },\n                im: Coordinate { value: self.center_y.expansion() },\n            },\n            zoom: zoom,\n            res: __bitcast<u32, f32>(self.res_bits),\n            orientation: Complex { re: __bitcast<u32, f32>(self.orientation_re_bits), im: __bitcast<u32, f32>(self.orientation_im_bits) },\n        }\n        next.gesture = GestureSession::empty()\n        next.antialias = __bitcast<u32, f32>(self.antialias_bits)\n        next.drag_active = 0.0\n        next.magnification = 3.0 / zoom\n        next\n    }\n\n    pub fn word(self, _ field: u32) -> u32 {\n        match field {\n            0 => self.center_x.w0\n            1 => self.center_x.w1\n            2 => self.center_x.w2\n            3 => self.center_x.w3\n            4 => self.center_y.w0\n            5 => self.center_y.w1\n            6 => self.center_y.w2\n            7 => self.center_y.w3\n            8 => self.zoom_bits\n            9 => self.res_bits\n            10 => self.antialias_bits\n            11 => self.orientation_re_bits\n            _ => self.orientation_im_bits\n        }\n    }\n\n    pub fn with_word(self, _ field: u32, _ word: u32) -> Self {\n        let mut out: Self = self\n        match field {\n            0 => { out.center_x.w0 = word }\n            1 => { out.center_x.w1 = word }\n            2 => { out.center_x.w2 = word }\n            3 => { out.center_x.w3 = word }\n            4 => { out.center_y.w0 = word }\n            5 => { out.center_y.w1 = word }\n            6 => { out.center_y.w2 = word }\n            7 => { out.center_y.w3 = word }\n            8 => { out.zoom_bits = word }\n            9 => { out.res_bits = word }\n            10 => { out.antialias_bits = word }\n            11 => { out.orientation_re_bits = word }\n            _ => { out.orientation_im_bits = word }\n        }\n        out\n    }\n\n    /// Denotation of the encoded `#v1:...` string as a pure function `index (0..102) -> u8`.\n    pub fn encoded_byte(self, _ index: u32) -> u8 {\n        if index < 4 {\n            return expected_prefix_byte(index)\n        }\n        let rel: u32 = index - 4\n        let field: u32 = rel / 9\n        let slot: u32 = rel % 9\n        if slot == 8 {\n            return expected_separator(field)\n        }\n        let word: u32 = self.word(field)\n        let shift: u32 = (7 - slot) * 4\n        hex_digit(word >> shift)\n    }\n}\n\n/// Validate the full canonical `Expansion<4>` contract within `[lower_bits, upper_bits]`:\n/// 1. Every limb `w0..w3` is finite.\n/// 2. The primary word `w0` lies within `[lower_bits, upper_bits]`.\n/// 3. Adjacent words satisfy the Dekker/Priest non-overlapping rounding-error invariant:\n///    `(w0 + w1) == w0`, `(w1 + w2) == w1`, and `(w2 + w3) == w2` in IEEE-754 binary32,\n///    which prevents finite-but-huge low words from shifting `w0` or poisoning expansion math.\n/// 4. At exact boundary endpoints (`w0 == lower_bits` or `w0 == upper_bits`), low words cannot\n///    push the expansion sum outside `[lower_bits, upper_bits]`.\nfn is_valid_quad(_ q: QuadWordBits, _ lower_bits: u32, _ upper_bits: u32) -> bool {\n    if !f32_bits_in_range(q.w0, lower_bits, upper_bits)\n        || !is_finite_f32_bits(q.w1)\n        || !is_finite_f32_bits(q.w2)\n        || !is_finite_f32_bits(q.w3)\n    {\n        return false\n    }\n    if !f32_bits_non_overlapping(q.w0, q.w1)\n        || !f32_bits_non_overlapping(q.w1, q.w2)\n        || !f32_bits_non_overlapping(q.w2, q.w3)\n    {\n        return false\n    }\n    let w0: u32 = unsigned_zero_bits(q.w0)\n    if w0 == unsigned_zero_bits(lower_bits) && first_nonzero_is_negative(q.w1, q.w2, q.w3) {\n        return false\n    }\n    if w0 == unsigned_zero_bits(upper_bits) && first_nonzero_is_positive(q.w1, q.w2, q.w3) {\n        return false\n    }\n    true\n}\n\n/// Resolutions are positive whole pixel counts. Restricting the exponent\n/// before building the fractional mask keeps every shift within u32 width.\nfn is_whole_resolution(_ bits: u32) -> bool {\n    let exponent: u32 = (bits >> 23) & 255\n    if exponent < 127 || exponent > 138 { return false }\n    let fractional_bits: u32 = 150 - exponent\n    (bits & ((1 << fractional_bits) - 1)) == 0\n}\n\npub fn is_valid_persisted_view(_ view: PersistedView, _ bounds: PersistedBounds) -> bool {\n    is_valid_quad(view.center_x, bounds.center_x_min_bits, bounds.center_x_max_bits)\n        && is_valid_quad(view.center_y, bounds.center_y_min_bits, bounds.center_y_max_bits)\n        && f32_bits_in_range(view.zoom_bits, bounds.zoom_min_bits, bounds.zoom_max_bits)\n        && f32_bits_in_range(view.res_bits, F32_ONE_BITS, F32_RES_2048_BITS)\n        && is_whole_resolution(view.res_bits)\n        && f32_bits_in_range(view.antialias_bits, F32_ZERO_BITS, F32_ONE_BITS)\n        && valid_orientation(view.orientation_re_bits, view.orientation_im_bits)\n}\n\n/// Retain exact orientation bits on restore; rejecting invalid bases is safer\n/// than silently renormalizing a saved view onto a different sample lattice.\nfn valid_orientation(_ re_bits: u32, _ im_bits: u32) -> bool {\n    if !is_finite_f32_bits(re_bits) || !is_finite_f32_bits(im_bits) { return false }\n    let re: f32 = __bitcast<u32, f32>(re_bits)\n    let im: f32 = __bitcast<u32, f32>(im_bits)\n    let norm = re * re + im * im\n    norm >= 0.99999 && norm <= 1.00001\n}\n\nfn expected_prefix_byte(_ index: u32) -> u8 {\n    match index {\n        0 => 35 // '#'\n        1 => 118 // 'v'\n        2 => 50 // '2'\n        _ => 58 // ':'\n    }\n}\n\nfn expected_separator(_ field: u32) -> u8 {\n    if field == 0 || field == 1 || field == 2 || field == 4 || field == 5 || field == 6 {\n        46 // '.'\n    } else {\n        58 // ':'\n    }\n}\n\nfn hex_digit(_ nybble: u32) -> u8 {\n    match nybble & 15 {\n        0 => 48\n        1 => 49\n        2 => 50\n        3 => 51\n        4 => 52\n        5 => 53\n        6 => 54\n        7 => 55\n        8 => 56\n        9 => 57\n        10 => 97\n        11 => 98\n        12 => 99\n        13 => 100\n        14 => 101\n        _ => 102\n    }\n}\n\nfn parse_hex_nybble(_ byte: u8) -> u32 {\n    if byte >= 48 && byte <= 57 {\n        return (byte - 48) as u32\n    }\n    if byte >= 97 && byte <= 102 {\n        return (byte - 87) as u32\n    }\n    if byte >= 65 && byte <= 70 {\n        return (byte - 55) as u32\n    }\n    16\n}\n\n/// Pure streaming left-fold decoder for `#v1:...` URL fragments.\npub struct UrlDecodeState {\n    pub view: PersistedView,\n    pub current_word: u32,\n    pub valid: bool,\n    pub version: u32,\n}\n\nimpl Copy for UrlDecodeState {}\n\nimpl UrlDecodeState {\n    pub fn initial() -> Self {\n        let mut view = PersistedView::default()\n        view.orientation_re_bits = F32_ONE_BITS\n        Self {\n            version: 2,\n            view: view,\n            current_word: 0,\n            valid: true,\n        }\n    }\n\n    pub fn step(self, _ index: u32, _ byte: u8) -> Self {\n        if !self.valid || index >= URL_ENCODED_LEN {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: false,\n            }\n        }\n        if index == 2 {\n            return Self { version: if byte == 49 { 1 } else { 2 }, view: self.view,\n                current_word: 0, valid: byte == 49 || byte == 50 }\n        }\n        if index < 4 {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: byte == expected_prefix_byte(index),\n            }\n        }\n        let rel: u32 = index - 4\n        let field: u32 = rel / 9\n        let slot: u32 = rel % 9\n        if slot == 8 {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: byte == expected_separator(field),\n            }\n        }\n        let nybble: u32 = parse_hex_nybble(byte)\n        if nybble >= 16 {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: false,\n            }\n        }\n        let base: u32 = if slot == 0 { 0 } else { self.current_word }\n        let next_word: u32 = (base << 4) | nybble\n        if slot == 7 {\n            if !is_finite_f32_bits(next_word) {\n                return Self {\n                    version: self.version,\n                    view: self.view,\n                    current_word: 0,\n                    valid: false,\n                }\n            }\n            return Self {\n                version: self.version,\n                view: self.view.with_word(field, next_word),\n                current_word: 0,\n                valid: true,\n            }\n        }\n        Self {\n            version: self.version,\n            view: self.view,\n            current_word: next_word,\n            valid: true,\n        }\n    }\n\n    pub fn finish(\n        self,\n        _ len: u32,\n        _ fallback: PersistedView,\n        _ bounds: PersistedBounds,\n    ) -> DecodedPersistedView {\n        if !self.valid || len != (if self.version == 1 { URL_V1_ENCODED_LEN } else { URL_ENCODED_LEN })\n            || !is_valid_persisted_view(self.view, bounds) {\n            return DecodedPersistedView {\n                view: fallback,\n                valid: false,\n            }\n        }\n        DecodedPersistedView {\n            view: self.view,\n            valid: true,\n        }\n    }\n}\n\npub fn roundtrip_persisted_view(\n    _ view: PersistedView,\n    _ fallback: PersistedView,\n    _ bounds: PersistedBounds,\n) -> DecodedPersistedView {\n    let mut decoder: UrlDecodeState = UrlDecodeState::initial()\n    let mut i: u32 = 0\n    while i < URL_ENCODED_LEN {\n        decoder = decoder.step(i, view.encoded_byte(i))\n        i = i + 1\n    }\n    decoder.finish(URL_ENCODED_LEN, fallback, bounds)\n}\n\npub fn roundtrip_with_mutated_byte(\n    _ view: PersistedView,\n    _ mutate_index: u32,\n    _ mutate_byte: u8,\n    _ len: u32,\n    _ fallback: PersistedView,\n    _ bounds: PersistedBounds,\n) -> DecodedPersistedView {\n    let mut decoder: UrlDecodeState = UrlDecodeState::initial()\n    let mut i: u32 = 0\n    while i < len {\n        let b: u8 = if i == mutate_index {\n            mutate_byte\n        } else {\n            if i < URL_ENCODED_LEN { view.encoded_byte(i) } else { 48 }\n        }\n        decoder = decoder.step(i, b)\n        i = i + 1\n    }\n    decoder.finish(len, fallback, bounds)\n}\n\nfn decode_hash_view(\n    _ hash: Utf8View,\n    _ fallback: PersistedView,\n    _ bounds: PersistedBounds,\n) -> DecodedPersistedView {\n    let traced_len = URL_ENCODED_LEN - 1 + ingot::trace::TRACE_SUFFIX_LEN\n    let mut length = hash.len()\n    if length == traced_len {\n        let start = URL_ENCODED_LEN - 1\n        if hash.byte(index: start) != 126 || hash.byte(index: start + 1) != 103\n            || hash.byte(index: start + 2) != 58 {\n            return DecodedPersistedView { view: fallback, valid: false }\n        }\n        let mut i: u32 = 3\n        while i < ingot::trace::TRACE_SUFFIX_LEN {\n            let byte = hash.byte(index: start + i)\n            let valid = if (i - 3) % 9 == 8 { byte == 46 }\n                else { (byte >= 48 && byte <= 57) || (byte >= 97 && byte <= 102) }\n            if !valid { return DecodedPersistedView { view: fallback, valid: false } }\n            i += 1\n        }\n        length = URL_ENCODED_LEN - 1\n    }\n    if length != URL_V1_ENCODED_LEN - 1 && length != URL_ENCODED_LEN - 1 {\n        return DecodedPersistedView { view: fallback, valid: false }\n    }\n    let mut decoder: UrlDecodeState = UrlDecodeState::initial().step(0, 35)\n    let mut i: u32 = 0\n    while i < length {\n        decoder = decoder.step(i + 1, hash.byte(index: i))\n        i = i + 1\n    }\n    decoder.finish(length + 1, fallback, bounds)\n}\n\nfn write_u32_cell(address: u32, value: u32) {\n    let cell: BrowserPtr<u32> = BrowserPtr::from_u32(address)\n    cell.write(value)\n}\n\nfn write_u8_cell(address: u32, value: u8) {\n    let cell: BrowserPtr<u8> = BrowserPtr::from_u32(address)\n    cell.write(value)\n}\n\n/// True when one `&`-separated query pair is exactly `trace=1`. Other parameters, such\n/// as cache-busters or tracking tags, neither enable nor disable the diagnostic.\nfn query_enables_trace(_ query: Utf8View) -> bool {\n    let length: u32 = query.len()\n    let mut start: u32 = 0\n    let mut index: u32 = 0\n    while index <= length {\n        if index == length || query.byte(index: index) == 38 {\n            let pair = query.slice(start: start, end: index)\n            if pair.valid && pair.view.equals_literal([116, 114, 97, 99, 101, 61, 49]) {\n                return true\n            }\n            start = index + 1\n        }\n        index = index + 1\n    }\n    false\n}\n\n/// Synchronize resident Mandelbrot view state with the `#v1:...` URL fragment and emit\n/// the canonical `#v1:...` fragment into `event.out_ptr`.\n/// Only the URL hash fragment is owned by view persistence; any query parameters on the URL\n/// are ignored during decoding and preserved untouched by the host transport.\npub fn sync_url_state(\n    _ state: MandelbrotViewState,\n    _ event: own SurfaceLocationEvent,\n) -> MandelbrotViewState {\n    let mut next_state: MandelbrotViewState = state\n    if event.apply_input {\n        next_state.backing = BackingRequest::automatic()\n        let fallback: PersistedView = default_persisted_view(state.camera.res)\n        let bounds: PersistedBounds = policy_persisted_bounds()\n        if event.input_len == 0 || event.input_ptr == 0 {\n            next_state = fallback.apply_to(next_state)\n        } else {\n            let location = parse_location(BrowserString {\n                ptr: event.input_ptr,\n                len: event.input_len,\n            })\n            if !location.valid {\n                next_state = fallback.apply_to(next_state)\n            } else {\n                next_state.trace.enabled = query_enables_trace(location.query.view())\n                let hash: Utf8View = location.hash.view()\n                if hash.is_empty() {\n                    next_state = fallback.apply_to(next_state)\n                } else {\n                    let decoded: DecodedPersistedView = decode_hash_view(hash, fallback, bounds)\n                    next_state = decoded.view.apply_to(next_state)\n                    next_state.backing = if decoded.valid {\n                        BackingRequest::fixed(next_state.camera.res)\n                    } else { BackingRequest::automatic() }\n                }\n            }\n        }\n    }\n    let traced_len = URL_ENCODED_LEN + ingot::trace::TRACE_SUFFIX_LEN\n    let length = if next_state.trace.enabled && event.out_cap >= traced_len {\n        traced_len\n    } else { URL_ENCODED_LEN }\n    if event.out_ptr != 0 && event.out_cap >= length {\n        let persisted: PersistedView = PersistedView::from_state(next_state)\n        let mut i: u32 = 0\n        while i < length {\n            write_u8_cell(\n                address: event.out_ptr + i,\n                value: if i < URL_ENCODED_LEN { persisted.encoded_byte(i) }\n                    else { next_state.trace.encoded_byte(i - URL_ENCODED_LEN) },\n            )\n            i = i + 1\n        }\n        if event.out_len_ptr != 0 {\n            write_u32_cell(address: event.out_len_ptr, value: length)\n        }\n    } else {\n        if event.out_len_ptr != 0 {\n            write_u32_cell(address: event.out_len_ptr, value: 0)\n        }\n    }\n    next_state\n}",
         "source": {
           "column": 0,
           "display_file": "url.fe",
           "line": 1
         },
-        "source_text": "use core::{BrowserPtr, BrowserString, Copy}\nuse core::default::Default\nuse core::ops::Eq\nuse std::text::Utf8View\nuse std::web::navigation::parse_location\nuse ingot::policy::{\n    MandelbrotViewState,\n    Camera,\n    Coordinate,\n    BackingRequest,\n    initial_view,\n    CENTER_X_MIN,\n    CENTER_X_MAX,\n    CENTER_Y_MIN,\n    CENTER_Y_MAX,\n    ZOOM_MIN,\n    ZOOM_MAX,\n}\n\nuse algebra::Complex\nuse precision::{from_quad, to_quad}\nuse ingot::interaction::GestureSession\n\nextern {\n    const fn __bitcast<From, To>(_: From) -> To\n}\n\n// Version 2 canonical URL fragment format (120 ASCII bytes):\n// `#v1:<cx0>.<cx1>.<cx2>.<cx3>:<cy0>.<cy1>.<cy2>.<cy3>:<zoom>:<res>:<aa>`\n// Version 2 appends `:<orientation-re>:<orientation-im>`; version 1 restores identity.\n// Each field is an exact 8-digit lowercase hexadecimal IEEE-754 f32 word,\n// preserving all finite bit patterns including signed zero (-0.0 = 0x80000000).\npub const URL_V1_ENCODED_LEN: u32 = 102\npub const URL_ENCODED_LEN: u32 = 120\n\npub const F32_ZERO_BITS: u32 = 0x00000000 // +0.0\npub const F32_NEG_ZERO_BITS: u32 = 0x80000000 // -0.0\npub const F32_ONE_BITS: u32 = 0x3f800000 // 1.0\npub const F32_RES_512_BITS: u32 = 0x44000000 // 512.0\npub const F32_RES_1024_BITS: u32 = 0x44800000 // 1024.0\npub const F32_RES_2048_BITS: u32 = 0x45000000 // 2048.0\n\n/// Exact IEEE-754 bit words of a four-word expansion (`QuadFloat`).\npub struct QuadWordBits {\n    pub w0: u32,\n    pub w1: u32,\n    pub w2: u32,\n    pub w3: u32,\n}\n\nimpl Copy for QuadWordBits {}\nderive Eq for QuadWordBits\nderive Default for QuadWordBits\n\nimpl QuadWordBits {\n    pub fn expansion(self) -> precision::Expansion<4> {\n        from_quad(\n            __bitcast<u32, f32>(self.w0),\n            __bitcast<u32, f32>(self.w1),\n            __bitcast<u32, f32>(self.w2),\n            __bitcast<u32, f32>(self.w3),\n        )\n    }\n}\n\n/// Meaningful user-facing view state persisted in the URL fragment (`#v1:...`).\n/// Excludes transient clocks, drag flags, and derived magnification readouts.\npub struct PersistedView {\n    pub center_x: QuadWordBits,\n    pub center_y: QuadWordBits,\n    pub zoom_bits: u32,\n    pub res_bits: u32,\n    pub antialias_bits: u32,\n    pub orientation_re_bits: u32,\n    pub orientation_im_bits: u32,\n}\n\nimpl Copy for PersistedView {}\nderive Eq for PersistedView\nderive Default for PersistedView\n\n/// Camera and parameter domain bounds derived from `ingot::policy`.\npub struct PersistedBounds {\n    pub center_x_min_bits: u32,\n    pub center_x_max_bits: u32,\n    pub center_y_min_bits: u32,\n    pub center_y_max_bits: u32,\n    pub zoom_min_bits: u32,\n    pub zoom_max_bits: u32,\n}\n\nimpl Copy for PersistedBounds {}\nderive Eq for PersistedBounds\n\npub struct DecodedPersistedView {\n    pub view: PersistedView,\n    pub valid: bool,\n}\n\nimpl Copy for DecodedPersistedView {}\nderive Eq for DecodedPersistedView\n\n/// Generic surface location synchronization event lowered to `fe_surface_location_v1`.\npub use std::web::view::SurfaceLocationEvent\n\npub fn raw_f32_bits(_ value: f32) -> u32 {\n    __bitcast<f32, u32>(value)\n}\n\npub fn is_finite_f32_bits(_ raw: u32) -> bool {\n    ((raw >> 23) & 255) != 255\n}\n\nfn unsigned_zero_bits(_ raw: u32) -> u32 {\n    if (raw & 2147483647) == 0 {\n        0\n    } else {\n        raw\n    }\n}\n\n/// Sign-magnitude IEEE-754 numeric ordering on finite f32 bit patterns (`left <= right`),\n/// treating `-0.0` and `+0.0` as numerically equal for range bounds while preserving raw bits elsewhere.\npub fn f32_bits_le(_ left: u32, _ right: u32) -> bool {\n    let a: u32 = unsigned_zero_bits(left)\n    let b: u32 = unsigned_zero_bits(right)\n    let a_neg: bool = (a >> 31) != 0\n    let b_neg: bool = (b >> 31) != 0\n    if a_neg && !b_neg {\n        return true\n    }\n    if !a_neg && b_neg {\n        return false\n    }\n    if !a_neg && !b_neg {\n        return a <= b\n    }\n    a >= b\n}\n\npub fn f32_bits_in_range(_ value_bits: u32, _ min_bits: u32, _ max_bits: u32) -> bool {\n    is_finite_f32_bits(value_bits)\n        && f32_bits_le(min_bits, value_bits)\n        && f32_bits_le(value_bits, max_bits)\n}\n\n/// Exact IEEE-754 binary32 non-overlapping pair condition (`round_to_nearest_even(hi + lo) == hi`):\n/// `|lo| <= 0.5 * ulp(hi)` (with tie-to-even when `|lo| == 0.5 * ulp(hi)`).\npub fn f32_bits_non_overlapping(_ hi_bits: u32, _ lo_bits: u32) -> bool {\n    let hi_mag: u32 = hi_bits & 2147483647\n    let lo_mag: u32 = lo_bits & 2147483647\n    if lo_mag == 0 {\n        return true\n    }\n    if hi_mag == 0 {\n        return false\n    }\n    let hi_exp: u32 = (hi_mag >> 23) & 255\n    if hi_exp <= 1 {\n        return false\n    }\n    let half_ulp_mag: u32 = if hi_exp > 24 {\n        (hi_exp - 24) << 23\n    } else {\n        1 << (hi_exp - 2)\n    }\n    lo_mag < half_ulp_mag || (lo_mag == half_ulp_mag && (hi_bits & 1) == 0)\n}\n\nfn first_nonzero_is_negative(_ w1: u32, _ w2: u32, _ w3: u32) -> bool {\n    if (w1 & 2147483647) != 0 {\n        return (w1 >> 31) != 0\n    }\n    if (w2 & 2147483647) != 0 {\n        return (w2 >> 31) != 0\n    }\n    if (w3 & 2147483647) != 0 {\n        return (w3 >> 31) != 0\n    }\n    false\n}\n\nfn first_nonzero_is_positive(_ w1: u32, _ w2: u32, _ w3: u32) -> bool {\n    if (w1 & 2147483647) != 0 {\n        return (w1 >> 31) == 0\n    }\n    if (w2 & 2147483647) != 0 {\n        return (w2 >> 31) == 0\n    }\n    if (w3 & 2147483647) != 0 {\n        return (w3 >> 31) == 0\n    }\n    false\n}\n\n/// Derive camera domain bounds directly from `ingot::policy` constants.\npub fn policy_persisted_bounds() -> PersistedBounds {\n    PersistedBounds {\n        center_x_min_bits: raw_f32_bits(CENTER_X_MIN),\n        center_x_max_bits: raw_f32_bits(CENTER_X_MAX),\n        center_y_min_bits: raw_f32_bits(CENTER_Y_MIN),\n        center_y_max_bits: raw_f32_bits(CENTER_Y_MAX),\n        zoom_min_bits: raw_f32_bits(ZOOM_MIN),\n        zoom_max_bits: raw_f32_bits(ZOOM_MAX),\n    }\n}\n\n/// Derive the default persisted view directly from `policy::initial_view()`,\n/// preserving the current backing resolution when valid.\npub fn default_persisted_view(_ current_res: f32) -> PersistedView {\n    let mut base: PersistedView = PersistedView::from_state(initial_view())\n    let current_res_bits: u32 = raw_f32_bits(current_res)\n    if f32_bits_in_range(current_res_bits, F32_ONE_BITS, F32_RES_2048_BITS) {\n        base.res_bits = current_res_bits\n    } else {\n        base.res_bits = F32_RES_512_BITS\n    }\n    base\n}\n\nimpl PersistedView {\n    pub fn from_state(_ state: MandelbrotViewState) -> Self {\n        let (x0, x1, x2, x3) = to_quad(state.camera.center.re.value)\n        let (y0, y1, y2, y3) = to_quad(state.camera.center.im.value)\n        Self {\n            center_x: QuadWordBits {\n                w0: raw_f32_bits(x0),\n                w1: raw_f32_bits(x1),\n                w2: raw_f32_bits(x2),\n                w3: raw_f32_bits(x3),\n            },\n            center_y: QuadWordBits {\n                w0: raw_f32_bits(y0),\n                w1: raw_f32_bits(y1),\n                w2: raw_f32_bits(y2),\n                w3: raw_f32_bits(y3),\n            },\n            zoom_bits: raw_f32_bits(state.camera.zoom),\n            res_bits: raw_f32_bits(state.camera.res),\n            antialias_bits: raw_f32_bits(state.antialias),\n            orientation_re_bits: raw_f32_bits(state.camera.orientation.re),\n            orientation_im_bits: raw_f32_bits(state.camera.orientation.im),\n        }\n    }\n\n    pub fn apply_to(self, _ base: MandelbrotViewState) -> MandelbrotViewState {\n        let zoom: f32 = __bitcast<u32, f32>(self.zoom_bits)\n        let mut next: MandelbrotViewState = base\n        next.camera = Camera {\n            center: Complex {\n                re: Coordinate { value: self.center_x.expansion() },\n                im: Coordinate { value: self.center_y.expansion() },\n            },\n            zoom: zoom,\n            res: __bitcast<u32, f32>(self.res_bits),\n            orientation: Complex { re: __bitcast<u32, f32>(self.orientation_re_bits), im: __bitcast<u32, f32>(self.orientation_im_bits) },\n        }\n        next.gesture = GestureSession::empty()\n        next.antialias = __bitcast<u32, f32>(self.antialias_bits)\n        next.drag_active = 0.0\n        next.magnification = 3.0 / zoom\n        next\n    }\n\n    pub fn word(self, _ field: u32) -> u32 {\n        match field {\n            0 => self.center_x.w0\n            1 => self.center_x.w1\n            2 => self.center_x.w2\n            3 => self.center_x.w3\n            4 => self.center_y.w0\n            5 => self.center_y.w1\n            6 => self.center_y.w2\n            7 => self.center_y.w3\n            8 => self.zoom_bits\n            9 => self.res_bits\n            10 => self.antialias_bits\n            11 => self.orientation_re_bits\n            _ => self.orientation_im_bits\n        }\n    }\n\n    pub fn with_word(self, _ field: u32, _ word: u32) -> Self {\n        let mut out: Self = self\n        match field {\n            0 => { out.center_x.w0 = word }\n            1 => { out.center_x.w1 = word }\n            2 => { out.center_x.w2 = word }\n            3 => { out.center_x.w3 = word }\n            4 => { out.center_y.w0 = word }\n            5 => { out.center_y.w1 = word }\n            6 => { out.center_y.w2 = word }\n            7 => { out.center_y.w3 = word }\n            8 => { out.zoom_bits = word }\n            9 => { out.res_bits = word }\n            10 => { out.antialias_bits = word }\n            11 => { out.orientation_re_bits = word }\n            _ => { out.orientation_im_bits = word }\n        }\n        out\n    }\n\n    /// Denotation of the encoded `#v1:...` string as a pure function `index (0..102) -> u8`.\n    pub fn encoded_byte(self, _ index: u32) -> u8 {\n        if index < 4 {\n            return expected_prefix_byte(index)\n        }\n        let rel: u32 = index - 4\n        let field: u32 = rel / 9\n        let slot: u32 = rel % 9\n        if slot == 8 {\n            return expected_separator(field)\n        }\n        let word: u32 = self.word(field)\n        let shift: u32 = (7 - slot) * 4\n        hex_digit(word >> shift)\n    }\n}\n\n/// Validate the full canonical `Expansion<4>` contract within `[lower_bits, upper_bits]`:\n/// 1. Every limb `w0..w3` is finite.\n/// 2. The primary word `w0` lies within `[lower_bits, upper_bits]`.\n/// 3. Adjacent words satisfy the Dekker/Priest non-overlapping rounding-error invariant:\n///    `(w0 + w1) == w0`, `(w1 + w2) == w1`, and `(w2 + w3) == w2` in IEEE-754 binary32,\n///    which prevents finite-but-huge low words from shifting `w0` or poisoning expansion math.\n/// 4. At exact boundary endpoints (`w0 == lower_bits` or `w0 == upper_bits`), low words cannot\n///    push the expansion sum outside `[lower_bits, upper_bits]`.\nfn is_valid_quad(_ q: QuadWordBits, _ lower_bits: u32, _ upper_bits: u32) -> bool {\n    if !f32_bits_in_range(q.w0, lower_bits, upper_bits)\n        || !is_finite_f32_bits(q.w1)\n        || !is_finite_f32_bits(q.w2)\n        || !is_finite_f32_bits(q.w3)\n    {\n        return false\n    }\n    if !f32_bits_non_overlapping(q.w0, q.w1)\n        || !f32_bits_non_overlapping(q.w1, q.w2)\n        || !f32_bits_non_overlapping(q.w2, q.w3)\n    {\n        return false\n    }\n    let w0: u32 = unsigned_zero_bits(q.w0)\n    if w0 == unsigned_zero_bits(lower_bits) && first_nonzero_is_negative(q.w1, q.w2, q.w3) {\n        return false\n    }\n    if w0 == unsigned_zero_bits(upper_bits) && first_nonzero_is_positive(q.w1, q.w2, q.w3) {\n        return false\n    }\n    true\n}\n\n/// Resolutions are positive whole pixel counts. Restricting the exponent\n/// before building the fractional mask keeps every shift within u32 width.\nfn is_whole_resolution(_ bits: u32) -> bool {\n    let exponent: u32 = (bits >> 23) & 255\n    if exponent < 127 || exponent > 138 { return false }\n    let fractional_bits: u32 = 150 - exponent\n    (bits & ((1 << fractional_bits) - 1)) == 0\n}\n\npub fn is_valid_persisted_view(_ view: PersistedView, _ bounds: PersistedBounds) -> bool {\n    is_valid_quad(view.center_x, bounds.center_x_min_bits, bounds.center_x_max_bits)\n        && is_valid_quad(view.center_y, bounds.center_y_min_bits, bounds.center_y_max_bits)\n        && f32_bits_in_range(view.zoom_bits, bounds.zoom_min_bits, bounds.zoom_max_bits)\n        && f32_bits_in_range(view.res_bits, F32_ONE_BITS, F32_RES_2048_BITS)\n        && is_whole_resolution(view.res_bits)\n        && f32_bits_in_range(view.antialias_bits, F32_ZERO_BITS, F32_ONE_BITS)\n        && valid_orientation(view.orientation_re_bits, view.orientation_im_bits)\n}\n\n/// Retain exact orientation bits on restore; rejecting invalid bases is safer\n/// than silently renormalizing a saved view onto a different sample lattice.\nfn valid_orientation(_ re_bits: u32, _ im_bits: u32) -> bool {\n    if !is_finite_f32_bits(re_bits) || !is_finite_f32_bits(im_bits) { return false }\n    let re: f32 = __bitcast<u32, f32>(re_bits)\n    let im: f32 = __bitcast<u32, f32>(im_bits)\n    let norm = re * re + im * im\n    norm >= 0.99999 && norm <= 1.00001\n}\n\nfn expected_prefix_byte(_ index: u32) -> u8 {\n    match index {\n        0 => 35 // '#'\n        1 => 118 // 'v'\n        2 => 50 // '2'\n        _ => 58 // ':'\n    }\n}\n\nfn expected_separator(_ field: u32) -> u8 {\n    if field == 0 || field == 1 || field == 2 || field == 4 || field == 5 || field == 6 {\n        46 // '.'\n    } else {\n        58 // ':'\n    }\n}\n\nfn hex_digit(_ nybble: u32) -> u8 {\n    match nybble & 15 {\n        0 => 48\n        1 => 49\n        2 => 50\n        3 => 51\n        4 => 52\n        5 => 53\n        6 => 54\n        7 => 55\n        8 => 56\n        9 => 57\n        10 => 97\n        11 => 98\n        12 => 99\n        13 => 100\n        14 => 101\n        _ => 102\n    }\n}\n\nfn parse_hex_nybble(_ byte: u8) -> u32 {\n    if byte >= 48 && byte <= 57 {\n        return (byte - 48) as u32\n    }\n    if byte >= 97 && byte <= 102 {\n        return (byte - 87) as u32\n    }\n    if byte >= 65 && byte <= 70 {\n        return (byte - 55) as u32\n    }\n    16\n}\n\n/// Pure streaming left-fold decoder for `#v1:...` URL fragments.\npub struct UrlDecodeState {\n    pub view: PersistedView,\n    pub current_word: u32,\n    pub valid: bool,\n    pub version: u32,\n}\n\nimpl Copy for UrlDecodeState {}\n\nimpl UrlDecodeState {\n    pub fn initial() -> Self {\n        let mut view = PersistedView::default()\n        view.orientation_re_bits = F32_ONE_BITS\n        Self {\n            version: 2,\n            view: view,\n            current_word: 0,\n            valid: true,\n        }\n    }\n\n    pub fn step(self, _ index: u32, _ byte: u8) -> Self {\n        if !self.valid || index >= URL_ENCODED_LEN {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: false,\n            }\n        }\n        if index == 2 {\n            return Self { version: if byte == 49 { 1 } else { 2 }, view: self.view,\n                current_word: 0, valid: byte == 49 || byte == 50 }\n        }\n        if index < 4 {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: byte == expected_prefix_byte(index),\n            }\n        }\n        let rel: u32 = index - 4\n        let field: u32 = rel / 9\n        let slot: u32 = rel % 9\n        if slot == 8 {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: byte == expected_separator(field),\n            }\n        }\n        let nybble: u32 = parse_hex_nybble(byte)\n        if nybble >= 16 {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: false,\n            }\n        }\n        let base: u32 = if slot == 0 { 0 } else { self.current_word }\n        let next_word: u32 = (base << 4) | nybble\n        if slot == 7 {\n            if !is_finite_f32_bits(next_word) {\n                return Self {\n                    version: self.version,\n                    view: self.view,\n                    current_word: 0,\n                    valid: false,\n                }\n            }\n            return Self {\n                version: self.version,\n                view: self.view.with_word(field, next_word),\n                current_word: 0,\n                valid: true,\n            }\n        }\n        Self {\n            version: self.version,\n            view: self.view,\n            current_word: next_word,\n            valid: true,\n        }\n    }\n\n    pub fn finish(\n        self,\n        _ len: u32,\n        _ fallback: PersistedView,\n        _ bounds: PersistedBounds,\n    ) -> DecodedPersistedView {\n        if !self.valid || len != (if self.version == 1 { URL_V1_ENCODED_LEN } else { URL_ENCODED_LEN })\n            || !is_valid_persisted_view(self.view, bounds) {\n            return DecodedPersistedView {\n                view: fallback,\n                valid: false,\n            }\n        }\n        DecodedPersistedView {\n            view: self.view,\n            valid: true,\n        }\n    }\n}\n\npub fn roundtrip_persisted_view(\n    _ view: PersistedView,\n    _ fallback: PersistedView,\n    _ bounds: PersistedBounds,\n) -> DecodedPersistedView {\n    let mut decoder: UrlDecodeState = UrlDecodeState::initial()\n    let mut i: u32 = 0\n    while i < URL_ENCODED_LEN {\n        decoder = decoder.step(i, view.encoded_byte(i))\n        i = i + 1\n    }\n    decoder.finish(URL_ENCODED_LEN, fallback, bounds)\n}\n\npub fn roundtrip_with_mutated_byte(\n    _ view: PersistedView,\n    _ mutate_index: u32,\n    _ mutate_byte: u8,\n    _ len: u32,\n    _ fallback: PersistedView,\n    _ bounds: PersistedBounds,\n) -> DecodedPersistedView {\n    let mut decoder: UrlDecodeState = UrlDecodeState::initial()\n    let mut i: u32 = 0\n    while i < len {\n        let b: u8 = if i == mutate_index {\n            mutate_byte\n        } else {\n            if i < URL_ENCODED_LEN { view.encoded_byte(i) } else { 48 }\n        }\n        decoder = decoder.step(i, b)\n        i = i + 1\n    }\n    decoder.finish(len, fallback, bounds)\n}\n\nfn decode_hash_view(\n    _ hash: Utf8View,\n    _ fallback: PersistedView,\n    _ bounds: PersistedBounds,\n) -> DecodedPersistedView {\n    let traced_len = URL_ENCODED_LEN - 1 + ingot::trace::TRACE_SUFFIX_LEN\n    let mut length = hash.len()\n    if length == traced_len {\n        let start = URL_ENCODED_LEN - 1\n        if hash.byte(index: start) != 126 || hash.byte(index: start + 1) != 103\n            || hash.byte(index: start + 2) != 58 {\n            return DecodedPersistedView { view: fallback, valid: false }\n        }\n        let mut i: u32 = 3\n        while i < ingot::trace::TRACE_SUFFIX_LEN {\n            let byte = hash.byte(index: start + i)\n            let valid = if (i - 3) % 9 == 8 { byte == 46 }\n                else { (byte >= 48 && byte <= 57) || (byte >= 97 && byte <= 102) }\n            if !valid { return DecodedPersistedView { view: fallback, valid: false } }\n            i += 1\n        }\n        length = URL_ENCODED_LEN - 1\n    }\n    if length != URL_V1_ENCODED_LEN - 1 && length != URL_ENCODED_LEN - 1 {\n        return DecodedPersistedView { view: fallback, valid: false }\n    }\n    let mut decoder: UrlDecodeState = UrlDecodeState::initial().step(0, 35)\n    let mut i: u32 = 0\n    while i < length {\n        decoder = decoder.step(i + 1, hash.byte(index: i))\n        i = i + 1\n    }\n    decoder.finish(length + 1, fallback, bounds)\n}\n\nfn write_u32_cell(address: u32, value: u32) {\n    let cell: BrowserPtr<u32> = BrowserPtr::from_u32(address)\n    cell.write(value)\n}\n\nfn write_u8_cell(address: u32, value: u8) {\n    let cell: BrowserPtr<u8> = BrowserPtr::from_u32(address)\n    cell.write(value)\n}\n\n/// Synchronize resident Mandelbrot view state with the `#v1:...` URL fragment and emit\n/// the canonical `#v1:...` fragment into `event.out_ptr`.\n/// Only the URL hash fragment is owned by view persistence; any query parameters on the URL\n/// are ignored during decoding and preserved untouched by the host transport.\npub fn sync_url_state(\n    _ state: MandelbrotViewState,\n    _ event: own SurfaceLocationEvent,\n) -> MandelbrotViewState {\n    let mut next_state: MandelbrotViewState = state\n    if event.apply_input {\n        next_state.backing = BackingRequest::automatic()\n        let fallback: PersistedView = default_persisted_view(state.camera.res)\n        let bounds: PersistedBounds = policy_persisted_bounds()\n        if event.input_len == 0 || event.input_ptr == 0 {\n            next_state = fallback.apply_to(next_state)\n        } else {\n            let location = parse_location(BrowserString {\n                ptr: event.input_ptr,\n                len: event.input_len,\n            })\n            if !location.valid {\n                next_state = fallback.apply_to(next_state)\n            } else {\n                let trace = location.query.single([116, 114, 97, 99, 101])\n                next_state.trace.enabled = trace.valid && trace.present\n                    && trace.value.equals_literal([49])\n                let hash: Utf8View = location.hash.view()\n                if hash.is_empty() {\n                    next_state = fallback.apply_to(next_state)\n                } else {\n                    let decoded: DecodedPersistedView = decode_hash_view(hash, fallback, bounds)\n                    next_state = decoded.view.apply_to(next_state)\n                    next_state.backing = if decoded.valid {\n                        BackingRequest::fixed(next_state.camera.res)\n                    } else { BackingRequest::automatic() }\n                }\n            }\n        }\n    }\n    let traced_len = URL_ENCODED_LEN + ingot::trace::TRACE_SUFFIX_LEN\n    let length = if next_state.trace.enabled && event.out_cap >= traced_len {\n        traced_len\n    } else { URL_ENCODED_LEN }\n    if event.out_ptr != 0 && event.out_cap >= length {\n        let persisted: PersistedView = PersistedView::from_state(next_state)\n        let mut i: u32 = 0\n        while i < length {\n            write_u8_cell(\n                address: event.out_ptr + i,\n                value: if i < URL_ENCODED_LEN { persisted.encoded_byte(i) }\n                    else { next_state.trace.encoded_byte(i - URL_ENCODED_LEN) },\n            )\n            i = i + 1\n        }\n        if event.out_len_ptr != 0 {\n            write_u32_cell(address: event.out_len_ptr, value: length)\n        }\n    } else {\n        if event.out_len_ptr != 0 {\n            write_u32_cell(address: event.out_len_ptr, value: 0)\n        }\n    }\n    next_state\n}\n",
+        "source_text": "use core::{BrowserPtr, BrowserString, Copy}\nuse core::default::Default\nuse core::ops::Eq\nuse std::text::Utf8View\nuse std::web::navigation::parse_location\nuse ingot::policy::{\n    MandelbrotViewState,\n    Camera,\n    Coordinate,\n    BackingRequest,\n    initial_view,\n    CENTER_X_MIN,\n    CENTER_X_MAX,\n    CENTER_Y_MIN,\n    CENTER_Y_MAX,\n    ZOOM_MIN,\n    ZOOM_MAX,\n}\n\nuse algebra::Complex\nuse precision::{from_quad, to_quad}\nuse ingot::interaction::GestureSession\n\nextern {\n    const fn __bitcast<From, To>(_: From) -> To\n}\n\n// Version 2 canonical URL fragment format (120 ASCII bytes):\n// `#v1:<cx0>.<cx1>.<cx2>.<cx3>:<cy0>.<cy1>.<cy2>.<cy3>:<zoom>:<res>:<aa>`\n// Version 2 appends `:<orientation-re>:<orientation-im>`; version 1 restores identity.\n// Each field is an exact 8-digit lowercase hexadecimal IEEE-754 f32 word,\n// preserving all finite bit patterns including signed zero (-0.0 = 0x80000000).\npub const URL_V1_ENCODED_LEN: u32 = 102\npub const URL_ENCODED_LEN: u32 = 120\n\npub const F32_ZERO_BITS: u32 = 0x00000000 // +0.0\npub const F32_NEG_ZERO_BITS: u32 = 0x80000000 // -0.0\npub const F32_ONE_BITS: u32 = 0x3f800000 // 1.0\npub const F32_RES_512_BITS: u32 = 0x44000000 // 512.0\npub const F32_RES_1024_BITS: u32 = 0x44800000 // 1024.0\npub const F32_RES_2048_BITS: u32 = 0x45000000 // 2048.0\n\n/// Exact IEEE-754 bit words of a four-word expansion (`QuadFloat`).\npub struct QuadWordBits {\n    pub w0: u32,\n    pub w1: u32,\n    pub w2: u32,\n    pub w3: u32,\n}\n\nimpl Copy for QuadWordBits {}\nderive Eq for QuadWordBits\nderive Default for QuadWordBits\n\nimpl QuadWordBits {\n    pub fn expansion(self) -> precision::Expansion<4> {\n        from_quad(\n            __bitcast<u32, f32>(self.w0),\n            __bitcast<u32, f32>(self.w1),\n            __bitcast<u32, f32>(self.w2),\n            __bitcast<u32, f32>(self.w3),\n        )\n    }\n}\n\n/// Meaningful user-facing view state persisted in the URL fragment (`#v1:...`).\n/// Excludes transient clocks, drag flags, and derived magnification readouts.\npub struct PersistedView {\n    pub center_x: QuadWordBits,\n    pub center_y: QuadWordBits,\n    pub zoom_bits: u32,\n    pub res_bits: u32,\n    pub antialias_bits: u32,\n    pub orientation_re_bits: u32,\n    pub orientation_im_bits: u32,\n}\n\nimpl Copy for PersistedView {}\nderive Eq for PersistedView\nderive Default for PersistedView\n\n/// Camera and parameter domain bounds derived from `ingot::policy`.\npub struct PersistedBounds {\n    pub center_x_min_bits: u32,\n    pub center_x_max_bits: u32,\n    pub center_y_min_bits: u32,\n    pub center_y_max_bits: u32,\n    pub zoom_min_bits: u32,\n    pub zoom_max_bits: u32,\n}\n\nimpl Copy for PersistedBounds {}\nderive Eq for PersistedBounds\n\npub struct DecodedPersistedView {\n    pub view: PersistedView,\n    pub valid: bool,\n}\n\nimpl Copy for DecodedPersistedView {}\nderive Eq for DecodedPersistedView\n\n/// Generic surface location synchronization event lowered to `fe_surface_location_v1`.\npub use std::web::view::SurfaceLocationEvent\n\npub fn raw_f32_bits(_ value: f32) -> u32 {\n    __bitcast<f32, u32>(value)\n}\n\npub fn is_finite_f32_bits(_ raw: u32) -> bool {\n    ((raw >> 23) & 255) != 255\n}\n\nfn unsigned_zero_bits(_ raw: u32) -> u32 {\n    if (raw & 2147483647) == 0 {\n        0\n    } else {\n        raw\n    }\n}\n\n/// Sign-magnitude IEEE-754 numeric ordering on finite f32 bit patterns (`left <= right`),\n/// treating `-0.0` and `+0.0` as numerically equal for range bounds while preserving raw bits elsewhere.\npub fn f32_bits_le(_ left: u32, _ right: u32) -> bool {\n    let a: u32 = unsigned_zero_bits(left)\n    let b: u32 = unsigned_zero_bits(right)\n    let a_neg: bool = (a >> 31) != 0\n    let b_neg: bool = (b >> 31) != 0\n    if a_neg && !b_neg {\n        return true\n    }\n    if !a_neg && b_neg {\n        return false\n    }\n    if !a_neg && !b_neg {\n        return a <= b\n    }\n    a >= b\n}\n\npub fn f32_bits_in_range(_ value_bits: u32, _ min_bits: u32, _ max_bits: u32) -> bool {\n    is_finite_f32_bits(value_bits)\n        && f32_bits_le(min_bits, value_bits)\n        && f32_bits_le(value_bits, max_bits)\n}\n\n/// Exact IEEE-754 binary32 non-overlapping pair condition (`round_to_nearest_even(hi + lo) == hi`):\n/// `|lo| <= 0.5 * ulp(hi)` (with tie-to-even when `|lo| == 0.5 * ulp(hi)`).\npub fn f32_bits_non_overlapping(_ hi_bits: u32, _ lo_bits: u32) -> bool {\n    let hi_mag: u32 = hi_bits & 2147483647\n    let lo_mag: u32 = lo_bits & 2147483647\n    if lo_mag == 0 {\n        return true\n    }\n    if hi_mag == 0 {\n        return false\n    }\n    let hi_exp: u32 = (hi_mag >> 23) & 255\n    if hi_exp <= 1 {\n        return false\n    }\n    let half_ulp_mag: u32 = if hi_exp > 24 {\n        (hi_exp - 24) << 23\n    } else {\n        1 << (hi_exp - 2)\n    }\n    lo_mag < half_ulp_mag || (lo_mag == half_ulp_mag && (hi_bits & 1) == 0)\n}\n\nfn first_nonzero_is_negative(_ w1: u32, _ w2: u32, _ w3: u32) -> bool {\n    if (w1 & 2147483647) != 0 {\n        return (w1 >> 31) != 0\n    }\n    if (w2 & 2147483647) != 0 {\n        return (w2 >> 31) != 0\n    }\n    if (w3 & 2147483647) != 0 {\n        return (w3 >> 31) != 0\n    }\n    false\n}\n\nfn first_nonzero_is_positive(_ w1: u32, _ w2: u32, _ w3: u32) -> bool {\n    if (w1 & 2147483647) != 0 {\n        return (w1 >> 31) == 0\n    }\n    if (w2 & 2147483647) != 0 {\n        return (w2 >> 31) == 0\n    }\n    if (w3 & 2147483647) != 0 {\n        return (w3 >> 31) == 0\n    }\n    false\n}\n\n/// Derive camera domain bounds directly from `ingot::policy` constants.\npub fn policy_persisted_bounds() -> PersistedBounds {\n    PersistedBounds {\n        center_x_min_bits: raw_f32_bits(CENTER_X_MIN),\n        center_x_max_bits: raw_f32_bits(CENTER_X_MAX),\n        center_y_min_bits: raw_f32_bits(CENTER_Y_MIN),\n        center_y_max_bits: raw_f32_bits(CENTER_Y_MAX),\n        zoom_min_bits: raw_f32_bits(ZOOM_MIN),\n        zoom_max_bits: raw_f32_bits(ZOOM_MAX),\n    }\n}\n\n/// Derive the default persisted view directly from `policy::initial_view()`,\n/// preserving the current backing resolution when valid.\npub fn default_persisted_view(_ current_res: f32) -> PersistedView {\n    let mut base: PersistedView = PersistedView::from_state(initial_view())\n    let current_res_bits: u32 = raw_f32_bits(current_res)\n    if f32_bits_in_range(current_res_bits, F32_ONE_BITS, F32_RES_2048_BITS) {\n        base.res_bits = current_res_bits\n    } else {\n        base.res_bits = F32_RES_512_BITS\n    }\n    base\n}\n\nimpl PersistedView {\n    pub fn from_state(_ state: MandelbrotViewState) -> Self {\n        let (x0, x1, x2, x3) = to_quad(state.camera.center.re.value)\n        let (y0, y1, y2, y3) = to_quad(state.camera.center.im.value)\n        Self {\n            center_x: QuadWordBits {\n                w0: raw_f32_bits(x0),\n                w1: raw_f32_bits(x1),\n                w2: raw_f32_bits(x2),\n                w3: raw_f32_bits(x3),\n            },\n            center_y: QuadWordBits {\n                w0: raw_f32_bits(y0),\n                w1: raw_f32_bits(y1),\n                w2: raw_f32_bits(y2),\n                w3: raw_f32_bits(y3),\n            },\n            zoom_bits: raw_f32_bits(state.camera.zoom),\n            res_bits: raw_f32_bits(state.camera.res),\n            antialias_bits: raw_f32_bits(state.antialias),\n            orientation_re_bits: raw_f32_bits(state.camera.orientation.re),\n            orientation_im_bits: raw_f32_bits(state.camera.orientation.im),\n        }\n    }\n\n    pub fn apply_to(self, _ base: MandelbrotViewState) -> MandelbrotViewState {\n        let zoom: f32 = __bitcast<u32, f32>(self.zoom_bits)\n        let mut next: MandelbrotViewState = base\n        next.camera = Camera {\n            center: Complex {\n                re: Coordinate { value: self.center_x.expansion() },\n                im: Coordinate { value: self.center_y.expansion() },\n            },\n            zoom: zoom,\n            res: __bitcast<u32, f32>(self.res_bits),\n            orientation: Complex { re: __bitcast<u32, f32>(self.orientation_re_bits), im: __bitcast<u32, f32>(self.orientation_im_bits) },\n        }\n        next.gesture = GestureSession::empty()\n        next.antialias = __bitcast<u32, f32>(self.antialias_bits)\n        next.drag_active = 0.0\n        next.magnification = 3.0 / zoom\n        next\n    }\n\n    pub fn word(self, _ field: u32) -> u32 {\n        match field {\n            0 => self.center_x.w0\n            1 => self.center_x.w1\n            2 => self.center_x.w2\n            3 => self.center_x.w3\n            4 => self.center_y.w0\n            5 => self.center_y.w1\n            6 => self.center_y.w2\n            7 => self.center_y.w3\n            8 => self.zoom_bits\n            9 => self.res_bits\n            10 => self.antialias_bits\n            11 => self.orientation_re_bits\n            _ => self.orientation_im_bits\n        }\n    }\n\n    pub fn with_word(self, _ field: u32, _ word: u32) -> Self {\n        let mut out: Self = self\n        match field {\n            0 => { out.center_x.w0 = word }\n            1 => { out.center_x.w1 = word }\n            2 => { out.center_x.w2 = word }\n            3 => { out.center_x.w3 = word }\n            4 => { out.center_y.w0 = word }\n            5 => { out.center_y.w1 = word }\n            6 => { out.center_y.w2 = word }\n            7 => { out.center_y.w3 = word }\n            8 => { out.zoom_bits = word }\n            9 => { out.res_bits = word }\n            10 => { out.antialias_bits = word }\n            11 => { out.orientation_re_bits = word }\n            _ => { out.orientation_im_bits = word }\n        }\n        out\n    }\n\n    /// Denotation of the encoded `#v1:...` string as a pure function `index (0..102) -> u8`.\n    pub fn encoded_byte(self, _ index: u32) -> u8 {\n        if index < 4 {\n            return expected_prefix_byte(index)\n        }\n        let rel: u32 = index - 4\n        let field: u32 = rel / 9\n        let slot: u32 = rel % 9\n        if slot == 8 {\n            return expected_separator(field)\n        }\n        let word: u32 = self.word(field)\n        let shift: u32 = (7 - slot) * 4\n        hex_digit(word >> shift)\n    }\n}\n\n/// Validate the full canonical `Expansion<4>` contract within `[lower_bits, upper_bits]`:\n/// 1. Every limb `w0..w3` is finite.\n/// 2. The primary word `w0` lies within `[lower_bits, upper_bits]`.\n/// 3. Adjacent words satisfy the Dekker/Priest non-overlapping rounding-error invariant:\n///    `(w0 + w1) == w0`, `(w1 + w2) == w1`, and `(w2 + w3) == w2` in IEEE-754 binary32,\n///    which prevents finite-but-huge low words from shifting `w0` or poisoning expansion math.\n/// 4. At exact boundary endpoints (`w0 == lower_bits` or `w0 == upper_bits`), low words cannot\n///    push the expansion sum outside `[lower_bits, upper_bits]`.\nfn is_valid_quad(_ q: QuadWordBits, _ lower_bits: u32, _ upper_bits: u32) -> bool {\n    if !f32_bits_in_range(q.w0, lower_bits, upper_bits)\n        || !is_finite_f32_bits(q.w1)\n        || !is_finite_f32_bits(q.w2)\n        || !is_finite_f32_bits(q.w3)\n    {\n        return false\n    }\n    if !f32_bits_non_overlapping(q.w0, q.w1)\n        || !f32_bits_non_overlapping(q.w1, q.w2)\n        || !f32_bits_non_overlapping(q.w2, q.w3)\n    {\n        return false\n    }\n    let w0: u32 = unsigned_zero_bits(q.w0)\n    if w0 == unsigned_zero_bits(lower_bits) && first_nonzero_is_negative(q.w1, q.w2, q.w3) {\n        return false\n    }\n    if w0 == unsigned_zero_bits(upper_bits) && first_nonzero_is_positive(q.w1, q.w2, q.w3) {\n        return false\n    }\n    true\n}\n\n/// Resolutions are positive whole pixel counts. Restricting the exponent\n/// before building the fractional mask keeps every shift within u32 width.\nfn is_whole_resolution(_ bits: u32) -> bool {\n    let exponent: u32 = (bits >> 23) & 255\n    if exponent < 127 || exponent > 138 { return false }\n    let fractional_bits: u32 = 150 - exponent\n    (bits & ((1 << fractional_bits) - 1)) == 0\n}\n\npub fn is_valid_persisted_view(_ view: PersistedView, _ bounds: PersistedBounds) -> bool {\n    is_valid_quad(view.center_x, bounds.center_x_min_bits, bounds.center_x_max_bits)\n        && is_valid_quad(view.center_y, bounds.center_y_min_bits, bounds.center_y_max_bits)\n        && f32_bits_in_range(view.zoom_bits, bounds.zoom_min_bits, bounds.zoom_max_bits)\n        && f32_bits_in_range(view.res_bits, F32_ONE_BITS, F32_RES_2048_BITS)\n        && is_whole_resolution(view.res_bits)\n        && f32_bits_in_range(view.antialias_bits, F32_ZERO_BITS, F32_ONE_BITS)\n        && valid_orientation(view.orientation_re_bits, view.orientation_im_bits)\n}\n\n/// Retain exact orientation bits on restore; rejecting invalid bases is safer\n/// than silently renormalizing a saved view onto a different sample lattice.\nfn valid_orientation(_ re_bits: u32, _ im_bits: u32) -> bool {\n    if !is_finite_f32_bits(re_bits) || !is_finite_f32_bits(im_bits) { return false }\n    let re: f32 = __bitcast<u32, f32>(re_bits)\n    let im: f32 = __bitcast<u32, f32>(im_bits)\n    let norm = re * re + im * im\n    norm >= 0.99999 && norm <= 1.00001\n}\n\nfn expected_prefix_byte(_ index: u32) -> u8 {\n    match index {\n        0 => 35 // '#'\n        1 => 118 // 'v'\n        2 => 50 // '2'\n        _ => 58 // ':'\n    }\n}\n\nfn expected_separator(_ field: u32) -> u8 {\n    if field == 0 || field == 1 || field == 2 || field == 4 || field == 5 || field == 6 {\n        46 // '.'\n    } else {\n        58 // ':'\n    }\n}\n\nfn hex_digit(_ nybble: u32) -> u8 {\n    match nybble & 15 {\n        0 => 48\n        1 => 49\n        2 => 50\n        3 => 51\n        4 => 52\n        5 => 53\n        6 => 54\n        7 => 55\n        8 => 56\n        9 => 57\n        10 => 97\n        11 => 98\n        12 => 99\n        13 => 100\n        14 => 101\n        _ => 102\n    }\n}\n\nfn parse_hex_nybble(_ byte: u8) -> u32 {\n    if byte >= 48 && byte <= 57 {\n        return (byte - 48) as u32\n    }\n    if byte >= 97 && byte <= 102 {\n        return (byte - 87) as u32\n    }\n    if byte >= 65 && byte <= 70 {\n        return (byte - 55) as u32\n    }\n    16\n}\n\n/// Pure streaming left-fold decoder for `#v1:...` URL fragments.\npub struct UrlDecodeState {\n    pub view: PersistedView,\n    pub current_word: u32,\n    pub valid: bool,\n    pub version: u32,\n}\n\nimpl Copy for UrlDecodeState {}\n\nimpl UrlDecodeState {\n    pub fn initial() -> Self {\n        let mut view = PersistedView::default()\n        view.orientation_re_bits = F32_ONE_BITS\n        Self {\n            version: 2,\n            view: view,\n            current_word: 0,\n            valid: true,\n        }\n    }\n\n    pub fn step(self, _ index: u32, _ byte: u8) -> Self {\n        if !self.valid || index >= URL_ENCODED_LEN {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: false,\n            }\n        }\n        if index == 2 {\n            return Self { version: if byte == 49 { 1 } else { 2 }, view: self.view,\n                current_word: 0, valid: byte == 49 || byte == 50 }\n        }\n        if index < 4 {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: byte == expected_prefix_byte(index),\n            }\n        }\n        let rel: u32 = index - 4\n        let field: u32 = rel / 9\n        let slot: u32 = rel % 9\n        if slot == 8 {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: byte == expected_separator(field),\n            }\n        }\n        let nybble: u32 = parse_hex_nybble(byte)\n        if nybble >= 16 {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: false,\n            }\n        }\n        let base: u32 = if slot == 0 { 0 } else { self.current_word }\n        let next_word: u32 = (base << 4) | nybble\n        if slot == 7 {\n            if !is_finite_f32_bits(next_word) {\n                return Self {\n                    version: self.version,\n                    view: self.view,\n                    current_word: 0,\n                    valid: false,\n                }\n            }\n            return Self {\n                version: self.version,\n                view: self.view.with_word(field, next_word),\n                current_word: 0,\n                valid: true,\n            }\n        }\n        Self {\n            version: self.version,\n            view: self.view,\n            current_word: next_word,\n            valid: true,\n        }\n    }\n\n    pub fn finish(\n        self,\n        _ len: u32,\n        _ fallback: PersistedView,\n        _ bounds: PersistedBounds,\n    ) -> DecodedPersistedView {\n        if !self.valid || len != (if self.version == 1 { URL_V1_ENCODED_LEN } else { URL_ENCODED_LEN })\n            || !is_valid_persisted_view(self.view, bounds) {\n            return DecodedPersistedView {\n                view: fallback,\n                valid: false,\n            }\n        }\n        DecodedPersistedView {\n            view: self.view,\n            valid: true,\n        }\n    }\n}\n\npub fn roundtrip_persisted_view(\n    _ view: PersistedView,\n    _ fallback: PersistedView,\n    _ bounds: PersistedBounds,\n) -> DecodedPersistedView {\n    let mut decoder: UrlDecodeState = UrlDecodeState::initial()\n    let mut i: u32 = 0\n    while i < URL_ENCODED_LEN {\n        decoder = decoder.step(i, view.encoded_byte(i))\n        i = i + 1\n    }\n    decoder.finish(URL_ENCODED_LEN, fallback, bounds)\n}\n\npub fn roundtrip_with_mutated_byte(\n    _ view: PersistedView,\n    _ mutate_index: u32,\n    _ mutate_byte: u8,\n    _ len: u32,\n    _ fallback: PersistedView,\n    _ bounds: PersistedBounds,\n) -> DecodedPersistedView {\n    let mut decoder: UrlDecodeState = UrlDecodeState::initial()\n    let mut i: u32 = 0\n    while i < len {\n        let b: u8 = if i == mutate_index {\n            mutate_byte\n        } else {\n            if i < URL_ENCODED_LEN { view.encoded_byte(i) } else { 48 }\n        }\n        decoder = decoder.step(i, b)\n        i = i + 1\n    }\n    decoder.finish(len, fallback, bounds)\n}\n\nfn decode_hash_view(\n    _ hash: Utf8View,\n    _ fallback: PersistedView,\n    _ bounds: PersistedBounds,\n) -> DecodedPersistedView {\n    let traced_len = URL_ENCODED_LEN - 1 + ingot::trace::TRACE_SUFFIX_LEN\n    let mut length = hash.len()\n    if length == traced_len {\n        let start = URL_ENCODED_LEN - 1\n        if hash.byte(index: start) != 126 || hash.byte(index: start + 1) != 103\n            || hash.byte(index: start + 2) != 58 {\n            return DecodedPersistedView { view: fallback, valid: false }\n        }\n        let mut i: u32 = 3\n        while i < ingot::trace::TRACE_SUFFIX_LEN {\n            let byte = hash.byte(index: start + i)\n            let valid = if (i - 3) % 9 == 8 { byte == 46 }\n                else { (byte >= 48 && byte <= 57) || (byte >= 97 && byte <= 102) }\n            if !valid { return DecodedPersistedView { view: fallback, valid: false } }\n            i += 1\n        }\n        length = URL_ENCODED_LEN - 1\n    }\n    if length != URL_V1_ENCODED_LEN - 1 && length != URL_ENCODED_LEN - 1 {\n        return DecodedPersistedView { view: fallback, valid: false }\n    }\n    let mut decoder: UrlDecodeState = UrlDecodeState::initial().step(0, 35)\n    let mut i: u32 = 0\n    while i < length {\n        decoder = decoder.step(i + 1, hash.byte(index: i))\n        i = i + 1\n    }\n    decoder.finish(length + 1, fallback, bounds)\n}\n\nfn write_u32_cell(address: u32, value: u32) {\n    let cell: BrowserPtr<u32> = BrowserPtr::from_u32(address)\n    cell.write(value)\n}\n\nfn write_u8_cell(address: u32, value: u8) {\n    let cell: BrowserPtr<u8> = BrowserPtr::from_u32(address)\n    cell.write(value)\n}\n\n/// True when one `&`-separated query pair is exactly `trace=1`. Other parameters, such\n/// as cache-busters or tracking tags, neither enable nor disable the diagnostic.\nfn query_enables_trace(_ query: Utf8View) -> bool {\n    let length: u32 = query.len()\n    let mut start: u32 = 0\n    let mut index: u32 = 0\n    while index <= length {\n        if index == length || query.byte(index: index) == 38 {\n            let pair = query.slice(start: start, end: index)\n            if pair.valid && pair.view.equals_literal([116, 114, 97, 99, 101, 61, 49]) {\n                return true\n            }\n            start = index + 1\n        }\n        index = index + 1\n    }\n    false\n}\n\n/// Synchronize resident Mandelbrot view state with the `#v1:...` URL fragment and emit\n/// the canonical `#v1:...` fragment into `event.out_ptr`.\n/// Only the URL hash fragment is owned by view persistence; any query parameters on the URL\n/// are ignored during decoding and preserved untouched by the host transport.\npub fn sync_url_state(\n    _ state: MandelbrotViewState,\n    _ event: own SurfaceLocationEvent,\n) -> MandelbrotViewState {\n    let mut next_state: MandelbrotViewState = state\n    if event.apply_input {\n        next_state.backing = BackingRequest::automatic()\n        let fallback: PersistedView = default_persisted_view(state.camera.res)\n        let bounds: PersistedBounds = policy_persisted_bounds()\n        if event.input_len == 0 || event.input_ptr == 0 {\n            next_state = fallback.apply_to(next_state)\n        } else {\n            let location = parse_location(BrowserString {\n                ptr: event.input_ptr,\n                len: event.input_len,\n            })\n            if !location.valid {\n                next_state = fallback.apply_to(next_state)\n            } else {\n                next_state.trace.enabled = query_enables_trace(location.query.view())\n                let hash: Utf8View = location.hash.view()\n                if hash.is_empty() {\n                    next_state = fallback.apply_to(next_state)\n                } else {\n                    let decoded: DecodedPersistedView = decode_hash_view(hash, fallback, bounds)\n                    next_state = decoded.view.apply_to(next_state)\n                    next_state.backing = if decoded.valid {\n                        BackingRequest::fixed(next_state.camera.res)\n                    } else { BackingRequest::automatic() }\n                }\n            }\n        }\n    }\n    let traced_len = URL_ENCODED_LEN + ingot::trace::TRACE_SUFFIX_LEN\n    let length = if next_state.trace.enabled && event.out_cap >= traced_len {\n        traced_len\n    } else { URL_ENCODED_LEN }\n    if event.out_ptr != 0 && event.out_cap >= length {\n        let persisted: PersistedView = PersistedView::from_state(next_state)\n        let mut i: u32 = 0\n        while i < length {\n            write_u8_cell(\n                address: event.out_ptr + i,\n                value: if i < URL_ENCODED_LEN { persisted.encoded_byte(i) }\n                    else { next_state.trace.encoded_byte(i - URL_ENCODED_LEN) },\n            )\n            i = i + 1\n        }\n        if event.out_len_ptr != 0 {\n            write_u32_cell(address: event.out_len_ptr, value: length)\n        }\n    } else {\n        if event.out_len_ptr != 0 {\n            write_u32_cell(address: event.out_len_ptr, value: 0)\n        }\n    }\n    next_state\n}\n",
         "trait_impls": [],
         "visibility": "public",
         "where_bounds": []
@@ -48268,6 +48275,30 @@
       {
         "children": [],
         "docs": {
+          "body": "True when one `&`-separated query pair is exactly `trace=1`. Other parameters, such\n as cache-busters or tracking tags, neither enable nor disable the diagnostic.",
+          "html_body": "<p>True when one <code>&amp;</code>-separated query pair is exactly <code>trace=1</code>. Other parameters, such<br />\nas cache-busters or tracking tags, neither enable nor disable the diagnostic.</p>\n",
+          "sections": [],
+          "summary": "True when one `&`-separated query pair is exactly `trace=1`. Other parameters, such\n as cache-busters or tracking tags, neither enable nor disable the diagnostic."
+        },
+        "generics": [],
+        "kind": "function",
+        "name": "query_enables_trace",
+        "path": "perturbational_mandelbrot_smooth::url::query_enables_trace",
+        "sig_scope": "__sig__/perturbational_mandelbrot_smooth::url::query_enables_trace/fn",
+        "signature": "fn query_enables_trace(_ query: Utf8View) -> bool",
+        "source": {
+          "column": 0,
+          "display_file": "url.fe",
+          "line": 622
+        },
+        "source_text": "/// True when one `&`-separated query pair is exactly `trace=1`. Other parameters, such\n/// as cache-busters or tracking tags, neither enable nor disable the diagnostic.\nfn query_enables_trace(_ query: Utf8View) -> bool {\n    let length: u32 = query.len()\n    let mut start: u32 = 0\n    let mut index: u32 = 0\n    while index <= length {\n        if index == length || query.byte(index: index) == 38 {\n            let pair = query.slice(start: start, end: index)\n            if pair.valid && pair.view.equals_literal([116, 114, 97, 99, 101, 61, 49]) {\n                return true\n            }\n            start = index + 1\n        }\n        index = index + 1\n    }\n    false\n}",
+        "trait_impls": [],
+        "visibility": "private",
+        "where_bounds": []
+      },
+      {
+        "children": [],
+        "docs": {
           "body": "Synchronize resident Mandelbrot view state with the `#v1:...` URL fragment and emit\n the canonical `#v1:...` fragment into `event.out_ptr`.\n Only the URL hash fragment is owned by view persistence; any query parameters on the URL\n are ignored during decoding and preserved untouched by the host transport.",
           "html_body": "<p>Synchronize resident Mandelbrot view state with the <code>#v1:...</code> URL fragment and emit<br />\nthe canonical <code>#v1:...</code> fragment into <code>event.out_ptr</code>.<br />\nOnly the URL hash fragment is owned by view persistence; any query parameters on the URL<br />\nare ignored during decoding and preserved untouched by the host transport.</p>\n",
           "sections": [],
@@ -48298,9 +48329,9 @@
         "source": {
           "column": 0,
           "display_file": "url.fe",
-          "line": 622
+          "line": 641
         },
-        "source_text": "/// Synchronize resident Mandelbrot view state with the `#v1:...` URL fragment and emit\n/// the canonical `#v1:...` fragment into `event.out_ptr`.\n/// Only the URL hash fragment is owned by view persistence; any query parameters on the URL\n/// are ignored during decoding and preserved untouched by the host transport.\npub fn sync_url_state(\n    _ state: MandelbrotViewState,\n    _ event: own SurfaceLocationEvent,\n) -> MandelbrotViewState {\n    let mut next_state: MandelbrotViewState = state\n    if event.apply_input {\n        next_state.backing = BackingRequest::automatic()\n        let fallback: PersistedView = default_persisted_view(state.camera.res)\n        let bounds: PersistedBounds = policy_persisted_bounds()\n        if event.input_len == 0 || event.input_ptr == 0 {\n            next_state = fallback.apply_to(next_state)\n        } else {\n            let location = parse_location(BrowserString {\n                ptr: event.input_ptr,\n                len: event.input_len,\n            })\n            if !location.valid {\n                next_state = fallback.apply_to(next_state)\n            } else {\n                let trace = location.query.single([116, 114, 97, 99, 101])\n                next_state.trace.enabled = trace.valid && trace.present\n                    && trace.value.equals_literal([49])\n                let hash: Utf8View = location.hash.view()\n                if hash.is_empty() {\n                    next_state = fallback.apply_to(next_state)\n                } else {\n                    let decoded: DecodedPersistedView = decode_hash_view(hash, fallback, bounds)\n                    next_state = decoded.view.apply_to(next_state)\n                    next_state.backing = if decoded.valid {\n                        BackingRequest::fixed(next_state.camera.res)\n                    } else { BackingRequest::automatic() }\n                }\n            }\n        }\n    }\n    let traced_len = URL_ENCODED_LEN + ingot::trace::TRACE_SUFFIX_LEN\n    let length = if next_state.trace.enabled && event.out_cap >= traced_len {\n        traced_len\n    } else { URL_ENCODED_LEN }\n    if event.out_ptr != 0 && event.out_cap >= length {\n        let persisted: PersistedView = PersistedView::from_state(next_state)\n        let mut i: u32 = 0\n        while i < length {\n            write_u8_cell(\n                address: event.out_ptr + i,\n                value: if i < URL_ENCODED_LEN { persisted.encoded_byte(i) }\n                    else { next_state.trace.encoded_byte(i - URL_ENCODED_LEN) },\n            )\n            i = i + 1\n        }\n        if event.out_len_ptr != 0 {\n            write_u32_cell(address: event.out_len_ptr, value: length)\n        }\n    } else {\n        if event.out_len_ptr != 0 {\n            write_u32_cell(address: event.out_len_ptr, value: 0)\n        }\n    }\n    next_state\n}",
+        "source_text": "/// Synchronize resident Mandelbrot view state with the `#v1:...` URL fragment and emit\n/// the canonical `#v1:...` fragment into `event.out_ptr`.\n/// Only the URL hash fragment is owned by view persistence; any query parameters on the URL\n/// are ignored during decoding and preserved untouched by the host transport.\npub fn sync_url_state(\n    _ state: MandelbrotViewState,\n    _ event: own SurfaceLocationEvent,\n) -> MandelbrotViewState {\n    let mut next_state: MandelbrotViewState = state\n    if event.apply_input {\n        next_state.backing = BackingRequest::automatic()\n        let fallback: PersistedView = default_persisted_view(state.camera.res)\n        let bounds: PersistedBounds = policy_persisted_bounds()\n        if event.input_len == 0 || event.input_ptr == 0 {\n            next_state = fallback.apply_to(next_state)\n        } else {\n            let location = parse_location(BrowserString {\n                ptr: event.input_ptr,\n                len: event.input_len,\n            })\n            if !location.valid {\n                next_state = fallback.apply_to(next_state)\n            } else {\n                next_state.trace.enabled = query_enables_trace(location.query.view())\n                let hash: Utf8View = location.hash.view()\n                if hash.is_empty() {\n                    next_state = fallback.apply_to(next_state)\n                } else {\n                    let decoded: DecodedPersistedView = decode_hash_view(hash, fallback, bounds)\n                    next_state = decoded.view.apply_to(next_state)\n                    next_state.backing = if decoded.valid {\n                        BackingRequest::fixed(next_state.camera.res)\n                    } else { BackingRequest::automatic() }\n                }\n            }\n        }\n    }\n    let traced_len = URL_ENCODED_LEN + ingot::trace::TRACE_SUFFIX_LEN\n    let length = if next_state.trace.enabled && event.out_cap >= traced_len {\n        traced_len\n    } else { URL_ENCODED_LEN }\n    if event.out_ptr != 0 && event.out_cap >= length {\n        let persisted: PersistedView = PersistedView::from_state(next_state)\n        let mut i: u32 = 0\n        while i < length {\n            write_u8_cell(\n                address: event.out_ptr + i,\n                value: if i < URL_ENCODED_LEN { persisted.encoded_byte(i) }\n                    else { next_state.trace.encoded_byte(i - URL_ENCODED_LEN) },\n            )\n            i = i + 1\n        }\n        if event.out_len_ptr != 0 {\n            write_u32_cell(address: event.out_len_ptr, value: length)\n        }\n    } else {\n        if event.out_len_ptr != 0 {\n            write_u32_cell(address: event.out_len_ptr, value: 0)\n        }\n    }\n    next_state\n}",
         "trait_impls": [],
         "visibility": "public",
         "where_bounds": []
@@ -50202,6 +50233,12 @@
                 "name": "policy_persisted_bounds",
                 "path": "perturbational_mandelbrot_smooth::url::policy_persisted_bounds",
                 "summary": "Derive camera domain bounds directly from `ingot::policy` constants."
+              },
+              {
+                "kind": "function",
+                "name": "query_enables_trace",
+                "path": "perturbational_mandelbrot_smooth::url::query_enables_trace",
+                "summary": "True when one `&`-separated query pair is exactly `trace=1`."
               },
               {
                 "kind": "function",
@@ -123988,370 +124025,383 @@
           "sym": "fe fe core 0.1.0 lib/browser/BrowserPtr#"
         },
         {
+          "ce": 22,
+          "cs": 3,
+          "def": true,
+          "line": 623,
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/query_enables_trace."
+        },
+        {
+          "ce": 40,
+          "cs": 32,
+          "line": 623,
+          "sym": "fe fe std 0.1.0 lib/text/Utf8View#"
+        },
+        {
+          "ce": 25,
+          "cs": 20,
+          "line": 630,
+          "sym": "fe fe std 0.1.0 lib/text/Utf8Slice#valid."
+        },
+        {
+          "ce": 38,
+          "cs": 34,
+          "line": 630,
+          "sym": "fe fe std 0.1.0 lib/text/Utf8Slice#view."
+        },
+        {
           "ce": 21,
           "cs": 7,
           "def": true,
-          "line": 625,
+          "line": 644,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/sync_url_state."
         },
         {
           "ce": 32,
           "cs": 13,
-          "line": 626,
+          "line": 645,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/MandelbrotViewState#"
         },
         {
           "ce": 37,
           "cs": 17,
-          "line": 627,
+          "line": 646,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#"
         },
         {
           "ce": 24,
           "cs": 5,
-          "line": 628,
+          "line": 647,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/MandelbrotViewState#"
         },
         {
           "ce": 43,
           "cs": 24,
-          "line": 629,
+          "line": 648,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/MandelbrotViewState#"
         },
         {
           "ce": 24,
           "cs": 13,
-          "line": 630,
+          "line": 649,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#apply_input."
         },
         {
           "ce": 26,
           "cs": 19,
-          "line": 631,
+          "line": 650,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/MandelbrotViewState#backing."
         },
         {
           "ce": 43,
           "cs": 29,
-          "line": 631,
+          "line": 650,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/BackingRequest#"
         },
         {
           "ce": 35,
           "cs": 22,
-          "line": 632,
+          "line": 651,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/PersistedView#"
         },
         {
           "ce": 60,
           "cs": 38,
-          "line": 632,
+          "line": 651,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/default_persisted_view."
         },
         {
           "ce": 73,
           "cs": 67,
-          "line": 632,
+          "line": 651,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/MandelbrotViewState#camera."
         },
         {
           "ce": 77,
           "cs": 74,
-          "line": 632,
+          "line": 651,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/Camera#res."
         },
         {
           "ce": 35,
           "cs": 20,
-          "line": 633,
+          "line": 652,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/PersistedBounds#"
         },
         {
           "ce": 61,
           "cs": 38,
-          "line": 633,
+          "line": 652,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/policy_persisted_bounds."
         },
         {
           "ce": 26,
           "cs": 17,
-          "line": 634,
+          "line": 653,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#input_len."
         },
         {
           "ce": 50,
           "cs": 41,
-          "line": 634,
+          "line": 653,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#input_ptr."
         },
         {
           "ce": 41,
           "cs": 27,
-          "line": 637,
+          "line": 656,
           "sym": "fe fe std 0.1.0 lib/web/navigation/parse_location."
         },
         {
           "ce": 55,
           "cs": 42,
-          "line": 637,
+          "line": 656,
           "sym": "fe fe core 0.1.0 lib/browser/BrowserString#"
         },
         {
           "ce": 36,
           "cs": 27,
-          "line": 638,
+          "line": 657,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#input_ptr."
         },
         {
           "ce": 36,
           "cs": 27,
-          "line": 639,
+          "line": 658,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#input_len."
         },
         {
           "ce": 30,
           "cs": 25,
-          "line": 641,
+          "line": 660,
           "sym": "fe fe std 0.1.0 lib/web/navigation/RouteLocation#valid."
-        },
-        {
-          "ce": 42,
-          "cs": 37,
-          "line": 644,
-          "sym": "fe fe std 0.1.0 lib/web/navigation/RouteLocation#query."
         },
         {
           "ce": 32,
           "cs": 27,
-          "line": 645,
+          "line": 663,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/MandelbrotViewState#trace."
         },
         {
           "ce": 40,
           "cs": 33,
-          "line": 645,
+          "line": 663,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/CameraTrace#enabled."
         },
         {
-          "ce": 54,
-          "cs": 49,
-          "line": 645,
-          "sym": "fe fe std 0.1.0 lib/web/navigation/RouteQueryValue#valid."
+          "ce": 62,
+          "cs": 43,
+          "line": 663,
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/query_enables_trace."
         },
         {
-          "ce": 71,
-          "cs": 64,
-          "line": 645,
-          "sym": "fe fe std 0.1.0 lib/web/navigation/RouteQueryValue#present."
-        },
-        {
-          "ce": 34,
-          "cs": 29,
-          "line": 646,
-          "sym": "fe fe std 0.1.0 lib/web/navigation/RouteQueryValue#value."
+          "ce": 77,
+          "cs": 72,
+          "line": 663,
+          "sym": "fe fe std 0.1.0 lib/web/navigation/RouteLocation#query."
         },
         {
           "ce": 34,
           "cs": 26,
-          "line": 647,
+          "line": 664,
           "sym": "fe fe std 0.1.0 lib/text/Utf8View#"
         },
         {
           "ce": 50,
           "cs": 46,
-          "line": 647,
+          "line": 664,
           "sym": "fe fe std 0.1.0 lib/web/navigation/RouteLocation#hash."
         },
         {
           "ce": 53,
           "cs": 33,
-          "line": 651,
+          "line": 668,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/DecodedPersistedView#"
         },
         {
           "ce": 72,
           "cs": 56,
-          "line": 651,
+          "line": 668,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/decode_hash_view."
         },
         {
           "ce": 45,
           "cs": 41,
-          "line": 652,
+          "line": 669,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/DecodedPersistedView#view."
         },
         {
           "ce": 38,
           "cs": 31,
-          "line": 653,
+          "line": 670,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/MandelbrotViewState#backing."
         },
         {
           "ce": 57,
           "cs": 52,
-          "line": 653,
+          "line": 670,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/DecodedPersistedView#valid."
         },
         {
           "ce": 38,
           "cs": 24,
-          "line": 654,
+          "line": 671,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/BackingRequest#"
         },
         {
           "ce": 63,
           "cs": 57,
-          "line": 654,
+          "line": 671,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/MandelbrotViewState#camera."
         },
         {
           "ce": 67,
           "cs": 64,
-          "line": 654,
+          "line": 671,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/Camera#res."
         },
         {
           "ce": 43,
           "cs": 29,
-          "line": 655,
+          "line": 672,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/BackingRequest#"
         },
         {
           "ce": 36,
           "cs": 21,
-          "line": 660,
+          "line": 677,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/URL_ENCODED_LEN:"
         },
         {
           "ce": 44,
           "cs": 39,
-          "line": 660,
+          "line": 677,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib:"
         },
         {
           "ce": 51,
           "cs": 46,
-          "line": 660,
+          "line": 677,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace:"
         },
         {
           "ce": 69,
           "cs": 53,
-          "line": 660,
+          "line": 677,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TRACE_SUFFIX_LEN:"
         },
         {
           "ce": 36,
           "cs": 31,
-          "line": 661,
+          "line": 678,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/MandelbrotViewState#trace."
         },
         {
           "ce": 44,
           "cs": 37,
-          "line": 661,
+          "line": 678,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/CameraTrace#enabled."
         },
         {
           "ce": 61,
           "cs": 54,
-          "line": 661,
+          "line": 678,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#out_cap."
         },
         {
           "ce": 28,
           "cs": 13,
-          "line": 663,
+          "line": 680,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/URL_ENCODED_LEN:"
         },
         {
           "ce": 20,
           "cs": 13,
-          "line": 664,
+          "line": 681,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#out_ptr."
         },
         {
           "ce": 42,
           "cs": 35,
-          "line": 664,
+          "line": 681,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#out_cap."
         },
         {
           "ce": 36,
           "cs": 23,
-          "line": 665,
+          "line": 682,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/PersistedView#"
         },
         {
           "ce": 52,
           "cs": 39,
-          "line": 665,
+          "line": 682,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/PersistedView#"
         },
         {
           "ce": 25,
           "cs": 12,
-          "line": 668,
+          "line": 685,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/write_u8_cell."
         },
         {
           "ce": 38,
           "cs": 31,
-          "line": 669,
+          "line": 686,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#out_ptr."
         },
         {
           "ce": 45,
           "cs": 30,
-          "line": 670,
+          "line": 687,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/URL_ENCODED_LEN:"
         },
         {
           "ce": 43,
           "cs": 38,
-          "line": 671,
+          "line": 688,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/MandelbrotViewState#trace."
         },
         {
           "ce": 76,
           "cs": 61,
-          "line": 671,
+          "line": 688,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/URL_ENCODED_LEN:"
         },
         {
           "ce": 28,
           "cs": 17,
-          "line": 675,
+          "line": 692,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#out_len_ptr."
         },
         {
           "ce": 26,
           "cs": 12,
-          "line": 676,
+          "line": 693,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/write_u32_cell."
         },
         {
           "ce": 53,
           "cs": 42,
-          "line": 676,
+          "line": 693,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#out_len_ptr."
         },
         {
           "ce": 28,
           "cs": 17,
-          "line": 679,
+          "line": 696,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#out_len_ptr."
         },
         {
           "ce": 26,
           "cs": 12,
-          "line": 680,
+          "line": 697,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/write_u32_cell."
         },
         {
           "ce": 53,
           "cs": 42,
-          "line": 680,
+          "line": 697,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#out_len_ptr."
         }
       ],
@@ -125256,6 +125306,21 @@
           "cs": 36,
           "line": 0,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/PersistedBounds#"
+        }
+      ],
+      "__sig__/perturbational_mandelbrot_smooth::url::query_enables_trace/fn": [
+        {
+          "ce": 22,
+          "cs": 3,
+          "def": true,
+          "line": 0,
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/query_enables_trace."
+        },
+        {
+          "ce": 40,
+          "cs": 32,
+          "line": 0,
+          "sym": "fe fe std 0.1.0 lib/text/Utf8View#"
         }
       ],
       "__sig__/perturbational_mandelbrot_smooth::url::raw_f32_bits/fn": [
@@ -152030,370 +152095,383 @@
           "sym": "fe fe core 0.1.0 lib/browser/BrowserPtr#"
         },
         {
+          "ce": 22,
+          "cs": 3,
+          "def": true,
+          "line": 623,
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/query_enables_trace."
+        },
+        {
+          "ce": 40,
+          "cs": 32,
+          "line": 623,
+          "sym": "fe fe std 0.1.0 lib/text/Utf8View#"
+        },
+        {
+          "ce": 25,
+          "cs": 20,
+          "line": 630,
+          "sym": "fe fe std 0.1.0 lib/text/Utf8Slice#valid."
+        },
+        {
+          "ce": 38,
+          "cs": 34,
+          "line": 630,
+          "sym": "fe fe std 0.1.0 lib/text/Utf8Slice#view."
+        },
+        {
           "ce": 21,
           "cs": 7,
           "def": true,
-          "line": 625,
+          "line": 644,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/sync_url_state."
         },
         {
           "ce": 32,
           "cs": 13,
-          "line": 626,
+          "line": 645,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/MandelbrotViewState#"
         },
         {
           "ce": 37,
           "cs": 17,
-          "line": 627,
+          "line": 646,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#"
         },
         {
           "ce": 24,
           "cs": 5,
-          "line": 628,
+          "line": 647,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/MandelbrotViewState#"
         },
         {
           "ce": 43,
           "cs": 24,
-          "line": 629,
+          "line": 648,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/MandelbrotViewState#"
         },
         {
           "ce": 24,
           "cs": 13,
-          "line": 630,
+          "line": 649,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#apply_input."
         },
         {
           "ce": 26,
           "cs": 19,
-          "line": 631,
+          "line": 650,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/MandelbrotViewState#backing."
         },
         {
           "ce": 43,
           "cs": 29,
-          "line": 631,
+          "line": 650,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/BackingRequest#"
         },
         {
           "ce": 35,
           "cs": 22,
-          "line": 632,
+          "line": 651,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/PersistedView#"
         },
         {
           "ce": 60,
           "cs": 38,
-          "line": 632,
+          "line": 651,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/default_persisted_view."
         },
         {
           "ce": 73,
           "cs": 67,
-          "line": 632,
+          "line": 651,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/MandelbrotViewState#camera."
         },
         {
           "ce": 77,
           "cs": 74,
-          "line": 632,
+          "line": 651,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/Camera#res."
         },
         {
           "ce": 35,
           "cs": 20,
-          "line": 633,
+          "line": 652,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/PersistedBounds#"
         },
         {
           "ce": 61,
           "cs": 38,
-          "line": 633,
+          "line": 652,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/policy_persisted_bounds."
         },
         {
           "ce": 26,
           "cs": 17,
-          "line": 634,
+          "line": 653,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#input_len."
         },
         {
           "ce": 50,
           "cs": 41,
-          "line": 634,
+          "line": 653,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#input_ptr."
         },
         {
           "ce": 41,
           "cs": 27,
-          "line": 637,
+          "line": 656,
           "sym": "fe fe std 0.1.0 lib/web/navigation/parse_location."
         },
         {
           "ce": 55,
           "cs": 42,
-          "line": 637,
+          "line": 656,
           "sym": "fe fe core 0.1.0 lib/browser/BrowserString#"
         },
         {
           "ce": 36,
           "cs": 27,
-          "line": 638,
+          "line": 657,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#input_ptr."
         },
         {
           "ce": 36,
           "cs": 27,
-          "line": 639,
+          "line": 658,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#input_len."
         },
         {
           "ce": 30,
           "cs": 25,
-          "line": 641,
+          "line": 660,
           "sym": "fe fe std 0.1.0 lib/web/navigation/RouteLocation#valid."
-        },
-        {
-          "ce": 42,
-          "cs": 37,
-          "line": 644,
-          "sym": "fe fe std 0.1.0 lib/web/navigation/RouteLocation#query."
         },
         {
           "ce": 32,
           "cs": 27,
-          "line": 645,
+          "line": 663,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/MandelbrotViewState#trace."
         },
         {
           "ce": 40,
           "cs": 33,
-          "line": 645,
+          "line": 663,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/CameraTrace#enabled."
         },
         {
-          "ce": 54,
-          "cs": 49,
-          "line": 645,
-          "sym": "fe fe std 0.1.0 lib/web/navigation/RouteQueryValue#valid."
+          "ce": 62,
+          "cs": 43,
+          "line": 663,
+          "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/query_enables_trace."
         },
         {
-          "ce": 71,
-          "cs": 64,
-          "line": 645,
-          "sym": "fe fe std 0.1.0 lib/web/navigation/RouteQueryValue#present."
-        },
-        {
-          "ce": 34,
-          "cs": 29,
-          "line": 646,
-          "sym": "fe fe std 0.1.0 lib/web/navigation/RouteQueryValue#value."
+          "ce": 77,
+          "cs": 72,
+          "line": 663,
+          "sym": "fe fe std 0.1.0 lib/web/navigation/RouteLocation#query."
         },
         {
           "ce": 34,
           "cs": 26,
-          "line": 647,
+          "line": 664,
           "sym": "fe fe std 0.1.0 lib/text/Utf8View#"
         },
         {
           "ce": 50,
           "cs": 46,
-          "line": 647,
+          "line": 664,
           "sym": "fe fe std 0.1.0 lib/web/navigation/RouteLocation#hash."
         },
         {
           "ce": 53,
           "cs": 33,
-          "line": 651,
+          "line": 668,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/DecodedPersistedView#"
         },
         {
           "ce": 72,
           "cs": 56,
-          "line": 651,
+          "line": 668,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/decode_hash_view."
         },
         {
           "ce": 45,
           "cs": 41,
-          "line": 652,
+          "line": 669,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/DecodedPersistedView#view."
         },
         {
           "ce": 38,
           "cs": 31,
-          "line": 653,
+          "line": 670,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/MandelbrotViewState#backing."
         },
         {
           "ce": 57,
           "cs": 52,
-          "line": 653,
+          "line": 670,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/DecodedPersistedView#valid."
         },
         {
           "ce": 38,
           "cs": 24,
-          "line": 654,
+          "line": 671,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/BackingRequest#"
         },
         {
           "ce": 63,
           "cs": 57,
-          "line": 654,
+          "line": 671,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/MandelbrotViewState#camera."
         },
         {
           "ce": 67,
           "cs": 64,
-          "line": 654,
+          "line": 671,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/Camera#res."
         },
         {
           "ce": 43,
           "cs": 29,
-          "line": 655,
+          "line": 672,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/BackingRequest#"
         },
         {
           "ce": 36,
           "cs": 21,
-          "line": 660,
+          "line": 677,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/URL_ENCODED_LEN:"
         },
         {
           "ce": 44,
           "cs": 39,
-          "line": 660,
+          "line": 677,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib:"
         },
         {
           "ce": 51,
           "cs": 46,
-          "line": 660,
+          "line": 677,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace:"
         },
         {
           "ce": 69,
           "cs": 53,
-          "line": 660,
+          "line": 677,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/TRACE_SUFFIX_LEN:"
         },
         {
           "ce": 36,
           "cs": 31,
-          "line": 661,
+          "line": 678,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/MandelbrotViewState#trace."
         },
         {
           "ce": 44,
           "cs": 37,
-          "line": 661,
+          "line": 678,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/trace/CameraTrace#enabled."
         },
         {
           "ce": 61,
           "cs": 54,
-          "line": 661,
+          "line": 678,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#out_cap."
         },
         {
           "ce": 28,
           "cs": 13,
-          "line": 663,
+          "line": 680,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/URL_ENCODED_LEN:"
         },
         {
           "ce": 20,
           "cs": 13,
-          "line": 664,
+          "line": 681,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#out_ptr."
         },
         {
           "ce": 42,
           "cs": 35,
-          "line": 664,
+          "line": 681,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#out_cap."
         },
         {
           "ce": 36,
           "cs": 23,
-          "line": 665,
+          "line": 682,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/PersistedView#"
         },
         {
           "ce": 52,
           "cs": 39,
-          "line": 665,
+          "line": 682,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/PersistedView#"
         },
         {
           "ce": 25,
           "cs": 12,
-          "line": 668,
+          "line": 685,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/write_u8_cell."
         },
         {
           "ce": 38,
           "cs": 31,
-          "line": 669,
+          "line": 686,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#out_ptr."
         },
         {
           "ce": 45,
           "cs": 30,
-          "line": 670,
+          "line": 687,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/URL_ENCODED_LEN:"
         },
         {
           "ce": 43,
           "cs": 38,
-          "line": 671,
+          "line": 688,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/policy/MandelbrotViewState#trace."
         },
         {
           "ce": 76,
           "cs": 61,
-          "line": 671,
+          "line": 688,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/URL_ENCODED_LEN:"
         },
         {
           "ce": 28,
           "cs": 17,
-          "line": 675,
+          "line": 692,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#out_len_ptr."
         },
         {
           "ce": 26,
           "cs": 12,
-          "line": 676,
+          "line": 693,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/write_u32_cell."
         },
         {
           "ce": 53,
           "cs": 42,
-          "line": 676,
+          "line": 693,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#out_len_ptr."
         },
         {
           "ce": 28,
           "cs": 17,
-          "line": 679,
+          "line": 696,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#out_len_ptr."
         },
         {
           "ce": 26,
           "cs": 12,
-          "line": 680,
+          "line": 697,
           "sym": "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/write_u32_cell."
         },
         {
           "ce": 53,
           "cs": 42,
-          "line": 680,
+          "line": 697,
           "sym": "fe fe std 0.1.0 lib/web/view/SurfaceLocationEvent#out_len_ptr."
         }
       ],
@@ -158437,6 +158515,21 @@
         "kind": 0,
         "name": "{fn_body}"
       },
+      "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/query_enables_trace.": {
+        "doc_url": "perturbational_mandelbrot_smooth::url::query_enables_trace/fn",
+        "docs": [
+          "```fe\nfn query_enables_trace(_ query: Utf8View) -> bool\n```\n\n True when one `&`-separated query pair is exactly `trace=1`. Other parameters, such\n as cache-busters or tracking tags, neither enable nor disable the diagnostic."
+        ],
+        "kind": 17,
+        "name": "query_enables_trace"
+      },
+      "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/query_enables_trace/`{fn_body}`:": {
+        "docs": [
+          "```fe\n{\n    let length: u32 = query.len()\n    let mut start: u32 = 0\n    let mut index: u32 = 0\n    while index <= length {\n        if index == length || query.byte(index: index) == 38 {\n            let pair = query.slice(start: start, end: index)\n            if pair.valid && pair.view.equals_literal([116, 114, 97, 99, 101, 61, 49]) {\n                return true\n            }\n            start = index + 1\n        }\n        index = index + 1\n    }\n    false\n}\n```"
+        ],
+        "kind": 0,
+        "name": "{fn_body}"
+      },
       "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/raw_f32_bits.": {
         "doc_url": "perturbational_mandelbrot_smooth::url::raw_f32_bits/fn",
         "docs": [
@@ -158492,7 +158585,7 @@
       },
       "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url/sync_url_state/`{fn_body}`:": {
         "docs": [
-          "```fe\n{\n    let mut next_state: MandelbrotViewState = state\n    if event.apply_input {\n        next_state.backing = BackingRequest::automatic()\n        let fallback: PersistedView = default_persisted_view(state.camera.res)\n        let bounds: PersistedBounds = policy_persisted_bounds()\n        if event.input_len == 0 || event.input_ptr == 0 {\n            next_state = fallback.apply_to(next_state)\n        } else {\n            let location = parse_location(BrowserString {\n                ptr: event.input_ptr,\n                len: event.input_len,\n            })\n            if !location.valid {\n                next_state = fallback.apply_to(next_state)\n            } else {\n                let trace = location.query.single([116, 114, 97, 99, 101])\n                next_state.trace.enabled = trace.valid && trace.present\n                    && trace.value.equals_literal([49])\n                let hash: Utf8View = location.hash.view()\n                if hash.is_empty() {\n                    next_state = fallback.apply_to(next_state)\n                } else {\n                    let decoded: DecodedPersistedView = decode_hash_view(hash, fallback, bounds)\n                    next_state = decoded.view.apply_to(next_state)\n                    next_state.backing = if decoded.valid {\n                        BackingRequest::fixed(next_state.camera.res)\n                    } else { BackingRequest::automatic() }\n                }\n            }\n        }\n    }\n    let traced_len = URL_ENCODED_LEN + ingot::trace::TRACE_SUFFIX_LEN\n    let length = if next_state.trace.enabled && event.out_cap >= traced_len {\n        traced_len\n    } else { URL_ENCODED_LEN }\n    if event.out_ptr != 0 && event.out_cap >= length {\n        let persisted: PersistedView = PersistedView::from_state(next_state)\n        let mut i: u32 = 0\n        while i < length {\n            write_u8_cell(\n                address: event.out_ptr + i,\n                value: if i < URL_ENCODED_LEN { persisted.encoded_byte(i) }\n                    else { next_state.trace.encoded_byte(i - URL_ENCODED_LEN) },\n            )\n            i = i + 1\n        }\n        if event.out_len_ptr != 0 {\n            write_u32_cell(address: event.out_len_ptr, value: length)\n        }\n    } else {\n        if event.out_len_ptr != 0 {\n            write_u32_cell(address: event.out_len_ptr, value: 0)\n        }\n    }\n    next_state\n}\n```"
+          "```fe\n{\n    let mut next_state: MandelbrotViewState = state\n    if event.apply_input {\n        next_state.backing = BackingRequest::automatic()\n        let fallback: PersistedView = default_persisted_view(state.camera.res)\n        let bounds: PersistedBounds = policy_persisted_bounds()\n        if event.input_len == 0 || event.input_ptr == 0 {\n            next_state = fallback.apply_to(next_state)\n        } else {\n            let location = parse_location(BrowserString {\n                ptr: event.input_ptr,\n                len: event.input_len,\n            })\n            if !location.valid {\n                next_state = fallback.apply_to(next_state)\n            } else {\n                next_state.trace.enabled = query_enables_trace(location.query.view())\n                let hash: Utf8View = location.hash.view()\n                if hash.is_empty() {\n                    next_state = fallback.apply_to(next_state)\n                } else {\n                    let decoded: DecodedPersistedView = decode_hash_view(hash, fallback, bounds)\n                    next_state = decoded.view.apply_to(next_state)\n                    next_state.backing = if decoded.valid {\n                        BackingRequest::fixed(next_state.camera.res)\n                    } else { BackingRequest::automatic() }\n                }\n            }\n        }\n    }\n    let traced_len = URL_ENCODED_LEN + ingot::trace::TRACE_SUFFIX_LEN\n    let length = if next_state.trace.enabled && event.out_cap >= traced_len {\n        traced_len\n    } else { URL_ENCODED_LEN }\n    if event.out_ptr != 0 && event.out_cap >= length {\n        let persisted: PersistedView = PersistedView::from_state(next_state)\n        let mut i: u32 = 0\n        while i < length {\n            write_u8_cell(\n                address: event.out_ptr + i,\n                value: if i < URL_ENCODED_LEN { persisted.encoded_byte(i) }\n                    else { next_state.trace.encoded_byte(i - URL_ENCODED_LEN) },\n            )\n            i = i + 1\n        }\n        if event.out_len_ptr != 0 {\n            write_u32_cell(address: event.out_len_ptr, value: length)\n        }\n    } else {\n        if event.out_len_ptr != 0 {\n            write_u32_cell(address: event.out_len_ptr, value: 0)\n        }\n    }\n    next_state\n}\n```"
         ],
         "kind": 0,
         "name": "{fn_body}"
@@ -158560,7 +158653,7 @@
       "fe fe perturbational_mandelbrot_smooth 0.1.0 lib/url:": {
         "doc_url": "perturbational_mandelbrot_smooth::url/mod",
         "docs": [
-          "```fe\nuse core::{BrowserPtr, BrowserString, Copy}\nuse core::default::Default\nuse core::ops::Eq\nuse std::text::Utf8View\nuse std::web::navigation::parse_location\nuse ingot::policy::{\n    MandelbrotViewState,\n    Camera,\n    Coordinate,\n    BackingRequest,\n    initial_view,\n    CENTER_X_MIN,\n    CENTER_X_MAX,\n    CENTER_Y_MIN,\n    CENTER_Y_MAX,\n    ZOOM_MIN,\n    ZOOM_MAX,\n}\n\nuse algebra::Complex\nuse precision::{from_quad, to_quad}\nuse ingot::interaction::GestureSession\n\nextern {\n    const fn __bitcast<From, To>(_: From) -> To\n}\n\n// Version 2 canonical URL fragment format (120 ASCII bytes):\n// `#v1:<cx0>.<cx1>.<cx2>.<cx3>:<cy0>.<cy1>.<cy2>.<cy3>:<zoom>:<res>:<aa>`\n// Version 2 appends `:<orientation-re>:<orientation-im>`; version 1 restores identity.\n// Each field is an exact 8-digit lowercase hexadecimal IEEE-754 f32 word,\n// preserving all finite bit patterns including signed zero (-0.0 = 0x80000000).\npub const URL_V1_ENCODED_LEN: u32 = 102\npub const URL_ENCODED_LEN: u32 = 120\n\npub const F32_ZERO_BITS: u32 = 0x00000000 // +0.0\npub const F32_NEG_ZERO_BITS: u32 = 0x80000000 // -0.0\npub const F32_ONE_BITS: u32 = 0x3f800000 // 1.0\npub const F32_RES_512_BITS: u32 = 0x44000000 // 512.0\npub const F32_RES_1024_BITS: u32 = 0x44800000 // 1024.0\npub const F32_RES_2048_BITS: u32 = 0x45000000 // 2048.0\n\n/// Exact IEEE-754 bit words of a four-word expansion (`QuadFloat`).\npub struct QuadWordBits {\n    pub w0: u32,\n    pub w1: u32,\n    pub w2: u32,\n    pub w3: u32,\n}\n\nimpl Copy for QuadWordBits {}\nderive Eq for QuadWordBits\nderive Default for QuadWordBits\n\nimpl QuadWordBits {\n    pub fn expansion(self) -> precision::Expansion<4> {\n        from_quad(\n            __bitcast<u32, f32>(self.w0),\n            __bitcast<u32, f32>(self.w1),\n            __bitcast<u32, f32>(self.w2),\n            __bitcast<u32, f32>(self.w3),\n        )\n    }\n}\n\n/// Meaningful user-facing view state persisted in the URL fragment (`#v1:...`).\n/// Excludes transient clocks, drag flags, and derived magnification readouts.\npub struct PersistedView {\n    pub center_x: QuadWordBits,\n    pub center_y: QuadWordBits,\n    pub zoom_bits: u32,\n    pub res_bits: u32,\n    pub antialias_bits: u32,\n    pub orientation_re_bits: u32,\n    pub orientation_im_bits: u32,\n}\n\nimpl Copy for PersistedView {}\nderive Eq for PersistedView\nderive Default for PersistedView\n\n/// Camera and parameter domain bounds derived from `ingot::policy`.\npub struct PersistedBounds {\n    pub center_x_min_bits: u32,\n    pub center_x_max_bits: u32,\n    pub center_y_min_bits: u32,\n    pub center_y_max_bits: u32,\n    pub zoom_min_bits: u32,\n    pub zoom_max_bits: u32,\n}\n\nimpl Copy for PersistedBounds {}\nderive Eq for PersistedBounds\n\npub struct DecodedPersistedView {\n    pub view: PersistedView,\n    pub valid: bool,\n}\n\nimpl Copy for DecodedPersistedView {}\nderive Eq for DecodedPersistedView\n\n/// Generic surface location synchronization event lowered to `fe_surface_location_v1`.\npub use std::web::view::SurfaceLocationEvent\n\npub fn raw_f32_bits(_ value: f32) -> u32 {\n    __bitcast<f32, u32>(value)\n}\n\npub fn is_finite_f32_bits(_ raw: u32) -> bool {\n    ((raw >> 23) & 255) != 255\n}\n\nfn unsigned_zero_bits(_ raw: u32) -> u32 {\n    if (raw & 2147483647) == 0 {\n        0\n    } else {\n        raw\n    }\n}\n\n/// Sign-magnitude IEEE-754 numeric ordering on finite f32 bit patterns (`left <= right`),\n/// treating `-0.0` and `+0.0` as numerically equal for range bounds while preserving raw bits elsewhere.\npub fn f32_bits_le(_ left: u32, _ right: u32) -> bool {\n    let a: u32 = unsigned_zero_bits(left)\n    let b: u32 = unsigned_zero_bits(right)\n    let a_neg: bool = (a >> 31) != 0\n    let b_neg: bool = (b >> 31) != 0\n    if a_neg && !b_neg {\n        return true\n    }\n    if !a_neg && b_neg {\n        return false\n    }\n    if !a_neg && !b_neg {\n        return a <= b\n    }\n    a >= b\n}\n\npub fn f32_bits_in_range(_ value_bits: u32, _ min_bits: u32, _ max_bits: u32) -> bool {\n    is_finite_f32_bits(value_bits)\n        && f32_bits_le(min_bits, value_bits)\n        && f32_bits_le(value_bits, max_bits)\n}\n\n/// Exact IEEE-754 binary32 non-overlapping pair condition (`round_to_nearest_even(hi + lo) == hi`):\n/// `|lo| <= 0.5 * ulp(hi)` (with tie-to-even when `|lo| == 0.5 * ulp(hi)`).\npub fn f32_bits_non_overlapping(_ hi_bits: u32, _ lo_bits: u32) -> bool {\n    let hi_mag: u32 = hi_bits & 2147483647\n    let lo_mag: u32 = lo_bits & 2147483647\n    if lo_mag == 0 {\n        return true\n    }\n    if hi_mag == 0 {\n        return false\n    }\n    let hi_exp: u32 = (hi_mag >> 23) & 255\n    if hi_exp <= 1 {\n        return false\n    }\n    let half_ulp_mag: u32 = if hi_exp > 24 {\n        (hi_exp - 24) << 23\n    } else {\n        1 << (hi_exp - 2)\n    }\n    lo_mag < half_ulp_mag || (lo_mag == half_ulp_mag && (hi_bits & 1) == 0)\n}\n\nfn first_nonzero_is_negative(_ w1: u32, _ w2: u32, _ w3: u32) -> bool {\n    if (w1 & 2147483647) != 0 {\n        return (w1 >> 31) != 0\n    }\n    if (w2 & 2147483647) != 0 {\n        return (w2 >> 31) != 0\n    }\n    if (w3 & 2147483647) != 0 {\n        return (w3 >> 31) != 0\n    }\n    false\n}\n\nfn first_nonzero_is_positive(_ w1: u32, _ w2: u32, _ w3: u32) -> bool {\n    if (w1 & 2147483647) != 0 {\n        return (w1 >> 31) == 0\n    }\n    if (w2 & 2147483647) != 0 {\n        return (w2 >> 31) == 0\n    }\n    if (w3 & 2147483647) != 0 {\n        return (w3 >> 31) == 0\n    }\n    false\n}\n\n/// Derive camera domain bounds directly from `ingot::policy` constants.\npub fn policy_persisted_bounds() -> PersistedBounds {\n    PersistedBounds {\n        center_x_min_bits: raw_f32_bits(CENTER_X_MIN),\n        center_x_max_bits: raw_f32_bits(CENTER_X_MAX),\n        center_y_min_bits: raw_f32_bits(CENTER_Y_MIN),\n        center_y_max_bits: raw_f32_bits(CENTER_Y_MAX),\n        zoom_min_bits: raw_f32_bits(ZOOM_MIN),\n        zoom_max_bits: raw_f32_bits(ZOOM_MAX),\n    }\n}\n\n/// Derive the default persisted view directly from `policy::initial_view()`,\n/// preserving the current backing resolution when valid.\npub fn default_persisted_view(_ current_res: f32) -> PersistedView {\n    let mut base: PersistedView = PersistedView::from_state(initial_view())\n    let current_res_bits: u32 = raw_f32_bits(current_res)\n    if f32_bits_in_range(current_res_bits, F32_ONE_BITS, F32_RES_2048_BITS) {\n        base.res_bits = current_res_bits\n    } else {\n        base.res_bits = F32_RES_512_BITS\n    }\n    base\n}\n\nimpl PersistedView {\n    pub fn from_state(_ state: MandelbrotViewState) -> Self {\n        let (x0, x1, x2, x3) = to_quad(state.camera.center.re.value)\n        let (y0, y1, y2, y3) = to_quad(state.camera.center.im.value)\n        Self {\n            center_x: QuadWordBits {\n                w0: raw_f32_bits(x0),\n                w1: raw_f32_bits(x1),\n                w2: raw_f32_bits(x2),\n                w3: raw_f32_bits(x3),\n            },\n            center_y: QuadWordBits {\n                w0: raw_f32_bits(y0),\n                w1: raw_f32_bits(y1),\n                w2: raw_f32_bits(y2),\n                w3: raw_f32_bits(y3),\n            },\n            zoom_bits: raw_f32_bits(state.camera.zoom),\n            res_bits: raw_f32_bits(state.camera.res),\n            antialias_bits: raw_f32_bits(state.antialias),\n            orientation_re_bits: raw_f32_bits(state.camera.orientation.re),\n            orientation_im_bits: raw_f32_bits(state.camera.orientation.im),\n        }\n    }\n\n    pub fn apply_to(self, _ base: MandelbrotViewState) -> MandelbrotViewState {\n        let zoom: f32 = __bitcast<u32, f32>(self.zoom_bits)\n        let mut next: MandelbrotViewState = base\n        next.camera = Camera {\n            center: Complex {\n                re: Coordinate { value: self.center_x.expansion() },\n                im: Coordinate { value: self.center_y.expansion() },\n            },\n            zoom: zoom,\n            res: __bitcast<u32, f32>(self.res_bits),\n            orientation: Complex { re: __bitcast<u32, f32>(self.orientation_re_bits), im: __bitcast<u32, f32>(self.orientation_im_bits) },\n        }\n        next.gesture = GestureSession::empty()\n        next.antialias = __bitcast<u32, f32>(self.antialias_bits)\n        next.drag_active = 0.0\n        next.magnification = 3.0 / zoom\n        next\n    }\n\n    pub fn word(self, _ field: u32) -> u32 {\n        match field {\n            0 => self.center_x.w0\n            1 => self.center_x.w1\n            2 => self.center_x.w2\n            3 => self.center_x.w3\n            4 => self.center_y.w0\n            5 => self.center_y.w1\n            6 => self.center_y.w2\n            7 => self.center_y.w3\n            8 => self.zoom_bits\n            9 => self.res_bits\n            10 => self.antialias_bits\n            11 => self.orientation_re_bits\n            _ => self.orientation_im_bits\n        }\n    }\n\n    pub fn with_word(self, _ field: u32, _ word: u32) -> Self {\n        let mut out: Self = self\n        match field {\n            0 => { out.center_x.w0 = word }\n            1 => { out.center_x.w1 = word }\n            2 => { out.center_x.w2 = word }\n            3 => { out.center_x.w3 = word }\n            4 => { out.center_y.w0 = word }\n            5 => { out.center_y.w1 = word }\n            6 => { out.center_y.w2 = word }\n            7 => { out.center_y.w3 = word }\n            8 => { out.zoom_bits = word }\n            9 => { out.res_bits = word }\n            10 => { out.antialias_bits = word }\n            11 => { out.orientation_re_bits = word }\n            _ => { out.orientation_im_bits = word }\n        }\n        out\n    }\n\n    /// Denotation of the encoded `#v1:...` string as a pure function `index (0..102) -> u8`.\n    pub fn encoded_byte(self, _ index: u32) -> u8 {\n        if index < 4 {\n            return expected_prefix_byte(index)\n        }\n        let rel: u32 = index - 4\n        let field: u32 = rel / 9\n        let slot: u32 = rel % 9\n        if slot == 8 {\n            return expected_separator(field)\n        }\n        let word: u32 = self.word(field)\n        let shift: u32 = (7 - slot) * 4\n        hex_digit(word >> shift)\n    }\n}\n\n/// Validate the full canonical `Expansion<4>` contract within `[lower_bits, upper_bits]`:\n/// 1. Every limb `w0..w3` is finite.\n/// 2. The primary word `w0` lies within `[lower_bits, upper_bits]`.\n/// 3. Adjacent words satisfy the Dekker/Priest non-overlapping rounding-error invariant:\n///    `(w0 + w1) == w0`, `(w1 + w2) == w1`, and `(w2 + w3) == w2` in IEEE-754 binary32,\n///    which prevents finite-but-huge low words from shifting `w0` or poisoning expansion math.\n/// 4. At exact boundary endpoints (`w0 == lower_bits` or `w0 == upper_bits`), low words cannot\n///    push the expansion sum outside `[lower_bits, upper_bits]`.\nfn is_valid_quad(_ q: QuadWordBits, _ lower_bits: u32, _ upper_bits: u32) -> bool {\n    if !f32_bits_in_range(q.w0, lower_bits, upper_bits)\n        || !is_finite_f32_bits(q.w1)\n        || !is_finite_f32_bits(q.w2)\n        || !is_finite_f32_bits(q.w3)\n    {\n        return false\n    }\n    if !f32_bits_non_overlapping(q.w0, q.w1)\n        || !f32_bits_non_overlapping(q.w1, q.w2)\n        || !f32_bits_non_overlapping(q.w2, q.w3)\n    {\n        return false\n    }\n    let w0: u32 = unsigned_zero_bits(q.w0)\n    if w0 == unsigned_zero_bits(lower_bits) && first_nonzero_is_negative(q.w1, q.w2, q.w3) {\n        return false\n    }\n    if w0 == unsigned_zero_bits(upper_bits) && first_nonzero_is_positive(q.w1, q.w2, q.w3) {\n        return false\n    }\n    true\n}\n\n/// Resolutions are positive whole pixel counts. Restricting the exponent\n/// before building the fractional mask keeps every shift within u32 width.\nfn is_whole_resolution(_ bits: u32) -> bool {\n    let exponent: u32 = (bits >> 23) & 255\n    if exponent < 127 || exponent > 138 { return false }\n    let fractional_bits: u32 = 150 - exponent\n    (bits & ((1 << fractional_bits) - 1)) == 0\n}\n\npub fn is_valid_persisted_view(_ view: PersistedView, _ bounds: PersistedBounds) -> bool {\n    is_valid_quad(view.center_x, bounds.center_x_min_bits, bounds.center_x_max_bits)\n        && is_valid_quad(view.center_y, bounds.center_y_min_bits, bounds.center_y_max_bits)\n        && f32_bits_in_range(view.zoom_bits, bounds.zoom_min_bits, bounds.zoom_max_bits)\n        && f32_bits_in_range(view.res_bits, F32_ONE_BITS, F32_RES_2048_BITS)\n        && is_whole_resolution(view.res_bits)\n        && f32_bits_in_range(view.antialias_bits, F32_ZERO_BITS, F32_ONE_BITS)\n        && valid_orientation(view.orientation_re_bits, view.orientation_im_bits)\n}\n\n/// Retain exact orientation bits on restore; rejecting invalid bases is safer\n/// than silently renormalizing a saved view onto a different sample lattice.\nfn valid_orientation(_ re_bits: u32, _ im_bits: u32) -> bool {\n    if !is_finite_f32_bits(re_bits) || !is_finite_f32_bits(im_bits) { return false }\n    let re: f32 = __bitcast<u32, f32>(re_bits)\n    let im: f32 = __bitcast<u32, f32>(im_bits)\n    let norm = re * re + im * im\n    norm >= 0.99999 && norm <= 1.00001\n}\n\nfn expected_prefix_byte(_ index: u32) -> u8 {\n    match index {\n        0 => 35 // '#'\n        1 => 118 // 'v'\n        2 => 50 // '2'\n        _ => 58 // ':'\n    }\n}\n\nfn expected_separator(_ field: u32) -> u8 {\n    if field == 0 || field == 1 || field == 2 || field == 4 || field == 5 || field == 6 {\n        46 // '.'\n    } else {\n        58 // ':'\n    }\n}\n\nfn hex_digit(_ nybble: u32) -> u8 {\n    match nybble & 15 {\n        0 => 48\n        1 => 49\n        2 => 50\n        3 => 51\n        4 => 52\n        5 => 53\n        6 => 54\n        7 => 55\n        8 => 56\n        9 => 57\n        10 => 97\n        11 => 98\n        12 => 99\n        13 => 100\n        14 => 101\n        _ => 102\n    }\n}\n\nfn parse_hex_nybble(_ byte: u8) -> u32 {\n    if byte >= 48 && byte <= 57 {\n        return (byte - 48) as u32\n    }\n    if byte >= 97 && byte <= 102 {\n        return (byte - 87) as u32\n    }\n    if byte >= 65 && byte <= 70 {\n        return (byte - 55) as u32\n    }\n    16\n}\n\n/// Pure streaming left-fold decoder for `#v1:...` URL fragments.\npub struct UrlDecodeState {\n    pub view: PersistedView,\n    pub current_word: u32,\n    pub valid: bool,\n    pub version: u32,\n}\n\nimpl Copy for UrlDecodeState {}\n\nimpl UrlDecodeState {\n    pub fn initial() -> Self {\n        let mut view = PersistedView::default()\n        view.orientation_re_bits = F32_ONE_BITS\n        Self {\n            version: 2,\n            view: view,\n            current_word: 0,\n            valid: true,\n        }\n    }\n\n    pub fn step(self, _ index: u32, _ byte: u8) -> Self {\n        if !self.valid || index >= URL_ENCODED_LEN {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: false,\n            }\n        }\n        if index == 2 {\n            return Self { version: if byte == 49 { 1 } else { 2 }, view: self.view,\n                current_word: 0, valid: byte == 49 || byte == 50 }\n        }\n        if index < 4 {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: byte == expected_prefix_byte(index),\n            }\n        }\n        let rel: u32 = index - 4\n        let field: u32 = rel / 9\n        let slot: u32 = rel % 9\n        if slot == 8 {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: byte == expected_separator(field),\n            }\n        }\n        let nybble: u32 = parse_hex_nybble(byte)\n        if nybble >= 16 {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: false,\n            }\n        }\n        let base: u32 = if slot == 0 { 0 } else { self.current_word }\n        let next_word: u32 = (base << 4) | nybble\n        if slot == 7 {\n            if !is_finite_f32_bits(next_word) {\n                return Self {\n                    version: self.version,\n                    view: self.view,\n                    current_word: 0,\n                    valid: false,\n                }\n            }\n            return Self {\n                version: self.version,\n                view: self.view.with_word(field, next_word),\n                current_word: 0,\n                valid: true,\n            }\n        }\n        Self {\n            version: self.version,\n            view: self.view,\n            current_word: next_word,\n            valid: true,\n        }\n    }\n\n    pub fn finish(\n        self,\n        _ len: u32,\n        _ fallback: PersistedView,\n        _ bounds: PersistedBounds,\n    ) -> DecodedPersistedView {\n        if !self.valid || len != (if self.version == 1 { URL_V1_ENCODED_LEN } else { URL_ENCODED_LEN })\n            || !is_valid_persisted_view(self.view, bounds) {\n            return DecodedPersistedView {\n                view: fallback,\n                valid: false,\n            }\n        }\n        DecodedPersistedView {\n            view: self.view,\n            valid: true,\n        }\n    }\n}\n\npub fn roundtrip_persisted_view(\n    _ view: PersistedView,\n    _ fallback: PersistedView,\n    _ bounds: PersistedBounds,\n) -> DecodedPersistedView {\n    let mut decoder: UrlDecodeState = UrlDecodeState::initial()\n    let mut i: u32 = 0\n    while i < URL_ENCODED_LEN {\n        decoder = decoder.step(i, view.encoded_byte(i))\n        i = i + 1\n    }\n    decoder.finish(URL_ENCODED_LEN, fallback, bounds)\n}\n\npub fn roundtrip_with_mutated_byte(\n    _ view: PersistedView,\n    _ mutate_index: u32,\n    _ mutate_byte: u8,\n    _ len: u32,\n    _ fallback: PersistedView,\n    _ bounds: PersistedBounds,\n) -> DecodedPersistedView {\n    let mut decoder: UrlDecodeState = UrlDecodeState::initial()\n    let mut i: u32 = 0\n    while i < len {\n        let b: u8 = if i == mutate_index {\n            mutate_byte\n        } else {\n            if i < URL_ENCODED_LEN { view.encoded_byte(i) } else { 48 }\n        }\n        decoder = decoder.step(i, b)\n        i = i + 1\n    }\n    decoder.finish(len, fallback, bounds)\n}\n\nfn decode_hash_view(\n    _ hash: Utf8View,\n    _ fallback: PersistedView,\n    _ bounds: PersistedBounds,\n) -> DecodedPersistedView {\n    let traced_len = URL_ENCODED_LEN - 1 + ingot::trace::TRACE_SUFFIX_LEN\n    let mut length = hash.len()\n    if length == traced_len {\n        let start = URL_ENCODED_LEN - 1\n        if hash.byte(index: start) != 126 || hash.byte(index: start + 1) != 103\n            || hash.byte(index: start + 2) != 58 {\n            return DecodedPersistedView { view: fallback, valid: false }\n        }\n        let mut i: u32 = 3\n        while i < ingot::trace::TRACE_SUFFIX_LEN {\n            let byte = hash.byte(index: start + i)\n            let valid = if (i - 3) % 9 == 8 { byte == 46 }\n                else { (byte >= 48 && byte <= 57) || (byte >= 97 && byte <= 102) }\n            if !valid { return DecodedPersistedView { view: fallback, valid: false } }\n            i += 1\n        }\n        length = URL_ENCODED_LEN - 1\n    }\n    if length != URL_V1_ENCODED_LEN - 1 && length != URL_ENCODED_LEN - 1 {\n        return DecodedPersistedView { view: fallback, valid: false }\n    }\n    let mut decoder: UrlDecodeState = UrlDecodeState::initial().step(0, 35)\n    let mut i: u32 = 0\n    while i < length {\n        decoder = decoder.step(i + 1, hash.byte(index: i))\n        i = i + 1\n    }\n    decoder.finish(length + 1, fallback, bounds)\n}\n\nfn write_u32_cell(address: u32, value: u32) {\n    let cell: BrowserPtr<u32> = BrowserPtr::from_u32(address)\n    cell.write(value)\n}\n\nfn write_u8_cell(address: u32, value: u8) {\n    let cell: BrowserPtr<u8> = BrowserPtr::from_u32(address)\n    cell.write(value)\n}\n\n/// Synchronize resident Mandelbrot view state with the `#v1:...` URL fragment and emit\n/// the canonical `#v1:...` fragment into `event.out_ptr`.\n/// Only the URL hash fragment is owned by view persistence; any query parameters on the URL\n/// are ignored during decoding and preserved untouched by the host transport.\npub fn sync_url_state(\n    _ state: MandelbrotViewState,\n    _ event: own SurfaceLocationEvent,\n) -> MandelbrotViewState {\n    let mut next_state: MandelbrotViewState = state\n    if event.apply_input {\n        next_state.backing = BackingRequest::automatic()\n        let fallback: PersistedView = default_persisted_view(state.camera.res)\n        let bounds: PersistedBounds = policy_persisted_bounds()\n        if event.input_len == 0 || event.input_ptr == 0 {\n            next_state = fallback.apply_to(next_state)\n        } else {\n            let location = parse_location(BrowserString {\n                ptr: event.input_ptr,\n                len: event.input_len,\n            })\n            if !location.valid {\n                next_state = fallback.apply_to(next_state)\n            } else {\n                let trace = location.query.single([116, 114, 97, 99, 101])\n                next_state.trace.enabled = trace.valid && trace.present\n                    && trace.value.equals_literal([49])\n                let hash: Utf8View = location.hash.view()\n                if hash.is_empty() {\n                    next_state = fallback.apply_to(next_state)\n                } else {\n                    let decoded: DecodedPersistedView = decode_hash_view(hash, fallback, bounds)\n                    next_state = decoded.view.apply_to(next_state)\n                    next_state.backing = if decoded.valid {\n                        BackingRequest::fixed(next_state.camera.res)\n                    } else { BackingRequest::automatic() }\n                }\n            }\n        }\n    }\n    let traced_len = URL_ENCODED_LEN + ingot::trace::TRACE_SUFFIX_LEN\n    let length = if next_state.trace.enabled && event.out_cap >= traced_len {\n        traced_len\n    } else { URL_ENCODED_LEN }\n    if event.out_ptr != 0 && event.out_cap >= length {\n        let persisted: PersistedView = PersistedView::from_state(next_state)\n        let mut i: u32 = 0\n        while i < length {\n            write_u8_cell(\n                address: event.out_ptr + i,\n                value: if i < URL_ENCODED_LEN { persisted.encoded_byte(i) }\n                    else { next_state.trace.encoded_byte(i - URL_ENCODED_LEN) },\n            )\n            i = i + 1\n        }\n        if event.out_len_ptr != 0 {\n            write_u32_cell(address: event.out_len_ptr, value: length)\n        }\n    } else {\n        if event.out_len_ptr != 0 {\n            write_u32_cell(address: event.out_len_ptr, value: 0)\n        }\n    }\n    next_state\n}\n```"
+          "```fe\nuse core::{BrowserPtr, BrowserString, Copy}\nuse core::default::Default\nuse core::ops::Eq\nuse std::text::Utf8View\nuse std::web::navigation::parse_location\nuse ingot::policy::{\n    MandelbrotViewState,\n    Camera,\n    Coordinate,\n    BackingRequest,\n    initial_view,\n    CENTER_X_MIN,\n    CENTER_X_MAX,\n    CENTER_Y_MIN,\n    CENTER_Y_MAX,\n    ZOOM_MIN,\n    ZOOM_MAX,\n}\n\nuse algebra::Complex\nuse precision::{from_quad, to_quad}\nuse ingot::interaction::GestureSession\n\nextern {\n    const fn __bitcast<From, To>(_: From) -> To\n}\n\n// Version 2 canonical URL fragment format (120 ASCII bytes):\n// `#v1:<cx0>.<cx1>.<cx2>.<cx3>:<cy0>.<cy1>.<cy2>.<cy3>:<zoom>:<res>:<aa>`\n// Version 2 appends `:<orientation-re>:<orientation-im>`; version 1 restores identity.\n// Each field is an exact 8-digit lowercase hexadecimal IEEE-754 f32 word,\n// preserving all finite bit patterns including signed zero (-0.0 = 0x80000000).\npub const URL_V1_ENCODED_LEN: u32 = 102\npub const URL_ENCODED_LEN: u32 = 120\n\npub const F32_ZERO_BITS: u32 = 0x00000000 // +0.0\npub const F32_NEG_ZERO_BITS: u32 = 0x80000000 // -0.0\npub const F32_ONE_BITS: u32 = 0x3f800000 // 1.0\npub const F32_RES_512_BITS: u32 = 0x44000000 // 512.0\npub const F32_RES_1024_BITS: u32 = 0x44800000 // 1024.0\npub const F32_RES_2048_BITS: u32 = 0x45000000 // 2048.0\n\n/// Exact IEEE-754 bit words of a four-word expansion (`QuadFloat`).\npub struct QuadWordBits {\n    pub w0: u32,\n    pub w1: u32,\n    pub w2: u32,\n    pub w3: u32,\n}\n\nimpl Copy for QuadWordBits {}\nderive Eq for QuadWordBits\nderive Default for QuadWordBits\n\nimpl QuadWordBits {\n    pub fn expansion(self) -> precision::Expansion<4> {\n        from_quad(\n            __bitcast<u32, f32>(self.w0),\n            __bitcast<u32, f32>(self.w1),\n            __bitcast<u32, f32>(self.w2),\n            __bitcast<u32, f32>(self.w3),\n        )\n    }\n}\n\n/// Meaningful user-facing view state persisted in the URL fragment (`#v1:...`).\n/// Excludes transient clocks, drag flags, and derived magnification readouts.\npub struct PersistedView {\n    pub center_x: QuadWordBits,\n    pub center_y: QuadWordBits,\n    pub zoom_bits: u32,\n    pub res_bits: u32,\n    pub antialias_bits: u32,\n    pub orientation_re_bits: u32,\n    pub orientation_im_bits: u32,\n}\n\nimpl Copy for PersistedView {}\nderive Eq for PersistedView\nderive Default for PersistedView\n\n/// Camera and parameter domain bounds derived from `ingot::policy`.\npub struct PersistedBounds {\n    pub center_x_min_bits: u32,\n    pub center_x_max_bits: u32,\n    pub center_y_min_bits: u32,\n    pub center_y_max_bits: u32,\n    pub zoom_min_bits: u32,\n    pub zoom_max_bits: u32,\n}\n\nimpl Copy for PersistedBounds {}\nderive Eq for PersistedBounds\n\npub struct DecodedPersistedView {\n    pub view: PersistedView,\n    pub valid: bool,\n}\n\nimpl Copy for DecodedPersistedView {}\nderive Eq for DecodedPersistedView\n\n/// Generic surface location synchronization event lowered to `fe_surface_location_v1`.\npub use std::web::view::SurfaceLocationEvent\n\npub fn raw_f32_bits(_ value: f32) -> u32 {\n    __bitcast<f32, u32>(value)\n}\n\npub fn is_finite_f32_bits(_ raw: u32) -> bool {\n    ((raw >> 23) & 255) != 255\n}\n\nfn unsigned_zero_bits(_ raw: u32) -> u32 {\n    if (raw & 2147483647) == 0 {\n        0\n    } else {\n        raw\n    }\n}\n\n/// Sign-magnitude IEEE-754 numeric ordering on finite f32 bit patterns (`left <= right`),\n/// treating `-0.0` and `+0.0` as numerically equal for range bounds while preserving raw bits elsewhere.\npub fn f32_bits_le(_ left: u32, _ right: u32) -> bool {\n    let a: u32 = unsigned_zero_bits(left)\n    let b: u32 = unsigned_zero_bits(right)\n    let a_neg: bool = (a >> 31) != 0\n    let b_neg: bool = (b >> 31) != 0\n    if a_neg && !b_neg {\n        return true\n    }\n    if !a_neg && b_neg {\n        return false\n    }\n    if !a_neg && !b_neg {\n        return a <= b\n    }\n    a >= b\n}\n\npub fn f32_bits_in_range(_ value_bits: u32, _ min_bits: u32, _ max_bits: u32) -> bool {\n    is_finite_f32_bits(value_bits)\n        && f32_bits_le(min_bits, value_bits)\n        && f32_bits_le(value_bits, max_bits)\n}\n\n/// Exact IEEE-754 binary32 non-overlapping pair condition (`round_to_nearest_even(hi + lo) == hi`):\n/// `|lo| <= 0.5 * ulp(hi)` (with tie-to-even when `|lo| == 0.5 * ulp(hi)`).\npub fn f32_bits_non_overlapping(_ hi_bits: u32, _ lo_bits: u32) -> bool {\n    let hi_mag: u32 = hi_bits & 2147483647\n    let lo_mag: u32 = lo_bits & 2147483647\n    if lo_mag == 0 {\n        return true\n    }\n    if hi_mag == 0 {\n        return false\n    }\n    let hi_exp: u32 = (hi_mag >> 23) & 255\n    if hi_exp <= 1 {\n        return false\n    }\n    let half_ulp_mag: u32 = if hi_exp > 24 {\n        (hi_exp - 24) << 23\n    } else {\n        1 << (hi_exp - 2)\n    }\n    lo_mag < half_ulp_mag || (lo_mag == half_ulp_mag && (hi_bits & 1) == 0)\n}\n\nfn first_nonzero_is_negative(_ w1: u32, _ w2: u32, _ w3: u32) -> bool {\n    if (w1 & 2147483647) != 0 {\n        return (w1 >> 31) != 0\n    }\n    if (w2 & 2147483647) != 0 {\n        return (w2 >> 31) != 0\n    }\n    if (w3 & 2147483647) != 0 {\n        return (w3 >> 31) != 0\n    }\n    false\n}\n\nfn first_nonzero_is_positive(_ w1: u32, _ w2: u32, _ w3: u32) -> bool {\n    if (w1 & 2147483647) != 0 {\n        return (w1 >> 31) == 0\n    }\n    if (w2 & 2147483647) != 0 {\n        return (w2 >> 31) == 0\n    }\n    if (w3 & 2147483647) != 0 {\n        return (w3 >> 31) == 0\n    }\n    false\n}\n\n/// Derive camera domain bounds directly from `ingot::policy` constants.\npub fn policy_persisted_bounds() -> PersistedBounds {\n    PersistedBounds {\n        center_x_min_bits: raw_f32_bits(CENTER_X_MIN),\n        center_x_max_bits: raw_f32_bits(CENTER_X_MAX),\n        center_y_min_bits: raw_f32_bits(CENTER_Y_MIN),\n        center_y_max_bits: raw_f32_bits(CENTER_Y_MAX),\n        zoom_min_bits: raw_f32_bits(ZOOM_MIN),\n        zoom_max_bits: raw_f32_bits(ZOOM_MAX),\n    }\n}\n\n/// Derive the default persisted view directly from `policy::initial_view()`,\n/// preserving the current backing resolution when valid.\npub fn default_persisted_view(_ current_res: f32) -> PersistedView {\n    let mut base: PersistedView = PersistedView::from_state(initial_view())\n    let current_res_bits: u32 = raw_f32_bits(current_res)\n    if f32_bits_in_range(current_res_bits, F32_ONE_BITS, F32_RES_2048_BITS) {\n        base.res_bits = current_res_bits\n    } else {\n        base.res_bits = F32_RES_512_BITS\n    }\n    base\n}\n\nimpl PersistedView {\n    pub fn from_state(_ state: MandelbrotViewState) -> Self {\n        let (x0, x1, x2, x3) = to_quad(state.camera.center.re.value)\n        let (y0, y1, y2, y3) = to_quad(state.camera.center.im.value)\n        Self {\n            center_x: QuadWordBits {\n                w0: raw_f32_bits(x0),\n                w1: raw_f32_bits(x1),\n                w2: raw_f32_bits(x2),\n                w3: raw_f32_bits(x3),\n            },\n            center_y: QuadWordBits {\n                w0: raw_f32_bits(y0),\n                w1: raw_f32_bits(y1),\n                w2: raw_f32_bits(y2),\n                w3: raw_f32_bits(y3),\n            },\n            zoom_bits: raw_f32_bits(state.camera.zoom),\n            res_bits: raw_f32_bits(state.camera.res),\n            antialias_bits: raw_f32_bits(state.antialias),\n            orientation_re_bits: raw_f32_bits(state.camera.orientation.re),\n            orientation_im_bits: raw_f32_bits(state.camera.orientation.im),\n        }\n    }\n\n    pub fn apply_to(self, _ base: MandelbrotViewState) -> MandelbrotViewState {\n        let zoom: f32 = __bitcast<u32, f32>(self.zoom_bits)\n        let mut next: MandelbrotViewState = base\n        next.camera = Camera {\n            center: Complex {\n                re: Coordinate { value: self.center_x.expansion() },\n                im: Coordinate { value: self.center_y.expansion() },\n            },\n            zoom: zoom,\n            res: __bitcast<u32, f32>(self.res_bits),\n            orientation: Complex { re: __bitcast<u32, f32>(self.orientation_re_bits), im: __bitcast<u32, f32>(self.orientation_im_bits) },\n        }\n        next.gesture = GestureSession::empty()\n        next.antialias = __bitcast<u32, f32>(self.antialias_bits)\n        next.drag_active = 0.0\n        next.magnification = 3.0 / zoom\n        next\n    }\n\n    pub fn word(self, _ field: u32) -> u32 {\n        match field {\n            0 => self.center_x.w0\n            1 => self.center_x.w1\n            2 => self.center_x.w2\n            3 => self.center_x.w3\n            4 => self.center_y.w0\n            5 => self.center_y.w1\n            6 => self.center_y.w2\n            7 => self.center_y.w3\n            8 => self.zoom_bits\n            9 => self.res_bits\n            10 => self.antialias_bits\n            11 => self.orientation_re_bits\n            _ => self.orientation_im_bits\n        }\n    }\n\n    pub fn with_word(self, _ field: u32, _ word: u32) -> Self {\n        let mut out: Self = self\n        match field {\n            0 => { out.center_x.w0 = word }\n            1 => { out.center_x.w1 = word }\n            2 => { out.center_x.w2 = word }\n            3 => { out.center_x.w3 = word }\n            4 => { out.center_y.w0 = word }\n            5 => { out.center_y.w1 = word }\n            6 => { out.center_y.w2 = word }\n            7 => { out.center_y.w3 = word }\n            8 => { out.zoom_bits = word }\n            9 => { out.res_bits = word }\n            10 => { out.antialias_bits = word }\n            11 => { out.orientation_re_bits = word }\n            _ => { out.orientation_im_bits = word }\n        }\n        out\n    }\n\n    /// Denotation of the encoded `#v1:...` string as a pure function `index (0..102) -> u8`.\n    pub fn encoded_byte(self, _ index: u32) -> u8 {\n        if index < 4 {\n            return expected_prefix_byte(index)\n        }\n        let rel: u32 = index - 4\n        let field: u32 = rel / 9\n        let slot: u32 = rel % 9\n        if slot == 8 {\n            return expected_separator(field)\n        }\n        let word: u32 = self.word(field)\n        let shift: u32 = (7 - slot) * 4\n        hex_digit(word >> shift)\n    }\n}\n\n/// Validate the full canonical `Expansion<4>` contract within `[lower_bits, upper_bits]`:\n/// 1. Every limb `w0..w3` is finite.\n/// 2. The primary word `w0` lies within `[lower_bits, upper_bits]`.\n/// 3. Adjacent words satisfy the Dekker/Priest non-overlapping rounding-error invariant:\n///    `(w0 + w1) == w0`, `(w1 + w2) == w1`, and `(w2 + w3) == w2` in IEEE-754 binary32,\n///    which prevents finite-but-huge low words from shifting `w0` or poisoning expansion math.\n/// 4. At exact boundary endpoints (`w0 == lower_bits` or `w0 == upper_bits`), low words cannot\n///    push the expansion sum outside `[lower_bits, upper_bits]`.\nfn is_valid_quad(_ q: QuadWordBits, _ lower_bits: u32, _ upper_bits: u32) -> bool {\n    if !f32_bits_in_range(q.w0, lower_bits, upper_bits)\n        || !is_finite_f32_bits(q.w1)\n        || !is_finite_f32_bits(q.w2)\n        || !is_finite_f32_bits(q.w3)\n    {\n        return false\n    }\n    if !f32_bits_non_overlapping(q.w0, q.w1)\n        || !f32_bits_non_overlapping(q.w1, q.w2)\n        || !f32_bits_non_overlapping(q.w2, q.w3)\n    {\n        return false\n    }\n    let w0: u32 = unsigned_zero_bits(q.w0)\n    if w0 == unsigned_zero_bits(lower_bits) && first_nonzero_is_negative(q.w1, q.w2, q.w3) {\n        return false\n    }\n    if w0 == unsigned_zero_bits(upper_bits) && first_nonzero_is_positive(q.w1, q.w2, q.w3) {\n        return false\n    }\n    true\n}\n\n/// Resolutions are positive whole pixel counts. Restricting the exponent\n/// before building the fractional mask keeps every shift within u32 width.\nfn is_whole_resolution(_ bits: u32) -> bool {\n    let exponent: u32 = (bits >> 23) & 255\n    if exponent < 127 || exponent > 138 { return false }\n    let fractional_bits: u32 = 150 - exponent\n    (bits & ((1 << fractional_bits) - 1)) == 0\n}\n\npub fn is_valid_persisted_view(_ view: PersistedView, _ bounds: PersistedBounds) -> bool {\n    is_valid_quad(view.center_x, bounds.center_x_min_bits, bounds.center_x_max_bits)\n        && is_valid_quad(view.center_y, bounds.center_y_min_bits, bounds.center_y_max_bits)\n        && f32_bits_in_range(view.zoom_bits, bounds.zoom_min_bits, bounds.zoom_max_bits)\n        && f32_bits_in_range(view.res_bits, F32_ONE_BITS, F32_RES_2048_BITS)\n        && is_whole_resolution(view.res_bits)\n        && f32_bits_in_range(view.antialias_bits, F32_ZERO_BITS, F32_ONE_BITS)\n        && valid_orientation(view.orientation_re_bits, view.orientation_im_bits)\n}\n\n/// Retain exact orientation bits on restore; rejecting invalid bases is safer\n/// than silently renormalizing a saved view onto a different sample lattice.\nfn valid_orientation(_ re_bits: u32, _ im_bits: u32) -> bool {\n    if !is_finite_f32_bits(re_bits) || !is_finite_f32_bits(im_bits) { return false }\n    let re: f32 = __bitcast<u32, f32>(re_bits)\n    let im: f32 = __bitcast<u32, f32>(im_bits)\n    let norm = re * re + im * im\n    norm >= 0.99999 && norm <= 1.00001\n}\n\nfn expected_prefix_byte(_ index: u32) -> u8 {\n    match index {\n        0 => 35 // '#'\n        1 => 118 // 'v'\n        2 => 50 // '2'\n        _ => 58 // ':'\n    }\n}\n\nfn expected_separator(_ field: u32) -> u8 {\n    if field == 0 || field == 1 || field == 2 || field == 4 || field == 5 || field == 6 {\n        46 // '.'\n    } else {\n        58 // ':'\n    }\n}\n\nfn hex_digit(_ nybble: u32) -> u8 {\n    match nybble & 15 {\n        0 => 48\n        1 => 49\n        2 => 50\n        3 => 51\n        4 => 52\n        5 => 53\n        6 => 54\n        7 => 55\n        8 => 56\n        9 => 57\n        10 => 97\n        11 => 98\n        12 => 99\n        13 => 100\n        14 => 101\n        _ => 102\n    }\n}\n\nfn parse_hex_nybble(_ byte: u8) -> u32 {\n    if byte >= 48 && byte <= 57 {\n        return (byte - 48) as u32\n    }\n    if byte >= 97 && byte <= 102 {\n        return (byte - 87) as u32\n    }\n    if byte >= 65 && byte <= 70 {\n        return (byte - 55) as u32\n    }\n    16\n}\n\n/// Pure streaming left-fold decoder for `#v1:...` URL fragments.\npub struct UrlDecodeState {\n    pub view: PersistedView,\n    pub current_word: u32,\n    pub valid: bool,\n    pub version: u32,\n}\n\nimpl Copy for UrlDecodeState {}\n\nimpl UrlDecodeState {\n    pub fn initial() -> Self {\n        let mut view = PersistedView::default()\n        view.orientation_re_bits = F32_ONE_BITS\n        Self {\n            version: 2,\n            view: view,\n            current_word: 0,\n            valid: true,\n        }\n    }\n\n    pub fn step(self, _ index: u32, _ byte: u8) -> Self {\n        if !self.valid || index >= URL_ENCODED_LEN {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: false,\n            }\n        }\n        if index == 2 {\n            return Self { version: if byte == 49 { 1 } else { 2 }, view: self.view,\n                current_word: 0, valid: byte == 49 || byte == 50 }\n        }\n        if index < 4 {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: byte == expected_prefix_byte(index),\n            }\n        }\n        let rel: u32 = index - 4\n        let field: u32 = rel / 9\n        let slot: u32 = rel % 9\n        if slot == 8 {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: byte == expected_separator(field),\n            }\n        }\n        let nybble: u32 = parse_hex_nybble(byte)\n        if nybble >= 16 {\n            return Self {\n                version: self.version,\n                view: self.view,\n                current_word: 0,\n                valid: false,\n            }\n        }\n        let base: u32 = if slot == 0 { 0 } else { self.current_word }\n        let next_word: u32 = (base << 4) | nybble\n        if slot == 7 {\n            if !is_finite_f32_bits(next_word) {\n                return Self {\n                    version: self.version,\n                    view: self.view,\n                    current_word: 0,\n                    valid: false,\n                }\n            }\n            return Self {\n                version: self.version,\n                view: self.view.with_word(field, next_word),\n                current_word: 0,\n                valid: true,\n            }\n        }\n        Self {\n            version: self.version,\n            view: self.view,\n            current_word: next_word,\n            valid: true,\n        }\n    }\n\n    pub fn finish(\n        self,\n        _ len: u32,\n        _ fallback: PersistedView,\n        _ bounds: PersistedBounds,\n    ) -> DecodedPersistedView {\n        if !self.valid || len != (if self.version == 1 { URL_V1_ENCODED_LEN } else { URL_ENCODED_LEN })\n            || !is_valid_persisted_view(self.view, bounds) {\n            return DecodedPersistedView {\n                view: fallback,\n                valid: false,\n            }\n        }\n        DecodedPersistedView {\n            view: self.view,\n            valid: true,\n        }\n    }\n}\n\npub fn roundtrip_persisted_view(\n    _ view: PersistedView,\n    _ fallback: PersistedView,\n    _ bounds: PersistedBounds,\n) -> DecodedPersistedView {\n    let mut decoder: UrlDecodeState = UrlDecodeState::initial()\n    let mut i: u32 = 0\n    while i < URL_ENCODED_LEN {\n        decoder = decoder.step(i, view.encoded_byte(i))\n        i = i + 1\n    }\n    decoder.finish(URL_ENCODED_LEN, fallback, bounds)\n}\n\npub fn roundtrip_with_mutated_byte(\n    _ view: PersistedView,\n    _ mutate_index: u32,\n    _ mutate_byte: u8,\n    _ len: u32,\n    _ fallback: PersistedView,\n    _ bounds: PersistedBounds,\n) -> DecodedPersistedView {\n    let mut decoder: UrlDecodeState = UrlDecodeState::initial()\n    let mut i: u32 = 0\n    while i < len {\n        let b: u8 = if i == mutate_index {\n            mutate_byte\n        } else {\n            if i < URL_ENCODED_LEN { view.encoded_byte(i) } else { 48 }\n        }\n        decoder = decoder.step(i, b)\n        i = i + 1\n    }\n    decoder.finish(len, fallback, bounds)\n}\n\nfn decode_hash_view(\n    _ hash: Utf8View,\n    _ fallback: PersistedView,\n    _ bounds: PersistedBounds,\n) -> DecodedPersistedView {\n    let traced_len = URL_ENCODED_LEN - 1 + ingot::trace::TRACE_SUFFIX_LEN\n    let mut length = hash.len()\n    if length == traced_len {\n        let start = URL_ENCODED_LEN - 1\n        if hash.byte(index: start) != 126 || hash.byte(index: start + 1) != 103\n            || hash.byte(index: start + 2) != 58 {\n            return DecodedPersistedView { view: fallback, valid: false }\n        }\n        let mut i: u32 = 3\n        while i < ingot::trace::TRACE_SUFFIX_LEN {\n            let byte = hash.byte(index: start + i)\n            let valid = if (i - 3) % 9 == 8 { byte == 46 }\n                else { (byte >= 48 && byte <= 57) || (byte >= 97 && byte <= 102) }\n            if !valid { return DecodedPersistedView { view: fallback, valid: false } }\n            i += 1\n        }\n        length = URL_ENCODED_LEN - 1\n    }\n    if length != URL_V1_ENCODED_LEN - 1 && length != URL_ENCODED_LEN - 1 {\n        return DecodedPersistedView { view: fallback, valid: false }\n    }\n    let mut decoder: UrlDecodeState = UrlDecodeState::initial().step(0, 35)\n    let mut i: u32 = 0\n    while i < length {\n        decoder = decoder.step(i + 1, hash.byte(index: i))\n        i = i + 1\n    }\n    decoder.finish(length + 1, fallback, bounds)\n}\n\nfn write_u32_cell(address: u32, value: u32) {\n    let cell: BrowserPtr<u32> = BrowserPtr::from_u32(address)\n    cell.write(value)\n}\n\nfn write_u8_cell(address: u32, value: u8) {\n    let cell: BrowserPtr<u8> = BrowserPtr::from_u32(address)\n    cell.write(value)\n}\n\n/// True when one `&`-separated query pair is exactly `trace=1`. Other parameters, such\n/// as cache-busters or tracking tags, neither enable nor disable the diagnostic.\nfn query_enables_trace(_ query: Utf8View) -> bool {\n    let length: u32 = query.len()\n    let mut start: u32 = 0\n    let mut index: u32 = 0\n    while index <= length {\n        if index == length || query.byte(index: index) == 38 {\n            let pair = query.slice(start: start, end: index)\n            if pair.valid && pair.view.equals_literal([116, 114, 97, 99, 101, 61, 49]) {\n                return true\n            }\n            start = index + 1\n        }\n        index = index + 1\n    }\n    false\n}\n\n/// Synchronize resident Mandelbrot view state with the `#v1:...` URL fragment and emit\n/// the canonical `#v1:...` fragment into `event.out_ptr`.\n/// Only the URL hash fragment is owned by view persistence; any query parameters on the URL\n/// are ignored during decoding and preserved untouched by the host transport.\npub fn sync_url_state(\n    _ state: MandelbrotViewState,\n    _ event: own SurfaceLocationEvent,\n) -> MandelbrotViewState {\n    let mut next_state: MandelbrotViewState = state\n    if event.apply_input {\n        next_state.backing = BackingRequest::automatic()\n        let fallback: PersistedView = default_persisted_view(state.camera.res)\n        let bounds: PersistedBounds = policy_persisted_bounds()\n        if event.input_len == 0 || event.input_ptr == 0 {\n            next_state = fallback.apply_to(next_state)\n        } else {\n            let location = parse_location(BrowserString {\n                ptr: event.input_ptr,\n                len: event.input_len,\n            })\n            if !location.valid {\n                next_state = fallback.apply_to(next_state)\n            } else {\n                next_state.trace.enabled = query_enables_trace(location.query.view())\n                let hash: Utf8View = location.hash.view()\n                if hash.is_empty() {\n                    next_state = fallback.apply_to(next_state)\n                } else {\n                    let decoded: DecodedPersistedView = decode_hash_view(hash, fallback, bounds)\n                    next_state = decoded.view.apply_to(next_state)\n                    next_state.backing = if decoded.valid {\n                        BackingRequest::fixed(next_state.camera.res)\n                    } else { BackingRequest::automatic() }\n                }\n            }\n        }\n    }\n    let traced_len = URL_ENCODED_LEN + ingot::trace::TRACE_SUFFIX_LEN\n    let length = if next_state.trace.enabled && event.out_cap >= traced_len {\n        traced_len\n    } else { URL_ENCODED_LEN }\n    if event.out_ptr != 0 && event.out_cap >= length {\n        let persisted: PersistedView = PersistedView::from_state(next_state)\n        let mut i: u32 = 0\n        while i < length {\n            write_u8_cell(\n                address: event.out_ptr + i,\n                value: if i < URL_ENCODED_LEN { persisted.encoded_byte(i) }\n                    else { next_state.trace.encoded_byte(i - URL_ENCODED_LEN) },\n            )\n            i = i + 1\n        }\n        if event.out_len_ptr != 0 {\n            write_u32_cell(address: event.out_len_ptr, value: length)\n        }\n    } else {\n        if event.out_len_ptr != 0 {\n            write_u32_cell(address: event.out_len_ptr, value: 0)\n        }\n    }\n    next_state\n}\n```"
         ],
         "kind": 0,
         "name": "url"
@@ -158709,6 +158802,14 @@
         "kind": 17,
         "name": "assert"
       },
+      "fe fe std 0.1.0 lib/text/Utf8Slice#valid.": {
+        "kind": 15,
+        "name": "valid"
+      },
+      "fe fe std 0.1.0 lib/text/Utf8Slice#view.": {
+        "kind": 15,
+        "name": "view"
+      },
       "fe fe std 0.1.0 lib/text/Utf8View#": {
         "kind": 49,
         "name": "Utf8View"
@@ -158732,18 +158833,6 @@
       "fe fe std 0.1.0 lib/web/navigation/RouteLocation#valid.": {
         "kind": 15,
         "name": "valid"
-      },
-      "fe fe std 0.1.0 lib/web/navigation/RouteQueryValue#present.": {
-        "kind": 15,
-        "name": "present"
-      },
-      "fe fe std 0.1.0 lib/web/navigation/RouteQueryValue#valid.": {
-        "kind": 15,
-        "name": "valid"
-      },
-      "fe fe std 0.1.0 lib/web/navigation/RouteQueryValue#value.": {
-        "kind": 15,
-        "name": "value"
       },
       "fe fe std 0.1.0 lib/web/navigation/parse_location.": {
         "kind": 17,

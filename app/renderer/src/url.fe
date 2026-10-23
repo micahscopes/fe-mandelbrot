@@ -619,6 +619,25 @@ fn write_u8_cell(address: u32, value: u8) {
     cell.write(value)
 }
 
+/// True when one `&`-separated query pair is exactly `trace=1`. Other parameters, such
+/// as cache-busters or tracking tags, neither enable nor disable the diagnostic.
+fn query_enables_trace(_ query: Utf8View) -> bool {
+    let length: u32 = query.len()
+    let mut start: u32 = 0
+    let mut index: u32 = 0
+    while index <= length {
+        if index == length || query.byte(index: index) == 38 {
+            let pair = query.slice(start: start, end: index)
+            if pair.valid && pair.view.equals_literal([116, 114, 97, 99, 101, 61, 49]) {
+                return true
+            }
+            start = index + 1
+        }
+        index = index + 1
+    }
+    false
+}
+
 /// Synchronize resident Mandelbrot view state with the `#v1:...` URL fragment and emit
 /// the canonical `#v1:...` fragment into `event.out_ptr`.
 /// Only the URL hash fragment is owned by view persistence; any query parameters on the URL
@@ -642,9 +661,7 @@ pub fn sync_url_state(
             if !location.valid {
                 next_state = fallback.apply_to(next_state)
             } else {
-                let trace = location.query.single([116, 114, 97, 99, 101])
-                next_state.trace.enabled = trace.valid && trace.present
-                    && trace.value.equals_literal([49])
+                next_state.trace.enabled = query_enables_trace(location.query.view())
                 let hash: Utf8View = location.hash.view()
                 if hash.is_empty() {
                     next_state = fallback.apply_to(next_state)
