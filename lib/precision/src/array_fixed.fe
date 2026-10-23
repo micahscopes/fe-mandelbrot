@@ -150,21 +150,7 @@ impl<const L: usize> ArrayFixed<L> {
         false
     }
 
-    // Requires self's magnitude >= other's. The radix bias keeps every checked
-    // subtraction nonnegative; all intermediates fit in 14 bits.
-    fn subtract_magnitude(self, _ other: Self) -> Self {
-        let mut result: Self = self
-        let mut borrow: u32 = 0
-        let width: u32 = Self::width()
-        let mut index: u32 = 0
-        while index < width {
-            let biased: u32 = 8192 + self.digits[index as usize] - other.digits[index as usize] - borrow
-            result.digits[index as usize] = biased & 8191
-            borrow = 1 - (biased >> 13)
-            index = index + 1
-        }
-        result
-    }
+
 }
 
 // Representation equality observes the retained zero sign. In particular,
@@ -186,21 +172,34 @@ impl<const L: usize> Add for ArrayFixed<L> {
     type Output = Self
 
     fn add(own self, _ other: own Self) -> Self {
-        if self.negative != other.negative {
-            if self.magnitude_less(other) {
-                return other.subtract_magnitude(self)
-            }
-            return self.subtract_magnitude(other)
-        }
-        let mut result: Self = self
-        let mut carry: u32 = 0
         let width: u32 = Self::width()
-        let mut index: u32 = 0
-        while index < width {
-            let sum: u32 = self.digits[index as usize] + other.digits[index as usize] + carry
-            result.digits[index as usize] = sum & 8191
-            carry = sum >> 13
-            index = index + 1
+        let mut result: Self = Self::zero()
+        result.negative = self.negative
+        if self.negative == other.negative {
+            let mut carry: u32 = 0
+            let mut index: u32 = 0
+            while index < width {
+                let digit: usize = index as usize
+                let sum: u32 = self.digits[digit] + other.digits[digit] + carry
+                result.digits[digit] = sum & 8191
+                carry = sum >> 13
+                index = index + 1
+            }
+        } else {
+            let left_is_smaller: bool = self.magnitude_less(other)
+            result.negative = if left_is_smaller { other.negative } else { self.negative }
+            let mut borrow: u32 = 0
+            let mut index: u32 = 0
+            while index < width {
+                let digit: usize = index as usize
+                let larger: u32 = if left_is_smaller { other.digits[digit] } else { self.digits[digit] }
+                let smaller: u32 = if left_is_smaller { self.digits[digit] } else { other.digits[digit] }
+                // Canonical digits make this biased difference nonnegative.
+                let biased: u32 = 8192 + larger - smaller - borrow
+                result.digits[digit] = biased & 8191
+                borrow = 1 - (biased >> 13)
+                index = index + 1
+            }
         }
         result
     }
