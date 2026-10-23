@@ -1,4 +1,4 @@
-//! Test-only canonical interfaces. No commitments, transcript or proof format.
+//! Experimental non-hiding bitweight argument and arithmetic/sampler fixtures.
 use core::ops::Eq
 use precision::baby_bear::{BabyBear, BabyBearExt4}
 use ingot::air::constraint_combination

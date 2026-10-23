@@ -1,6 +1,6 @@
-# Bitweight AIR and DEEP algebra
+# Experimental bitweight argument and shared algebra
 
-This test ingot supplies shared arithmetic functions for an eight-bit weight relation. It is not a proof system: it contains no commitments, transcript, source-opening protocol, proof encoding, masking, or security parameter selection.
+This test ingot supplies shared arithmetic and an experimental public verifier for an eight-bit weight argument. It includes source commitments, a sequenced transcript, authenticated openings and a fixed test-only proof encoding. It has no masking or approved security parameters and is not zero knowledge. The deployed application is unchanged.
 
 `air::constraint_combination<N>` combines booleanity, accumulator transition, first-row, and last-row constraints. Mask order is `[b(X), b(gX), acc(X), acc(gX)]`. The eight challenges are interleaved `[r0,r0prime,r1,r1prime,r2,r2prime,r3,r3prime]`. Degree corrections are `[1,N-1,1,1]`. `N` must be a supported power of two at least four. Only the trace subgroup H is rejected as a pole set; the prover's evaluation coset remains admissible. A public weight greater than N is evaluated normally rather than rejected by an input guard.
 
