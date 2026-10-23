@@ -1,0 +1,8 @@
+{
+  "pass": true,
+  "selection": {
+    "checks": 16383,
+    "cancellation_x": -1
+  },
+  "projectionCases": 20
+}

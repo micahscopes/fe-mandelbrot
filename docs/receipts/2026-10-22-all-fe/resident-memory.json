@@ -1,0 +1,8 @@
+{
+  "pass": true,
+  "transitions": 100,
+  "persistentSentinels": 1024,
+  "stableMemory": 131072,
+  "failedInitializerRewound": true,
+  "forwardRewindRejected": true
+}

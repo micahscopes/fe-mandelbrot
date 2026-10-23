@@ -1,0 +1,70 @@
+{
+  "pass": true,
+  "results": [
+    {
+      "name": "escape",
+      "result": {
+        "code": 0,
+        "step": 1,
+        "certificate": 4
+      },
+      "ms": 18.147307000000012
+    },
+    {
+      "name": "bounded",
+      "result": {
+        "code": 0,
+        "step": 0,
+        "certificate": 2
+      },
+      "ms": 0.5686079999999833
+    },
+    {
+      "name": "outside before certificate",
+      "result": {
+        "code": 3,
+        "step": 0,
+        "certificate": 0
+      },
+      "ms": 0.1889749999999708
+    },
+    {
+      "name": "factored offset below orbit precision",
+      "result": {
+        "code": 0,
+        "step": 3,
+        "certificate": 4
+      },
+      "ms": 4.178210999999976
+    },
+    {
+      "name": "factor outside tiny region",
+      "result": {
+        "code": 3,
+        "step": 0,
+        "certificate": 0
+      },
+      "ms": 0.6445909999999913
+    },
+    {
+      "name": "fourth camera term retained",
+      "result": {
+        "code": 0,
+        "step": 2,
+        "certificate": 4
+      },
+      "ms": 2.158284999999978
+    },
+    {
+      "name": "nonfinite invalid",
+      "result": {
+        "code": 2,
+        "step": 0,
+        "certificate": 0
+      },
+      "ms": 0.2454010000000153
+    }
+  ],
+  "repeatedJobs": 20,
+  "arenaBytes": 196608
+}

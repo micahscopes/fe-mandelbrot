@@ -1,0 +1,58 @@
+{
+  "pass": true,
+  "endpointCases": 292,
+  "overflowRejected": true,
+  "malformedRejected": true,
+  "repeatedCalls": 4,
+  "arenaBytes": 2818048,
+  "results": [
+    {
+      "depth": 8,
+      "precision": 128,
+      "max_steps": 80,
+      "result": {
+        "code": 0,
+        "step": 8,
+        "precision": 128,
+        "scratch_bytes": 166416
+      },
+      "ms": 5.0175369999999475
+    },
+    {
+      "depth": 128,
+      "precision": 128,
+      "max_steps": 288,
+      "result": {
+        "code": 0,
+        "step": 104,
+        "precision": 128,
+        "scratch_bytes": 166416
+      },
+      "ms": 25.183336000000054
+    },
+    {
+      "depth": 1024,
+      "precision": 256,
+      "max_steps": 2080,
+      "result": {
+        "code": 0,
+        "step": 821,
+        "precision": 256,
+        "scratch_bytes": 166416
+      },
+      "ms": 366.487435
+    },
+    {
+      "depth": 1024,
+      "precision": 128,
+      "max_steps": 2080,
+      "result": {
+        "code": 1,
+        "step": 797,
+        "precision": 128,
+        "scratch_bytes": 166416
+      },
+      "ms": 105.69711199999983
+    }
+  ]
+}

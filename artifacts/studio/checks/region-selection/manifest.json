@@ -1,0 +1,346 @@
+{
+  "protocol": "fe-web-bundle",
+  "protocol_version": 13,
+  "source_entry": "wasm_anchor",
+  "artifacts": {
+    "wasm": "module.wasm",
+    "wasm_bytes": 328990,
+    "wgsl": "shader.wgsl",
+    "wgsl_bytes": 385,
+    "canonical_adapters": [
+      {
+        "path": "interface.js",
+        "bytes": 58762,
+        "sha256": "1cb044121ff6e6c0a051ddeb6af640db59aaa5343482a561dd2b2f80906e1d96"
+      },
+      {
+        "path": "interface.d.ts",
+        "bytes": 2432,
+        "sha256": "767dde210c0960368e8bd5c7d048133232b7b5c944008059cc3f9df8e06314e5"
+      }
+    ]
+  },
+  "layout": {
+    "entry_point": "fs_main",
+    "mode": "render",
+    "workgroup_size": [
+      0,
+      0,
+      0
+    ],
+    "word": "u32",
+    "word_bytes": 4,
+    "bindings": [
+      {
+        "group": 0,
+        "binding": 1,
+        "name": "input",
+        "access": "read",
+        "role": "input",
+        "shader_stages": [
+          "fragment"
+        ],
+        "stride": 4,
+        "span": 4,
+        "members": [
+          {
+            "name": "",
+            "doc": null,
+            "arg_index": 2,
+            "offset": 0,
+            "width": 4,
+            "scalar": "f32"
+          }
+        ]
+      }
+    ],
+    "builtin_inputs": [
+      {
+        "arg_index": 0,
+        "source": "fragment_position_x",
+        "scalar": "i32"
+      },
+      {
+        "arg_index": 1,
+        "source": "fragment_position_y",
+        "scalar": "i32"
+      }
+    ],
+    "result": null,
+    "vertex_entry": "vs_fullscreen",
+    "fragment_entry": "fs_main",
+    "color_target_format": "rgba8unorm"
+  },
+  "resources": [],
+  "passes": [
+    {
+      "source_entry": "wasm_anchor",
+      "shader": "shader.wgsl",
+      "shader_bytes": 385,
+      "shader_stages": [
+        "fragment"
+      ],
+      "layout": {
+        "entry_point": "fs_main",
+        "mode": "render",
+        "workgroup_size": [
+          0,
+          0,
+          0
+        ],
+        "word": "u32",
+        "word_bytes": 4,
+        "bindings": [
+          {
+            "group": 0,
+            "binding": 1,
+            "name": "input",
+            "access": "read",
+            "role": "input",
+            "shader_stages": [
+              "fragment"
+            ],
+            "stride": 4,
+            "span": 4,
+            "members": [
+              {
+                "name": "",
+                "doc": null,
+                "arg_index": 2,
+                "offset": 0,
+                "width": 4,
+                "scalar": "f32"
+              }
+            ]
+          }
+        ],
+        "builtin_inputs": [
+          {
+            "arg_index": 0,
+            "source": "fragment_position_x",
+            "scalar": "i32"
+          },
+          {
+            "arg_index": 1,
+            "source": "fragment_position_y",
+            "scalar": "i32"
+          }
+        ],
+        "result": null,
+        "vertex_entry": "vs_fullscreen",
+        "fragment_entry": "fs_main",
+        "color_target_format": "rgba8unorm"
+      }
+    }
+  ],
+  "provenance": {
+    "compiler": "fe",
+    "compiler_version": "26.2.0",
+    "source_id": null,
+    "authored_sources": [],
+    "non_fe_authored_sources": [],
+    "generated_artifacts": [
+      "manifest",
+      "wasm",
+      "wgsl"
+    ],
+    "fe_responsibilities": [
+      "gpu_program"
+    ],
+    "fixed_host": {
+      "name": "fe-render-runtime",
+      "contract": "fixed_versioned_demo_blind_browser_host",
+      "responsibilities": [
+        "dom_surface",
+        "input_transport",
+        "presentation_scheduler",
+        "backing_store_policy",
+        "device_capability_facts",
+        "web_gpu_executor",
+        "lifecycle",
+        "wasm_loader"
+      ]
+    }
+  },
+  "canonical_interface": {
+    "protocol": "fe-canonical-browser-interface",
+    "version": 4,
+    "abi": {
+      "pointer_width": 32,
+      "endianness": "little",
+      "memory_export": "memory",
+      "alloc_export": "fe_cabi_alloc",
+      "reset_export": "fe_cabi_reset"
+    },
+    "lanes": [
+      {
+        "name": "inspect",
+        "export": "fe_cabi_inspect",
+        "request": {
+          "size": 4,
+          "align": 4,
+          "kind": "record",
+          "fields": [
+            {
+              "name": "unused",
+              "offset": 0,
+              "layout": {
+                "size": 4,
+                "align": 4,
+                "kind": "u32"
+              }
+            }
+          ]
+        },
+        "response": {
+          "size": 8,
+          "align": 4,
+          "kind": "record",
+          "fields": [
+            {
+              "name": "checks",
+              "offset": 0,
+              "layout": {
+                "size": 4,
+                "align": 4,
+                "kind": "u32"
+              }
+            },
+            {
+              "name": "cancellation_x",
+              "offset": 4,
+              "layout": {
+                "size": 4,
+                "align": 4,
+                "kind": "f32"
+              }
+            }
+          ]
+        },
+        "intent": {
+          "execution": "wasm",
+          "placement": "any",
+          "capabilities": []
+        }
+      },
+      {
+        "name": "fixed_projection",
+        "export": "fe_cabi_fixed_projection",
+        "request": {
+          "size": 60,
+          "align": 4,
+          "kind": "record",
+          "fields": [
+            {
+              "name": "words",
+              "offset": 0,
+              "layout": {
+                "size": 56,
+                "align": 4,
+                "kind": "array",
+                "element": {
+                  "size": 4,
+                  "align": 4,
+                  "kind": "u32"
+                },
+                "len": 14,
+                "stride": 4
+              }
+            },
+            {
+              "name": "negative",
+              "offset": 56,
+              "layout": {
+                "size": 1,
+                "align": 1,
+                "kind": "bool"
+              }
+            }
+          ]
+        },
+        "response": {
+          "size": 4,
+          "align": 4,
+          "kind": "record",
+          "fields": [
+            {
+              "name": "bits",
+              "offset": 0,
+              "layout": {
+                "size": 4,
+                "align": 4,
+                "kind": "u32"
+              }
+            }
+          ]
+        },
+        "intent": {
+          "execution": "wasm",
+          "placement": "any",
+          "capabilities": []
+        }
+      }
+    ]
+  },
+  "canonical_status": {
+    "policy": "required",
+    "embedded": true,
+    "omission_reason": null
+  },
+  "browser_runtime": {
+    "protocol": "fe-browser-actor-runtime",
+    "protocol_version": 5,
+    "artifacts": [
+      {
+        "path": "runtime/actor-coordinator.js",
+        "bytes": 8094,
+        "sha256": "6793f2d0803cab4968d3efffc8996b64d07aad3dd1e49fca7e0e33308f6c4eed"
+      },
+      {
+        "path": "runtime/actor-endpoint.js",
+        "bytes": 11750,
+        "sha256": "f0244e2468b077c086d4b6032dd61f451b5e6cb503333ae8150a68ea5df533cd"
+      },
+      {
+        "path": "runtime/actor-router.js",
+        "bytes": 8947,
+        "sha256": "6cd349c836f51dd28f8b3d69177b40e56a9b39f96ed73b18ae83a703766c0534"
+      },
+      {
+        "path": "runtime/gpu-actor.js",
+        "bytes": 11741,
+        "sha256": "262c703494035e1c369226d3d7849143a809ce0f968e30025a08b84f43dea268"
+      },
+      {
+        "path": "runtime/message-port-actor.js",
+        "bytes": 6920,
+        "sha256": "d1e72991b703759c4f82d56ac5da5404e9d4674982d9ef0384087b9a78b673fb"
+      },
+      {
+        "path": "runtime/module-worker-actor.js",
+        "bytes": 21238,
+        "sha256": "9c827719a1aab8e7662ac77b8a1643743592fac9f161938a1b50fdf3178ca01f"
+      },
+      {
+        "path": "runtime/worker-host.js",
+        "bytes": 222,
+        "sha256": "271e0b972063264f1df0403c798be7d4af973d7cf86967c1a5321e1dfa1371e1"
+      },
+      {
+        "path": "runtime/worker-host-core.js",
+        "bytes": 7055,
+        "sha256": "908764e045f2566137f7f3ff8fb106c0e3b122f338b21849b7eff6dd06bf1f35"
+      },
+      {
+        "path": "runtime/actor-client.js",
+        "bytes": 1640,
+        "sha256": "406251b8dd7f9a732e8e761167ecbe0ac0e2ef24b37c18f5df29e7f418e3dbd5"
+      },
+      {
+        "path": "runtime/actor-client-core.js",
+        "bytes": 4658,
+        "sha256": "b6eb4d868ba87a97987c028881458a99f51abe46a52ed599d314efb195db074c"
+      }
+    ]
+  }
+}

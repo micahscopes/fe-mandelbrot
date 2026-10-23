@@ -1,0 +1,148 @@
+{
+  "pass": true,
+  "malformedCases": 4,
+  "slicedBudgets": [
+    1,
+    2,
+    7,
+    32
+  ],
+  "cases": [
+    {
+      "name": "escape inside independent circle",
+      "result": {
+        "code": 0,
+        "step": 1,
+        "certificate": 4
+      }
+    },
+    {
+      "name": "closed circle edge and strict escape",
+      "result": {
+        "code": 0,
+        "step": 3,
+        "certificate": 4
+      }
+    },
+    {
+      "name": "bounded witness outside circle",
+      "result": {
+        "code": 3,
+        "step": 0,
+        "certificate": 0
+      }
+    },
+    {
+      "name": "closed box edge",
+      "result": {
+        "code": 0,
+        "step": 3,
+        "certificate": 4
+      }
+    },
+    {
+      "name": "box outside before boundedness",
+      "result": {
+        "code": 3,
+        "step": 0,
+        "certificate": 0
+      }
+    },
+    {
+      "name": "invariant disk 0",
+      "result": {
+        "code": 0,
+        "step": 0,
+        "certificate": 1
+      }
+    },
+    {
+      "name": "invariant disk 1",
+      "result": {
+        "code": 0,
+        "step": 0,
+        "certificate": 1
+      }
+    },
+    {
+      "name": "invariant disk -1",
+      "result": {
+        "code": 0,
+        "step": 0,
+        "certificate": 1
+      }
+    },
+    {
+      "name": "strict period two",
+      "result": {
+        "code": 0,
+        "step": 0,
+        "certificate": 2
+      }
+    },
+    {
+      "name": "strict cardioid",
+      "result": {
+        "code": 0,
+        "step": 0,
+        "certificate": 3
+      }
+    },
+    {
+      "name": "disk just outside does not get disk certificate",
+      "result": {
+        "code": 1,
+        "step": 0,
+        "certificate": 0
+      }
+    },
+    {
+      "name": "cardioid bulb shared boundary",
+      "result": {
+        "code": 1,
+        "step": 0,
+        "certificate": 0
+      }
+    },
+    {
+      "name": "norm exactly four is not escape",
+      "result": {
+        "code": 1,
+        "step": 16,
+        "certificate": 0
+      }
+    },
+    {
+      "name": "unequal circle radii invalid",
+      "result": {
+        "code": 2,
+        "step": 0,
+        "certificate": 0
+      }
+    },
+    {
+      "name": "zero radius invalid",
+      "result": {
+        "code": 2,
+        "step": 0,
+        "certificate": 0
+      }
+    },
+    {
+      "name": "deep exact common anchor cancellation",
+      "result": {
+        "code": 0,
+        "step": 3,
+        "certificate": 4
+      }
+    },
+    {
+      "name": "deep exact common anchor outside",
+      "result": {
+        "code": 3,
+        "step": 0,
+        "certificate": 0
+      }
+    }
+  ]
+}

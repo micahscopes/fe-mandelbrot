@@ -1,0 +1,20 @@
+{
+  "pass": true,
+  "setupMs": 31.075715000000002,
+  "turns": 153,
+  "persistentJobBytes": 166912,
+  "stableMemory": 393216,
+  "checks": [
+    "circle and separate witness",
+    "public-view hiding",
+    "outside before boundedness",
+    "claim replacement",
+    "draft suppression",
+    "pause and cancel",
+    "iteration budget Unknown",
+    "URL cancellation and reprojection",
+    "box with independently changed draw tool",
+    "right click ignored",
+    "persistent memory under large scratch allocations"
+  ]
+}

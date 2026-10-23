@@ -1,0 +1,16 @@
+{
+  "pass": true,
+  "scope": "DOM controls and responsive presentation only; GPU disabled",
+  "options": [
+    "Navigate",
+    "Draw region",
+    "Select point"
+  ],
+  "viewports": [
+    1280,
+    390
+  ],
+  "sourceScripts": [
+    "assets/fe-bootstrap-4cb87a78ce901629.js"
+  ]
+}

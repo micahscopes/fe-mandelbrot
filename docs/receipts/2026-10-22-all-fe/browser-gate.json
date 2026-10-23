@@ -1,0 +1,6 @@
+{
+  "pass": false,
+  "status": "incomplete",
+  "reason": "Software-GPU presentation did not reach ready/live within the bounded attempt; closed only the owned browser profile.",
+  "scope": "pre-lifetime-fix presentation probe; no hardware GPU acceptance claimed"
+}
