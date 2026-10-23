@@ -1,0 +1,86 @@
+//! One sequenced derivation, not a type-state API or Fiat-Shamir security proof.
+use core::ops::{Add, Mul, Sub}
+use poseidon_baby_bear::{Poseidon2Digest, bind, commit_fields, squeeze_ext4_indexed}
+use precision::baby_bear::{BabyBear, BabyBearExt4}
+use ingot::merkle::Proof
+use ingot::profile::{P, TKP0, TKT1, TKR1, TKC1, TKZ1, TKA1, TKG1, TKB1, TKL1, TKL2, TKE1, TKQ1}
+
+pub struct Derived {
+    pub valid: bool,
+    pub r: [BabyBearExt4; 8],
+    pub q: BabyBearExt4,
+    pub r_f: [BabyBearExt4; 5],
+    pub beta: [BabyBearExt4; 3],
+    pub indices: [u32; 8],
+}
+pub fn q_allowed(_ candidate: BabyBearExt4) -> bool {
+    let one = BabyBearExt4::one()
+    !candidate.is_zero() && !(candidate.pow_u32(8) - one).is_zero()
+        && !((candidate * BabyBearExt4::from_base(BabyBear::from_u32(31).inverse_or_zero())).pow_u32(32) - one).is_zero()
+}
+/// Shared first-accepted/capped control, used by hashes and injected fixtures.
+/// State fields are private. No transcript type-state enforcement is claimed.
+pub struct Sampler { attempts: u32, limit: u32, accepted: bool }
+impl Sampler {
+    pub fn q() -> Self { Self { attempts: 0, limit: 8, accepted: false } }
+    pub fn queries() -> Self { Self { attempts: 0, limit: 16, accepted: false } }
+    pub fn open(ref self) -> bool { self.attempts < self.limit && !self.accepted }
+    pub fn counter(ref self) -> u32 { self.attempts }
+    pub fn found(ref self) -> bool { self.accepted }
+    pub fn step(mut self, _ valid: bool) -> bool {
+        if !self.open() { return false }
+        self.attempts = self.attempts + 1
+        self.accepted = valid
+        valid
+    }
+}
+pub fn query_allowed(_ candidate: u32) -> bool { candidate < P - 1 }
+pub fn derive(_ proof: Proof, _ statement: BabyBear) -> Derived {
+    let t0 = commit_fields<TKP0, 12>([BabyBear::one(), BabyBear::from_u32(3),
+        BabyBear::from_u32(5), BabyBear::from_u32(31), BabyBear::from_u32(11),
+        BabyBear::from_u32(8), BabyBear::from_u32(3), BabyBear::one(),
+        BabyBear::one(), BabyBear::from_u32(4), BabyBear::one(), statement])
+    let t1 = bind<TKT1>(t0, proof.digest(0))
+    let mut r = [BabyBearExt4::zero(); 8]
+    for i in 0..8 { r[i] = squeeze_ext4_indexed<TKR1>(t1, i.downcast_truncate()) }
+    let t2 = bind<TKC1>(t1, proof.digest(8))
+    let mut q = BabyBearExt4::zero()
+    let mut q_sampler = Sampler::q()
+    while q_sampler.open() {
+        let candidate = squeeze_ext4_indexed<TKZ1>(t2, q_sampler.counter())
+        if q_sampler.step(q_allowed(candidate)) { q = candidate }
+    }
+    let mut result = Derived { valid: false, r: r, q: q,
+        r_f: [BabyBearExt4::zero(); 5], beta: [BabyBearExt4::zero(); 3], indices: [0; 8] }
+    if !q_sampler.found() { return result }
+    let mut answer_fields = [BabyBear::zero(); 28]
+    for i in 0..8 { answer_fields[i] = t2.field(i.downcast_truncate()) }
+    for i in 0..20 { answer_fields[i + 8] = BabyBear::from_u32(proof.word(16 + i.downcast_truncate())) }
+    let t3 = commit_fields<TKA1, 28>(answer_fields)
+    for i in 0..5 { result.r_f[i] = squeeze_ext4_indexed<TKG1>(t3, i.downcast_truncate()) }
+    result.beta[0] = squeeze_ext4_indexed<TKB1>(t3, 1)
+    let t4 = bind<TKL1>(t3, proof.digest(36))
+    result.beta[1] = squeeze_ext4_indexed<TKB1>(t4, 2)
+    let t5 = bind<TKL2>(t4, proof.digest(44))
+    result.beta[2] = squeeze_ext4_indexed<TKB1>(t5, 3)
+    let mut final_fields = [BabyBear::zero(); 12]
+    for i in 0..8 { final_fields[i] = t5.field(i.downcast_truncate()) }
+    for i in 0..4 { final_fields[i + 8] = BabyBear::from_u32(proof.word(52 + i.downcast_truncate())) }
+    let t6 = commit_fields<TKE1, 12>(final_fields)
+    let mut query: usize = 0
+    while query < 8 {
+        let mut fields = [BabyBear::zero(); 10]
+        for i in 0..8 { fields[i] = t6.field(i.downcast_truncate()) }
+        fields[8] = BabyBear::from_u32(query.downcast_truncate())
+        let mut sampler = Sampler::queries()
+        while sampler.open() {
+            fields[9] = BabyBear::from_u32(sampler.counter())
+            let candidate = commit_fields<TKQ1, 10>(fields).field(0).to_u32()
+            if sampler.step(query_allowed(candidate)) { result.indices[query] = candidate % 16 }
+        }
+        if !sampler.found() { return result }
+        query = query + 1
+    }
+    result.valid = true
+    result
+}

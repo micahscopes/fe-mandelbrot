@@ -61,3 +61,39 @@ pub fn wasm_anchor(_ x: i32, _ y: i32, _ res: f32) -> u32 {
     let _ = (x, y, res)
     0
 }
+
+/// Experimental non-hiding argument verifier; independent of algebra fixtures.
+pub fn verify(_ request: own ingot::verifier::VerifyRequest) -> ingot::verifier::VerifyResult {
+    ingot::verifier::verify(request)
+}
+
+// Injected candidates exercise shared sampler control only; never accepted by verify.
+pub struct SamplerRequest { pub q_candidates: [[u32; 4]; 10], pub query_candidates: [u32; 18] }
+pub struct SamplerResult {
+    pub status: u32, pub q_found: bool, pub q_attempts: u32, pub q_value: [u32; 4],
+    pub q_allowed: [bool; 10], pub query_found: bool, pub query_attempts: u32, pub query_index: u32,
+}
+pub fn sampler_control(_ r: own SamplerRequest) -> SamplerResult {
+    let mut result = SamplerResult { status: 1, q_found: false, q_attempts: 0,
+        q_value: [0; 4], q_allowed: [false; 10], query_found: false, query_attempts: 0, query_index: 0 }
+    for i in 0..10 { if !canonical(r.q_candidates[i]) { return result } }
+    for i in 0..18 { if r.query_candidates[i] >= P { return result } }
+    let mut q_sampler = ingot::transcript::Sampler::q()
+    for i in 0..10 {
+        let candidate = BabyBearExt4::from_u32s(r.q_candidates[i])
+        let allowed = ingot::transcript::q_allowed(candidate)
+        result.q_allowed[i] = allowed
+        if q_sampler.step(allowed) { result.q_value = candidate.to_u32s() }
+    }
+    let mut sampler = ingot::transcript::Sampler::queries()
+    for i in 0..18 {
+        let candidate = r.query_candidates[i]
+        if sampler.step(ingot::transcript::query_allowed(candidate)) { result.query_index = candidate % 16 }
+    }
+    result.q_found = q_sampler.found()
+    result.q_attempts = q_sampler.counter()
+    result.query_found = sampler.found()
+    result.query_attempts = sampler.counter()
+    result.status = if result.q_found && result.query_found { 0 } else { 2 }
+    result
+}

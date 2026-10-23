@@ -1,0 +1,40 @@
+//! Fixed experimental non-hiding profile; no application protocol interface.
+use poseidon_baby_bear::Poseidon2FieldDomain
+use precision::baby_bear::BabyBear
+pub const WORDS: u32 = 2456
+pub const BYTES: u32 = 9824
+pub const P: u32 = 2013265921
+pub fn g() -> BabyBear { BabyBear::two_adic_root(3) }
+pub fn omega() -> BabyBear { BabyBear::two_adic_root(5) }
+pub struct TKTL {}
+impl Poseidon2FieldDomain for TKTL { const TAG: u32 = 1414222924 }
+pub struct TKCL {}
+impl Poseidon2FieldDomain for TKCL { const TAG: u32 = 1414218572 }
+pub struct TKF1 {}
+impl Poseidon2FieldDomain for TKF1 { const TAG: u32 = 1414219313 }
+pub struct TKF2 {}
+impl Poseidon2FieldDomain for TKF2 { const TAG: u32 = 1414219314 }
+pub struct TKP0 {}
+impl Poseidon2FieldDomain for TKP0 { const TAG: u32 = 1414221872 }
+pub struct TKT1 {}
+impl Poseidon2FieldDomain for TKT1 { const TAG: u32 = 1414222897 }
+pub struct TKR1 {}
+impl Poseidon2FieldDomain for TKR1 { const TAG: u32 = 1414222385 }
+pub struct TKC1 {}
+impl Poseidon2FieldDomain for TKC1 { const TAG: u32 = 1414218545 }
+pub struct TKZ1 {}
+impl Poseidon2FieldDomain for TKZ1 { const TAG: u32 = 1414224433 }
+pub struct TKA1 {}
+impl Poseidon2FieldDomain for TKA1 { const TAG: u32 = 1414218033 }
+pub struct TKG1 {}
+impl Poseidon2FieldDomain for TKG1 { const TAG: u32 = 1414219569 }
+pub struct TKB1 {}
+impl Poseidon2FieldDomain for TKB1 { const TAG: u32 = 1414218289 }
+pub struct TKL1 {}
+impl Poseidon2FieldDomain for TKL1 { const TAG: u32 = 1414220849 }
+pub struct TKL2 {}
+impl Poseidon2FieldDomain for TKL2 { const TAG: u32 = 1414220850 }
+pub struct TKE1 {}
+impl Poseidon2FieldDomain for TKE1 { const TAG: u32 = 1414219057 }
+pub struct TKQ1 {}
+impl Poseidon2FieldDomain for TKQ1 { const TAG: u32 = 1414222129 }

@@ -1,0 +1,47 @@
+//! Fixed checked-by-caller proof view and bottom-up authentication.
+use core::{BrowserBytes, BrowserPtr}
+use core::marker::Copy
+use core::ops::Eq
+use poseidon_baby_bear::{Poseidon2Digest, compress}
+use precision::baby_bear::{BabyBear, BabyBearExt4}
+
+pub struct Proof { bytes: BrowserBytes }
+impl Copy for Proof {}
+impl Proof {
+    pub fn from_bytes(_ bytes: BrowserBytes) -> Self { Self { bytes: bytes } }
+    // Call only after the verifier's exact-length check. Decode explicitly LE.
+    pub fn word(self, _ index: u32) -> u32 {
+        let address = self.bytes.ptr + index * 4
+        let p0: BrowserPtr<u8> = BrowserPtr::from_u32(address)
+        let p1: BrowserPtr<u8> = BrowserPtr::from_u32(address + 1)
+        let p2: BrowserPtr<u8> = BrowserPtr::from_u32(address + 2)
+        let p3: BrowserPtr<u8> = BrowserPtr::from_u32(address + 3)
+        (p0.read() as u32) | ((p1.read() as u32) << 8)
+            | ((p2.read() as u32) << 16) | ((p3.read() as u32) << 24)
+    }
+    // Field constructors below are used only after ALL words are canonical.
+    pub fn extension(self, _ index: u32) -> BabyBearExt4 {
+        BabyBearExt4::from_coordinate_words(self.word(index), self.word(index + 1),
+            self.word(index + 2), self.word(index + 3))
+    }
+    pub fn digest(self, _ index: u32) -> Poseidon2Digest {
+        let mut fields = [BabyBear::zero(); 8]
+        for i in 0..8 { fields[i] = BabyBear::from_u32(self.word(index + i.downcast_truncate())) }
+        Poseidon2Digest::from_fields(fields)
+    }
+}
+pub fn authenticate(
+    _ proof: Proof, _ path_offset: u32, _ index: u32, _ depth: u32,
+    _ leaf: Poseidon2Digest, _ root: Poseidon2Digest,
+) -> bool {
+    let mut node = leaf
+    let mut remaining = index
+    let mut level: u32 = 0
+    while level < depth {
+        let sibling = proof.digest(path_offset + level * 8)
+        node = if (remaining & 1) == 0 { compress(node, sibling) } else { compress(sibling, node) }
+        remaining = remaining >> 1
+        level = level + 1
+    }
+    remaining == 0 && node.equals(root)
+}

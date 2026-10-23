@@ -1,0 +1,38 @@
+//! Experimental public verifier. Input authority is only statement + proof.
+use core::BrowserBytes
+use core::ops::Eq
+use precision::baby_bear::{BabyBear, BabyBearExt4}
+use ingot::profile::{BYTES, WORDS, P}
+use ingot::merkle::Proof
+use ingot::transcript::derive
+use ingot::air::constraint_combination
+use ingot::fri::verify_query
+
+pub struct Statement { pub weight: u32 }
+pub struct VerifyRequest { pub statement: Statement, pub proof: BrowserBytes }
+pub struct VerifyResult { pub status: u32 }
+pub fn verify(_ request: own VerifyRequest) -> VerifyResult {
+    if request.proof.len != BYTES || request.statement.weight >= P { return VerifyResult { status: 1 } }
+    let proof = Proof::from_bytes(request.proof)
+    let mut index: u32 = 0
+    // Complete validation precedes EVERY field conversion or transcript use.
+    while index < WORDS {
+        if proof.word(index) >= P { return VerifyResult { status: 1 } }
+        index = index + 1
+    }
+    let statement = BabyBear::from_u32(request.statement.weight)
+    let derived = derive(proof, statement)
+    if !derived.valid { return VerifyResult { status: 2 } }
+    let answers = [proof.extension(16), proof.extension(20), proof.extension(24),
+        proof.extension(28), proof.extension(32)]
+    let mask: [BabyBearExt4; 4] = [answers[0], answers[1], answers[2], answers[3]]
+    let composition = constraint_combination<8>(derived.q, mask, derived.r, statement)
+    if !composition.valid || !composition.value.equals(answers[4]) { return VerifyResult { status: 6 } }
+    index = 0
+    while index < 8 {
+        let status = verify_query(proof, index, ref derived, answers)
+        if status != 0 { return VerifyResult { status: status } }
+        index = index + 1
+    }
+    VerifyResult { status: 0 }
+}

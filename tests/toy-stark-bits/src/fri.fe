@@ -1,0 +1,60 @@
+//! Authenticated virtual initial layer and fixed degree-bound fold chain.
+use core::ops::{Mul, Sub}
+use poseidon_baby_bear::{Poseidon2Digest, Poseidon2FieldDomain, commit_fields, commit_ext4_fields}
+use precision::baby_bear::{BabyBear, BabyBearExt4}
+use fri_baby_bear::fold_fri_pair_value_at_point
+use ingot::merkle::{Proof, authenticate}
+use ingot::profile::{TKTL, TKCL, TKF1, TKF2, g, omega}
+use ingot::transcript::Derived
+use ingot::deep::deep_value
+
+fn trace_leaf(_ proof: Proof, _ offset: u32) -> Poseidon2Digest {
+    commit_fields<TKTL, 2>([BabyBear::from_u32(proof.word(offset)),
+        BabyBear::from_u32(proof.word(offset + 1))])
+}
+fn extension_leaf<D: Poseidon2FieldDomain>(_ proof: Proof, _ offset: u32) -> Poseidon2Digest {
+    commit_ext4_fields<D, 1>([proof.extension(offset)])
+}
+pub fn verify_query(
+    _ proof: Proof, _ query: u32, _ derived: ref Derived,
+    _ answers: [BabyBearExt4; 5],
+) -> u32 {
+    let offset = 56 + 300 * query
+    let index = derived.indices[query as usize]
+    let index1 = index % 8
+    let index2 = index1 % 4
+    let trace_root = proof.digest(0)
+    if !authenticate(proof, offset + 2, index, 5, trace_leaf(proof, offset), trace_root) { return 3 }
+    if !authenticate(proof, offset + 44, index + 16, 5, trace_leaf(proof, offset + 42), trace_root) { return 3 }
+    let comp_root = proof.digest(8)
+    if !authenticate(proof, offset + 88, index, 5, extension_leaf<TKCL>(proof, offset + 84), comp_root) { return 4 }
+    if !authenticate(proof, offset + 132, index + 16, 5, extension_leaf<TKCL>(proof, offset + 128), comp_root) { return 4 }
+    let layer1_root = proof.digest(36)
+    if !authenticate(proof, offset + 176, index1, 4, extension_leaf<TKF1>(proof, offset + 172), layer1_root) { return 5 }
+    if !authenticate(proof, offset + 212, index1 + 8, 4, extension_leaf<TKF1>(proof, offset + 208), layer1_root) { return 5 }
+    let layer2_root = proof.digest(44)
+    if !authenticate(proof, offset + 248, index2, 3, extension_leaf<TKF2>(proof, offset + 244), layer2_root) { return 5 }
+    if !authenticate(proof, offset + 276, index2 + 4, 3, extension_leaf<TKF2>(proof, offset + 272), layer2_root) { return 5 }
+    // Authenticate every pair before checking any fold, in contract order.
+    let point = BabyBear::from_u32(31) * omega().pow_u32(index)
+    let negative_point = BabyBear::zero() - point
+    let positive = deep_value(BabyBearExt4::from_base(point),
+        BabyBearExt4::from_base(BabyBear::from_u32(proof.word(offset))),
+        BabyBearExt4::from_base(BabyBear::from_u32(proof.word(offset + 1))),
+        proof.extension(offset + 84), answers, derived.r_f, derived.q, BabyBearExt4::from_base(g()))
+    let negative = deep_value(BabyBearExt4::from_base(negative_point),
+        BabyBearExt4::from_base(BabyBear::from_u32(proof.word(offset + 42))),
+        BabyBearExt4::from_base(BabyBear::from_u32(proof.word(offset + 43))),
+        proof.extension(offset + 128), answers, derived.r_f, derived.q, BabyBearExt4::from_base(g()))
+    if !positive.valid || !negative.valid { return 7 }
+    let layer1_value = if index < 8 { proof.extension(offset + 172) } else { proof.extension(offset + 208) }
+    if !fold_fri_pair_value_at_point(positive.value, negative.value, derived.beta[0], point).equals(layer1_value) { return 7 }
+    let point1 = BabyBear::from_u32(31).square() * omega().pow_u32(2 * index1)
+    let layer2_value = if index1 < 4 { proof.extension(offset + 244) } else { proof.extension(offset + 272) }
+    if !fold_fri_pair_value_at_point(proof.extension(offset + 172), proof.extension(offset + 208),
+        derived.beta[1], point1).equals(layer2_value) { return 7 }
+    let point2 = BabyBear::from_u32(31).pow_u32(4) * omega().pow_u32(4 * index2)
+    if !fold_fri_pair_value_at_point(proof.extension(offset + 244), proof.extension(offset + 272),
+        derived.beta[2], point2).equals(proof.extension(52)) { return 8 }
+    0
+}
