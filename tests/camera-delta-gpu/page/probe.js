@@ -17,9 +17,13 @@ const STAGES = [
   ['single conversion sign', [21]],
   ['single conversion to f32', [22]],
   ['micro: array in struct loop', [23]],
-  ['micro: straight-line', [24]],
+  ['micro: struct from literal, no loop', [24]],
   ['micro: struct bool', [25]],
-  ['single conversion digits (to)', [26]],
+  ['micro: bare array loop returned', [26]],
+  ['micro: struct loop inline in kernel', [27]],
+  ['micro: struct loop through mut parameter', [28]],
+  ['micro: struct without array out of loop', [29]],
+  ['micro: array loop, scalar returned', [30]],
 ];
 const hex = value => (value >>> 0).toString(16).padStart(8, '0');
 const asFloat = bits => new Float32Array(new Uint32Array([bits]).buffer)[0];

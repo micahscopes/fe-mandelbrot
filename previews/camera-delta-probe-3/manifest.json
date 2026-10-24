@@ -1,0 +1,168 @@
+{
+ "passes": [
+  {
+   "source_entry": "delta_case",
+   "shader": "passes/000-compute.wgsl",
+   "shader_bytes": 68543,
+   "shader_stages": [
+    "compute"
+   ],
+   "dispatch": [
+    512,
+    1,
+    1
+   ],
+   "layout": {
+    "entry_point": "main",
+    "mode": "compute",
+    "workgroup_size": [
+     1,
+     1,
+     1
+    ],
+    "word": "u32",
+    "word_bytes": 4,
+    "bindings": [
+     {
+      "group": 0,
+      "binding": 0,
+      "name": "inputs",
+      "access": "read_write",
+      "role": "resource",
+      "shader_stages": [
+       "compute"
+      ],
+      "stride": 4,
+      "span": 4,
+      "members": []
+     },
+     {
+      "group": 0,
+      "binding": 1,
+      "name": "outputs",
+      "access": "read_write",
+      "role": "resource",
+      "shader_stages": [
+       "compute"
+      ],
+      "stride": 4,
+      "span": 4,
+      "members": []
+     },
+     {
+      "group": 0,
+      "binding": 2,
+      "name": "params",
+      "access": "read",
+      "role": "input",
+      "shader_stages": [
+       "compute"
+      ],
+      "stride": 4,
+      "span": 4,
+      "members": [
+       {
+        "name": "unused",
+        "doc": null,
+        "arg_index": 15,
+        "offset": 0,
+        "width": 4,
+        "scalar": "f32"
+       }
+      ]
+     },
+     {
+      "group": 0,
+      "binding": 3,
+      "name": "trap",
+      "access": "read_write",
+      "role": "output",
+      "shader_stages": [
+       "compute"
+      ],
+      "stride": 4,
+      "span": 2048,
+      "members": []
+     }
+    ],
+    "builtin_inputs": [
+     {
+      "arg_index": 0,
+      "source": "global_invocation_id_x",
+      "scalar": "i32"
+     },
+     {
+      "arg_index": 1,
+      "source": "global_invocation_id_y",
+      "scalar": "i32"
+     },
+     {
+      "arg_index": 2,
+      "source": "global_invocation_id_z",
+      "scalar": "i32"
+     },
+     {
+      "arg_index": 3,
+      "source": "local_invocation_id_x",
+      "scalar": "i32"
+     },
+     {
+      "arg_index": 4,
+      "source": "local_invocation_id_y",
+      "scalar": "i32"
+     },
+     {
+      "arg_index": 5,
+      "source": "local_invocation_id_z",
+      "scalar": "i32"
+     },
+     {
+      "arg_index": 6,
+      "source": "workgroup_id_x",
+      "scalar": "i32"
+     },
+     {
+      "arg_index": 7,
+      "source": "workgroup_id_y",
+      "scalar": "i32"
+     },
+     {
+      "arg_index": 8,
+      "source": "workgroup_id_z",
+      "scalar": "i32"
+     },
+     {
+      "arg_index": 9,
+      "source": "num_workgroups_x",
+      "scalar": "i32"
+     },
+     {
+      "arg_index": 10,
+      "source": "num_workgroups_y",
+      "scalar": "i32"
+     },
+     {
+      "arg_index": 11,
+      "source": "num_workgroups_z",
+      "scalar": "i32"
+     },
+     {
+      "arg_index": 12,
+      "source": "local_invocation_index",
+      "scalar": "i32"
+     }
+    ],
+    "result": null,
+    "trap": {
+     "group": 0,
+     "binding": 3,
+     "offset": 0,
+     "width": 2048
+    },
+    "vertex_entry": null,
+    "fragment_entry": null,
+    "color_target_format": null
+   }
+  }
+ ]
+}

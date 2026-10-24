@@ -76,14 +76,66 @@ fn fill_lanes(_ seed: u32) -> Lanes {
     lanes
 }
 
-/// The same values with no array and no loop.
-fn straight_digest(_ seed: u32) -> u32 {
-    (seed & 8191)
-        ^ (((seed >> 1) & 8191) << 7) ^ (((seed >> 2) & 8191) << 14)
-        ^ (((seed >> 3) & 8191) << 2) ^ (((seed >> 4) & 8191) << 9)
-        ^ (((seed >> 5) & 8191) << 16) ^ (((seed >> 6) & 8191) << 4)
-        ^ (((seed >> 7) & 8191) << 11) ^ (((seed >> 8) & 8191) << 18)
-        ^ (((seed >> 9) & 8191) << 6)
+/// Same record built from a literal: an array inside a struct returned by value, no loop.
+fn literal_lanes(_ seed: u32) -> Lanes {
+    Lanes {
+        negative: (seed >> 31) != 0,
+        digits: [
+            seed & 8191, (seed >> 1) & 8191, (seed >> 2) & 8191, (seed >> 3) & 8191,
+            (seed >> 4) & 8191, (seed >> 5) & 8191, (seed >> 6) & 8191, (seed >> 7) & 8191,
+            (seed >> 8) & 8191, (seed >> 9) & 8191,
+        ],
+    }
+}
+
+/// Digest of the digits with the flag in bit 31, so one word observes both fields.
+fn fold_lanes(_ lanes: Lanes) -> u32 {
+    digest(lanes.digits) | (if lanes.negative { 2147483648 } else { 0 })
+}
+
+/// A bare array filled by a loop and returned by value (no struct, no flag).
+fn fill_array(_ seed: u32) -> [u32; 10] {
+    let mut digits: [u32; 10] = [0; 10]
+    let mut index: u32 = 0
+    while index < 10 {
+        digits[index as usize] = (seed >> index) & 8191
+        index = index + 1
+    }
+    digits
+}
+
+/// The loop writes through a mutable parameter; nothing aggregate is returned.
+fn fill_into(_ lanes: mut Lanes, _ seed: u32) {
+    let mut index: u32 = 0
+    while index < 10 {
+        lanes.digits[index as usize] = (seed >> index) & 8191
+        index = index + 1
+    }
+}
+
+/// A struct without an array returned out of a loop.
+pub struct Flag { pub negative: bool, pub count: u32 }
+impl Copy for Flag {}
+
+fn count_flag(_ seed: u32) -> Flag {
+    let mut flag: Flag = Flag { negative: (seed >> 31) != 0, count: 0 }
+    let mut index: u32 = 0
+    while index < 10 {
+        flag.count = flag.count + ((seed >> index) & 1)
+        index = index + 1
+    }
+    flag
+}
+
+/// A local array filled by a loop, folded in the same function; only a scalar leaves.
+fn loop_digest(_ seed: u32) -> u32 {
+    let mut digits: [u32; 10] = [0; 10]
+    let mut index: u32 = 0
+    while index < 10 {
+        digits[index as usize] = (seed >> index) & 8191
+        index = index + 1
+    }
+    digest(digits)
 }
 
 actor CameraDeltaProbe uses (
@@ -126,7 +178,7 @@ actor CameraDeltaProbe uses (
         self.outputs.store(index: output + 13, value: target.to_binary32_bits())
         self.outputs.store(index: output + 14, value: difference.sign())
         self.outputs.store(index: output + 15, value: digest(difference.to_digits()))
-        // Canaries and isolated primitives (words 16..26).
+        // Canaries and isolated primitives (words 16..30).
         let raw_from: u32 = self.inputs.load(index: input)
         let raw_to: u32 = self.inputs.load(index: input + 4)
         self.outputs.store(index: output + 16, value: 12648430)
@@ -139,10 +191,22 @@ actor CameraDeltaProbe uses (
         self.outputs.store(index: output + 22, value: single.to_binary32_bits())
         let lanes: Lanes = fill_lanes(raw_from)
         self.outputs.store(index: output + 23, value: digest(lanes.digits))
-        self.outputs.store(index: output + 24, value: straight_digest(raw_from))
+        self.outputs.store(index: output + 24, value: fold_lanes(literal_lanes(raw_from)))
         self.outputs.store(index: output + 25, value: if lanes.negative { 1 } else { 0 })
-        let single_to: ArrayFixed<10> = ArrayFixed<10>::from_binary32_bits(raw_to)
-        self.outputs.store(index: output + 26, value: digest(single_to.to_digits()))
+        self.outputs.store(index: output + 26, value: digest(fill_array(raw_from)))
+        let mut inline_lanes: Lanes = Lanes { negative: (raw_from >> 31) != 0, digits: [0; 10] }
+        let mut slot: u32 = 0
+        while slot < 10 {
+            inline_lanes.digits[slot as usize] = (raw_from >> slot) & 8191
+            slot = slot + 1
+        }
+        self.outputs.store(index: output + 27, value: fold_lanes(inline_lanes))
+        let mut through: Lanes = Lanes { negative: (raw_from >> 31) != 0, digits: [0; 10] }
+        fill_into(mut through, raw_from)
+        self.outputs.store(index: output + 28, value: fold_lanes(through))
+        let flag: Flag = count_flag(raw_from)
+        self.outputs.store(index: output + 29, value: flag.count | (if flag.negative { 2147483648 } else { 0 }))
+        self.outputs.store(index: output + 30, value: loop_digest(raw_from))
     }
 
     fn display_probe(self, px: i32, py: i32) -> i32 uses (FragmentSurface) {

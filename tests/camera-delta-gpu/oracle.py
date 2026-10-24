@@ -75,13 +75,17 @@ def expected(from_bits, to_bits):
         model.rational_projection(diff), *target[1], target[0],
         model.rational_projection(origin), model.rational_projection(target),
         diff[0], digest(diff[1]),
-        # Canaries and isolated primitives; see src/lib.fe words 16..26.
+        # Canaries and isolated primitives; see src/lib.fe words 16..30.
         0xC0FFEE, from_bits[0], to_bits[0], from_bits[0] >> 31,
         digest(model.exact_parse(from_bits[0], WIDTH)[1]), model.exact_parse(from_bits[0], WIDTH)[0],
         model.rational_projection(model.exact_parse(from_bits[0], WIDTH)),
-        lanes_digest(from_bits[0]), lanes_digest(from_bits[0]), from_bits[0] >> 31,
-        digest(model.exact_parse(to_bits[0], WIDTH)[1]),
-        0, 0, 0, 0, 0,
+        lanes_digest(from_bits[0]), lanes_digest(from_bits[0]) | (from_bits[0] >> 31 << 31), from_bits[0] >> 31,
+        lanes_digest(from_bits[0]),
+        lanes_digest(from_bits[0]) | (from_bits[0] >> 31 << 31),
+        lanes_digest(from_bits[0]) | (from_bits[0] >> 31 << 31),
+        bin(from_bits[0] & 1023).count('1') | (from_bits[0] >> 31 << 31),
+        lanes_digest(from_bits[0]),
+        0,
     ]
 
 
