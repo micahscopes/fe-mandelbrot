@@ -48,6 +48,8 @@ struct FeLocal_fe_ViewCache_da6e2ccc_8_ {
     blur_dirty: u32,
     epoch: u32,
     completed: u32,
+    steps: u32,
+    frame_clock: f32,
 }
 
 struct cache_element {
@@ -71,6 +73,8 @@ struct cache_element {
     blur_dirty: u32,
     epoch: u32,
     completed: u32,
+    steps: u32,
+    frame_clock: f32,
 }
 
 struct Params {
@@ -172,6 +176,8 @@ fn main() {
     let _e40 = cache[i32(0u)].blur_dirty;
     let _e42 = cache[i32(0u)].epoch;
     let _e44 = cache[i32(0u)].completed;
+    let _e46 = cache[i32(0u)].steps;
+    let _e48 = cache[i32(0u)].frame_clock;
     if (_e44 == 1u) {
         cache[i32(1u)].camera_u002e_center_u002e_re_u002e_value_u002e_lead = _e6;
         cache[i32(1u)].camera_u002e_center_u002e_re_u002e_value_u002e_tail_u002e_lead = _e8;
@@ -193,5 +199,7 @@ fn main() {
         cache[i32(1u)].blur_dirty = _e40;
         cache[i32(1u)].epoch = _e42;
         cache[i32(1u)].completed = _e44;
+        cache[i32(1u)].steps = _e46;
+        cache[i32(1u)].frame_clock = _e48;
     }
 }

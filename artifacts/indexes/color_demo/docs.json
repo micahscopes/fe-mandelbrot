@@ -79,7 +79,7 @@
         "signature": "//! Three bands: OKLCH hue sweep, OKLab blending, and lightness/chroma field.\n//! The same perceptual_color ingot is used by the Mandelbrot renderer.\nuse core::marker::Copy\nuse std::webgpu::{\n    FragmentSurface,\n    GpuProgram,\n    ResponsiveBacking,\n    StandardSurfaceRecovery,\n    SurfaceQuality,\n    SurfaceRecovery,\n    SurfaceTransition,\n    WebGpuBackend,\n}\nuse std::web::view::{\n    ApplyParamBindings,\n    Extent,\n    Param,\n    ParamBindingsProvider,\n    Surface,\n    SurfaceEvent,\n    SurfaceState,\n}\nuse fmath::from_i32\nuse perceptual_color::{Oklch, blend, display_rgba}\n\npub struct ColorParams { pub hue: Param, pub chroma: Param, pub lightness: Param, pub res: Param }\n\npub struct ColorState { pub hue: f32, pub chroma: f32, pub lightness: f32, pub res: f32 }\n\nimpl Copy for ColorState {}\n\nimpl SurfaceState for ColorState {\n    type Params = ColorParams\n}\n\nderive ApplyParamBindings for ColorState using ParamBindingsProvider<ColorParams>\n\npub struct ColorStateEnvelope { pub state: ColorState }\n\nimpl Copy for ColorStateEnvelope {}\n\nconst fn params() -> ColorParams {\n    ColorParams {\n        hue: Param::range(min: 0.0, max: 360.0, init: 275.0).drag_x(per_px: 0.5),\n        chroma: Param::range(min: 0.0, max: 0.25, init: 0.18),\n        lightness: Param::range(min: 0.1, max: 0.95, init: 0.65).drag_y(per_px: -0.001),\n        res: Param::extent_x(),\n    }\n}\n\nactor ColorDemo uses (\n    GpuProgram<WebGpuBackend>,\n    SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>,\n) {\n    state: ColorState,\n\n    const fn view() -> Surface<ColorParams> {\n        Surface {\n            extent: Extent::square(768),\n            params: params(),\n        }\n    }\n\n    fn navigate(self, event: own SurfaceEvent) -> ColorStateEnvelope\n        uses (SurfaceTransition)\n    {\n        ColorStateEnvelope {\n            state: self.state.apply_param_bindings(params(), event),\n        }\n    }\n\n    fn shade(self, px: i32, py: i32) -> i32 uses (FragmentSurface) {\n        let s: ColorState = self.state\n        let x: f32 = (from_i32(px) + 0.5) / s.res\n        let y: f32 = (from_i32(py) + 0.5) / s.res\n        let base: Oklch = Oklch {\n            l: s.lightness,\n            chroma: s.chroma,\n            hue: s.hue,\n        }\n        if y < 0.3333333 {\n            let mut sweep: Oklch = base\n            sweep.hue = base.hue + x * 360.0\n            display_rgba(sweep.to_color())\n        } else if y < 0.6666667 {\n            let mut right: Oklch = base\n            right.hue = base.hue + 140.0\n            display_rgba(blend(base.to_color(), right.to_color(), x))\n        } else {\n            let mut field: Oklch = base\n            field.l = 0.15 + 0.75 * x\n            field.chroma = base.chroma * (y - 0.6666667) * 3.0\n            display_rgba(field.to_color())\n        }\n    }\n}",
         "source": {
           "column": 0,
-          "display_file": "app/color_demo/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 1
         },
         "source_text": "//! Three bands: OKLCH hue sweep, OKLab blending, and lightness/chroma field.\n//! The same perceptual_color ingot is used by the Mandelbrot renderer.\nuse core::marker::Copy\nuse std::webgpu::{\n    FragmentSurface,\n    GpuProgram,\n    ResponsiveBacking,\n    StandardSurfaceRecovery,\n    SurfaceQuality,\n    SurfaceRecovery,\n    SurfaceTransition,\n    WebGpuBackend,\n}\nuse std::web::view::{\n    ApplyParamBindings,\n    Extent,\n    Param,\n    ParamBindingsProvider,\n    Surface,\n    SurfaceEvent,\n    SurfaceState,\n}\nuse fmath::from_i32\nuse perceptual_color::{Oklch, blend, display_rgba}\n\npub struct ColorParams { pub hue: Param, pub chroma: Param, pub lightness: Param, pub res: Param }\n\npub struct ColorState { pub hue: f32, pub chroma: f32, pub lightness: f32, pub res: f32 }\n\nimpl Copy for ColorState {}\n\nimpl SurfaceState for ColorState {\n    type Params = ColorParams\n}\n\nderive ApplyParamBindings for ColorState using ParamBindingsProvider<ColorParams>\n\npub struct ColorStateEnvelope { pub state: ColorState }\n\nimpl Copy for ColorStateEnvelope {}\n\nconst fn params() -> ColorParams {\n    ColorParams {\n        hue: Param::range(min: 0.0, max: 360.0, init: 275.0).drag_x(per_px: 0.5),\n        chroma: Param::range(min: 0.0, max: 0.25, init: 0.18),\n        lightness: Param::range(min: 0.1, max: 0.95, init: 0.65).drag_y(per_px: -0.001),\n        res: Param::extent_x(),\n    }\n}\n\nactor ColorDemo uses (\n    GpuProgram<WebGpuBackend>,\n    SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>,\n) {\n    state: ColorState,\n\n    const fn view() -> Surface<ColorParams> {\n        Surface {\n            extent: Extent::square(768),\n            params: params(),\n        }\n    }\n\n    fn navigate(self, event: own SurfaceEvent) -> ColorStateEnvelope\n        uses (SurfaceTransition)\n    {\n        ColorStateEnvelope {\n            state: self.state.apply_param_bindings(params(), event),\n        }\n    }\n\n    fn shade(self, px: i32, py: i32) -> i32 uses (FragmentSurface) {\n        let s: ColorState = self.state\n        let x: f32 = (from_i32(px) + 0.5) / s.res\n        let y: f32 = (from_i32(py) + 0.5) / s.res\n        let base: Oklch = Oklch {\n            l: s.lightness,\n            chroma: s.chroma,\n            hue: s.hue,\n        }\n        if y < 0.3333333 {\n            let mut sweep: Oklch = base\n            sweep.hue = base.hue + x * 360.0\n            display_rgba(sweep.to_color())\n        } else if y < 0.6666667 {\n            let mut right: Oklch = base\n            right.hue = base.hue + 140.0\n            display_rgba(blend(base.to_color(), right.to_color(), x))\n        } else {\n            let mut field: Oklch = base\n            field.l = 0.15 + 0.75 * x\n            field.chroma = base.chroma * (y - 0.6666667) * 3.0\n            display_rgba(field.to_color())\n        }\n    }\n}\n",
@@ -131,7 +131,7 @@
         "signature": "pub struct ColorParams",
         "source": {
           "column": 0,
-          "display_file": "app/color_demo/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 26
         },
         "source_text": "pub struct ColorParams { pub hue: Param, pub chroma: Param, pub lightness: Param, pub res: Param }",
@@ -183,7 +183,7 @@
         "signature": "pub struct ColorState",
         "source": {
           "column": 0,
-          "display_file": "app/color_demo/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 28
         },
         "source_text": "pub struct ColorState { pub hue: f32, pub chroma: f32, pub lightness: f32, pub res: f32 }",
@@ -279,7 +279,7 @@
         "signature": "pub struct ColorStateEnvelope",
         "source": {
           "column": 0,
-          "display_file": "app/color_demo/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 38
         },
         "source_text": "pub struct ColorStateEnvelope { pub state: ColorState }",
@@ -324,7 +324,7 @@
         "signature": "const fn params() -> ColorParams",
         "source": {
           "column": 0,
-          "display_file": "app/color_demo/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 42
         },
         "source_text": "const fn params() -> ColorParams {\n    ColorParams {\n        hue: Param::range(min: 0.0, max: 360.0, init: 275.0).drag_x(per_px: 0.5),\n        chroma: Param::range(min: 0.0, max: 0.25, init: 0.18),\n        lightness: Param::range(min: 0.1, max: 0.95, init: 0.65).drag_y(per_px: -0.001),\n        res: Param::extent_x(),\n    }\n}",
@@ -350,7 +350,7 @@
         "signature": "actor ColorDemo uses (\n    GpuProgram<WebGpuBackend>,\n    SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>,\n)",
         "source": {
           "column": 0,
-          "display_file": "app/color_demo/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 51
         },
         "source_text": "actor ColorDemo uses (\n    GpuProgram<WebGpuBackend>,\n    SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>,\n) {\n    state: ColorState,\n\n    const fn view() -> Surface<ColorParams> {\n        Surface {\n            extent: Extent::square(768),\n            params: params(),\n        }\n    }\n\n    fn navigate(self, event: own SurfaceEvent) -> ColorStateEnvelope\n        uses (SurfaceTransition)\n    {\n        ColorStateEnvelope {\n            state: self.state.apply_param_bindings(params(), event),\n        }\n    }\n\n    fn shade(self, px: i32, py: i32) -> i32 uses (FragmentSurface) {\n        let s: ColorState = self.state\n        let x: f32 = (from_i32(px) + 0.5) / s.res\n        let y: f32 = (from_i32(py) + 0.5) / s.res\n        let base: Oklch = Oklch {\n            l: s.lightness,\n            chroma: s.chroma,\n            hue: s.hue,\n        }\n        if y < 0.3333333 {\n            let mut sweep: Oklch = base\n            sweep.hue = base.hue + x * 360.0\n            display_rgba(sweep.to_color())\n        } else if y < 0.6666667 {\n            let mut right: Oklch = base\n            right.hue = base.hue + 140.0\n            display_rgba(blend(base.to_color(), right.to_color(), x))\n        } else {\n            let mut field: Oklch = base\n            field.l = 0.15 + 0.75 * x\n            field.chroma = base.chroma * (y - 0.6666667) * 3.0\n            display_rgba(field.to_color())\n        }\n    }\n}",
@@ -368,7 +368,7 @@
         "signature": "actor ColorDemo uses (\n    GpuProgram<WebGpuBackend>,\n    SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>,\n) {\n    state: ColorState,\n\n    const fn view() -> Surface<ColorParams>",
         "source": {
           "column": 0,
-          "display_file": "app/color_demo/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 51
         },
         "source_text": "actor ColorDemo uses (\n    GpuProgram<WebGpuBackend>,\n    SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>,\n) {\n    state: ColorState,\n\n    const fn view() -> Surface<ColorParams> {\n        Surface {\n            extent: Extent::square(768),\n            params: params(),\n        }\n    }\n\n    fn navigate(self, event: own SurfaceEvent) -> ColorStateEnvelope\n        uses (SurfaceTransition)\n    {\n        ColorStateEnvelope {\n            state: self.state.apply_param_bindings(params(), event),\n        }\n    }\n\n    fn shade(self, px: i32, py: i32) -> i32 uses (FragmentSurface) {\n        let s: ColorState = self.state\n        let x: f32 = (from_i32(px) + 0.5) / s.res\n        let y: f32 = (from_i32(py) + 0.5) / s.res\n        let base: Oklch = Oklch {\n            l: s.lightness,\n            chroma: s.chroma,\n            hue: s.hue,\n        }\n        if y < 0.3333333 {\n            let mut sweep: Oklch = base\n            sweep.hue = base.hue + x * 360.0\n            display_rgba(sweep.to_color())\n        } else if y < 0.6666667 {\n            let mut right: Oklch = base\n            right.hue = base.hue + 140.0\n            display_rgba(blend(base.to_color(), right.to_color(), x))\n        } else {\n            let mut field: Oklch = base\n            field.l = 0.15 + 0.75 * x\n            field.chroma = base.chroma * (y - 0.6666667) * 3.0\n            display_rgba(field.to_color())\n        }\n    }\n}",
@@ -399,7 +399,7 @@
         "signature": "actor ColorDemo uses (\n    GpuProgram<WebGpuBackend>,\n    SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>,\n) {\n    state: ColorState,\n\n    const fn view() -> Surface<ColorParams> {\n        Surface {\n            extent: Extent::square(768),\n            params: params(),\n        }\n    }\n\n    fn navigate(self, event: own SurfaceEvent) -> ColorStateEnvelope\n        uses (SurfaceTransition)",
         "source": {
           "column": 0,
-          "display_file": "app/color_demo/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 51
         },
         "source_text": "actor ColorDemo uses (\n    GpuProgram<WebGpuBackend>,\n    SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>,\n) {\n    state: ColorState,\n\n    const fn view() -> Surface<ColorParams> {\n        Surface {\n            extent: Extent::square(768),\n            params: params(),\n        }\n    }\n\n    fn navigate(self, event: own SurfaceEvent) -> ColorStateEnvelope\n        uses (SurfaceTransition)\n    {\n        ColorStateEnvelope {\n            state: self.state.apply_param_bindings(params(), event),\n        }\n    }\n\n    fn shade(self, px: i32, py: i32) -> i32 uses (FragmentSurface) {\n        let s: ColorState = self.state\n        let x: f32 = (from_i32(px) + 0.5) / s.res\n        let y: f32 = (from_i32(py) + 0.5) / s.res\n        let base: Oklch = Oklch {\n            l: s.lightness,\n            chroma: s.chroma,\n            hue: s.hue,\n        }\n        if y < 0.3333333 {\n            let mut sweep: Oklch = base\n            sweep.hue = base.hue + x * 360.0\n            display_rgba(sweep.to_color())\n        } else if y < 0.6666667 {\n            let mut right: Oklch = base\n            right.hue = base.hue + 140.0\n            display_rgba(blend(base.to_color(), right.to_color(), x))\n        } else {\n            let mut field: Oklch = base\n            field.l = 0.15 + 0.75 * x\n            field.chroma = base.chroma * (y - 0.6666667) * 3.0\n            display_rgba(field.to_color())\n        }\n    }\n}",
@@ -451,7 +451,7 @@
         "signature": "actor ColorDemo uses (\n    GpuProgram<WebGpuBackend>,\n    SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>,\n) {\n    state: ColorState,\n\n    const fn view() -> Surface<ColorParams> {\n        Surface {\n            extent: Extent::square(768),\n            params: params(),\n        }\n    }\n\n    fn navigate(self, event: own SurfaceEvent) -> ColorStateEnvelope\n        uses (SurfaceTransition)\n    {\n        ColorStateEnvelope {\n            state: self.state.apply_param_bindings(params(), event),\n        }\n    }\n\n    fn shade(self, px: i32, py: i32) -> i32 uses (FragmentSurface)",
         "source": {
           "column": 0,
-          "display_file": "app/color_demo/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 51
         },
         "source_text": "actor ColorDemo uses (\n    GpuProgram<WebGpuBackend>,\n    SurfaceQuality<ResponsiveBacking>,\n    SurfaceRecovery<StandardSurfaceRecovery>,\n) {\n    state: ColorState,\n\n    const fn view() -> Surface<ColorParams> {\n        Surface {\n            extent: Extent::square(768),\n            params: params(),\n        }\n    }\n\n    fn navigate(self, event: own SurfaceEvent) -> ColorStateEnvelope\n        uses (SurfaceTransition)\n    {\n        ColorStateEnvelope {\n            state: self.state.apply_param_bindings(params(), event),\n        }\n    }\n\n    fn shade(self, px: i32, py: i32) -> i32 uses (FragmentSurface) {\n        let s: ColorState = self.state\n        let x: f32 = (from_i32(px) + 0.5) / s.res\n        let y: f32 = (from_i32(py) + 0.5) / s.res\n        let base: Oklch = Oklch {\n            l: s.lightness,\n            chroma: s.chroma,\n            hue: s.hue,\n        }\n        if y < 0.3333333 {\n            let mut sweep: Oklch = base\n            sweep.hue = base.hue + x * 360.0\n            display_rgba(sweep.to_color())\n        } else if y < 0.6666667 {\n            let mut right: Oklch = base\n            right.hue = base.hue + 140.0\n            display_rgba(blend(base.to_color(), right.to_color(), x))\n        } else {\n            let mut field: Oklch = base\n            field.l = 0.15 + 0.75 * x\n            field.chroma = base.chroma * (y - 0.6666667) * 3.0\n            display_rgba(field.to_color())\n        }\n    }\n}",

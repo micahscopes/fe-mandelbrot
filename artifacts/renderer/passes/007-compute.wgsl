@@ -116,6 +116,8 @@ struct FeLocal_fe_ViewCache_da6e2ccc_18_ {
     blur_dirty: u32,
     epoch: u32,
     completed: u32,
+    steps: u32,
+    frame_clock: f32,
 }
 
 struct preview_cache_element {
@@ -167,6 +169,8 @@ struct cache_element {
     blur_dirty: u32,
     epoch: u32,
     completed: u32,
+    steps: u32,
+    frame_clock: f32,
 }
 
 struct Params {
@@ -302,7 +306,7 @@ fn main() {
     var local_1: bool = false;
     var local_2: u32;
     var local_3: bool = false;
-    var fixed_local_783_: FeLocal_fe_MandelbrotViewState_c524184f_17_ = FeLocal_fe_MandelbrotViewState_c524184f_17_();
+    var fixed_local_803_: FeLocal_fe_MandelbrotViewState_c524184f_17_ = FeLocal_fe_MandelbrotViewState_c524184f_17_();
 
     let _e4 = params.p17_;
     let _e6 = params.p18_;
@@ -412,8 +416,8 @@ fn main() {
             } else {
                 let _e284 = cache[i32(1u)].completed;
                 let _e289 = cache[i32(2u)].completed;
-                fixed_local_783_ = FeLocal_fe_MandelbrotViewState_c524184f_17_(FeLocal_fe_Camera_03494b0d_7_(FeLocal_fe_Complex_Coordinate_d4657101_5_(FeLocal_fe_Coordinate_bdc10f09_4_(FeLocal_fe_More_More_More_Last_e6310ae8_3_(_e4, FeLocal_fe_More_More_Last_60a5ba63_2_(_e6, FeLocal_fe_More_Last_1ac585f5_1_(_e8, FeLocal_fe_Last_eb970eb0_0_(_e10))))), FeLocal_fe_Coordinate_bdc10f09_4_(FeLocal_fe_More_More_More_Last_e6310ae8_3_(_e12, FeLocal_fe_More_More_Last_60a5ba63_2_(_e14, FeLocal_fe_More_Last_1ac585f5_1_(_e16, FeLocal_fe_Last_eb970eb0_0_(_e18)))))), _e20, _e22, FeLocal_fe_Complex_f32_87ec9249_6_(_e24, _e26)), _e28, _e30, _e32, _e34, _e36, FeLocal_fe_GestureSession_6b679731_14_(FeLocal_fe_Contacts_2_ac13bf77_12_(array<FeLocal_fe_Contact_2b5c3d26_11_, 2>(FeLocal_fe_Contact_2b5c3d26_11_((_e38 != 0u), _e42, FeLocal_fe_Vec2_f32_2772165c_10_(_e44, _e46)), FeLocal_fe_Contact_2b5c3d26_11_((_e48 != 0u), _e52, FeLocal_fe_Vec2_f32_2772165c_10_(_e54, _e56)))), FeLocal_fe_Viewport_91e53b90_13_(FeLocal_fe_Vec2_f32_2772165c_10_(_e58, _e60), FeLocal_fe_Vec2_f32_2772165c_10_(_e62, _e64)), FeLocal_fe_Contacts_2_ac13bf77_12_(array<FeLocal_fe_Contact_2b5c3d26_11_, 2>(FeLocal_fe_Contact_2b5c3d26_11_((_e66 != 0u), _e70, FeLocal_fe_Vec2_f32_2772165c_10_(_e72, _e74)), FeLocal_fe_Contact_2b5c3d26_11_((_e76 != 0u), _e80, FeLocal_fe_Vec2_f32_2772165c_10_(_e82, _e84)))), FeLocal_fe_Camera_03494b0d_7_(FeLocal_fe_Complex_Coordinate_d4657101_5_(FeLocal_fe_Coordinate_bdc10f09_4_(FeLocal_fe_More_More_More_Last_e6310ae8_3_(_e86, FeLocal_fe_More_More_Last_60a5ba63_2_(_e88, FeLocal_fe_More_Last_1ac585f5_1_(_e90, FeLocal_fe_Last_eb970eb0_0_(_e92))))), FeLocal_fe_Coordinate_bdc10f09_4_(FeLocal_fe_More_More_More_Last_e6310ae8_3_(_e94, FeLocal_fe_More_More_Last_60a5ba63_2_(_e96, FeLocal_fe_More_Last_1ac585f5_1_(_e98, FeLocal_fe_Last_eb970eb0_0_(_e100)))))), _e102, _e104, FeLocal_fe_Complex_f32_87ec9249_6_(_e106, _e108))), FeLocal_fe_BackingRequest_2bcae9f8_15_((_e110 != 0u), _e114), FeLocal_fe_CameraTrace_7ca62f00_16_((_e116 != 0u), array<u32, 14>(_e120, _e122, _e124, _e126, _e128, _e130, _e132, _e134, _e136, _e138, _e140, _e142, _e144, _e146)));
-                let _e292 = is_input_settled((&fixed_local_783_));
+                fixed_local_803_ = FeLocal_fe_MandelbrotViewState_c524184f_17_(FeLocal_fe_Camera_03494b0d_7_(FeLocal_fe_Complex_Coordinate_d4657101_5_(FeLocal_fe_Coordinate_bdc10f09_4_(FeLocal_fe_More_More_More_Last_e6310ae8_3_(_e4, FeLocal_fe_More_More_Last_60a5ba63_2_(_e6, FeLocal_fe_More_Last_1ac585f5_1_(_e8, FeLocal_fe_Last_eb970eb0_0_(_e10))))), FeLocal_fe_Coordinate_bdc10f09_4_(FeLocal_fe_More_More_More_Last_e6310ae8_3_(_e12, FeLocal_fe_More_More_Last_60a5ba63_2_(_e14, FeLocal_fe_More_Last_1ac585f5_1_(_e16, FeLocal_fe_Last_eb970eb0_0_(_e18)))))), _e20, _e22, FeLocal_fe_Complex_f32_87ec9249_6_(_e24, _e26)), _e28, _e30, _e32, _e34, _e36, FeLocal_fe_GestureSession_6b679731_14_(FeLocal_fe_Contacts_2_ac13bf77_12_(array<FeLocal_fe_Contact_2b5c3d26_11_, 2>(FeLocal_fe_Contact_2b5c3d26_11_((_e38 != 0u), _e42, FeLocal_fe_Vec2_f32_2772165c_10_(_e44, _e46)), FeLocal_fe_Contact_2b5c3d26_11_((_e48 != 0u), _e52, FeLocal_fe_Vec2_f32_2772165c_10_(_e54, _e56)))), FeLocal_fe_Viewport_91e53b90_13_(FeLocal_fe_Vec2_f32_2772165c_10_(_e58, _e60), FeLocal_fe_Vec2_f32_2772165c_10_(_e62, _e64)), FeLocal_fe_Contacts_2_ac13bf77_12_(array<FeLocal_fe_Contact_2b5c3d26_11_, 2>(FeLocal_fe_Contact_2b5c3d26_11_((_e66 != 0u), _e70, FeLocal_fe_Vec2_f32_2772165c_10_(_e72, _e74)), FeLocal_fe_Contact_2b5c3d26_11_((_e76 != 0u), _e80, FeLocal_fe_Vec2_f32_2772165c_10_(_e82, _e84)))), FeLocal_fe_Camera_03494b0d_7_(FeLocal_fe_Complex_Coordinate_d4657101_5_(FeLocal_fe_Coordinate_bdc10f09_4_(FeLocal_fe_More_More_More_Last_e6310ae8_3_(_e86, FeLocal_fe_More_More_Last_60a5ba63_2_(_e88, FeLocal_fe_More_Last_1ac585f5_1_(_e90, FeLocal_fe_Last_eb970eb0_0_(_e92))))), FeLocal_fe_Coordinate_bdc10f09_4_(FeLocal_fe_More_More_More_Last_e6310ae8_3_(_e94, FeLocal_fe_More_More_Last_60a5ba63_2_(_e96, FeLocal_fe_More_Last_1ac585f5_1_(_e98, FeLocal_fe_Last_eb970eb0_0_(_e100)))))), _e102, _e104, FeLocal_fe_Complex_f32_87ec9249_6_(_e106, _e108))), FeLocal_fe_BackingRequest_2bcae9f8_15_((_e110 != 0u), _e114), FeLocal_fe_CameraTrace_7ca62f00_16_((_e116 != 0u), array<u32, 14>(_e120, _e122, _e124, _e126, _e128, _e130, _e132, _e134, _e136, _e138, _e140, _e142, _e144, _e146)));
+                let _e292 = is_input_settled((&fixed_local_803_));
                 if _e292 {
                 } else {
                     if (_e284 == 1u) {

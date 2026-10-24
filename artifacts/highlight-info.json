@@ -2,8 +2,8 @@
   "source": "fe doc json SCIP export",
   "files": {
     "lib.fe": {
-      "bytes": 48126,
-      "semanticOccurrences": 1078
+      "bytes": 49931,
+      "semanticOccurrences": 1091
     },
     "policy.fe": {
       "bytes": 14073,
@@ -30,16 +30,20 @@
       "semanticOccurrences": 144
     },
     "cache.fe": {
-      "bytes": 13949,
-      "semanticOccurrences": 431
+      "bytes": 16606,
+      "semanticOccurrences": 492
     },
     "palette.fe": {
       "bytes": 1350,
       "semanticOccurrences": 38
     },
     "partition.fe": {
-      "bytes": 10287,
-      "semanticOccurrences": 283
+      "bytes": 12045,
+      "semanticOccurrences": 308
+    },
+    "trace.fe": {
+      "bytes": 3455,
+      "semanticOccurrences": 134
     },
     "algebra.fe": {
       "bytes": 25222,
@@ -56,6 +60,10 @@
     "fixed.fe": {
       "bytes": 38629,
       "semanticOccurrences": 896
+    },
+    "array_fixed.fe": {
+      "bytes": 12418,
+      "semanticOccurrences": 240
     },
     "fmath.fe": {
       "bytes": 14651,
@@ -80,14 +88,6 @@
     "viewer_highlight.fe": {
       "bytes": 9107,
       "semanticOccurrences": 158
-    },
-    "array_fixed.fe": {
-      "bytes": 12418,
-      "semanticOccurrences": 240
-    },
-    "trace.fe": {
-      "bytes": 3455,
-      "semanticOccurrences": 134
     }
   }
 }

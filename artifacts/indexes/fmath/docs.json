@@ -950,7 +950,7 @@
         "signature": "//! Float math for sketches, written in Fe.\n//!\n//! The compiler recognizes these `f32` intrinsics today:\n//!\n//!     __f32_from_i32   __i32_from_f32   __sqrt_f32\n//!     __abs_f32        __min_f32        __max_f32   __clamp_f32\n//!     __floor_f32      __ceil_f32       __trunc_f32 __round_f32\n//!\n//! `abs`/`min`/`max`/`clamp` graduated from hand-written Fe (`if a < b {a}\n//! else {b}`, branchy WGSL) to dedicated Sonatina IR ops (`Fabs`/`Fmin`/\n//! `Fmax`/`Fclamp`) mapped to a native instruction on every backend (naga\n//! `abs()`/`min()`/`max()`/`clamp()`, wasm `f32.abs`/`f32.min`/`f32.max` (+\n//! composed clamp), cranelift `fabs`/`fmin`/`fmax` (+ composed clamp)).\n//!\n//! `abs`/`min`/`max`/`clamp` are now thin wrappers over `core::num`'s\n//! `Abs`/`MinMax` trait methods rather than calling the `__*_f32` externs\n//! directly (float-semantics type API, slice 1:\n//! `/workspace/mb2/FLOAT_SEMANTICS_TYPE_API_DESIGN.md`). This ingot stays on\n//! plain `f32` throughout -- exact, pinned \"WebAssembly rules\" semantics on\n//! every backend, unchanged -- it never imports `core::num::Regular`, the\n//! relaxed single-native-instruction GPU opt-in. Same surface, same\n//! semantics, same generated code; only the indirection through the trait\n//! changed.\n//!\n//! `floor`/`ceil`/`trunc`/`round` similarly graduated to `Ffloor`/`Fceil`/\n//! `Ftrunc`/`Fround`: a single native instruction on every backend (naga\n//! `floor()`/`ceil()`/`trunc()`/`round()`, wasm `f32.floor`/`f32.ceil`/\n//! `f32.trunc`/`f32.nearest`, cranelift `floor`/`ceil`/`trunc`/`nearest`), no\n//! bit-twiddling, no NaN/-0 subtlety. `floor` used to be a hand-written\n//! branch (`let t = trunc(x); if t > x { t - 1.0 } else { t }`, itself built\n//! on a round-trip through `__i32_from_f32`/`__f32_from_i32`); it is now\n//! branch-free, which makes `fract`/`wrap_pi`/`sin` branch-free too since\n//! they build on `floor`. `round` is `roundTiesToEven` (IEEE 754): all three\n//! backends agree exactly (wasm `f32.nearest`, cranelift `nearest`, and naga\n//! `MathFunction::Round` -> SPIR-V `GLSL.std.450 RoundEven`), so there is no\n//! divergence to pin around, unlike `min`/`max`.\n//!\n//! See `NUMERIC_INTRINSICS_STAGING.md` at the Fe repo root.\n//!\n//! `__rsqrt_f32` is still declared but deliberately unrecognized\n//! (`classify.rs`, with a test pinning the set): it stays an extern \"until it\n//! has an explicit runtime and backend lowering\". `sin`/`cos` below remain\n//! ordinary Fe (a hand-chosen parabola approximation): no backend has a\n//! native `sin`/`cos` instruction, so there is no intrinsic to graduate to.\n\nuse core::marker::Copy\nuse core::num::{Abs, FloatRounding}\nuse core::ops::MinMax\nuse algebra::Vec3 as AlgebraVec3\n\nextern {\n    fn __f32_from_i32(_: i32) -> f32\n    fn __i32_from_f32(_: f32) -> i32\n    fn __sqrt_f32(_: f32) -> f32\n}\n\npub const PI: f32 = 3.14159265\npub const TAU: f32 = 6.28318531\npub const HALF_PI: f32 = 1.57079633\n\n// ---------------------------------------------------------------------------\n// The pieces the intrinsics do not give us yet\n// ---------------------------------------------------------------------------\n\n/// The two conversions, re-exported under names that read like maths rather\n/// than like intrinsics.\npub fn from_i32(_ n: i32) -> f32 {\n    __f32_from_i32(n)\n}\n\n/// Truncates toward zero. See `floor` for the other rounding.\npub fn to_i32(_ x: f32) -> i32 {\n    __i32_from_f32(x)\n}\n\npub fn abs(_ x: f32) -> f32 {\n    x.abs()\n}\n\npub fn min(_ a: f32, _ b: f32) -> f32 {\n    a.min(b)\n}\n\npub fn max(_ a: f32, _ b: f32) -> f32 {\n    a.max(b)\n}\n\npub fn clamp(_ x: f32, _ lo: f32, _ hi: f32) -> f32 {\n    x.clamp(lo, hi)\n}\n\npub fn clamp01(_ x: f32) -> f32 {\n    clamp(x, 0.0, 1.0)\n}\n\n/// Truncate toward zero. Naming it separates \"round toward zero\" from\n/// \"round toward negative infinity\", which is the distinction `floor` turns\n/// on.\npub fn trunc(_ x: f32) -> f32 {\n    x.trunc()\n}\n\n/// Round toward negative infinity.\npub fn floor(_ x: f32) -> f32 {\n    x.floor()\n}\n\n/// Round toward positive infinity.\npub fn ceil(_ x: f32) -> f32 {\n    x.ceil()\n}\n\n/// Round to the nearest integer, ties to even (IEEE 754 `roundTiesToEven`).\npub fn round(_ x: f32) -> f32 {\n    x.round()\n}\n\npub fn fract(_ x: f32) -> f32 {\n    x - floor(x)\n}\n\npub fn sqrt(_ x: f32) -> f32 {\n    __sqrt_f32(x)\n}\n\n/// Linear interpolation. `t` is not clamped, so this extrapolates on purpose.\npub fn mix(_ a: f32, _ b: f32, _ t: f32) -> f32 {\n    a + (b - a) * t\n}\n\n/// Hermite smoothstep between two edges.\npub fn smoothstep(_ edge0: f32, _ edge1: f32, _ x: f32) -> f32 {\n    let t: f32 = clamp01((x - edge0) / (edge1 - edge0))\n    t * t * (3.0 - 2.0 * t)\n}\n\n// ---------------------------------------------------------------------------\n// Three-dimensional geometry\n// ---------------------------------------------------------------------------\n\n/// Small, ordinary Fe vector used by camera, ray, distance-field, and lighting\n/// code. Re-exported from `algebra::Vec3<f32>` so legacy helpers and operator\n/// callers share one canonical representation and evaluation order.\npub type Vec3 = AlgebraVec3<f32>\n\npub fn vec3(_ x: f32, _ y: f32, _ z: f32) -> Vec3 {\n    AlgebraVec3 { x: x, y: y, z: z }\n}\n\npub fn add3(_ a: Vec3, _ b: Vec3) -> Vec3 {\n    a + b\n}\n\npub fn sub3(_ a: Vec3, _ b: Vec3) -> Vec3 {\n    a - b\n}\n\npub fn scale3(_ value: Vec3, _ scale: f32) -> Vec3 {\n    value * scale\n}\n\npub fn dot3(_ a: Vec3, _ b: Vec3) -> f32 {\n    a.dot(b)\n}\n\npub fn cross3(_ a: Vec3, _ b: Vec3) -> Vec3 {\n    a.cross(b)\n}\n\npub fn length3(_ value: Vec3) -> f32 {\n    value.norm()\n}\n\npub fn normalize3(_ value: Vec3) -> Vec3 {\n    scale3(value, 1.0 / max(length3(value), 0.0000001))\n}\n\npub fn mix3(_ a: Vec3, _ b: Vec3, _ amount: f32) -> Vec3 {\n    a + (b - a) * amount\n}\n\n/// A finite parameter interval along a normalized world-space ray. `active`\n/// is false when the ray misses the clipping domain or the domain lies wholly\n/// outside the caller's non-negative distance budget.\npub struct RayInterval { pub start: f32, pub end: f32, pub active: bool }\n\nimpl Copy for RayInterval {}\n\n/// Intersect a normalized ray with a finite sphere and clamp the result to\n/// `[0, max_distance]`. All inputs are finite and `radius`/`max_distance` are\n/// non-negative domain parameters. This clips a rendering/search DOMAIN; it\n/// says nothing about whether an implicit surface exists inside that domain.\n/// Callers can consequently avoid marching known-empty space without\n/// replacing their field evaluator with an analytic surface intersection.\npub fn unit_ray_sphere_interval(\n    _ origin: Vec3,\n    _ unit_direction: Vec3,\n    _ center: Vec3,\n    _ radius: f32,\n    _ max_distance: f32,\n) -> RayInterval {\n    let offset: Vec3 = sub3(origin, center)\n    let half_b: f32 = dot3(offset, unit_direction)\n    let discriminant: f32 = half_b * half_b - (dot3(offset, offset) - radius * radius)\n    // Evaluate one uniform arithmetic path across a GPU wave. For a miss the\n    // absolute value keeps sqrt finite and `active` rejects the inert bounds;\n    // no lane needs a discriminant branch before the expensive march.\n    let root: f32 = sqrt(abs(discriminant))\n    let near: f32 = -half_b - root\n    let far: f32 = -half_b + root\n    // Branch-free max(0, near) and min(max_distance, far), valid under the\n    // finite-input contract above. This is materially smaller than lowering\n    // the full IEEE min/max NaN policy into every fragment.\n    let start: f32 = 0.5 * (near + abs(near))\n    let end: f32 = 0.5 * (far + max_distance - abs(far - max_distance))\n    RayInterval { start: start, end: end, active: discriminant >= 0.0 && end > start }\n}\n\n/// The same finite-sphere interval specialized for a camera whose origin is\n/// `target - unit_forward * camera_distance`. Forward-facing camera rays and\n/// the caller's finite distance/radius bounds guarantee intersections lie in\n/// front of the camera. This avoids reconstructing the target offset in every\n/// fragment while preserving the general interval above for arbitrary rays.\npub fn targeted_camera_sphere_interval(\n    _ unit_forward: Vec3,\n    _ unit_direction: Vec3,\n    _ camera_distance: f32,\n    _ radius: f32,\n) -> RayInterval {\n    let half_b: f32 = -camera_distance * dot3(unit_forward, unit_direction)\n    let discriminant: f32 = half_b * half_b - (camera_distance * camera_distance - radius * radius)\n    let root: f32 = sqrt(abs(discriminant))\n    let near: f32 = -half_b - root\n    let far: f32 = -half_b + root\n    RayInterval { start: 0.5 * (near + abs(near)), end: far, active: discriminant >= 0.0 }\n}\n\n/// A world-space camera ray derived entirely in Fe.\npub struct OrbitRay { pub origin: Vec3, pub direction: Vec3 }\n\nimpl Copy for OrbitRay {}\n\n/// Build a look-at ray from an orbit camera and normalized fragment plane.\n/// Interaction policy remains outside this pure construction; any Fe actor can\n/// feed it yaw/pitch/distance state from its preferred event vocabulary.\npub fn orbit_ray(\n    _ yaw: f32,\n    _ pitch: f32,\n    _ distance: f32,\n    _ u: f32,\n    _ v: f32,\n    _ target_y: f32,\n    _ field_of_view: f32,\n) -> OrbitRay {\n    let cos_pitch: f32 = cos(pitch)\n    let origin: Vec3 = vec3(\n        sin(yaw) * cos_pitch * distance,\n        sin(pitch) * distance,\n        cos(yaw) * cos_pitch * distance,\n    )\n    let target: Vec3 = vec3(0.0, target_y, 0.0)\n    let forward: Vec3 = normalize3(sub3(target, origin))\n    let right: Vec3 = normalize3(cross3(forward, vec3(0.0, 1.0, 0.0)))\n    let up: Vec3 = cross3(right, forward)\n    let direction: Vec3 = normalize3(\n        add3(\n            forward,\n            add3(\n                scale3(right, u * field_of_view),\n                scale3(up, v * field_of_view),\n            ),\n        ),\n    )\n    OrbitRay { origin: origin, direction: direction }\n}\n\n// ---------------------------------------------------------------------------\n// Sampling\n// ---------------------------------------------------------------------------\n\n/// A continuous sample position inside the integer pixel `(px, py)`.\n///\n/// `ordered_2x2` places one sample in each quarter of every 2x2 pixel block.\n/// The four offsets average to the pixel centre, but no sample sits on the\n/// centre-aligned lattice that makes thin, rotated boundaries stair-step in\n/// lockstep. It is deliberately ONE sample per pixel: expensive implicit\n/// surfaces and deep fractals gain spatially stratified refinement without\n/// multiplying their dominant orbit/ray-march loop. The construction is\n/// branch-free and contains no renderer-specific quality or LoD policy.\npub struct PixelSample { pub x: f32, pub y: f32 }\n\n/// The normalized `[-1, 1]` plane coordinate for a pixel sample, with y up.\npub struct PlaneSample { pub u: f32, pub v: f32 }\n\nimpl PixelSample {\n    /// One ordered, stratified sample per pixel. Even coordinates use 3/8 and\n    /// odd coordinates use 5/8, so every aligned 2x2 block contains all four\n    /// subpixel quadrants and has centroid `(0.5, 0.5)`.\n    pub fn ordered_2x2(_ px: i32, _ py: i32) -> Self {\n        let x_parity: i32 = px & 1\n        let y_parity: i32 = py & 1\n        Self {\n            x: from_i32(px) + 0.375 + 0.25 * from_i32(x_parity),\n            y: from_i32(py) + 0.375 + 0.25 * from_i32(y_parity),\n        }\n    }\n\n    /// Map this sample to the conventional square fragment plane.\n    pub fn plane(self, _ resolution: f32) -> PlaneSample {\n        PlaneSample { u: self.x / resolution * 2.0 - 1.0, v: 1.0 - self.y / resolution * 2.0 }\n    }\n\n    /// Map this sample to a resolution-correct rectangular fragment plane.\n    /// The shorter backing-store axis retains the declared field of view, so\n    /// responsive surfaces neither crop a low-resolution square nor stretch a\n    /// non-square viewport. Browser code supplies only the measured extent;\n    /// this Fe construction owns the projection policy.\n    pub fn plane_extent(self, _ width: f32, _ height: f32) -> PlaneSample {\n        let scale: f32 = max(min(width, height), 1.0)\n        PlaneSample { u: (self.x * 2.0 - width) / scale, v: (height - self.y * 2.0) / scale }\n    }\n}\n\n// ---------------------------------------------------------------------------\n// Periodic functions\n//\n// There is no libm, and that is the interesting part rather than a limitation:\n// a shader's `sin` is always a polynomial someone chose, so this one chooses\n// out loud. The parabolic fit refined once stays within about a thousandth over\n// the whole cycle, for four multiplies and no table.\n// ---------------------------------------------------------------------------\n\n/// Fold `x` into `[-PI, PI]`, the window the fit below is valid on.\npub fn wrap_pi(_ x: f32) -> f32 {\n    x - TAU * floor(x / TAU + 0.5)\n}\n\npub fn sin(_ x: f32) -> f32 {\n    let t: f32 = wrap_pi(x)\n    // Parabola through the zeros at -PI, 0 and PI, matched to sin at the peaks.\n    let p: f32 = 1.27323954 * t - 0.40528473 * t * abs(t)\n    // One refinement pass. 0.225 is the classic fit constant.\n    0.225 * (p * abs(p) - p) + p\n}\n\npub fn cos(_ x: f32) -> f32 {\n    sin(x + HALF_PI)\n}\n\n// ---------------------------------------------------------------------------\n// Colour\n// ---------------------------------------------------------------------------\n\n/// Pack unit-interval channels into the RGBA8 word `--mode render` returns.\n/// Alpha is always opaque, and an opaque top byte is what makes this negative\n/// as a signed word, which is why the constant is written the way it is.\npub fn rgba(_ r: f32, _ g: f32, _ b: f32) -> i32 {\n    let ri: i32 = __i32_from_f32(clamp01(r) * 255.0)\n    let gi: i32 = __i32_from_f32(clamp01(g) * 255.0)\n    let bi: i32 = __i32_from_f32(clamp01(b) * 255.0)\n    ri + gi * 256 + bi * 65536 + -16777216\n}\n\npub fn grey(_ v: f32) -> i32 {\n    rgba(v, v, v)\n}\n\n/// A cosine palette: a smooth loop through colour space from three phases.\n/// Much less code than a gradient table, and it reads better.\npub fn palette(_ t: f32, _ phase_r: f32, _ phase_g: f32, _ phase_b: f32) -> i32 {\n    rgba(\n        0.5 + 0.5 * cos(TAU * (t + phase_r)),\n        0.5 + 0.5 * cos(TAU * (t + phase_g)),\n        0.5 + 0.5 * cos(TAU * (t + phase_b)),\n    )\n}\n\n/// Shared escape-time coloring for the Mandelbrot family. The escape-radius\n/// overshoot supplies a continuous fraction of one iteration, removing the\n/// integer-count bands without a logarithm intrinsic or another orbit sample.\n/// `magnitude_squared` is the first finite `|z|^2 > 4` value.\npub fn escape_palette(_ iterations: i32, _ magnitude_squared: f32) -> i32 {\n    let smooth_iterations: f32 = from_i32(iterations) + 4.0 / magnitude_squared\n    palette(smooth_iterations / 256.0, 0.0, 0.33, 0.67)\n}",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 1
         },
         "source_text": "//! Float math for sketches, written in Fe.\n//!\n//! The compiler recognizes these `f32` intrinsics today:\n//!\n//!     __f32_from_i32   __i32_from_f32   __sqrt_f32\n//!     __abs_f32        __min_f32        __max_f32   __clamp_f32\n//!     __floor_f32      __ceil_f32       __trunc_f32 __round_f32\n//!\n//! `abs`/`min`/`max`/`clamp` graduated from hand-written Fe (`if a < b {a}\n//! else {b}`, branchy WGSL) to dedicated Sonatina IR ops (`Fabs`/`Fmin`/\n//! `Fmax`/`Fclamp`) mapped to a native instruction on every backend (naga\n//! `abs()`/`min()`/`max()`/`clamp()`, wasm `f32.abs`/`f32.min`/`f32.max` (+\n//! composed clamp), cranelift `fabs`/`fmin`/`fmax` (+ composed clamp)).\n//!\n//! `abs`/`min`/`max`/`clamp` are now thin wrappers over `core::num`'s\n//! `Abs`/`MinMax` trait methods rather than calling the `__*_f32` externs\n//! directly (float-semantics type API, slice 1:\n//! `/workspace/mb2/FLOAT_SEMANTICS_TYPE_API_DESIGN.md`). This ingot stays on\n//! plain `f32` throughout -- exact, pinned \"WebAssembly rules\" semantics on\n//! every backend, unchanged -- it never imports `core::num::Regular`, the\n//! relaxed single-native-instruction GPU opt-in. Same surface, same\n//! semantics, same generated code; only the indirection through the trait\n//! changed.\n//!\n//! `floor`/`ceil`/`trunc`/`round` similarly graduated to `Ffloor`/`Fceil`/\n//! `Ftrunc`/`Fround`: a single native instruction on every backend (naga\n//! `floor()`/`ceil()`/`trunc()`/`round()`, wasm `f32.floor`/`f32.ceil`/\n//! `f32.trunc`/`f32.nearest`, cranelift `floor`/`ceil`/`trunc`/`nearest`), no\n//! bit-twiddling, no NaN/-0 subtlety. `floor` used to be a hand-written\n//! branch (`let t = trunc(x); if t > x { t - 1.0 } else { t }`, itself built\n//! on a round-trip through `__i32_from_f32`/`__f32_from_i32`); it is now\n//! branch-free, which makes `fract`/`wrap_pi`/`sin` branch-free too since\n//! they build on `floor`. `round` is `roundTiesToEven` (IEEE 754): all three\n//! backends agree exactly (wasm `f32.nearest`, cranelift `nearest`, and naga\n//! `MathFunction::Round` -> SPIR-V `GLSL.std.450 RoundEven`), so there is no\n//! divergence to pin around, unlike `min`/`max`.\n//!\n//! See `NUMERIC_INTRINSICS_STAGING.md` at the Fe repo root.\n//!\n//! `__rsqrt_f32` is still declared but deliberately unrecognized\n//! (`classify.rs`, with a test pinning the set): it stays an extern \"until it\n//! has an explicit runtime and backend lowering\". `sin`/`cos` below remain\n//! ordinary Fe (a hand-chosen parabola approximation): no backend has a\n//! native `sin`/`cos` instruction, so there is no intrinsic to graduate to.\n\nuse core::marker::Copy\nuse core::num::{Abs, FloatRounding}\nuse core::ops::MinMax\nuse algebra::Vec3 as AlgebraVec3\n\nextern {\n    fn __f32_from_i32(_: i32) -> f32\n    fn __i32_from_f32(_: f32) -> i32\n    fn __sqrt_f32(_: f32) -> f32\n}\n\npub const PI: f32 = 3.14159265\npub const TAU: f32 = 6.28318531\npub const HALF_PI: f32 = 1.57079633\n\n// ---------------------------------------------------------------------------\n// The pieces the intrinsics do not give us yet\n// ---------------------------------------------------------------------------\n\n/// The two conversions, re-exported under names that read like maths rather\n/// than like intrinsics.\npub fn from_i32(_ n: i32) -> f32 {\n    __f32_from_i32(n)\n}\n\n/// Truncates toward zero. See `floor` for the other rounding.\npub fn to_i32(_ x: f32) -> i32 {\n    __i32_from_f32(x)\n}\n\npub fn abs(_ x: f32) -> f32 {\n    x.abs()\n}\n\npub fn min(_ a: f32, _ b: f32) -> f32 {\n    a.min(b)\n}\n\npub fn max(_ a: f32, _ b: f32) -> f32 {\n    a.max(b)\n}\n\npub fn clamp(_ x: f32, _ lo: f32, _ hi: f32) -> f32 {\n    x.clamp(lo, hi)\n}\n\npub fn clamp01(_ x: f32) -> f32 {\n    clamp(x, 0.0, 1.0)\n}\n\n/// Truncate toward zero. Naming it separates \"round toward zero\" from\n/// \"round toward negative infinity\", which is the distinction `floor` turns\n/// on.\npub fn trunc(_ x: f32) -> f32 {\n    x.trunc()\n}\n\n/// Round toward negative infinity.\npub fn floor(_ x: f32) -> f32 {\n    x.floor()\n}\n\n/// Round toward positive infinity.\npub fn ceil(_ x: f32) -> f32 {\n    x.ceil()\n}\n\n/// Round to the nearest integer, ties to even (IEEE 754 `roundTiesToEven`).\npub fn round(_ x: f32) -> f32 {\n    x.round()\n}\n\npub fn fract(_ x: f32) -> f32 {\n    x - floor(x)\n}\n\npub fn sqrt(_ x: f32) -> f32 {\n    __sqrt_f32(x)\n}\n\n/// Linear interpolation. `t` is not clamped, so this extrapolates on purpose.\npub fn mix(_ a: f32, _ b: f32, _ t: f32) -> f32 {\n    a + (b - a) * t\n}\n\n/// Hermite smoothstep between two edges.\npub fn smoothstep(_ edge0: f32, _ edge1: f32, _ x: f32) -> f32 {\n    let t: f32 = clamp01((x - edge0) / (edge1 - edge0))\n    t * t * (3.0 - 2.0 * t)\n}\n\n// ---------------------------------------------------------------------------\n// Three-dimensional geometry\n// ---------------------------------------------------------------------------\n\n/// Small, ordinary Fe vector used by camera, ray, distance-field, and lighting\n/// code. Re-exported from `algebra::Vec3<f32>` so legacy helpers and operator\n/// callers share one canonical representation and evaluation order.\npub type Vec3 = AlgebraVec3<f32>\n\npub fn vec3(_ x: f32, _ y: f32, _ z: f32) -> Vec3 {\n    AlgebraVec3 { x: x, y: y, z: z }\n}\n\npub fn add3(_ a: Vec3, _ b: Vec3) -> Vec3 {\n    a + b\n}\n\npub fn sub3(_ a: Vec3, _ b: Vec3) -> Vec3 {\n    a - b\n}\n\npub fn scale3(_ value: Vec3, _ scale: f32) -> Vec3 {\n    value * scale\n}\n\npub fn dot3(_ a: Vec3, _ b: Vec3) -> f32 {\n    a.dot(b)\n}\n\npub fn cross3(_ a: Vec3, _ b: Vec3) -> Vec3 {\n    a.cross(b)\n}\n\npub fn length3(_ value: Vec3) -> f32 {\n    value.norm()\n}\n\npub fn normalize3(_ value: Vec3) -> Vec3 {\n    scale3(value, 1.0 / max(length3(value), 0.0000001))\n}\n\npub fn mix3(_ a: Vec3, _ b: Vec3, _ amount: f32) -> Vec3 {\n    a + (b - a) * amount\n}\n\n/// A finite parameter interval along a normalized world-space ray. `active`\n/// is false when the ray misses the clipping domain or the domain lies wholly\n/// outside the caller's non-negative distance budget.\npub struct RayInterval { pub start: f32, pub end: f32, pub active: bool }\n\nimpl Copy for RayInterval {}\n\n/// Intersect a normalized ray with a finite sphere and clamp the result to\n/// `[0, max_distance]`. All inputs are finite and `radius`/`max_distance` are\n/// non-negative domain parameters. This clips a rendering/search DOMAIN; it\n/// says nothing about whether an implicit surface exists inside that domain.\n/// Callers can consequently avoid marching known-empty space without\n/// replacing their field evaluator with an analytic surface intersection.\npub fn unit_ray_sphere_interval(\n    _ origin: Vec3,\n    _ unit_direction: Vec3,\n    _ center: Vec3,\n    _ radius: f32,\n    _ max_distance: f32,\n) -> RayInterval {\n    let offset: Vec3 = sub3(origin, center)\n    let half_b: f32 = dot3(offset, unit_direction)\n    let discriminant: f32 = half_b * half_b - (dot3(offset, offset) - radius * radius)\n    // Evaluate one uniform arithmetic path across a GPU wave. For a miss the\n    // absolute value keeps sqrt finite and `active` rejects the inert bounds;\n    // no lane needs a discriminant branch before the expensive march.\n    let root: f32 = sqrt(abs(discriminant))\n    let near: f32 = -half_b - root\n    let far: f32 = -half_b + root\n    // Branch-free max(0, near) and min(max_distance, far), valid under the\n    // finite-input contract above. This is materially smaller than lowering\n    // the full IEEE min/max NaN policy into every fragment.\n    let start: f32 = 0.5 * (near + abs(near))\n    let end: f32 = 0.5 * (far + max_distance - abs(far - max_distance))\n    RayInterval { start: start, end: end, active: discriminant >= 0.0 && end > start }\n}\n\n/// The same finite-sphere interval specialized for a camera whose origin is\n/// `target - unit_forward * camera_distance`. Forward-facing camera rays and\n/// the caller's finite distance/radius bounds guarantee intersections lie in\n/// front of the camera. This avoids reconstructing the target offset in every\n/// fragment while preserving the general interval above for arbitrary rays.\npub fn targeted_camera_sphere_interval(\n    _ unit_forward: Vec3,\n    _ unit_direction: Vec3,\n    _ camera_distance: f32,\n    _ radius: f32,\n) -> RayInterval {\n    let half_b: f32 = -camera_distance * dot3(unit_forward, unit_direction)\n    let discriminant: f32 = half_b * half_b - (camera_distance * camera_distance - radius * radius)\n    let root: f32 = sqrt(abs(discriminant))\n    let near: f32 = -half_b - root\n    let far: f32 = -half_b + root\n    RayInterval { start: 0.5 * (near + abs(near)), end: far, active: discriminant >= 0.0 }\n}\n\n/// A world-space camera ray derived entirely in Fe.\npub struct OrbitRay { pub origin: Vec3, pub direction: Vec3 }\n\nimpl Copy for OrbitRay {}\n\n/// Build a look-at ray from an orbit camera and normalized fragment plane.\n/// Interaction policy remains outside this pure construction; any Fe actor can\n/// feed it yaw/pitch/distance state from its preferred event vocabulary.\npub fn orbit_ray(\n    _ yaw: f32,\n    _ pitch: f32,\n    _ distance: f32,\n    _ u: f32,\n    _ v: f32,\n    _ target_y: f32,\n    _ field_of_view: f32,\n) -> OrbitRay {\n    let cos_pitch: f32 = cos(pitch)\n    let origin: Vec3 = vec3(\n        sin(yaw) * cos_pitch * distance,\n        sin(pitch) * distance,\n        cos(yaw) * cos_pitch * distance,\n    )\n    let target: Vec3 = vec3(0.0, target_y, 0.0)\n    let forward: Vec3 = normalize3(sub3(target, origin))\n    let right: Vec3 = normalize3(cross3(forward, vec3(0.0, 1.0, 0.0)))\n    let up: Vec3 = cross3(right, forward)\n    let direction: Vec3 = normalize3(\n        add3(\n            forward,\n            add3(\n                scale3(right, u * field_of_view),\n                scale3(up, v * field_of_view),\n            ),\n        ),\n    )\n    OrbitRay { origin: origin, direction: direction }\n}\n\n// ---------------------------------------------------------------------------\n// Sampling\n// ---------------------------------------------------------------------------\n\n/// A continuous sample position inside the integer pixel `(px, py)`.\n///\n/// `ordered_2x2` places one sample in each quarter of every 2x2 pixel block.\n/// The four offsets average to the pixel centre, but no sample sits on the\n/// centre-aligned lattice that makes thin, rotated boundaries stair-step in\n/// lockstep. It is deliberately ONE sample per pixel: expensive implicit\n/// surfaces and deep fractals gain spatially stratified refinement without\n/// multiplying their dominant orbit/ray-march loop. The construction is\n/// branch-free and contains no renderer-specific quality or LoD policy.\npub struct PixelSample { pub x: f32, pub y: f32 }\n\n/// The normalized `[-1, 1]` plane coordinate for a pixel sample, with y up.\npub struct PlaneSample { pub u: f32, pub v: f32 }\n\nimpl PixelSample {\n    /// One ordered, stratified sample per pixel. Even coordinates use 3/8 and\n    /// odd coordinates use 5/8, so every aligned 2x2 block contains all four\n    /// subpixel quadrants and has centroid `(0.5, 0.5)`.\n    pub fn ordered_2x2(_ px: i32, _ py: i32) -> Self {\n        let x_parity: i32 = px & 1\n        let y_parity: i32 = py & 1\n        Self {\n            x: from_i32(px) + 0.375 + 0.25 * from_i32(x_parity),\n            y: from_i32(py) + 0.375 + 0.25 * from_i32(y_parity),\n        }\n    }\n\n    /// Map this sample to the conventional square fragment plane.\n    pub fn plane(self, _ resolution: f32) -> PlaneSample {\n        PlaneSample { u: self.x / resolution * 2.0 - 1.0, v: 1.0 - self.y / resolution * 2.0 }\n    }\n\n    /// Map this sample to a resolution-correct rectangular fragment plane.\n    /// The shorter backing-store axis retains the declared field of view, so\n    /// responsive surfaces neither crop a low-resolution square nor stretch a\n    /// non-square viewport. Browser code supplies only the measured extent;\n    /// this Fe construction owns the projection policy.\n    pub fn plane_extent(self, _ width: f32, _ height: f32) -> PlaneSample {\n        let scale: f32 = max(min(width, height), 1.0)\n        PlaneSample { u: (self.x * 2.0 - width) / scale, v: (height - self.y * 2.0) / scale }\n    }\n}\n\n// ---------------------------------------------------------------------------\n// Periodic functions\n//\n// There is no libm, and that is the interesting part rather than a limitation:\n// a shader's `sin` is always a polynomial someone chose, so this one chooses\n// out loud. The parabolic fit refined once stays within about a thousandth over\n// the whole cycle, for four multiplies and no table.\n// ---------------------------------------------------------------------------\n\n/// Fold `x` into `[-PI, PI]`, the window the fit below is valid on.\npub fn wrap_pi(_ x: f32) -> f32 {\n    x - TAU * floor(x / TAU + 0.5)\n}\n\npub fn sin(_ x: f32) -> f32 {\n    let t: f32 = wrap_pi(x)\n    // Parabola through the zeros at -PI, 0 and PI, matched to sin at the peaks.\n    let p: f32 = 1.27323954 * t - 0.40528473 * t * abs(t)\n    // One refinement pass. 0.225 is the classic fit constant.\n    0.225 * (p * abs(p) - p) + p\n}\n\npub fn cos(_ x: f32) -> f32 {\n    sin(x + HALF_PI)\n}\n\n// ---------------------------------------------------------------------------\n// Colour\n// ---------------------------------------------------------------------------\n\n/// Pack unit-interval channels into the RGBA8 word `--mode render` returns.\n/// Alpha is always opaque, and an opaque top byte is what makes this negative\n/// as a signed word, which is why the constant is written the way it is.\npub fn rgba(_ r: f32, _ g: f32, _ b: f32) -> i32 {\n    let ri: i32 = __i32_from_f32(clamp01(r) * 255.0)\n    let gi: i32 = __i32_from_f32(clamp01(g) * 255.0)\n    let bi: i32 = __i32_from_f32(clamp01(b) * 255.0)\n    ri + gi * 256 + bi * 65536 + -16777216\n}\n\npub fn grey(_ v: f32) -> i32 {\n    rgba(v, v, v)\n}\n\n/// A cosine palette: a smooth loop through colour space from three phases.\n/// Much less code than a gradient table, and it reads better.\npub fn palette(_ t: f32, _ phase_r: f32, _ phase_g: f32, _ phase_b: f32) -> i32 {\n    rgba(\n        0.5 + 0.5 * cos(TAU * (t + phase_r)),\n        0.5 + 0.5 * cos(TAU * (t + phase_g)),\n        0.5 + 0.5 * cos(TAU * (t + phase_b)),\n    )\n}\n\n/// Shared escape-time coloring for the Mandelbrot family. The escape-radius\n/// overshoot supplies a continuous fraction of one iteration, removing the\n/// integer-count bands without a logarithm intrinsic or another orbit sample.\n/// `magnitude_squared` is the first finite `|z|^2 > 4` value.\npub fn escape_palette(_ iterations: i32, _ magnitude_squared: f32) -> i32 {\n    let smooth_iterations: f32 = from_i32(iterations) + 4.0 / magnitude_squared\n    palette(smooth_iterations / 256.0, 0.0, 0.33, 0.67)\n}\n",
@@ -969,7 +969,7 @@
         "signature": "fn __f32_from_i32(_: i32) -> f32",
         "source": {
           "column": 4,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 52
         },
         "source_text": "fn __f32_from_i32(_: i32) -> f32",
@@ -988,7 +988,7 @@
         "signature": "fn __i32_from_f32(_: f32) -> i32",
         "source": {
           "column": 4,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 53
         },
         "source_text": "fn __i32_from_f32(_: f32) -> i32",
@@ -1007,7 +1007,7 @@
         "signature": "fn __sqrt_f32(_: f32) -> f32",
         "source": {
           "column": 4,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 54
         },
         "source_text": "fn __sqrt_f32(_: f32) -> f32",
@@ -1026,7 +1026,7 @@
         "signature": "pub const PI: f32 = 3.14159265",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 57
         },
         "source_text": "pub const PI: f32 = 3.14159265",
@@ -1045,7 +1045,7 @@
         "signature": "pub const TAU: f32 = 6.28318531",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 58
         },
         "source_text": "pub const TAU: f32 = 6.28318531",
@@ -1064,7 +1064,7 @@
         "signature": "pub const HALF_PI: f32 = 1.57079633",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 59
         },
         "source_text": "pub const HALF_PI: f32 = 1.57079633",
@@ -1088,7 +1088,7 @@
         "signature": "pub fn from_i32(_ n: i32) -> f32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 65
         },
         "source_text": "/// The two conversions, re-exported under names that read like maths rather\n/// than like intrinsics.\npub fn from_i32(_ n: i32) -> f32 {\n    __f32_from_i32(n)\n}",
@@ -1112,7 +1112,7 @@
         "signature": "pub fn to_i32(_ x: f32) -> i32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 71
         },
         "source_text": "/// Truncates toward zero. See `floor` for the other rounding.\npub fn to_i32(_ x: f32) -> i32 {\n    __i32_from_f32(x)\n}",
@@ -1131,7 +1131,7 @@
         "signature": "pub fn abs(_ x: f32) -> f32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 76
         },
         "source_text": "pub fn abs(_ x: f32) -> f32 {\n    x.abs()\n}",
@@ -1150,7 +1150,7 @@
         "signature": "pub fn min(_ a: f32, _ b: f32) -> f32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 80
         },
         "source_text": "pub fn min(_ a: f32, _ b: f32) -> f32 {\n    a.min(b)\n}",
@@ -1169,7 +1169,7 @@
         "signature": "pub fn max(_ a: f32, _ b: f32) -> f32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 84
         },
         "source_text": "pub fn max(_ a: f32, _ b: f32) -> f32 {\n    a.max(b)\n}",
@@ -1188,7 +1188,7 @@
         "signature": "pub fn clamp(_ x: f32, _ lo: f32, _ hi: f32) -> f32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 88
         },
         "source_text": "pub fn clamp(_ x: f32, _ lo: f32, _ hi: f32) -> f32 {\n    x.clamp(lo, hi)\n}",
@@ -1207,7 +1207,7 @@
         "signature": "pub fn clamp01(_ x: f32) -> f32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 92
         },
         "source_text": "pub fn clamp01(_ x: f32) -> f32 {\n    clamp(x, 0.0, 1.0)\n}",
@@ -1231,7 +1231,7 @@
         "signature": "pub fn trunc(_ x: f32) -> f32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 96
         },
         "source_text": "/// Truncate toward zero. Naming it separates \"round toward zero\" from\n/// \"round toward negative infinity\", which is the distinction `floor` turns\n/// on.\npub fn trunc(_ x: f32) -> f32 {\n    x.trunc()\n}",
@@ -1255,7 +1255,7 @@
         "signature": "pub fn floor(_ x: f32) -> f32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 103
         },
         "source_text": "/// Round toward negative infinity.\npub fn floor(_ x: f32) -> f32 {\n    x.floor()\n}",
@@ -1279,7 +1279,7 @@
         "signature": "pub fn ceil(_ x: f32) -> f32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 108
         },
         "source_text": "/// Round toward positive infinity.\npub fn ceil(_ x: f32) -> f32 {\n    x.ceil()\n}",
@@ -1303,7 +1303,7 @@
         "signature": "pub fn round(_ x: f32) -> f32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 113
         },
         "source_text": "/// Round to the nearest integer, ties to even (IEEE 754 `roundTiesToEven`).\npub fn round(_ x: f32) -> f32 {\n    x.round()\n}",
@@ -1322,7 +1322,7 @@
         "signature": "pub fn fract(_ x: f32) -> f32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 118
         },
         "source_text": "pub fn fract(_ x: f32) -> f32 {\n    x - floor(x)\n}",
@@ -1341,7 +1341,7 @@
         "signature": "pub fn sqrt(_ x: f32) -> f32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 122
         },
         "source_text": "pub fn sqrt(_ x: f32) -> f32 {\n    __sqrt_f32(x)\n}",
@@ -1365,7 +1365,7 @@
         "signature": "pub fn mix(_ a: f32, _ b: f32, _ t: f32) -> f32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 126
         },
         "source_text": "/// Linear interpolation. `t` is not clamped, so this extrapolates on purpose.\npub fn mix(_ a: f32, _ b: f32, _ t: f32) -> f32 {\n    a + (b - a) * t\n}",
@@ -1389,7 +1389,7 @@
         "signature": "pub fn smoothstep(_ edge0: f32, _ edge1: f32, _ x: f32) -> f32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 131
         },
         "source_text": "/// Hermite smoothstep between two edges.\npub fn smoothstep(_ edge0: f32, _ edge1: f32, _ x: f32) -> f32 {\n    let t: f32 = clamp01((x - edge0) / (edge1 - edge0))\n    t * t * (3.0 - 2.0 * t)\n}",
@@ -1425,7 +1425,7 @@
         "signature": "pub type Vec3 = AlgebraVec3<f32>",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 141
         },
         "source_text": "/// Small, ordinary Fe vector used by camera, ray, distance-field, and lighting\n/// code. Re-exported from `algebra::Vec3<f32>` so legacy helpers and operator\n/// callers share one canonical representation and evaluation order.\npub type Vec3 = AlgebraVec3<f32>",
@@ -1453,7 +1453,7 @@
         "signature": "pub fn vec3(_ x: f32, _ y: f32, _ z: f32) -> Vec3",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 146
         },
         "source_text": "pub fn vec3(_ x: f32, _ y: f32, _ z: f32) -> Vec3 {\n    AlgebraVec3 { x: x, y: y, z: z }\n}",
@@ -1495,7 +1495,7 @@
         "signature": "pub fn add3(_ a: Vec3, _ b: Vec3) -> Vec3",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 150
         },
         "source_text": "pub fn add3(_ a: Vec3, _ b: Vec3) -> Vec3 {\n    a + b\n}",
@@ -1537,7 +1537,7 @@
         "signature": "pub fn sub3(_ a: Vec3, _ b: Vec3) -> Vec3",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 154
         },
         "source_text": "pub fn sub3(_ a: Vec3, _ b: Vec3) -> Vec3 {\n    a - b\n}",
@@ -1572,7 +1572,7 @@
         "signature": "pub fn scale3(_ value: Vec3, _ scale: f32) -> Vec3",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 158
         },
         "source_text": "pub fn scale3(_ value: Vec3, _ scale: f32) -> Vec3 {\n    value * scale\n}",
@@ -1610,7 +1610,7 @@
         "signature": "pub fn dot3(_ a: Vec3, _ b: Vec3) -> f32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 162
         },
         "source_text": "pub fn dot3(_ a: Vec3, _ b: Vec3) -> f32 {\n    a.dot(b)\n}",
@@ -1652,7 +1652,7 @@
         "signature": "pub fn cross3(_ a: Vec3, _ b: Vec3) -> Vec3",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 166
         },
         "source_text": "pub fn cross3(_ a: Vec3, _ b: Vec3) -> Vec3 {\n    a.cross(b)\n}",
@@ -1683,7 +1683,7 @@
         "signature": "pub fn length3(_ value: Vec3) -> f32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 170
         },
         "source_text": "pub fn length3(_ value: Vec3) -> f32 {\n    value.norm()\n}",
@@ -1718,7 +1718,7 @@
         "signature": "pub fn normalize3(_ value: Vec3) -> Vec3",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 174
         },
         "source_text": "pub fn normalize3(_ value: Vec3) -> Vec3 {\n    scale3(value, 1.0 / max(length3(value), 0.0000001))\n}",
@@ -1760,7 +1760,7 @@
         "signature": "pub fn mix3(_ a: Vec3, _ b: Vec3, _ amount: f32) -> Vec3",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 178
         },
         "source_text": "pub fn mix3(_ a: Vec3, _ b: Vec3, _ amount: f32) -> Vec3 {\n    a + (b - a) * amount\n}",
@@ -1809,7 +1809,7 @@
         "signature": "pub struct RayInterval",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 182
         },
         "source_text": "/// A finite parameter interval along a normalized world-space ray. `active`\n/// is false when the ray misses the clipping domain or the domain lies wholly\n/// outside the caller's non-negative distance budget.\npub struct RayInterval { pub start: f32, pub end: f32, pub active: bool }",
@@ -1880,7 +1880,7 @@
         "signature": "pub fn unit_ray_sphere_interval(\n    _ origin: Vec3,\n    _ unit_direction: Vec3,\n    _ center: Vec3,\n    _ radius: f32,\n    _ max_distance: f32,\n) -> RayInterval",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 189
         },
         "source_text": "/// Intersect a normalized ray with a finite sphere and clamp the result to\n/// `[0, max_distance]`. All inputs are finite and `radius`/`max_distance` are\n/// non-negative domain parameters. This clips a rendering/search DOMAIN; it\n/// says nothing about whether an implicit surface exists inside that domain.\n/// Callers can consequently avoid marching known-empty space without\n/// replacing their field evaluator with an analytic surface intersection.\npub fn unit_ray_sphere_interval(\n    _ origin: Vec3,\n    _ unit_direction: Vec3,\n    _ center: Vec3,\n    _ radius: f32,\n    _ max_distance: f32,\n) -> RayInterval {\n    let offset: Vec3 = sub3(origin, center)\n    let half_b: f32 = dot3(offset, unit_direction)\n    let discriminant: f32 = half_b * half_b - (dot3(offset, offset) - radius * radius)\n    // Evaluate one uniform arithmetic path across a GPU wave. For a miss the\n    // absolute value keeps sqrt finite and `active` rejects the inert bounds;\n    // no lane needs a discriminant branch before the expensive march.\n    let root: f32 = sqrt(abs(discriminant))\n    let near: f32 = -half_b - root\n    let far: f32 = -half_b + root\n    // Branch-free max(0, near) and min(max_distance, far), valid under the\n    // finite-input contract above. This is materially smaller than lowering\n    // the full IEEE min/max NaN policy into every fragment.\n    let start: f32 = 0.5 * (near + abs(near))\n    let end: f32 = 0.5 * (far + max_distance - abs(far - max_distance))\n    RayInterval { start: start, end: end, active: discriminant >= 0.0 && end > start }\n}",
@@ -1927,7 +1927,7 @@
         "signature": "pub fn targeted_camera_sphere_interval(\n    _ unit_forward: Vec3,\n    _ unit_direction: Vec3,\n    _ camera_distance: f32,\n    _ radius: f32,\n) -> RayInterval",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 219
         },
         "source_text": "/// The same finite-sphere interval specialized for a camera whose origin is\n/// `target - unit_forward * camera_distance`. Forward-facing camera rays and\n/// the caller's finite distance/radius bounds guarantee intersections lie in\n/// front of the camera. This avoids reconstructing the target offset in every\n/// fragment while preserving the general interval above for arbitrary rays.\npub fn targeted_camera_sphere_interval(\n    _ unit_forward: Vec3,\n    _ unit_direction: Vec3,\n    _ camera_distance: f32,\n    _ radius: f32,\n) -> RayInterval {\n    let half_b: f32 = -camera_distance * dot3(unit_forward, unit_direction)\n    let discriminant: f32 = half_b * half_b - (camera_distance * camera_distance - radius * radius)\n    let root: f32 = sqrt(abs(discriminant))\n    let near: f32 = -half_b - root\n    let far: f32 = -half_b + root\n    RayInterval { start: 0.5 * (near + abs(near)), end: far, active: discriminant >= 0.0 }\n}",
@@ -1986,7 +1986,7 @@
         "signature": "pub struct OrbitRay",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 238
         },
         "source_text": "/// A world-space camera ray derived entirely in Fe.\npub struct OrbitRay { pub origin: Vec3, pub direction: Vec3 }",
@@ -2036,7 +2036,7 @@
         "signature": "pub fn orbit_ray(\n    _ yaw: f32,\n    _ pitch: f32,\n    _ distance: f32,\n    _ u: f32,\n    _ v: f32,\n    _ target_y: f32,\n    _ field_of_view: f32,\n) -> OrbitRay",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 243
         },
         "source_text": "/// Build a look-at ray from an orbit camera and normalized fragment plane.\n/// Interaction policy remains outside this pure construction; any Fe actor can\n/// feed it yaw/pitch/distance state from its preferred event vocabulary.\npub fn orbit_ray(\n    _ yaw: f32,\n    _ pitch: f32,\n    _ distance: f32,\n    _ u: f32,\n    _ v: f32,\n    _ target_y: f32,\n    _ field_of_view: f32,\n) -> OrbitRay {\n    let cos_pitch: f32 = cos(pitch)\n    let origin: Vec3 = vec3(\n        sin(yaw) * cos_pitch * distance,\n        sin(pitch) * distance,\n        cos(yaw) * cos_pitch * distance,\n    )\n    let target: Vec3 = vec3(0.0, target_y, 0.0)\n    let forward: Vec3 = normalize3(sub3(target, origin))\n    let right: Vec3 = normalize3(cross3(forward, vec3(0.0, 1.0, 0.0)))\n    let up: Vec3 = cross3(right, forward)\n    let direction: Vec3 = normalize3(\n        add3(\n            forward,\n            add3(\n                scale3(right, u * field_of_view),\n                scale3(up, v * field_of_view),\n            ),\n        ),\n    )\n    OrbitRay { origin: origin, direction: direction }\n}",
@@ -2077,7 +2077,7 @@
         "signature": "pub struct PixelSample",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 281
         },
         "source_text": "/// A continuous sample position inside the integer pixel `(px, py)`.\n///\n/// `ordered_2x2` places one sample in each quarter of every 2x2 pixel block.\n/// The four offsets average to the pixel centre, but no sample sits on the\n/// centre-aligned lattice that makes thin, rotated boundaries stair-step in\n/// lockstep. It is deliberately ONE sample per pixel: expensive implicit\n/// surfaces and deep fractals gain spatially stratified refinement without\n/// multiplying their dominant orbit/ray-march loop. The construction is\n/// branch-free and contains no renderer-specific quality or LoD policy.\npub struct PixelSample { pub x: f32, pub y: f32 }",
@@ -2210,7 +2210,7 @@
         "signature": "pub struct PlaneSample",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 292
         },
         "source_text": "/// The normalized `[-1, 1]` plane coordinate for a pixel sample, with y up.\npub struct PlaneSample { pub u: f32, pub v: f32 }",
@@ -2234,7 +2234,7 @@
         "signature": "pub fn wrap_pi(_ x: f32) -> f32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 333
         },
         "source_text": "/// Fold `x` into `[-PI, PI]`, the window the fit below is valid on.\npub fn wrap_pi(_ x: f32) -> f32 {\n    x - TAU * floor(x / TAU + 0.5)\n}",
@@ -2253,7 +2253,7 @@
         "signature": "pub fn sin(_ x: f32) -> f32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 338
         },
         "source_text": "pub fn sin(_ x: f32) -> f32 {\n    let t: f32 = wrap_pi(x)\n    // Parabola through the zeros at -PI, 0 and PI, matched to sin at the peaks.\n    let p: f32 = 1.27323954 * t - 0.40528473 * t * abs(t)\n    // One refinement pass. 0.225 is the classic fit constant.\n    0.225 * (p * abs(p) - p) + p\n}",
@@ -2272,7 +2272,7 @@
         "signature": "pub fn cos(_ x: f32) -> f32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 346
         },
         "source_text": "pub fn cos(_ x: f32) -> f32 {\n    sin(x + HALF_PI)\n}",
@@ -2296,7 +2296,7 @@
         "signature": "pub fn rgba(_ r: f32, _ g: f32, _ b: f32) -> i32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 354
         },
         "source_text": "/// Pack unit-interval channels into the RGBA8 word `--mode render` returns.\n/// Alpha is always opaque, and an opaque top byte is what makes this negative\n/// as a signed word, which is why the constant is written the way it is.\npub fn rgba(_ r: f32, _ g: f32, _ b: f32) -> i32 {\n    let ri: i32 = __i32_from_f32(clamp01(r) * 255.0)\n    let gi: i32 = __i32_from_f32(clamp01(g) * 255.0)\n    let bi: i32 = __i32_from_f32(clamp01(b) * 255.0)\n    ri + gi * 256 + bi * 65536 + -16777216\n}",
@@ -2315,7 +2315,7 @@
         "signature": "pub fn grey(_ v: f32) -> i32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 364
         },
         "source_text": "pub fn grey(_ v: f32) -> i32 {\n    rgba(v, v, v)\n}",
@@ -2339,7 +2339,7 @@
         "signature": "pub fn palette(_ t: f32, _ phase_r: f32, _ phase_g: f32, _ phase_b: f32) -> i32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 368
         },
         "source_text": "/// A cosine palette: a smooth loop through colour space from three phases.\n/// Much less code than a gradient table, and it reads better.\npub fn palette(_ t: f32, _ phase_r: f32, _ phase_g: f32, _ phase_b: f32) -> i32 {\n    rgba(\n        0.5 + 0.5 * cos(TAU * (t + phase_r)),\n        0.5 + 0.5 * cos(TAU * (t + phase_g)),\n        0.5 + 0.5 * cos(TAU * (t + phase_b)),\n    )\n}",
@@ -2363,7 +2363,7 @@
         "signature": "pub fn escape_palette(_ iterations: i32, _ magnitude_squared: f32) -> i32",
         "source": {
           "column": 0,
-          "display_file": "lib/fmath/src/lib.fe",
+          "display_file": "lib.fe",
           "line": 378
         },
         "source_text": "/// Shared escape-time coloring for the Mandelbrot family. The escape-radius\n/// overshoot supplies a continuous fraction of one iteration, removing the\n/// integer-count bands without a logarithm intrinsic or another orbit sample.\n/// `magnitude_squared` is the first finite `|z|^2 > 4` value.\npub fn escape_palette(_ iterations: i32, _ magnitude_squared: f32) -> i32 {\n    let smooth_iterations: f32 = from_i32(iterations) + 4.0 / magnitude_squared\n    palette(smooth_iterations / 256.0, 0.0, 0.33, 0.67)\n}",

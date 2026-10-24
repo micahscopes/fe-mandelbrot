@@ -189,6 +189,8 @@ struct FeLocal_fe_ViewCache_da6e2ccc_30_ {
     blur_dirty: u32,
     epoch: u32,
     completed: u32,
+    steps: u32,
+    frame_clock: f32,
 }
 
 struct FeLocal_fe_InvocationId_3c625d5f_31_ {
@@ -229,6 +231,8 @@ struct cache_element {
     blur_dirty: u32,
     epoch: u32,
     completed: u32,
+    steps: u32,
+    frame_clock: f32,
 }
 
 struct reference_element {

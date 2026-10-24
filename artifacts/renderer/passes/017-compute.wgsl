@@ -103,6 +103,8 @@ struct FeLocal_fe_ViewCache_da6e2ccc_19_ {
     blur_dirty: u32,
     epoch: u32,
     completed: u32,
+    steps: u32,
+    frame_clock: f32,
 }
 
 struct FeLocal_fe_InvocationId_3c625d5f_20_ {
@@ -149,6 +151,8 @@ struct cache_element {
     blur_dirty: u32,
     epoch: u32,
     completed: u32,
+    steps: u32,
+    frame_clock: f32,
 }
 
 struct progress_pixels_element {
@@ -304,7 +308,7 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
     var local_2: u32 = u32();
     var loop_result: u32;
     var loop_did_return: bool = false;
-    var loop_header_carry_650_: bool;
+    var loop_header_carry_670_: bool;
 
     let _e13 = params.p39_;
     let _e19 = cache[i32(0u)].epoch;
@@ -323,7 +327,7 @@ fn main(@builtin(global_invocation_id) global_invocation_id: vec3<u32>, @builtin
             loop {
                 let _e40 = local_2;
                 let _e42 = (_e40 < 64u);
-                loop_header_carry_650_ = _e42;
+                loop_header_carry_670_ = _e42;
                 if _e42 {
                     let _e44 = (_e40 << 16u);
                     let _e46 = (_e34 + _e44);
