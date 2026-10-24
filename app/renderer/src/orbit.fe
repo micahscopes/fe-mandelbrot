@@ -95,6 +95,23 @@ impl ReferenceReal {
         Self { value: ArrayFixed<8>::from_digits(sign == 1, words) }
     }
 
+    pub fn assign_quad(mut self, _ w0: f32, _ w1: f32, _ w2: f32, _ w3: f32) {
+        self.value.assign_quad(w0, w1, w2, w3)
+    }
+    pub fn assign_copy(mut self, _ other: Self) { self.value.assign_copy(other.value) }
+    pub fn assign_sum(mut self, _ left: Self, _ right: Self) {
+        self.value.assign_sum(left.value, right.value)
+    }
+    pub fn assign_difference(mut self, _ left: Self, _ right: Self) {
+        let mut negated: ArrayFixed<8> = ArrayFixed<8>::zero()
+        negated.assign_negated(right.value)
+        self.value.assign_sum(left.value, negated)
+    }
+    pub fn assign_product(mut self, _ left: Self, _ right: Self) {
+        self.value.assign_product(left.value, right.value)
+    }
+    pub fn digit(self, _ index: u32) -> u32 { self.value.digit(index) }
+
     pub fn sign(self) -> u32 { self.value.sign() }
     pub fn to_words(self) -> [u32; 8] { self.value.to_digits() }
     pub fn to_quad_bits(self) -> (u32, u32, u32, u32) { self.value.to_quad_bits() }
@@ -115,29 +132,59 @@ pub struct ReferenceStep { pub value: Complex<ReferenceReal>, pub escaped: bool 
 
 impl Copy for ReferenceStep {}
 
-/// Advance one exact `Complex<ReferenceReal>` orbit sample by `z^2 + center`,
-/// returning the input `z` unchanged when `|z|^2 > 4`.
+/// Advance one exact `Complex<ReferenceReal>` orbit sample by `z^2 + center`
+/// in place. Returns true, leaving `z` unchanged, when `|z|^2 > 4`.
+/// Device code uses this form: see the device note in precision::array_fixed.
+pub fn reference_step_in_place(
+    _ z: mut Complex<ReferenceReal>,
+    _ center: Complex<ReferenceReal>,
+) -> bool {
+    let mut xx: ReferenceReal = ReferenceReal::zero()
+    xx.assign_product(z.re, z.re)
+    let mut yy: ReferenceReal = ReferenceReal::zero()
+    yy.assign_product(z.im, z.im)
+    let mut radius: ReferenceReal = ReferenceReal::zero()
+    radius.assign_sum(xx, yy)
+    if radius.escaped() {
+        true
+    } else {
+        let mut xy: ReferenceReal = ReferenceReal::zero()
+        xy.assign_product(z.re, z.im)
+        let mut difference: ReferenceReal = ReferenceReal::zero()
+        difference.assign_difference(xx, yy)
+        let mut real: ReferenceReal = ReferenceReal::zero()
+        real.assign_sum(difference, center.re)
+        let mut twice: ReferenceReal = ReferenceReal::zero()
+        twice.assign_sum(xy, xy)
+        let mut imag: ReferenceReal = ReferenceReal::zero()
+        imag.assign_sum(twice, center.im)
+        z.re.assign_copy(real)
+        z.im.assign_copy(imag)
+        false
+    }
+}
+
+/// Value form of `reference_step_in_place`, for host-side use and tests.
 pub fn reference_step(
     _ z: Complex<ReferenceReal>,
     _ center: Complex<ReferenceReal>,
 ) -> ReferenceStep {
-    let xx: ReferenceReal = z.re.square()
-    let yy: ReferenceReal = z.im.square()
-    if (xx + yy).escaped() {
-        ReferenceStep { value: z, escaped: true }
-    } else {
-        let xy: ReferenceReal = z.re.multiply(z.im)
-        let real: ReferenceReal = (xx - yy) + center.re
-        let imag: ReferenceReal = (xy + xy) + center.im
-        ReferenceStep { value: Complex { re: real, im: imag }, escaped: false }
-    }
+    let mut next: Complex<ReferenceReal> = z
+    let escaped: bool = reference_step_in_place(mut next, center)
+    ReferenceStep { value: next, escaped: escaped }
+}
+
+pub fn assign_reference_center(_ center: mut Complex<ReferenceReal>, _ anchor: ReferenceAnchor) {
+    let (rx0, rx1, rx2, rx3) = to_quad(anchor.center.re)
+    let (iy0, iy1, iy2, iy3) = to_quad(anchor.center.im)
+    center.re.assign_quad(rx0, rx1, rx2, rx3)
+    center.im.assign_quad(iy0, iy1, iy2, iy3)
 }
 
 pub fn reference_center(_ anchor: ReferenceAnchor) -> Complex<ReferenceReal> {
-    Complex {
-        re: ReferenceReal::from_expansion(anchor.center.re),
-        im: ReferenceReal::from_expansion(anchor.center.im),
-    }
+    let mut center: Complex<ReferenceReal> = Complex::default()
+    assign_reference_center(mut center, anchor)
+    center
 }
 
 pub fn clear_reference_checkpoint(_ words: StorageBuffer<u32, 16>) {
@@ -148,10 +195,11 @@ pub fn clear_reference_checkpoint(_ words: StorageBuffer<u32, 16>) {
     }
 }
 
-pub fn load_reference_checkpoint(
+pub fn load_reference_checkpoint_into(
+    _ z: mut Complex<ReferenceReal>,
     _ words: StorageBuffer<u32, 16>,
     _ control: ReferenceControl,
-) -> Complex<ReferenceReal> {
+) {
     // Literal arrays, no loop: see the device note in precision::array_fixed.
     let re_words: [u32; 8] = [
         words.load(index: 0), words.load(index: 1), words.load(index: 2), words.load(index: 3),
@@ -161,20 +209,24 @@ pub fn load_reference_checkpoint(
         words.load(index: 8), words.load(index: 9), words.load(index: 10), words.load(index: 11),
         words.load(index: 12), words.load(index: 13), words.load(index: 14), words.load(index: 15),
     ]
-    Complex {
-        re: ReferenceReal::from_words(control.zx_s, re_words),
-        im: ReferenceReal::from_words(control.zy_s, im_words),
-    }
+    z.re = ReferenceReal::from_words(control.zx_s, re_words)
+    z.im = ReferenceReal::from_words(control.zy_s, im_words)
+}
+
+pub fn load_reference_checkpoint(
+    _ words: StorageBuffer<u32, 16>,
+    _ control: ReferenceControl,
+) -> Complex<ReferenceReal> {
+    let mut z: Complex<ReferenceReal> = Complex::default()
+    load_reference_checkpoint_into(mut z, words, control)
+    z
 }
 
 pub fn store_reference_checkpoint(_ words: StorageBuffer<u32, 16>, _ z: Complex<ReferenceReal>) {
-    let re_words: [u32; 8] = z.re.to_words()
-    let im_words: [u32; 8] = z.im.to_words()
-    let mut i: usize = 0
+    let mut i: u32 = 0
     while i < 8 {
-        let slot: u32 = i.downcast_truncate()
-        words.store(index: slot, value: re_words[i])
-        words.store(index: slot + 8, value: im_words[i])
+        words.store(index: i, value: z.re.digit(i))
+        words.store(index: i + 8, value: z.im.digit(i))
         i = i + 1
     }
 }

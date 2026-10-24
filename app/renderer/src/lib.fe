@@ -64,7 +64,7 @@ use ingot::orbit::{
     clear_reference_checkpoint,
     continue_preview_pixel,
     empty_progress,
-    load_reference_checkpoint,
+    load_reference_checkpoint_into,
     pack_progress_reference,
     progress_color,
     progress_has_outcome,
@@ -75,8 +75,9 @@ use ingot::orbit::{
     progress_outcome_flags,
     progress_reference_index,
     progress_with_presentable,
-    reference_center,
+    assign_reference_center,
     reference_step,
+    reference_step_in_place,
     resolve_prefix_step,
     sample_pixel,
     store_reference_checkpoint,
@@ -246,20 +247,18 @@ actor SmoothPerturbationalMandelbrot uses (
             } else {
                 existing_pending
             }
-            let center: Complex<ReferenceReal> = reference_center(pending_anchor)
-            let mut z: Complex<ReferenceReal> = if control.pending == 0 {
-                Complex::default()
-            } else {
-                load_reference_checkpoint(self.reference_words, control)
+            let mut center: Complex<ReferenceReal> = Complex::default()
+            assign_reference_center(mut center, pending_anchor)
+            let mut z: Complex<ReferenceReal> = Complex::default()
+            if control.pending != 0 {
+                load_reference_checkpoint_into(mut z, self.reference_words, control)
             }
             let mut i: u32 = if control.pending == 0 { 0 } else { control.index }
             let mut step: u32 = 0
             let mut escaped: bool = false
             while step < 64 && i < pending_anchor.limit && !escaped {
-                let result: ReferenceStep = reference_step(z, center)
-                escaped = result.escaped
+                escaped = reference_step_in_place(mut z, center)
                 if !escaped {
-                    z = result.value
                     self.orbit.store(
                         index: base + i + 1,
                         value: PackedReference::from_fixed(z),

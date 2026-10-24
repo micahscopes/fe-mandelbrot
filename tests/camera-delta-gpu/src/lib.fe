@@ -20,7 +20,7 @@ use precision::array_fixed::{ArrayFixed, expansion_difference}
 extern { const fn __bitcast<From, To>(_: From) -> To }
 
 pub const CASES: u32 = 512
-pub const WORDS_PER_CASE: u32 = 32
+pub const WORDS_PER_CASE: u32 = 48
 
 pub struct ProbeParams { pub unused: Param }
 pub struct ProbeState { pub unused: f32 }
@@ -138,13 +138,80 @@ fn loop_digest(_ seed: u32) -> u32 {
     digest(digits)
 }
 
+/// Variant a: constant-index writes into a local record, then the record is returned.
+fn const_index_lanes(_ seed: u32) -> Lanes {
+    let mut lanes: Lanes = Lanes { negative: (seed >> 31) != 0, digits: [0; 10] }
+    lanes.digits[0] = seed & 8191
+    lanes.digits[1] = (seed >> 1) & 8191
+    lanes.digits[2] = (seed >> 2) & 8191
+    lanes.digits[3] = (seed >> 3) & 8191
+    lanes.digits[4] = (seed >> 4) & 8191
+    lanes.digits[5] = (seed >> 5) & 8191
+    lanes.digits[6] = (seed >> 6) & 8191
+    lanes.digits[7] = (seed >> 7) & 8191
+    lanes.digits[8] = (seed >> 8) & 8191
+    lanes.digits[9] = (seed >> 9) & 8191
+    lanes
+}
+
+/// Variant b: a loop fills a local array, then a fresh literal is returned.
+fn loop_then_literal(_ seed: u32) -> Lanes {
+    let mut digits: [u32; 10] = [0; 10]
+    let mut index: u32 = 0
+    while index < 10 {
+        digits[index as usize] = (seed >> index) & 8191
+        index = index + 1
+    }
+    Lanes {
+        negative: (seed >> 31) != 0,
+        digits: [
+            digits[0], digits[1], digits[2], digits[3], digits[4],
+            digits[5], digits[6], digits[7], digits[8], digits[9],
+        ],
+    }
+}
+
+/// Variant c: a record filled through a mut parameter in the caller, then returned unchanged.
+fn hand_back(_ lanes: Lanes) -> Lanes { lanes }
+
+/// Variant d: a fresh record, one scalar field reassigned, returned.
+fn flip_twice(_ seed: u32) -> Lanes {
+    let mut lanes: Lanes = literal_lanes(seed)
+    lanes.negative = !lanes.negative
+    lanes.negative = !lanes.negative
+    lanes
+}
+
+/// Variant e: a fresh record built from a by-value array parameter.
+fn from_param(_ seed: u32) -> ArrayFixed<10> {
+    ArrayFixed<10>::from_digits(
+        (seed >> 31) != 0,
+        [
+            seed & 8191, (seed >> 1) & 8191, (seed >> 2) & 8191, (seed >> 3) & 8191,
+            (seed >> 4) & 8191, (seed >> 5) & 8191, (seed >> 6) & 8191, (seed >> 7) & 8191,
+            (seed >> 8) & 8191, (seed >> 9) & 8191,
+        ],
+    )
+}
+
+/// Digest of an ArrayFixed's digits read one at a time, flag in bit 31.
+fn digit_digest(_ value: ArrayFixed<10>) -> u32 {
+    let mut folded: u32 = 0
+    let mut index: u32 = 0
+    while index < 10 {
+        folded = folded ^ (value.digit(index) << ((index * 7) % 19))
+        index = index + 1
+    }
+    folded | (if value.sign() == 1 { 2147483648 } else { 0 })
+}
+
 actor CameraDeltaProbe uses (
     GpuProgram<WebGpuBackend>,
     SurfaceQuality<ProbeBacking>,
     SurfaceRecovery<StandardSurfaceRecovery>,
 ) {
     inputs: StorageBuffer<u32, 4096>,
-    outputs: StorageBuffer<u32, 16384>,
+    outputs: StorageBuffer<u32, 24576>,
     state: ProbeState,
 
     fn initial() -> ProbeEnvelope uses (core::actor::InitialState) {
@@ -160,7 +227,7 @@ actor CameraDeltaProbe uses (
     {
         let case: u32 = invocation.global.x
         let input: u32 = case * 8
-        let output: u32 = case * 32
+        let output: u32 = case * 48
         let from: Expansion<4> = read_expansion(self.inputs, input)
         let to: Expansion<4> = read_expansion(self.inputs, input + 4)
         let origin: ArrayFixed<10> = ArrayFixed<10>::from_expansion(from)
@@ -178,7 +245,7 @@ actor CameraDeltaProbe uses (
         self.outputs.store(index: output + 13, value: target.to_binary32_bits())
         self.outputs.store(index: output + 14, value: difference.sign())
         self.outputs.store(index: output + 15, value: digest(difference.to_digits()))
-        // Canaries and isolated primitives (words 16..30).
+        // Canaries and isolated primitives (words 16..38).
         let raw_from: u32 = self.inputs.load(index: input)
         let raw_to: u32 = self.inputs.load(index: input + 4)
         self.outputs.store(index: output + 16, value: 12648430)
@@ -207,6 +274,22 @@ actor CameraDeltaProbe uses (
         let flag: Flag = count_flag(raw_from)
         self.outputs.store(index: output + 29, value: flag.count | (if flag.negative { 2147483648 } else { 0 }))
         self.outputs.store(index: output + 30, value: loop_digest(raw_from))
+        self.outputs.store(index: output + 31, value: fold_lanes(const_index_lanes(raw_from)))
+        self.outputs.store(index: output + 32, value: fold_lanes(loop_then_literal(raw_from)))
+        let mut handed: Lanes = Lanes { negative: (raw_from >> 31) != 0, digits: [0; 10] }
+        fill_into(mut handed, raw_from)
+        self.outputs.store(index: output + 33, value: fold_lanes(hand_back(handed)))
+        self.outputs.store(index: output + 34, value: fold_lanes(flip_twice(raw_from)))
+        self.outputs.store(index: output + 35, value: digit_digest(from_param(raw_from)))
+        let mut assigned: ArrayFixed<10> = ArrayFixed<10>::zero()
+        assigned.assign_binary32_bits(raw_from)
+        self.outputs.store(index: output + 36, value: digit_digest(assigned))
+        self.outputs.store(index: output + 37, value: assigned.to_binary32_bits())
+        let mut assigned_to: ArrayFixed<10> = ArrayFixed<10>::zero()
+        assigned_to.assign_binary32_bits(raw_to)
+        let mut product: ArrayFixed<10> = ArrayFixed<10>::zero()
+        product.assign_product(assigned, assigned_to)
+        self.outputs.store(index: output + 38, value: digit_digest(product))
     }
 
     fn display_probe(self, px: i32, py: i32) -> i32 uses (FragmentSurface) {

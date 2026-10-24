@@ -2252,7 +2252,7 @@
     {
       "source_entry": "discard_stale_reference",
       "shader": "passes/001-compute.wgsl",
-      "shader_bytes": 44652,
+      "shader_bytes": 44693,
       "shader_stages": [
         "compute"
       ],
@@ -3456,7 +3456,7 @@
     {
       "source_entry": "build_reference",
       "shader": "passes/003-compute.wgsl",
-      "shader_bytes": 160853,
+      "shader_bytes": 164127,
       "shader_stages": [
         "compute"
       ],

@@ -24,6 +24,14 @@ const STAGES = [
   ['micro: struct loop through mut parameter', [28]],
   ['micro: struct without array out of loop', [29]],
   ['micro: array loop, scalar returned', [30]],
+  ['return a: constant-index writes then return', [31]],
+  ['return b: loop then fresh literal returned', [32]],
+  ['return c: mut-filled record handed back', [33]],
+  ['return d: fresh record, field reassigned, returned', [34]],
+  ['return e: ArrayFixed::from_digits', [35]],
+  ['assign: conversion digits and sign', [36]],
+  ['assign: conversion to f32', [37]],
+  ['assign: product digits and sign', [38]],
 ];
 const hex = value => (value >>> 0).toString(16).padStart(8, '0');
 const asFloat = bits => new Float32Array(new Uint32Array([bits]).buffer)[0];

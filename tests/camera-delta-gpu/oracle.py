@@ -67,6 +67,30 @@ def lanes_digest(seed):
     return digest([(seed >> i) & 8191 for i in range(10)])
 
 
+def product_word(a_bits, b_bits):
+    """Port of ArrayFixed::multiply_magnitudes (rounded sliding radix product)."""
+    sa, da = model.exact_parse(a_bits, WIDTH)
+    sb, db = model.exact_parse(b_bits, WIDTH)
+    res = [0] * WIDTH
+    guard = 0
+    for row in range(WIDTH):
+        carry = 0
+        for col in range(WIDTH):
+            total = res[col] + da[col] * db[row] + carry
+            res[col] = total & 8191
+            carry = total >> 13
+        if row < WIDTH - 1:
+            guard = res[0]
+            res = res[1:] + [carry]
+        else:
+            carry = guard >> 12
+            for col in range(WIDTH):
+                total = res[col] + carry
+                res[col] = total & 8191
+                carry = total >> 13
+    return digest(res) | ((1 if sa != sb else 0) << 31)
+
+
 def expected(from_bits, to_bits):
     origin = model.expansion(from_bits, WIDTH, model.exact_parse, model.exact_add)
     target = model.expansion(to_bits, WIDTH, model.exact_parse, model.exact_add)
@@ -75,7 +99,7 @@ def expected(from_bits, to_bits):
         model.rational_projection(diff), *target[1], target[0],
         model.rational_projection(origin), model.rational_projection(target),
         diff[0], digest(diff[1]),
-        # Canaries and isolated primitives; see src/lib.fe words 16..30.
+        # Canaries and isolated primitives; see src/lib.fe words 16..38.
         0xC0FFEE, from_bits[0], to_bits[0], from_bits[0] >> 31,
         digest(model.exact_parse(from_bits[0], WIDTH)[1]), model.exact_parse(from_bits[0], WIDTH)[0],
         model.rational_projection(model.exact_parse(from_bits[0], WIDTH)),
@@ -85,7 +109,15 @@ def expected(from_bits, to_bits):
         lanes_digest(from_bits[0]) | (from_bits[0] >> 31 << 31),
         bin(from_bits[0] & 1023).count('1') | (from_bits[0] >> 31 << 31),
         lanes_digest(from_bits[0]),
-        0,
+        lanes_digest(from_bits[0]) | (from_bits[0] >> 31 << 31),
+        lanes_digest(from_bits[0]) | (from_bits[0] >> 31 << 31),
+        lanes_digest(from_bits[0]) | (from_bits[0] >> 31 << 31),
+        lanes_digest(from_bits[0]) | (from_bits[0] >> 31 << 31),
+        lanes_digest(from_bits[0]) | (from_bits[0] >> 31 << 31),
+        digest(model.exact_parse(from_bits[0], WIDTH)[1]) | (model.exact_parse(from_bits[0], WIDTH)[0] << 31),
+        model.rational_projection(model.exact_parse(from_bits[0], WIDTH)),
+        product_word(from_bits[0], to_bits[0]),
+        *([0] * 9),
     ]
 
 
@@ -125,7 +157,7 @@ def main():
     parser.add_argument('--out', type=Path, default=HERE / 'corpus.json')
     args = parser.parse_args()
     cases = corpus()
-    payload = dict(width=WIDTH, seed=SEED, wordsPerCase=32, capacity=CASES, cases=cases)
+    payload = dict(width=WIDTH, seed=SEED, wordsPerCase=48, capacity=CASES, cases=cases)
     text = json.dumps(payload, separators=(',', ':')) + '\n'
     args.out.write_text(text)
     print(json.dumps(dict(cases=len(cases), sha256=hashlib.sha256(text.encode()).hexdigest())))

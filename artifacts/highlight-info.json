@@ -2,7 +2,7 @@
   "source": "fe doc json SCIP export",
   "files": {
     "lib.fe": {
-      "bytes": 49931,
+      "bytes": 49930,
       "semanticOccurrences": 1091
     },
     "policy.fe": {
@@ -18,8 +18,8 @@
       "semanticOccurrences": 593
     },
     "orbit.fe": {
-      "bytes": 26409,
-      "semanticOccurrences": 666
+      "bytes": 28524,
+      "semanticOccurrences": 741
     },
     "native_checkpoint.fe": {
       "bytes": 6862,
@@ -62,8 +62,8 @@
       "semanticOccurrences": 896
     },
     "array_fixed.fe": {
-      "bytes": 13313,
-      "semanticOccurrences": 267
+      "bytes": 15808,
+      "semanticOccurrences": 328
     },
     "fmath.fe": {
       "bytes": 14651,
