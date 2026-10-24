@@ -152,15 +152,15 @@ pub fn load_reference_checkpoint(
     _ words: StorageBuffer<u32, 16>,
     _ control: ReferenceControl,
 ) -> Complex<ReferenceReal> {
-    let mut re_words: [u32; 8] = [0; 8]
-    let mut im_words: [u32; 8] = [0; 8]
-    let mut i: usize = 0
-    while i < 8 {
-        let slot: u32 = i.downcast_truncate()
-        re_words[i] = words.load(index: slot)
-        im_words[i] = words.load(index: slot + 8)
-        i = i + 1
-    }
+    // Literal arrays, no loop: see the device note in precision::array_fixed.
+    let re_words: [u32; 8] = [
+        words.load(index: 0), words.load(index: 1), words.load(index: 2), words.load(index: 3),
+        words.load(index: 4), words.load(index: 5), words.load(index: 6), words.load(index: 7),
+    ]
+    let im_words: [u32; 8] = [
+        words.load(index: 8), words.load(index: 9), words.load(index: 10), words.load(index: 11),
+        words.load(index: 12), words.load(index: 13), words.load(index: 14), words.load(index: 15),
+    ]
     Complex {
         re: ReferenceReal::from_words(control.zx_s, re_words),
         im: ReferenceReal::from_words(control.zy_s, im_words),

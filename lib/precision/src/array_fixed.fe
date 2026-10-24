@@ -5,6 +5,12 @@
 //! opposite signs retain the larger magnitude's sign (the left sign on ties).
 //! Negative zero is retained internally; binary32 observation canonicalizes it.
 //! The reference recurrence uses this interpretation; wire layouts stay explicit.
+//!
+//! Device note: on Arm Valhall (Pixel) a function that fills an array-bearing
+//! value in a loop and returns it by value yields zeros (see
+//! tests/camera-delta-gpu). Every loop below therefore lives in a helper that
+//! writes through `mut self` and returns nothing; the functions that return a
+//! `Self` contain no loop.
 
 use core::marker::Copy
 use core::ops::{Add, Eq, Mul, Neg, Sub}
@@ -48,13 +54,17 @@ impl<const L: usize> ArrayFixed<L> {
     /// Checked integer boundary. Unlike canonical wire Fixed, this arithmetic
     /// value deliberately permits negative zero, matching the old limb kernel.
     pub fn from_digits(_ negative: bool, _ digits: [u32; L]) -> Self {
+        Self::assert_canonical(digits)
+        Self { negative: negative, digits: digits }
+    }
+
+    fn assert_canonical(_ digits: [u32; L]) {
         let width: u32 = Self::width()
         let mut index: u32 = 0
         while index < width {
             assert(digits[index as usize] < 8192)
             index = index + 1
         }
-        Self { negative: negative, digits: digits }
     }
 
     /// Quantize one finite |value| < 8192 source toward zero onto this lattice.
@@ -73,11 +83,18 @@ impl<const L: usize> ArrayFixed<L> {
         let significand: u32 = (magnitude & 8388607) | 8388608
         let exponent: i32 = signed_word(encoded_exponent)
         let lattice_shift: i32 = exponent - 150 + result.fractional_bits()
-        let mut source_bit: i32 = -lattice_shift
+        result.load_significand(significand, -lattice_shift)
+        result
+    }
+
+    /// Slice the 24-bit significand into digits; `first_bit` is the source bit
+    /// that lands at the least significant bit of digit 0.
+    fn load_significand(mut self, _ significand: u32, _ first_bit: i32) {
+        let mut source_bit: i32 = first_bit
         let width: u32 = Self::width()
         let mut index: u32 = 0
         while index < width {
-            result.digits[index as usize] = if source_bit >= 24 || source_bit <= -13 {
+            self.digits[index as usize] = if source_bit >= 24 || source_bit <= -13 {
                 0
             } else if source_bit >= 0 {
                 let shift: u32 = unsigned_word(source_bit)
@@ -89,7 +106,6 @@ impl<const L: usize> ArrayFixed<L> {
             source_bit = source_bit + 13
             index = index + 1
         }
-        result
     }
 
     pub fn from_f32(_ value: f32) -> Self {
@@ -99,14 +115,7 @@ impl<const L: usize> ArrayFixed<L> {
     /// Preserve the old four-word, left-associated accumulation and final +0.
     pub fn from_expansion(_ value: Expansion<4>) -> Self {
         let (a, b, c, d) = to_quad(value)
-        let terms: [f32; 4] = [a, b, c, d]
-        let mut result: Self = Self::from_f32(terms[0])
-        let mut index: usize = 1
-        while index < 4 {
-            result = result + Self::from_f32(terms[index])
-            index = index + 1
-        }
-        result + Self::zero()
+        Self::from_f32(a) + Self::from_f32(b) + Self::from_f32(c) + Self::from_f32(d) + Self::zero()
     }
 
     pub fn sign(self) -> u32 { if self.negative { 1 } else { 0 } }
@@ -172,36 +181,85 @@ impl<const L: usize> Add for ArrayFixed<L> {
     type Output = Self
 
     fn add(own self, _ other: own Self) -> Self {
-        let width: u32 = Self::width()
         let mut result: Self = Self::zero()
         result.negative = self.negative
         if self.negative == other.negative {
-            let mut carry: u32 = 0
-            let mut index: u32 = 0
-            while index < width {
-                let digit: usize = index as usize
-                let sum: u32 = self.digits[digit] + other.digits[digit] + carry
-                result.digits[digit] = sum & 8191
-                carry = sum >> 13
-                index = index + 1
-            }
+            result.add_magnitudes(self, other)
         } else {
             let left_is_smaller: bool = self.magnitude_less(other)
             result.negative = if left_is_smaller { other.negative } else { self.negative }
-            let mut borrow: u32 = 0
-            let mut index: u32 = 0
-            while index < width {
-                let digit: usize = index as usize
-                let larger: u32 = if left_is_smaller { other.digits[digit] } else { self.digits[digit] }
-                let smaller: u32 = if left_is_smaller { self.digits[digit] } else { other.digits[digit] }
-                // Canonical digits make this biased difference nonnegative.
-                let biased: u32 = 8192 + larger - smaller - borrow
-                result.digits[digit] = biased & 8191
-                borrow = 1 - (biased >> 13)
-                index = index + 1
-            }
+            result.subtract_magnitudes(self, other, left_is_smaller)
         }
         result
+    }
+}
+
+impl<const L: usize> ArrayFixed<L> {
+    fn add_magnitudes(mut self, _ left: Self, _ right: Self) {
+        let width: u32 = Self::width()
+        let mut carry: u32 = 0
+        let mut index: u32 = 0
+        while index < width {
+            let digit: usize = index as usize
+            let sum: u32 = left.digits[digit] + right.digits[digit] + carry
+            self.digits[digit] = sum & 8191
+            carry = sum >> 13
+            index = index + 1
+        }
+    }
+
+    fn subtract_magnitudes(mut self, _ left: Self, _ right: Self, _ left_is_smaller: bool) {
+        let width: u32 = Self::width()
+        let mut borrow: u32 = 0
+        let mut index: u32 = 0
+        while index < width {
+            let digit: usize = index as usize
+            let larger: u32 = if left_is_smaller { right.digits[digit] } else { left.digits[digit] }
+            let smaller: u32 = if left_is_smaller { left.digits[digit] } else { right.digits[digit] }
+            // Canonical digits make this biased difference nonnegative.
+            let biased: u32 = 8192 + larger - smaller - borrow
+            self.digits[digit] = biased & 8191
+            borrow = 1 - (biased >> 13)
+            index = index + 1
+        }
+    }
+
+    fn multiply_magnitudes(mut self, _ left: Self, _ right: Self) {
+        let width: u32 = Self::width()
+        let mut guard: u32 = 0
+        let mut row: u32 = 0
+        while row < width {
+            let mut carry: u32 = 0
+            let mut column: u32 = 0
+            while column < width {
+                let index: usize = column as usize
+                let sum: u32 = self.digits[index]
+                    + left.digits[index] * right.digits[row as usize] + carry
+                self.digits[index] = sum & 8191
+                carry = sum >> 13
+                column = column + 1
+            }
+            if row < width - 1 {
+                guard = self.digits[0]
+                let mut column: u32 = 0
+                while column < width - 1 {
+                    self.digits[column as usize] = self.digits[(column + 1) as usize]
+                    column = column + 1
+                }
+                self.digits[(width - 1) as usize] = carry
+            } else {
+                let mut carry: u32 = guard >> 12
+                let mut column: u32 = 0
+                while column < width {
+                    let index: usize = column as usize
+                    let sum: u32 = self.digits[index] + carry
+                    self.digits[index] = sum & 8191
+                    carry = sum >> 13
+                    column = column + 1
+                }
+            }
+            row = row + 1
+        }
     }
 }
 
@@ -212,43 +270,9 @@ impl<const L: usize> Mul for ArrayFixed<L> {
     type Output = Self
 
     fn mul(own self, _ other: own Self) -> Self {
-        let width: u32 = Self::width()
         let mut result: Self = Self::zero()
         result.negative = self.negative != other.negative
-        let mut guard: u32 = 0
-        let mut row: u32 = 0
-        while row < width {
-            let mut carry: u32 = 0
-            let mut column: u32 = 0
-            while column < width {
-                let index: usize = column as usize
-                let sum: u32 = result.digits[index]
-                    + self.digits[index] * other.digits[row as usize] + carry
-                result.digits[index] = sum & 8191
-                carry = sum >> 13
-                column = column + 1
-            }
-            if row < width - 1 {
-                guard = result.digits[0]
-                let mut column: u32 = 0
-                while column < width - 1 {
-                    result.digits[column as usize] = result.digits[(column + 1) as usize]
-                    column = column + 1
-                }
-                result.digits[(width - 1) as usize] = carry
-            } else {
-                let mut carry: u32 = guard >> 12
-                let mut column: u32 = 0
-                while column < width {
-                    let index: usize = column as usize
-                    let sum: u32 = result.digits[index] + carry
-                    result.digits[index] = sum & 8191
-                    carry = sum >> 13
-                    column = column + 1
-                }
-            }
-            row = row + 1
-        }
+        result.multiply_magnitudes(self, other)
         result
     }
 }

@@ -248,3 +248,10 @@ OWNED_SOFTWARE_BROWSER=1 node tests/camera-delta-gpu/gpu.mjs /tmp/camera-delta-s
 
 The assembled directory is a static page; `previews/camera-delta-probe/` serves
 it on Pages. Software-GPU results do not describe a physical phone.
+
+On Arm Valhall GPUs (the Pixel) a function that fills an array in a loop and
+returns it by value, alone or inside a struct, returned zeros in the probe
+(`previews/camera-delta-probe-3/`). The exact-number code therefore keeps every
+loop in a helper that writes through `mut self`; the functions that return the
+value contain no loop. `previews/camera-delta-probe-4/` runs the same cases
+against that code, with the failing shapes kept as labelled controls.

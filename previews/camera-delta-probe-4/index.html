@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Camera delta GPU probe</title>
+<style>
+  body { font: 16px/1.4 system-ui, sans-serif; margin: 16px; max-width: 42rem; }
+  pre { white-space: pre-wrap; word-break: break-word; background: #8881; padding: 8px; border-radius: 6px; }
+  #verdict { font-size: 1.4rem; font-weight: 600; }
+</style>
+</head>
+<body>
+<h1>Camera delta GPU probe</h1>
+<p>Runs the Fe camera subtraction used for panning on this device's GPU and
+compares each result with exact arithmetic. It takes a few seconds.</p>
+<p id="verdict">Running…</p>
+<pre id="report"></pre>
+<script type="module">
+import {runProbe, summarize} from './probe.js';
+const verdict = document.getElementById('verdict'), report = document.getElementById('report');
+let result;
+try { result = await runProbe('.'); } catch (error) { result = {fatal: String(error && error.message || error)}; }
+const line = summarize(result);
+verdict.textContent = line;
+document.title = line;
+report.textContent = JSON.stringify(result, null, 1);
+try { history.replaceState(null, '', '#' + encodeURIComponent(line)); } catch {}
+window.__probeResult = result;
+</script>
+</body>
+</html>

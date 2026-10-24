@@ -18,8 +18,8 @@
       "semanticOccurrences": 593
     },
     "orbit.fe": {
-      "bytes": 26155,
-      "semanticOccurrences": 667
+      "bytes": 26409,
+      "semanticOccurrences": 666
     },
     "native_checkpoint.fe": {
       "bytes": 6862,
@@ -62,8 +62,8 @@
       "semanticOccurrences": 896
     },
     "array_fixed.fe": {
-      "bytes": 12418,
-      "semanticOccurrences": 240
+      "bytes": 13313,
+      "semanticOccurrences": 267
     },
     "fmath.fe": {
       "bytes": 14651,
