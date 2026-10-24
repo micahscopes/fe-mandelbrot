@@ -566,6 +566,8 @@ actor SmoothPerturbationalMandelbrot uses (
 
     // Spatially interleaved phases cover the whole image, rather
     // than sweeping rectangles. Each orbit resumes its own saved recurrence.
+    // Pixels preserved from a completed view of the same camera are restored once,
+    // on the first refinement frame, so they are in place before any cohort reaches them.
     fn restore_oracle(self, invocation: ComputeInvocation)
         uses (ComputeSurface<Workgroup<8, 8, 1>, FixedDispatch<16, 32, 1>>)
     {
@@ -574,6 +576,9 @@ actor SmoothPerturbationalMandelbrot uses (
             return
         }
         let c: ViewCache = self.cache.load(index: 0)
+        if c.cursor != 0 {
+            return
+        }
         let history: ViewCache = self.cache.load(index: 1)
         let schedule: RefinementSchedule = RefinementSchedule::for_view(s.camera.zoom, s.camera.res)
         if history.completed == 0 || history.budget < schedule.limit {
@@ -582,34 +587,33 @@ actor SmoothPerturbationalMandelbrot uses (
         if !same_camera(history, c) {
             return
         }
-        let pixel: CohortPixel = schedule.rect_pixel(
-            c.cursor,
-            invocation.global.x,
-            invocation.global.y,
-            s.camera.res,
-        )
-        if !pixel.active {
-            return
+        let mut cohort: u32 = 0
+        while cohort < schedule.phases {
+            let pixel: CohortPixel = schedule.rect_pixel(
+                cohort,
+                invocation.global.x,
+                invocation.global.y,
+                s.camera.res,
+            )
+            if pixel.active {
+                let index: u32 = pixel.index()
+                let saved: NativeCheckpoint = self.progress_pixels.load(index: index)
+                let deep: SampleOracle = self.snapshot_oracle.load(index: index)
+                if !saved.is_presentable_in(c.epoch) && deep.is_usable() {
+                    let preserved: NativeCheckpoint = NativeCheckpoint::from_oracle(deep, c.epoch, s.clock)
+                    let base: u32 = preserved.color()
+                    self.progress_pixels.store(index: index, value: preserved)
+                    self.native_pixels.store(index: index, value: base)
+                    let antialiased: u32 = if history.aa == s.antialias {
+                        self.snapshot_pixels.load(index: index)
+                    } else {
+                        base
+                    }
+                    self.antialiased_pixels.store(index: index, value: antialiased)
+                }
+            }
+            cohort = cohort + 1
         }
-        let index: u32 = pixel.index()
-        let saved: NativeCheckpoint = self.progress_pixels.load(index: index)
-        if saved.is_presentable_in(c.epoch) {
-            return
-        }
-        let deep: SampleOracle = self.snapshot_oracle.load(index: index)
-        if !deep.is_usable() {
-            return
-        }
-        let preserved: NativeCheckpoint = NativeCheckpoint::from_oracle(deep, c.epoch, s.clock)
-        let base: u32 = preserved.color()
-        self.progress_pixels.store(index: index, value: preserved)
-        self.native_pixels.store(index: index, value: base)
-        let antialiased: u32 = if history.aa == s.antialias {
-            self.snapshot_pixels.load(index: index)
-        } else {
-            base
-        }
-        self.antialiased_pixels.store(index: index, value: antialiased)
     }
 
     // A sparse, full-depth lattice reveals real results while the denser
@@ -623,7 +627,7 @@ actor SmoothPerturbationalMandelbrot uses (
             return
         }
         let c: ViewCache = self.cache.load(index: 0)
-        if c.cursor >= 16 || c.completed == 1 {
+        if c.cursor >= ingot::partition::SEED_STEPS || c.completed == 1 {
             return
         }
         let lane: u32 = (invocation.global.y % 4) * 4 + invocation.global.x % 4
@@ -678,40 +682,43 @@ actor SmoothPerturbationalMandelbrot uses (
         }
         let c: ViewCache = self.cache.load(index: 0)
         let schedule: RefinementSchedule = RefinementSchedule::for_view(s.camera.zoom, s.camera.res)
-        let pixel: CohortPixel = schedule.rect_pixel(
-            c.cursor,
-            invocation.global.x,
-            invocation.global.y,
-            s.camera.res,
-        )
-        if !pixel.active {
-            return
+        let batch: u32 = schedule.batch(c.cursor, c.steps)
+        let mut offset: u32 = 0
+        while offset < batch {
+            let pixel: CohortPixel = schedule.rect_pixel(
+                c.cursor + offset,
+                invocation.global.x,
+                invocation.global.y,
+                s.camera.res,
+            )
+            if pixel.active {
+                let index: u32 = pixel.index()
+                let old: NativeCheckpoint = self.progress_pixels.load(index: index)
+                let saved: NativeCheckpoint = if old.epoch == c.epoch {
+                    old
+                } else {
+                    NativeCheckpoint::initial(c.epoch)
+                }
+                if !saved.is_terminal(schedule.limit) {
+                    let next: NativeCheckpoint = continue_native_pixel(
+                        self.orbit,
+                        ref_state.active * 8195,
+                        s.camera,
+                        pixel.sample(),
+                        schedule.limit,
+                        schedule.quantum,
+                        saved,
+                    )
+                    // The finished checkpoint carries the exact magnitude and fade start time.
+                    let stored: NativeCheckpoint = next.present_if_terminal(schedule.limit, s.clock)
+                    self.progress_pixels.store(index: index, value: stored)
+                    let bits: u32 = next.color()
+                    self.native_pixels.store(index: index, value: bits)
+                    self.antialiased_pixels.store(index: index, value: bits)
+                }
+            }
+            offset = offset + 1
         }
-        let index: u32 = pixel.index()
-        let old: NativeCheckpoint = self.progress_pixels.load(index: index)
-        let saved: NativeCheckpoint = if old.epoch == c.epoch {
-            old
-        } else {
-            NativeCheckpoint::initial(c.epoch)
-        }
-        if saved.is_terminal(schedule.limit) {
-            return
-        }
-        let next: NativeCheckpoint = continue_native_pixel(
-            self.orbit,
-            ref_state.active * 8195,
-            s.camera,
-            pixel.sample(),
-            schedule.limit,
-            schedule.quantum,
-            saved,
-        )
-        // The finished checkpoint carries the exact magnitude and fade start time.
-        let stored: NativeCheckpoint = next.present_if_terminal(schedule.limit, s.clock)
-        self.progress_pixels.store(index: index, value: stored)
-        let bits: u32 = next.color()
-        self.native_pixels.store(index: index, value: bits)
-        self.antialiased_pixels.store(index: index, value: bits)
     }
 
     fn antialias_pixels(self, invocation: ComputeInvocation)
@@ -724,68 +731,74 @@ actor SmoothPerturbationalMandelbrot uses (
         }
         let c: ViewCache = self.cache.load(index: 0)
         let schedule: RefinementSchedule = RefinementSchedule::for_view(s.camera.zoom, s.camera.res)
-        let pixel: CohortPixel = schedule.aa_pixel(
-            c.cursor,
-            invocation.global.x,
-            invocation.global.y,
-            s.camera.res,
-        )
-        if !pixel.active {
-            return
-        }
-        let index: u32 = pixel.index()
-        let bits: u32 = self.native_pixels.load(index: index)
-        let center: Color = unpack_lab(bits)
-        let (left_i, right_i, up_i, down_i) = pixel.pixel.clamped_neighbor_indices(s.camera.res)
-        let edge: f32 = max(
-            max(
-                contrast(center, unpack_lab(self.native_pixels.load(index: left_i))),
-                contrast(center, unpack_lab(self.native_pixels.load(index: right_i))),
-            ),
-            max(
-                contrast(center, unpack_lab(self.native_pixels.load(index: up_i))),
-                contrast(center, unpack_lab(self.native_pixels.load(index: down_i))),
-            ),
-        )
-        if s.antialias >= 0.5 && edge > 0.12 {
-            let camera: Camera = s.camera
-            let base: u32 = ref_state.active * 8195
-            let a: Color = unpack_lab(sample_pixel(
-                self.orbit,
-                base,
-                camera,
-                pixel.offset_sample(Vec2 { x: 0.28, y: -0.28 }),
-                schedule.limit,
-            ))
-            let b: Color = unpack_lab(sample_pixel(
-                self.orbit,
-                base,
-                camera,
-                pixel.offset_sample(Vec2 { x: -0.28, y: 0.28 }),
-                schedule.limit,
-            ))
-            let averaged: Color = ((center + a) + b) / 3.0
-            self.antialiased_pixels.store(
-                index: index,
-                value: pack_lab(averaged),
+        let batch: u32 = schedule.batch(c.cursor, c.steps)
+        let mut offset: u32 = 0
+        while offset < batch {
+            let pixel: CohortPixel = schedule.aa_pixel(
+                c.cursor + offset,
+                invocation.global.x,
+                invocation.global.y,
+                s.camera.res,
             )
+            if pixel.active {
+                let index: u32 = pixel.index()
+                let bits: u32 = self.native_pixels.load(index: index)
+                let center: Color = unpack_lab(bits)
+                let (left_i, right_i, up_i, down_i) = pixel.pixel.clamped_neighbor_indices(s.camera.res)
+                let edge: f32 = max(
+                    max(
+                        contrast(center, unpack_lab(self.native_pixels.load(index: left_i))),
+                        contrast(center, unpack_lab(self.native_pixels.load(index: right_i))),
+                    ),
+                    max(
+                        contrast(center, unpack_lab(self.native_pixels.load(index: up_i))),
+                        contrast(center, unpack_lab(self.native_pixels.load(index: down_i))),
+                    ),
+                )
+                if s.antialias >= 0.5 && edge > 0.12 {
+                    let camera: Camera = s.camera
+                    let base: u32 = ref_state.active * 8195
+                    let a: Color = unpack_lab(sample_pixel(
+                        self.orbit,
+                        base,
+                        camera,
+                        pixel.offset_sample(Vec2 { x: 0.28, y: -0.28 }),
+                        schedule.limit,
+                    ))
+                    let b: Color = unpack_lab(sample_pixel(
+                        self.orbit,
+                        base,
+                        camera,
+                        pixel.offset_sample(Vec2 { x: -0.28, y: 0.28 }),
+                        schedule.limit,
+                    ))
+                    let averaged: Color = ((center + a) + b) / 3.0
+                    self.antialiased_pixels.store(
+                        index: index,
+                        value: pack_lab(averaged),
+                    )
+                }
+            }
+            offset = offset + 1
         }
     }
-
+    // Advances the cursor by this frame's step count, then sets the next frame's count from
+    // how promptly this frame arrived. Pacing follows the display: frames that arrive on
+    // time earn more steps per frame, late frames fewer.
     fn finish_refinement(self)
         uses (ComputeSurface<Workgroup<1, 1, 1>, FixedDispatch<1, 1, 1>>)
     {
         let s: MandelbrotViewState = self.state
         let ref_state: ReferenceControl = self.reference.load(index: 0)
-        if !ref_state.can_refine(s) {
-            return
-        }
         let c: ViewCache = self.cache.load(index: 0)
-        let end: u32 = RefinementSchedule::for_view(s.camera.zoom, s.camera.res).total_steps()
-        if c.cursor >= end {
-            return
+        let paced: ViewCache = c.with_pace(c.pace().observe_frame(s.clock))
+        let schedule: RefinementSchedule = RefinementSchedule::for_view(s.camera.zoom, s.camera.res)
+        let end: u32 = schedule.total_steps()
+        if ref_state.can_refine(s) && c.cursor < end {
+            self.cache.store(index: 0, value: paced.advance_cursor(schedule.batch(c.cursor, c.steps), end))
+        } else {
+            self.cache.store(index: 0, value: paced)
         }
-        self.cache.store(index: 0, value: c.advance_cursor(end))
     }
 
     fn cache_snapshot(self, invocation: ComputeInvocation)

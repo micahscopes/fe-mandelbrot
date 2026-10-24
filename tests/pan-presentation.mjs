@@ -28,14 +28,14 @@ try {
  async function snapshot(){return page.evaluate(async()=>{
   const s=document.querySelector('fe-surface'),g=s._gpu,d=g.device;
   const resources=['cache','reference','orbit'];
-  const b=d.createBuffer({size:456,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ}),e=d.createCommandEncoder();
-  e.copyBufferToBuffer(g.resourceBuffers.get('cache'),0,b,0,240);
-  e.copyBufferToBuffer(g.resourceBuffers.get('reference'),0,b,240,28);
-  for(let bank=0;bank<2;bank++)e.copyBufferToBuffer(g.resourceBuffers.get('orbit'),(bank*8195+8194)*32,b,272+bank*32,32);
+  const b=d.createBuffer({size:480,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ}),e=d.createCommandEncoder();
+  e.copyBufferToBuffer(g.resourceBuffers.get('cache'),0,b,0,264);
+  e.copyBufferToBuffer(g.resourceBuffers.get('reference'),0,b,264,28);
+  for(let bank=0;bank<2;bank++)e.copyBufferToBuffer(g.resourceBuffers.get('orbit'),(bank*8195+8194)*32,b,296+bank*32,32);
   const points=[[0,0],[128,256],[256,256],[384,256],[511,511]];
-  points.forEach(([x,y],i)=>e.copyBufferToBuffer(g.resourceBuffers.get('snapshot_oracle'),(y*2048+x)*12,b,336+i*12,12));
-  e.copyBufferToBuffer(g.resourceBuffers.get('camera_trace'),0,b,400,56);d.queue.submit([e.finish()]);await b.mapAsync(GPUMapMode.READ);const mapped=b.getMappedRange(),words=Array.from(new Uint32Array(mapped)),floats=Array.from(new Float32Array(mapped));b.unmap();b.destroy();
-  return {url:location.href,params:s._paramsSnapshot(),camera:s._uniforms.slice(0,12),cacheCamera:floats.slice(0,12),initialCamera:floats.slice(40,52),trace:words.slice(100,114),epoch:words[18],completed:words[19],snapshotEpoch:words[38],initialCompleted:words[59],reference:words.slice(60,67),meta:[floats.slice(68,76),floats.slice(76,84)],points,oracle:points.map((_,i)=>words.slice(84+i*3,87+i*3))};
+  points.forEach(([x,y],i)=>e.copyBufferToBuffer(g.resourceBuffers.get('snapshot_oracle'),(y*2048+x)*12,b,360+i*12,12));
+  e.copyBufferToBuffer(g.resourceBuffers.get('camera_trace'),0,b,424,56);d.queue.submit([e.finish()]);await b.mapAsync(GPUMapMode.READ);const mapped=b.getMappedRange(),words=Array.from(new Uint32Array(mapped)),floats=Array.from(new Float32Array(mapped));b.unmap();b.destroy();
+  return {url:location.href,params:s._paramsSnapshot(),camera:s._uniforms.slice(0,12),cacheCamera:floats.slice(0,12),initialCamera:floats.slice(44,56),trace:words.slice(106,120),epoch:words[18],completed:words[19],snapshotEpoch:words[40],initialCompleted:words[63],reference:words.slice(66,73),meta:[floats.slice(74,82),floats.slice(82,90)],points,oracle:points.map((_,i)=>words.slice(90+i*3,93+i*3))};
  });}
  async function frame(){
  await page.evaluate(()=>{window.__capture=null;window.__captureNext=true;});await page.waitForFunction(()=>window.__capture);
