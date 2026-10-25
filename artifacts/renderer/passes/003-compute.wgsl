@@ -1723,6 +1723,9 @@ fn sync_for_frame(a0_59: FeLocal_fe_ViewCache_da6e2ccc_24_, a1_39: ptr<function,
     var local_191: FeLocal_fe_ViewCache_da6e2ccc_24_;
     var local_192: bool = false;
     var local_193: u32 = u32();
+    var local_194: FeLocal_fe_ViewCache_da6e2ccc_24_;
+    var local_195: bool = false;
+    var local_196: u32 = u32();
 
     let _e9 = display_age(a2_13, a1_39);
     let _e10 = blur_radius(_e9);
@@ -1787,8 +1790,14 @@ fn sync_for_frame(a0_59: FeLocal_fe_ViewCache_da6e2ccc_24_, a1_39: ptr<function,
     if _e13 {
         local_193 = a0_59.completed;
     }
-    let _e95 = local_193;
-    return FeLocal_fe_ViewCache_da6e2ccc_24_(_e69, _e75, _e77, a3_5.budget, _e10, _e52, _e67, _e91, _e95, a0_59.steps, a0_59.frame_clock);
+    let _e97 = local_193;
+    if _e13 {
+        local_196 = a0_59.steps;
+    } else {
+        local_196 = 1u;
+    }
+    let _e103 = local_196;
+    return FeLocal_fe_ViewCache_da6e2ccc_24_(_e69, _e75, _e77, a3_5.budget, _e10, _e52, _e67, _e91, _e97, _e103, a0_59.frame_clock);
 }
 
 fn from_state(a0_60: ptr<function, FeLocal_fe_MandelbrotViewState_c524184f_22_>, a1_40: u32, a2_14: u32) -> FeLocal_fe_ReferenceAnchor_f9cfd0aa_10_ {
@@ -1798,19 +1807,19 @@ fn from_state(a0_60: ptr<function, FeLocal_fe_MandelbrotViewState_c524184f_22_>,
 }
 
 fn clear_reference_checkpoint() {
-    var local_194: u32 = u32();
+    var local_197: u32 = u32();
     var loop_result_12: u32;
     var loop_did_return_12: bool = false;
     var loop_header_carry_4_1: bool;
 
-    local_194 = 0u;
+    local_197 = 0u;
     loop {
-        let _e6 = local_194;
+        let _e6 = local_197;
         let _e8 = (_e6 < 16u);
         loop_header_carry_4_1 = _e8;
         if _e8 {
             reference_words[i32(_e6)] = 0u;
-            local_194 = (_e6 + 1u);
+            local_197 = (_e6 + 1u);
             continue;
         } else {
             loop_did_return_12 = true;
@@ -1846,20 +1855,20 @@ fn default_gfdd1_(fe_trapped_36: ptr<function, bool>) -> FeLocal_fe_Complex_Refe
 }
 
 fn clear_digits_gc7cf(a0_61: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, fe_trapped_37: ptr<function, bool>) {
-    var local_195: u32 = u32();
+    var local_198: u32 = u32();
     var loop_result_13: u32;
     var loop_did_return_13: bool = false;
     var loop_header_carry_5_3: bool;
 
     let _e2 = precision_lib_array_fixed_impl_ArrayFixed_c11e_width_gc7cf_3185_(fe_trapped_37);
-    local_195 = 0u;
+    local_198 = 0u;
     loop {
-        let _e8 = local_195;
+        let _e8 = local_198;
         let _e9 = (_e8 < _e2);
         loop_header_carry_5_3 = _e9;
         if _e9 {
             (*a0_61).digits[_e8] = 0u;
-            local_195 = (_e8 + 1u);
+            local_198 = (_e8 + 1u);
             continue;
         } else {
             loop_did_return_13 = true;
@@ -1870,8 +1879,8 @@ fn clear_digits_gc7cf(a0_61: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>,
 }
 
 fn precision_lib_array_fixed_impl_trait_ArrayFixed_c12a_fractional_bits_gc7cf_6cd8_(a0_62: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, fe_trapped_38: ptr<function, bool>) -> u32 {
-    var local_196: u32;
-    var local_197: bool = false;
+    var local_199: u32;
+    var local_200: bool = false;
 
     let _e2 = precision_lib_array_fixed_impl_ArrayFixed_c11e_width_gc7cf_3185_(fe_trapped_38);
     let _e4 = (_e2 - 1u);
@@ -1883,55 +1892,55 @@ fn precision_lib_array_fixed_impl_trait_ArrayFixed_c12a_fractional_bits_gc7cf_6c
     if (_e21 && (select(13u, (0u - 13u), _e13) > (select((2147483648u - 1u), 2147483648u, (_e12 != _e13)) / select(1u, _e17, _e21)))) {
         (*fe_trapped_38) = true;
     } else {
-        local_196 = (_e4 * 13u);
-        local_197 = true;
+        local_199 = (_e4 * 13u);
+        local_200 = true;
     }
-    let _e31 = local_196;
+    let _e31 = local_199;
     return _e31;
 }
 
 fn load_significand_gc7cf(a0_63: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, a1_41: u32, a2_15: u32, fe_trapped_39: ptr<function, bool>) {
-    var local_198: u32 = u32();
-    var local_199: u32 = u32();
+    var local_201: u32 = u32();
+    var local_202: u32 = u32();
     var loop_result_14: u32;
     var loop_did_return_14: bool = false;
     var loop_header_carry_8_2: bool;
-    var local_200: u32 = u32();
+    var local_203: u32 = u32();
 
     let _e4 = precision_lib_array_fixed_impl_ArrayFixed_c11e_width_gc7cf_3185_(fe_trapped_39);
-    local_198 = a2_15;
-    local_199 = 0u;
+    local_201 = a2_15;
+    local_202 = 0u;
     loop {
-        let _e12 = local_198;
-        let _e14 = local_199;
+        let _e12 = local_201;
+        let _e14 = local_202;
         let _e15 = (_e14 < _e4);
         loop_header_carry_8_2 = _e15;
         if _e15 {
             if ((bitcast<i32>(_e12) < bitcast<i32>(24u)) == false) {
-                local_200 = 0u;
+                local_203 = 0u;
             } else {
                 if ((bitcast<i32>(4294967283u) < bitcast<i32>(_e12)) == false) {
-                    local_200 = 0u;
+                    local_203 = 0u;
                 } else {
                     if ((bitcast<i32>(_e12) < bitcast<i32>(0u)) == false) {
                         precision_lib_array_fixed_unsigned_word_3f05_(_e12, fe_trapped_39);
-                        local_200 = ((a1_41 >> _e12) & 8191u);
+                        local_203 = ((a1_41 >> _e12) & 8191u);
                     } else {
                         let _e39 = (0u - _e12);
                         precision_lib_array_fixed_unsigned_word_3f05_(_e39, fe_trapped_39);
-                        local_200 = ((a1_41 << _e39) & 8191u);
+                        local_203 = ((a1_41 << _e39) & 8191u);
                     }
                 }
             }
-            let _e50 = local_200;
+            let _e50 = local_203;
             (*a0_63).digits[_e14] = _e50;
             let _e56 = (_e12 + 13u);
             if ((((_e12 ^ _e56) & (13u ^ _e56)) & 2147483648u) != 0u) {
                 (*fe_trapped_39) = true;
                 break;
             }
-            local_198 = _e56;
-            local_199 = (_e14 + 1u);
+            local_201 = _e56;
+            local_202 = (_e14 + 1u);
             continue;
         } else {
             loop_did_return_14 = true;
@@ -1942,25 +1951,25 @@ fn load_significand_gc7cf(a0_63: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_
 }
 
 fn assign_binary32_bits_gc7cf(a0_64: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, a1_42: u32, fe_trapped_40: ptr<function, bool>) {
-    var local_201: u32;
-    var local_202: bool = false;
-    var local_203: bool = bool();
     var local_204: u32;
     var local_205: bool = false;
+    var local_206: bool = bool();
+    var local_207: u32;
+    var local_208: bool = false;
 
     let _e6 = (a1_42 & 2147483647u);
     std_lib_evm_effects_assert_724a((_e6 < 1174405120u), fe_trapped_40);
     if (((a1_42 >> 31u) == 0u) == false) {
         if ((_e6 == 0u) == false) {
-            local_203 = true;
+            local_206 = true;
         }
     }
-    let _e23 = local_203;
+    let _e23 = local_206;
     (*a0_64).negative = _e23;
     let _e26 = (_e6 >> 23u);
     if (_e26 == 0u) {
         clear_digits_gc7cf(a0_64, fe_trapped_40);
-        local_205 = true;
+        local_208 = true;
     } else {
         precision_lib_array_fixed_signed_word_0309_(_e26, fe_trapped_40);
         let _e38 = (_e26 - 150u);
@@ -1975,13 +1984,13 @@ fn assign_binary32_bits_gc7cf(a0_64: ptr<function, FeLocal_fe_ArrayFixed_8_78307
                     (*fe_trapped_40) = true;
                 }
                 load_significand_gc7cf(a0_64, ((_e6 & 8388607u) | 8388608u), _e56, fe_trapped_40);
-                local_205 = true;
+                local_208 = true;
             }
-            let _e66 = local_205;
+            let _e66 = local_208;
             if _e66 {
             }
         }
-        let _e69 = local_205;
+        let _e69 = local_208;
         if _e69 {
         } else {
             (*fe_trapped_40) = true;
@@ -1991,18 +2000,18 @@ fn assign_binary32_bits_gc7cf(a0_64: ptr<function, FeLocal_fe_ArrayFixed_8_78307
 }
 
 fn add_magnitudes_gc7cf(a0_65: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, a1_43: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, a2_16: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, fe_trapped_41: ptr<function, bool>) {
-    var local_206: u32 = u32();
-    var local_207: u32 = u32();
+    var local_209: u32 = u32();
+    var local_210: u32 = u32();
     var loop_result_15: u32;
     var loop_did_return_15: bool = false;
     var loop_header_carry_7_1: bool;
 
     let _e4 = precision_lib_array_fixed_impl_ArrayFixed_c11e_width_gc7cf_3185_(fe_trapped_41);
-    local_206 = 0u;
-    local_207 = 0u;
+    local_209 = 0u;
+    local_210 = 0u;
     loop {
-        let _e13 = local_206;
-        let _e15 = local_207;
+        let _e13 = local_209;
+        let _e15 = local_210;
         let _e16 = (_e15 < _e4);
         loop_header_carry_7_1 = _e16;
         if _e16 {
@@ -2017,8 +2026,8 @@ fn add_magnitudes_gc7cf(a0_65: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_
                     break;
                 }
                 (*a0_65).digits[_e15] = (_e28 & 8191u);
-                local_206 = (_e28 >> 13u);
-                local_207 = (_e15 + 1u);
+                local_209 = (_e28 >> 13u);
+                local_210 = (_e15 + 1u);
                 continue;
             }
             (*fe_trapped_41) = true;
@@ -2032,15 +2041,15 @@ fn add_magnitudes_gc7cf(a0_65: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_
 }
 
 fn magnitude_less_gc7cf(a0_66: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, a1_44: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, fe_trapped_42: ptr<function, bool>) -> bool {
-    var local_208: u32 = u32();
+    var local_211: u32 = u32();
     var loop_result_16: bool;
     var loop_did_return_16: bool = false;
     var loop_header_carry_5_4: bool;
 
     let _e3 = precision_lib_array_fixed_impl_ArrayFixed_c11e_width_gc7cf_3185_(fe_trapped_42);
-    local_208 = _e3;
+    local_211 = _e3;
     loop {
-        let _e8 = local_208;
+        let _e8 = local_211;
         let _e10 = (0u < _e8);
         loop_header_carry_5_4 = _e10;
         if _e10 {
@@ -2049,7 +2058,7 @@ fn magnitude_less_gc7cf(a0_66: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_
             let _e18 = (*a1_44).digits[_e12];
             if ((_e15 == _e18) == false) {
             } else {
-                local_208 = _e12;
+                local_211 = _e12;
                 continue;
             }
             let _e25 = (*a0_66).digits[_e12];
@@ -2068,39 +2077,39 @@ fn magnitude_less_gc7cf(a0_66: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_
 }
 
 fn subtract_magnitudes_gc7cf(a0_67: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, a1_45: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, a2_17: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, a3_6: bool, fe_trapped_43: ptr<function, bool>) {
-    var local_209: u32 = u32();
-    var local_210: u32 = u32();
+    var local_212: u32 = u32();
+    var local_213: u32 = u32();
     var loop_result_17: u32;
     var loop_did_return_17: bool = false;
     var loop_header_carry_8_3: bool;
-    var local_211: u32 = u32();
-    var local_212: u32 = u32();
+    var local_214: u32 = u32();
+    var local_215: u32 = u32();
 
     let _e5 = precision_lib_array_fixed_impl_ArrayFixed_c11e_width_gc7cf_3185_(fe_trapped_43);
-    local_209 = 0u;
-    local_210 = 0u;
+    local_212 = 0u;
+    local_213 = 0u;
     loop {
-        let _e14 = local_209;
-        let _e16 = local_210;
+        let _e14 = local_212;
+        let _e16 = local_213;
         let _e17 = (_e16 < _e5);
         loop_header_carry_8_3 = _e17;
         if _e17 {
             if a3_6 {
                 let _e21 = (*a2_17).digits[_e16];
-                local_211 = _e21;
+                local_214 = _e21;
             } else {
                 let _e24 = (*a1_45).digits[_e16];
-                local_211 = _e24;
+                local_214 = _e24;
             }
-            let _e29 = local_211;
+            let _e29 = local_214;
             if a3_6 {
                 let _e32 = (*a1_45).digits[_e16];
-                local_212 = _e32;
+                local_215 = _e32;
             } else {
                 let _e35 = (*a2_17).digits[_e16];
-                local_212 = _e35;
+                local_215 = _e35;
             }
-            let _e39 = local_212;
+            let _e39 = local_215;
             let _e42 = (8192u + _e29);
             if (8192u > (4294967295u - _e29)) {
             } else {
@@ -2116,8 +2125,8 @@ fn subtract_magnitudes_gc7cf(a0_67: ptr<function, FeLocal_fe_ArrayFixed_8_78307d
                             (*fe_trapped_43) = true;
                             break;
                         }
-                        local_209 = (1u - _e54);
-                        local_210 = (_e16 + 1u);
+                        local_212 = (1u - _e54);
+                        local_213 = (_e16 + 1u);
                         continue;
                     }
                 }
@@ -2133,9 +2142,9 @@ fn subtract_magnitudes_gc7cf(a0_67: ptr<function, FeLocal_fe_ArrayFixed_8_78307d
 }
 
 fn assign_sum_gc7cf(a0_68: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, a1_46: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, a2_18: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, fe_trapped_44: ptr<function, bool>) {
-    var local_213: u32;
-    var local_214: bool = false;
-    var local_215: bool = bool();
+    var local_216: u32;
+    var local_217: bool = false;
+    var local_218: bool = bool();
 
     let _e6 = (*a1_46).negative;
     (*a0_68).negative = _e6;
@@ -2147,12 +2156,12 @@ fn assign_sum_gc7cf(a0_68: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, a
         let _e14 = magnitude_less_gc7cf(a1_46, a2_18, fe_trapped_44);
         if _e14 {
             let _e16 = (*a2_18).negative;
-            local_215 = _e16;
+            local_218 = _e16;
         } else {
             let _e18 = (*a1_46).negative;
-            local_215 = _e18;
+            local_218 = _e18;
         }
-        let _e22 = local_215;
+        let _e22 = local_218;
         (*a0_68).negative = _e22;
         subtract_magnitudes_gc7cf(a0_68, a1_46, a2_18, _e14, fe_trapped_44);
     }
@@ -2197,21 +2206,21 @@ fn assign_reference_center(a0_71: ptr<function, FeLocal_fe_Complex_ReferenceReal
 }
 
 fn assert_canonical(a0_72: ptr<function, array<u32, 8>>, fe_trapped_48: ptr<function, bool>) {
-    var local_216: u32 = u32();
+    var local_219: u32 = u32();
     var loop_result_18: u32;
     var loop_did_return_18: bool = false;
     var loop_header_carry_5_5: bool;
 
     let _e2 = precision_lib_array_fixed_impl_ArrayFixed_c11e_width_gc7cf_3185_(fe_trapped_48);
-    local_216 = 0u;
+    local_219 = 0u;
     loop {
-        let _e8 = local_216;
+        let _e8 = local_219;
         let _e9 = (_e8 < _e2);
         loop_header_carry_5_5 = _e9;
         if _e9 {
             let _e11 = (*a0_72)[_e8];
             std_lib_evm_effects_assert_724a((_e11 < 8192u), fe_trapped_48);
-            local_216 = (_e8 + 1u);
+            local_219 = (_e8 + 1u);
             continue;
         } else {
             loop_did_return_18 = true;
@@ -2262,42 +2271,42 @@ fn load_reference_checkpoint_into(a0_75: ptr<function, FeLocal_fe_Complex_Refere
 }
 
 fn multiply_magnitudes(a0_76: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, a1_52: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, a2_22: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, fe_trapped_52: ptr<function, bool>) {
-    var local_217: u32 = u32();
-    var local_218: u32 = u32();
+    var local_220: u32 = u32();
+    var local_221: u32 = u32();
     var loop_result_19: u32;
     var loop_did_return_19: bool = false;
     var loop_header_carry_7_2: bool;
-    var local_219: u32 = u32();
-    var local_220: u32 = u32();
+    var local_222: u32 = u32();
+    var local_223: u32 = u32();
     var loop_result_20: u32;
     var loop_did_return_20: bool = false;
     var loop_header_carry_10_: bool;
-    var local_221: u32 = u32();
-    var local_222: u32 = u32();
+    var local_224: u32 = u32();
+    var local_225: u32 = u32();
     var loop_result_21: u32;
     var loop_did_return_21: bool = false;
     var loop_header_carry_174_: u32;
     var loop_header_carry_68_: bool;
-    var local_223: u32 = u32();
-    var local_224: u32 = u32();
+    var local_226: u32 = u32();
+    var local_227: u32 = u32();
     var loop_result_22: u32;
     var loop_did_return_22: bool = false;
     var loop_header_carry_93_: bool;
 
     let _e4 = precision_lib_array_fixed_impl_ArrayFixed_c11e_width_gc7cf_3185_(fe_trapped_52);
-    local_217 = 0u;
-    local_218 = 0u;
+    local_220 = 0u;
+    local_221 = 0u;
     loop {
-        let _e13 = local_217;
-        let _e15 = local_218;
+        let _e13 = local_220;
+        let _e15 = local_221;
         let _e16 = (_e15 < _e4);
         loop_header_carry_7_2 = _e16;
         if _e16 {
-            local_219 = 0u;
-            local_220 = 0u;
+            local_222 = 0u;
+            local_223 = 0u;
             loop {
-                let _e25 = local_219;
-                let _e27 = local_220;
+                let _e25 = local_222;
+                let _e27 = local_223;
                 let _e28 = (_e27 < _e4);
                 loop_header_carry_10_ = _e28;
                 if _e28 {
@@ -2317,8 +2326,8 @@ fn multiply_magnitudes(a0_76: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>
                                 break;
                             }
                             (*a0_76).digits[_e27] = (_e52 & 8191u);
-                            local_219 = (_e52 >> 13u);
-                            local_220 = (_e27 + 1u);
+                            local_222 = (_e52 >> 13u);
+                            local_223 = (_e27 + 1u);
                             continue;
                         }
                     }
@@ -2328,12 +2337,12 @@ fn multiply_magnitudes(a0_76: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>
                     break;
                 }
             }
-            let _e69 = local_219;
+            let _e69 = local_222;
             if (_e15 < (_e4 - 1u)) {
                 let _e76 = (*a0_76).digits[0];
-                local_222 = 0u;
+                local_225 = 0u;
                 loop {
-                    let _e82 = local_222;
+                    let _e82 = local_225;
                     let _e84 = (_e4 - 1u);
                     let _e85 = (_e82 < _e84);
                     loop_header_carry_174_ = _e84;
@@ -2341,20 +2350,20 @@ fn multiply_magnitudes(a0_76: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>
                     if _e85 {
                         let _e90 = (*a0_76).digits[(_e82 + 1u)];
                         (*a0_76).digits[_e82] = _e90;
-                        local_222 = (_e82 + 1u);
+                        local_225 = (_e82 + 1u);
                         continue;
                     } else {
                         break;
                     }
                 }
                 (*a0_76).digits[(_e4 - 1u)] = _e69;
-                local_221 = _e76;
+                local_224 = _e76;
             } else {
-                local_223 = (_e13 >> 12u);
-                local_224 = 0u;
+                local_226 = (_e13 >> 12u);
+                local_227 = 0u;
                 loop {
-                    let _e111 = local_223;
-                    let _e113 = local_224;
+                    let _e111 = local_226;
+                    let _e113 = local_227;
                     let _e114 = (_e113 < _e4);
                     loop_header_carry_93_ = _e114;
                     if _e114 {
@@ -2365,20 +2374,20 @@ fn multiply_magnitudes(a0_76: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>
                             break;
                         }
                         (*a0_76).digits[_e113] = (_e119 & 8191u);
-                        local_223 = (_e119 >> 13u);
-                        local_224 = (_e113 + 1u);
+                        local_226 = (_e119 >> 13u);
+                        local_227 = (_e113 + 1u);
                         continue;
                     } else {
-                        local_221 = _e13;
+                        local_224 = _e13;
                         break;
                     }
                 }
             }
-            let _e137 = local_221;
+            let _e137 = local_224;
             if (_e15 > (4294967295u - 1u)) {
             } else {
-                local_217 = _e137;
-                local_218 = (_e15 + 1u);
+                local_220 = _e137;
+                local_221 = (_e15 + 1u);
                 continue;
             }
             (*fe_trapped_52) = true;
@@ -2425,11 +2434,11 @@ fn impl_ReferenceReal_assign_sum(a0_79: ptr<function, FeLocal_fe_ReferenceReal_a
 }
 
 fn magnitude_exceeds_four(a0_80: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, fe_trapped_56: ptr<function, bool>) -> bool {
-    var local_225: bool;
-    var local_226: bool = false;
-    var local_227: bool;
-    var local_228: bool = false;
-    var local_229: u32 = u32();
+    var local_228: bool;
+    var local_229: bool = false;
+    var local_230: bool;
+    var local_231: bool = false;
+    var local_232: u32 = u32();
     var loop_result_23: bool;
     var loop_did_return_23: bool = false;
     var loop_header_carry_18_: u32;
@@ -2439,24 +2448,24 @@ fn magnitude_exceeds_four(a0_80: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_
     let _e3 = precision_lib_array_fixed_impl_ArrayFixed_c11e_width_gc7cf_3185_(fe_trapped_56);
     let _e8 = (*a0_80).digits[(_e3 - 1u)];
     if (4u < _e8) {
-        local_225 = true;
-        local_226 = true;
+        local_228 = true;
+        local_229 = true;
     }
-    let _e64 = local_226;
+    let _e64 = local_229;
     if _e64 {
     } else {
         if (_e8 < 4u) {
-            local_227 = false;
-            local_228 = true;
+            local_230 = false;
+            local_231 = true;
         } else {
-            local_229 = 0u;
+            local_232 = 0u;
         }
-        let _e59 = local_228;
+        let _e59 = local_231;
         if _e59 {
         } else {
-            local_229 = 0u;
+            local_232 = 0u;
             loop {
-                let _e29 = local_229;
+                let _e29 = local_232;
                 let _e31 = (_e3 - 1u);
                 let _e33 = (_e29 < _e31);
                 loop_header_carry_18_ = _e31;
@@ -2469,7 +2478,7 @@ fn magnitude_exceeds_four(a0_80: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_
                         loop_did_return_23 = true;
                         break;
                     }
-                    local_229 = (_e29 + 1u);
+                    local_232 = (_e29 + 1u);
                     continue;
                 } else {
                     loop_result_23 = false;
@@ -2478,12 +2487,12 @@ fn magnitude_exceeds_four(a0_80: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_
                 }
             }
             let _e56 = loop_result_23;
-            local_227 = _e56;
+            local_230 = _e56;
         }
-        let _e61 = local_227;
-        local_225 = _e61;
+        let _e61 = local_230;
+        local_228 = _e61;
     }
-    let _e66 = local_225;
+    let _e66 = local_228;
     return _e66;
 }
 
@@ -2497,21 +2506,21 @@ fn escaped(a0_81: ptr<function, FeLocal_fe_ReferenceReal_aede3f8e_3_>, fe_trappe
 }
 
 fn copy_digits_gc7cf(a0_82: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, a1_56: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, fe_trapped_58: ptr<function, bool>) {
-    var local_230: u32 = u32();
+    var local_233: u32 = u32();
     var loop_result_24: u32;
     var loop_did_return_24: bool = false;
     var loop_header_carry_6_1: bool;
 
     let _e3 = precision_lib_array_fixed_impl_ArrayFixed_c11e_width_gc7cf_3185_(fe_trapped_58);
-    local_230 = 0u;
+    local_233 = 0u;
     loop {
-        let _e9 = local_230;
+        let _e9 = local_233;
         let _e10 = (_e9 < _e3);
         loop_header_carry_6_1 = _e10;
         if _e10 {
             let _e13 = (*a1_56).digits[_e9];
             (*a0_82).digits[_e9] = _e13;
-            local_230 = (_e9 + 1u);
+            local_233 = (_e9 + 1u);
             continue;
         } else {
             loop_did_return_24 = true;
@@ -2560,9 +2569,9 @@ fn impl_ReferenceReal_assign_copy(a0_86: ptr<function, FeLocal_fe_ReferenceReal_
 }
 
 fn reference_step_in_place(a0_87: ptr<function, FeLocal_fe_Complex_ReferenceReal_205eeb8f_4_>, a1_61: ptr<function, FeLocal_fe_Complex_ReferenceReal_205eeb8f_4_>, fe_trapped_63: ptr<function, bool>) -> bool {
-    var local_231: bool;
-    var local_232: bool = false;
-    var local_233: bool = bool();
+    var local_234: bool;
+    var local_235: bool = false;
+    var local_236: bool = bool();
     var fixed_local_3_: FeLocal_fe_ReferenceReal_aede3f8e_3_ = FeLocal_fe_ReferenceReal_aede3f8e_3_();
     var fixed_local_10_2: FeLocal_fe_ReferenceReal_aede3f8e_3_ = FeLocal_fe_ReferenceReal_aede3f8e_3_();
     var fixed_local_11_: FeLocal_fe_ReferenceReal_aede3f8e_3_ = FeLocal_fe_ReferenceReal_aede3f8e_3_();
@@ -2599,7 +2608,7 @@ fn reference_step_in_place(a0_87: ptr<function, FeLocal_fe_Complex_ReferenceReal
     impl_ReferenceReal_assign_sum((&fixed_local_22_), (&fixed_local_3_), (&fixed_local_13_2), fe_trapped_63);
     let _e30 = escaped((&fixed_local_22_), fe_trapped_63);
     if _e30 {
-        local_233 = true;
+        local_236 = true;
     } else {
         let _e31 = perturbational_mandelbrot_smooth_lib_orbit_impl_ReferenceReal_fdd1_zero_6a98_(fe_trapped_63);
         fixed_local_26_ = _e31;
@@ -2627,20 +2636,20 @@ fn reference_step_in_place(a0_87: ptr<function, FeLocal_fe_Complex_ReferenceReal
         impl_ReferenceReal_assign_copy((&(*a0_87).re), (&fixed_local_39_), fe_trapped_63);
         impl_ReferenceReal_assign_copy((&(*a0_87).im), (&fixed_local_47_1), fe_trapped_63);
     }
-    let _e67 = local_233;
+    let _e67 = local_236;
     return _e67;
 }
 
 fn sign_gc7cf(a0_88: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>) -> u32 {
-    var local_234: u32;
-    var local_235: bool = false;
-    var local_236: u32 = u32();
+    var local_237: u32;
+    var local_238: bool = false;
+    var local_239: u32 = u32();
 
     let _e4 = (*a0_88).negative;
     if _e4 {
-        local_236 = 1u;
+        local_239 = 1u;
     }
-    let _e8 = local_236;
+    let _e8 = local_239;
     return _e8;
 }
 
@@ -2658,8 +2667,8 @@ fn publish(a0_90: u32, a1_62: u32, a2_27: u32, a3_9: u32, a4_6: f32) -> FeLocal_
 }
 
 fn digit_gc7cf(a0_91: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, a1_63: u32, fe_trapped_64: ptr<function, bool>) -> u32 {
-    var local_237: u32;
-    var local_238: bool = false;
+    var local_240: u32;
+    var local_241: bool = false;
 
     if (a1_63 < 8u) {
     } else {
@@ -2679,16 +2688,16 @@ fn impl_ReferenceReal_digit(a0_92: ptr<function, FeLocal_fe_ReferenceReal_aede3f
 }
 
 fn store_reference_checkpoint(a1_65: ptr<function, FeLocal_fe_Complex_ReferenceReal_205eeb8f_4_>, fe_trapped_66: ptr<function, bool>) {
-    var local_239: u32 = u32();
+    var local_242: u32 = u32();
     var loop_result_25: u32;
     var loop_did_return_25: bool = false;
     var loop_header_carry_5_6: bool;
     var fixed_local_10_3: FeLocal_fe_ReferenceReal_aede3f8e_3_ = FeLocal_fe_ReferenceReal_aede3f8e_3_();
     var fixed_local_20_1: FeLocal_fe_ReferenceReal_aede3f8e_3_ = FeLocal_fe_ReferenceReal_aede3f8e_3_();
 
-    local_239 = 0u;
+    local_242 = 0u;
     loop {
-        let _e8 = local_239;
+        let _e8 = local_242;
         let _e10 = (_e8 < 8u);
         loop_header_carry_5_6 = _e10;
         if _e10 {
@@ -2700,7 +2709,7 @@ fn store_reference_checkpoint(a1_65: ptr<function, FeLocal_fe_Complex_ReferenceR
             fixed_local_20_1 = _e21;
             let _e24 = impl_ReferenceReal_digit((&fixed_local_20_1), _e8, fe_trapped_66);
             reference_words[i32((_e8 + 8u))] = _e24;
-            local_239 = (_e8 + 1u);
+            local_242 = (_e8 + 1u);
             continue;
         } else {
             loop_did_return_25 = true;
@@ -2723,8 +2732,8 @@ fn advance_pending(a0_93: FeLocal_fe_ReferenceControl_7d077120_2_, a1_66: u32, a
 }
 
 fn invalidate_for_new_reference(a0_94: FeLocal_fe_ViewCache_da6e2ccc_24_, fe_trapped_67: ptr<function, bool>) -> FeLocal_fe_ViewCache_da6e2ccc_24_ {
-    var local_240: FeLocal_fe_ViewCache_da6e2ccc_24_;
-    var local_241: bool = false;
+    var local_243: FeLocal_fe_ViewCache_da6e2ccc_24_;
+    var local_244: bool = false;
     var fixed_local_2_: FeLocal_fe_ViewCache_da6e2ccc_24_ = FeLocal_fe_ViewCache_da6e2ccc_24_();
 
     fixed_local_2_ = a0_94;
@@ -2753,29 +2762,29 @@ fn default_ge58b() -> FeLocal_fe_Complex_f32_87ec9249_13_ {
 }
 
 fn for_view(a0_96: ptr<function, FeLocal_fe_MandelbrotViewState_c524184f_22_>, a1_68: FeLocal_fe_ViewCache_da6e2ccc_24_, a2_29: FeLocal_fe_ViewCache_da6e2ccc_24_, fe_trapped_69: ptr<function, bool>) -> FeLocal_fe_HistoryOffsets_646326b2_27_ {
-    var local_242: FeLocal_fe_HistoryOffsets_646326b2_27_;
-    var local_243: bool = false;
-    var local_244: FeLocal_fe_Complex_f32_87ec9249_13_ = FeLocal_fe_Complex_f32_87ec9249_13_();
     var local_245: FeLocal_fe_HistoryOffsets_646326b2_27_;
     var local_246: bool = false;
     var local_247: FeLocal_fe_Complex_f32_87ec9249_13_ = FeLocal_fe_Complex_f32_87ec9249_13_();
+    var local_248: FeLocal_fe_HistoryOffsets_646326b2_27_;
+    var local_249: bool = false;
+    var local_250: FeLocal_fe_Complex_f32_87ec9249_13_ = FeLocal_fe_Complex_f32_87ec9249_13_();
 
     if (a1_68.completed == 1u) {
         let _e9 = impl_ViewCache_delta_from(a1_68, a0_96, fe_trapped_69);
-        local_244 = _e9;
+        local_247 = _e9;
     } else {
         let _e10 = default_ge58b();
-        local_244 = _e10;
+        local_247 = _e10;
     }
-    let _e16 = local_244;
+    let _e16 = local_247;
     if (a2_29.completed == 1u) {
         let _e20 = impl_ViewCache_delta_from(a2_29, a0_96, fe_trapped_69);
-        local_247 = _e20;
+        local_250 = _e20;
     } else {
         let _e21 = default_ge58b();
-        local_247 = _e21;
+        local_250 = _e21;
     }
-    let _e25 = local_247;
+    let _e25 = local_250;
     return FeLocal_fe_HistoryOffsets_646326b2_27_(_e16, _e25);
 }
 
@@ -2800,29 +2809,29 @@ fn with_center_offset(a0_99: FeLocal_fe_PackedReference_e11ca04a_23_, a1_70: FeL
 }
 
 fn highest_bit_gc7cf(a0_100: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, fe_trapped_70: ptr<function, bool>) -> u32 {
-    var local_248: u32 = u32();
-    var local_249: u32 = u32();
+    var local_251: u32 = u32();
+    var local_252: u32 = u32();
     var loop_result_26: u32;
     var loop_did_return_26: bool = false;
     var loop_header_carry_4_2: bool;
-    var local_250: u32;
-    var local_251: bool = false;
-    var local_252: u32 = u32();
+    var local_253: u32;
+    var local_254: bool = false;
+    var local_255: u32 = u32();
 
     let _e2 = precision_lib_array_fixed_impl_ArrayFixed_c11e_width_gc7cf_3185_(fe_trapped_70);
-    local_248 = 0u;
-    local_249 = _e2;
+    local_251 = 0u;
+    local_252 = _e2;
     loop {
-        let _e10 = local_248;
-        let _e12 = local_249;
+        let _e10 = local_251;
+        let _e12 = local_252;
         let _e14 = (0u < _e12);
         loop_header_carry_4_2 = _e14;
         if _e14 {
             if (_e10 == 0u) {
                 let _e18 = (_e12 - 1u);
                 let _e21 = (*a0_100).digits[_e18];
-                local_248 = _e21;
-                local_249 = _e18;
+                local_251 = _e21;
+                local_252 = _e18;
                 continue;
             } else {
                 break;
@@ -2831,10 +2840,10 @@ fn highest_bit_gc7cf(a0_100: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>,
             break;
         }
     }
-    let _e26 = local_248;
-    let _e28 = local_249;
+    let _e26 = local_251;
+    let _e28 = local_252;
     if (_e26 == 0u) {
-        local_252 = 4294967295u;
+        local_255 = 4294967295u;
     } else {
         let _e33 = precision_lib_fixed_limb_highest_bit_5b70_(_e26);
         precision_lib_array_fixed_signed_word_0309_(_e28, fe_trapped_70);
@@ -2850,60 +2859,60 @@ fn highest_bit_gc7cf(a0_100: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>,
             if ((((_e38 ^ _e58) & (_e33 ^ _e58)) & 2147483648u) != 0u) {
                 (*fe_trapped_70) = true;
             } else {
-                local_252 = _e58;
+                local_255 = _e58;
             }
         }
     }
-    let _e69 = local_252;
+    let _e69 = local_255;
     return _e69;
 }
 
 fn word_from_gc7cf(a0_101: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, a1_71: u32, fe_trapped_71: ptr<function, bool>) -> u32 {
-    var local_253: u32;
-    var local_254: bool = false;
-    var local_255: u32;
-    var local_256: bool = false;
-    var local_257: u32 = u32();
-    var local_258: u32 = u32();
-    var local_259: u32 = u32();
+    var local_256: u32;
+    var local_257: bool = false;
+    var local_258: u32;
+    var local_259: bool = false;
+    var local_260: u32 = u32();
+    var local_261: u32 = u32();
+    var local_262: u32 = u32();
     var loop_result_27: u32;
     var loop_did_return_27: bool = false;
     var loop_header_carry_34_1: bool;
 
     if (bitcast<i32>(a1_71) < bitcast<i32>(0u)) {
-        local_253 = 0u;
-        local_254 = true;
+        local_256 = 0u;
+        local_257 = true;
     }
-    let _e77 = local_254;
+    let _e77 = local_257;
     if _e77 {
     } else {
         precision_lib_array_fixed_unsigned_word_3f05_(a1_71, fe_trapped_71);
         let _e13 = precision_lib_array_fixed_impl_ArrayFixed_c11e_width_gc7cf_3185_(fe_trapped_71);
         let _e15 = (a1_71 / 13u);
         if ((_e15 < _e13) == false) {
-            local_255 = 0u;
-            local_256 = true;
+            local_258 = 0u;
+            local_259 = true;
         }
-        let _e72 = local_256;
+        let _e72 = local_259;
         if _e72 {
         } else {
             let _e24 = (a1_71 % 13u);
             let _e27 = (*a0_101).digits[_e15];
-            local_257 = (13u - _e24);
-            local_258 = (_e27 >> _e24);
-            local_259 = (_e15 + 1u);
+            local_260 = (13u - _e24);
+            local_261 = (_e27 >> _e24);
+            local_262 = (_e15 + 1u);
             loop {
-                let _e41 = local_257;
-                let _e43 = local_258;
-                let _e45 = local_259;
+                let _e41 = local_260;
+                let _e43 = local_261;
+                let _e45 = local_262;
                 let _e46 = (_e45 < _e13);
                 loop_header_carry_34_1 = _e46;
                 if _e46 {
                     if (_e41 < 32u) {
                         let _e51 = (*a0_101).digits[_e45];
-                        local_257 = (_e41 + 13u);
-                        local_258 = (_e43 | (_e51 << _e41));
-                        local_259 = (_e45 + 1u);
+                        local_260 = (_e41 + 13u);
+                        local_261 = (_e43 | (_e51 << _e41));
+                        local_262 = (_e45 + 1u);
                         continue;
                     } else {
                         loop_result_27 = _e43;
@@ -2917,48 +2926,48 @@ fn word_from_gc7cf(a0_101: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, a
                 }
             }
             let _e69 = loop_result_27;
-            local_255 = _e69;
+            local_258 = _e69;
         }
-        let _e74 = local_255;
-        local_253 = _e74;
+        let _e74 = local_258;
+        local_256 = _e74;
     }
-    let _e79 = local_253;
+    let _e79 = local_256;
     return _e79;
 }
 
 fn project_binary32_quad(a0_102: u32, a1_72: ptr<function, FeLocal_fe_ArrayFixed_8_78307dfe_1_>, fe_trapped_72: ptr<function, bool>) -> FeLocal_fe_u32_u32_u32_u32_d07e8e72_29_ {
-    var local_260: u32 = u32();
-    var local_261: u32 = u32();
-    var local_262: u32 = u32();
     var local_263: u32 = u32();
     var local_264: u32 = u32();
     var local_265: u32 = u32();
-    var loop_result_28: FeLocal_fe_u32_u32_u32_u32_d07e8e72_29_;
-    var loop_did_return_28: bool = false;
-    var loop_header_carry_8_4: bool;
     var local_266: u32 = u32();
     var local_267: u32 = u32();
     var local_268: u32 = u32();
+    var loop_result_28: FeLocal_fe_u32_u32_u32_u32_d07e8e72_29_;
+    var loop_did_return_28: bool = false;
+    var loop_header_carry_8_4: bool;
     var local_269: u32 = u32();
     var local_270: u32 = u32();
     var local_271: u32 = u32();
     var local_272: u32 = u32();
+    var local_273: u32 = u32();
+    var local_274: u32 = u32();
+    var local_275: u32 = u32();
 
     let _e3 = highest_bit_gc7cf(a1_72, fe_trapped_72);
     let _e4 = precision_lib_array_fixed_impl_trait_ArrayFixed_c12a_fractional_bits_gc7cf_6cd8_(a1_72, fe_trapped_72);
-    local_260 = 0u;
-    local_261 = 0u;
-    local_262 = 0u;
     local_263 = 0u;
     local_264 = 0u;
     local_265 = 0u;
+    local_266 = 0u;
+    local_267 = 0u;
+    local_268 = 0u;
     loop {
-        let _e25 = local_260;
-        let _e27 = local_261;
-        let _e29 = local_262;
-        let _e31 = local_263;
-        let _e33 = local_264;
-        let _e35 = local_265;
+        let _e25 = local_263;
+        let _e27 = local_264;
+        let _e29 = local_265;
+        let _e31 = local_266;
+        let _e33 = local_267;
+        let _e35 = local_268;
         let _e37 = (_e35 < 4u);
         loop_header_carry_8_4 = _e37;
         if _e37 {
@@ -2966,29 +2975,29 @@ fn project_binary32_quad(a0_102: u32, a1_72: ptr<function, FeLocal_fe_ArrayFixed
             if ((((_e3 ^ _e40) & (_e3 ^ _e33)) & 2147483648u) != 0u) {
             } else {
                 if (bitcast<i32>(_e40) < bitcast<i32>(0u)) {
-                    local_266 = 0u;
+                    local_269 = 0u;
                 } else {
                     let _e53 = (_e40 - 23u);
                     if (bitcast<i32>(_e53) < bitcast<i32>(0u)) {
                         let _e61 = word_from_gc7cf(a1_72, 0u, fe_trapped_72);
-                        local_267 = ((_e61 << (0u - _e53)) & 16777215u);
+                        local_270 = ((_e61 << (0u - _e53)) & 16777215u);
                     } else {
                         let _e65 = word_from_gc7cf(a1_72, _e53, fe_trapped_72);
-                        local_267 = (_e65 & 16777215u);
+                        local_270 = (_e65 & 16777215u);
                     }
-                    let _e71 = local_267;
+                    let _e71 = local_270;
                     if (_e71 == 0u) {
-                        local_266 = 0u;
+                        local_269 = 0u;
                     } else {
                         let _e76 = (_e71 >> 13u);
                         if (_e76 == 0u) {
                             let _e79 = precision_lib_fixed_limb_highest_bit_5b70_(_e71);
-                            local_268 = _e79;
+                            local_271 = _e79;
                         } else {
                             let _e80 = precision_lib_fixed_limb_highest_bit_5b70_(_e76);
-                            local_268 = (13u + _e80);
+                            local_271 = (13u + _e80);
                         }
-                        let _e86 = local_268;
+                        let _e86 = local_271;
                         let _e92 = (_e53 + _e86);
                         if ((((_e53 ^ _e92) & (_e86 ^ _e92)) & 2147483648u) != 0u) {
                             (*fe_trapped_72) = true;
@@ -3004,52 +3013,52 @@ fn project_binary32_quad(a0_102: u32, a1_72: ptr<function, FeLocal_fe_ArrayFixed
                                     (*fe_trapped_72) = true;
                                     break;
                                 } else {
-                                    local_266 = (((a0_102 << 31u) | (_e111 << 23u)) | ((_e71 << (23u - _e86)) & 8388607u));
+                                    local_269 = (((a0_102 << 31u) | (_e111 << 23u)) | ((_e71 << (23u - _e86)) & 8388607u));
                                 }
                             }
                         }
                     }
                 }
-                let _e136 = local_266;
+                let _e136 = local_269;
                 switch _e35 {
                     case 0u: {
-                        local_269 = _e25;
-                        local_270 = _e27;
-                        local_271 = _e29;
-                        local_272 = _e136;
+                        local_272 = _e25;
+                        local_273 = _e27;
+                        local_274 = _e29;
+                        local_275 = _e136;
                     }
                     case 1u: {
-                        local_269 = _e25;
-                        local_270 = _e27;
-                        local_271 = _e136;
-                        local_272 = _e31;
+                        local_272 = _e25;
+                        local_273 = _e27;
+                        local_274 = _e136;
+                        local_275 = _e31;
                     }
                     case 2u: {
-                        local_269 = _e25;
-                        local_270 = _e136;
-                        local_271 = _e29;
-                        local_272 = _e31;
+                        local_272 = _e25;
+                        local_273 = _e136;
+                        local_274 = _e29;
+                        local_275 = _e31;
                     }
                     default: {
-                        local_269 = _e136;
-                        local_270 = _e27;
-                        local_271 = _e29;
-                        local_272 = _e31;
+                        local_272 = _e136;
+                        local_273 = _e27;
+                        local_274 = _e29;
+                        local_275 = _e31;
                     }
                 }
-                let _e154 = local_269;
-                let _e156 = local_270;
-                let _e158 = local_271;
-                let _e160 = local_272;
+                let _e154 = local_272;
+                let _e156 = local_273;
+                let _e158 = local_274;
+                let _e160 = local_275;
                 let _e166 = (_e33 + 24u);
                 if ((((_e33 ^ _e166) & (24u ^ _e166)) & 2147483648u) != 0u) {
                 } else {
-                    local_260 = _e154;
-                    local_261 = _e156;
-                    local_262 = _e158;
-                    local_263 = _e160;
-                    local_264 = _e166;
-                    local_265 = (_e35 + 1u);
+                    local_263 = _e154;
+                    local_264 = _e156;
+                    local_265 = _e158;
+                    local_266 = _e160;
+                    local_267 = _e166;
+                    local_268 = (_e35 + 1u);
                     continue;
                 }
             }

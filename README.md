@@ -98,8 +98,8 @@ of that prefix and resumes as samples arrive. Publishing the same orbit preserve
 its checkpoints; changing camera, orbit generation or bank invalidates them.
 Unfinished samples retain a reusable cached image rather than being classified
 as interior. Final native refinement remains separate from this preview. It sweeps the image one
-cohort of pixels per step. A frame runs one step at first and more while frames arrive within
-20 ms, so a fast display finishes in far fewer frames and a slow one keeps small frames. Its immutable-reference
+cohort of pixels per step. A frame runs one step at first, doubles the count while frames arrive within
+50 ms of each other (the interval includes the wait for the GPU and the next refresh) and cuts it when they are later, so a fast display finishes in far fewer frames and a slow one keeps small frames. Its immutable-reference
 checkpoints retain only a complex delta and packed control words while live,
 then reuse the payload for magnitude and fade time when finished. This uses
 16 bytes per native pixel; the growing-prefix preview retains its 32-byte

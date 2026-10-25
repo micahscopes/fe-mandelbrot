@@ -87,10 +87,12 @@ impl Copy for ViewCache {}
 
 /// How many refinement steps one frame runs. Held in the current `ViewCache`. A step refines one cohort of pixels, so the
 /// count scales the work done per frame without changing the order or total of the steps.
-/// The count starts at one and follows the display: a frame interval at or below
-/// `PACE_FAST_FRAME` earns 25% more steps, a longer one cuts them to 60%, and a stall
-/// (a hidden tab, a long pause) starts again from one.
-pub const PACE_FAST_FRAME: f32 = 20.0
+/// The count starts at one for each new view. A frame interval at or below
+/// `PACE_TARGET_FRAME` doubles it, a longer one cuts it to 60%, and a stall (a hidden tab,
+/// a long pause) starts again from one. The interval includes the wait for the GPU and for
+/// the next display refresh, which keeps a frame well above one refresh period even when the
+/// GPU work is small, so the target is a responsiveness limit and not the display period.
+pub const PACE_TARGET_FRAME: f32 = 50.0
 pub const PACE_STALL_FRAME: f32 = 250.0
 pub const PACE_MAX_STEPS: u32 = 256
 
@@ -119,8 +121,8 @@ impl RefinementPace {
         let current: u32 = if self.steps == 0 { 1 } else { self.steps }
         let steps: u32 = if self.last_clock <= 0.0 || interval <= 0.0 || interval > PACE_STALL_FRAME {
             1
-        } else if interval <= PACE_FAST_FRAME {
-            let grown: u32 = current + current / 4 + 1
+        } else if interval <= PACE_TARGET_FRAME {
+            let grown: u32 = current * 2
             if grown > PACE_MAX_STEPS { PACE_MAX_STEPS } else { grown }
         } else {
             let cut: u32 = current * 3 / 5
@@ -242,7 +244,7 @@ impl ViewCache {
             blur_dirty: blur_dirty,
             epoch: if same { self.epoch } else { self.epoch + 1 },
             completed: if same { self.completed } else { 0 },
-            steps: self.steps,
+            steps: if same { self.steps } else { 1 },
             frame_clock: self.frame_clock,
         }
     }
@@ -503,19 +505,19 @@ pub fn reproject_coarse_pixel(
 fn refinement_pace_grows_on_time_and_backs_off_when_late() {
     let first = RefinementPace { steps: 0, last_clock: 0.0 }.observe_frame(100.0)
     assert(first.steps == 1)
-    let on_time = first.observe_frame(116.7)
+    let on_time = first.observe_frame(133.4)
     assert(on_time.steps == 2)
     let mut pace = on_time
-    let mut clock: f32 = 116.7
+    let mut clock: f32 = 133.4
     let mut frames: u32 = 0
-    while frames < 100 {
-        clock = clock + 16.7
+    while frames < 20 {
+        clock = clock + 33.4
         pace = pace.observe_frame(clock)
         frames = frames + 1
     }
     assert(pace.steps == PACE_MAX_STEPS)
-    let late = pace.observe_frame(clock + 33.4)
+    let late = pace.observe_frame(clock + 80.0)
     assert(late.steps == PACE_MAX_STEPS * 3 / 5)
-    let stalled = late.observe_frame(clock + 33.4 + 5000.0)
+    let stalled = late.observe_frame(clock + 80.0 + 5000.0)
     assert(stalled.steps == 1)
 }

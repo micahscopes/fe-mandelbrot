@@ -267,41 +267,36 @@ fn observe_frame(a0_1: FeLocal_fe_RefinementPace_85cee56b_19_, a1_: f32, fe_trap
             if (250f < _e6) {
                 local_7 = 1u;
             } else {
-                if (_e6 <= 20f) {
-                    let _e28 = (_e17 / 4u);
-                    let _e30 = (_e17 + _e28);
-                    if (_e17 > (4294967295u - _e28)) {
+                if (_e6 <= 50f) {
+                    let _e31 = (_e17 * 2u);
+                    let _e32 = (_e17 != 0u);
+                    if (_e32 && (2u > (4294967295u / select(1u, _e17, _e32)))) {
                         (*fe_trapped_1) = true;
                     } else {
-                        let _e36 = (_e30 + 1u);
-                        if (_e30 > (4294967295u - 1u)) {
-                            (*fe_trapped_1) = true;
+                        if (256u < _e31) {
+                            local_7 = 256u;
                         } else {
-                            if (256u < _e36) {
-                                local_7 = 256u;
-                            } else {
-                                local_7 = _e36;
-                            }
+                            local_7 = _e31;
                         }
                     }
                 } else {
-                    let _e50 = (_e17 != 0u);
-                    if (_e50 && (3u > (4294967295u / select(1u, _e17, _e50)))) {
+                    let _e48 = (_e17 != 0u);
+                    if (_e48 && (3u > (4294967295u / select(1u, _e17, _e48)))) {
                         (*fe_trapped_1) = true;
                     } else {
-                        let _e57 = ((_e17 * 3u) / 5u);
-                        if (_e57 < 1u) {
+                        let _e55 = ((_e17 * 3u) / 5u);
+                        if (_e55 < 1u) {
                             local_7 = 1u;
                         } else {
-                            local_7 = _e57;
+                            local_7 = _e55;
                         }
                     }
                 }
             }
         }
     }
-    let _e70 = local_7;
-    return FeLocal_fe_RefinementPace_85cee56b_19_(_e70, a1_);
+    let _e68 = local_7;
+    return FeLocal_fe_RefinementPace_85cee56b_19_(_e68, a1_);
 }
 
 fn with_pace(a0_2: FeLocal_fe_ViewCache_da6e2ccc_8_, a1_1: FeLocal_fe_RefinementPace_85cee56b_19_) -> FeLocal_fe_ViewCache_da6e2ccc_8_ {
