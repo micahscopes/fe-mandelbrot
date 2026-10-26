@@ -1,49 +1,58 @@
 # Fe Mandelbrot
 
-A full-window Mandelbrot explorer written in Fe, with a rich OKLCH palette,
-OKLab interpolation and blur, progressive WebGPU refinement, stable view caches,
-and an interactive logarithmic zoom control with live magnification.
+A Mandelbrot explorer written in Fe, drawn with WebGPU. It is an experiment,
+not a finished or supported application.
 
 **[Explore](https://micahscopes.github.io/fe-mandelbrot/)** ·
 **[Color lab](https://micahscopes.github.io/fe-mandelbrot/colors/)** ·
-**[Browse the Fe source](https://micahscopes.github.io/fe-mandelbrot/viewer/index.html)**
+**[Fe source](https://micahscopes.github.io/fe-mandelbrot/viewer/index.html)**
 
-Drag with one or two fingers to pan. Pinch to zoom around the contact center;
-scroll to zoom around the pointer. The bottom slider spans
-the supported zoom range; its magnification readout updates as you navigate.
-Settings exposes the remaining controls. The URL retains the exact camera,
-resolution and antialiasing settings, including deep coordinate terms. Rendering
-requires WebGPU.
+## Status and limits
+
+- The demo is built with experimental prototype branches of the Fe compiler
+  and Sonatina (see [Toolchain](#toolchain)). Those branches are not released,
+  are likely to contain bugs, and are likely to be out of date with upstream
+  Fe and Sonatina. Expect breakage when the pins are updated or removed.
+- A WebGPU browser is required. There is no fallback renderer.
+- Results differ between GPUs. Some phone GPUs and older iOS versions have
+  failed at pipeline creation or returned wrong numbers. See
+  [Known device problems](#known-device-problems).
+- The numerics are limited: the reference orbit uses 91 fractional bits and
+  accuracy at every accepted zoom depth is not established.
+
+## Use
+
+Drag with one or two fingers to pan. Pinch or scroll to zoom. The slider spans
+the supported zoom range. Settings holds the remaining controls. The URL keeps
+the exact view.
 
 ## Run the published build locally
 
-Python 3.11 or newer is sufficient; no compiler or JavaScript package install is
-needed for the reviewed, precompiled build:
+Python 3.11 or newer is enough. No compiler is needed.
 
 ```sh
 python3 tools/site.py --out dist
 python3 -m http.server --directory dist 8000
 ```
 
-Open `http://localhost:8000`. Remote hosting uses HTTPS, as on GitHub Pages.
-The publisher checks the Fe-source and compiled-artifact hashes before building
-so edited sources cannot silently publish an old renderer.
+Open `http://localhost:8000`. `tools/site.py` refuses to assemble a site whose
+Fe source differs from the recorded compiled artifacts.
 
-## Build from Fe
+## Toolchain
 
-The exact dependency revisions live in `toolchain.lock.json`:
+`toolchain.lock.json` pins the exact revisions:
 
 | Dependency | Branch | Revision |
 | --- | --- | --- |
-| Fe | `feat/mb2-upstream-sonatina-20261022` (from `mb2`) | `7018ecfadc1b4d780ff8e7f815dc4ef18f11e13e` |
+| Fe | `feat/mb2-upstream-sonatina-20261022` | `7018ecfadc1b4d780ff8e7f815dc4ef18f11e13e` |
 | Sonatina | `feat/mb2-upstream-rebase-20261022` | `d5c001d83500080c5f1c49941a92b53588730ede` |
-| Naga | pinned by MB2 | `854ed576fa186d19b9f7d5a5bb5a1f2fa533dde1` |
+| Naga | pinned by the Fe branch | `854ed576fa186d19b9f7d5a5bb5a1f2fa533dde1` |
 
-Use Rust `nightly-2026-08-17` (the tested compiler reports 1.100.0-nightly) and
-Python 3.11+. Bootstrap fetches the exact Fe commit and checks the Sonatina pins
-in its Cargo manifest. It applies generic runtime patches for control styling, matching Wasm/WebGPU
-channel order, bounded pipeline preparation, and starting live surfaces without
-a disposable poster.
+These are personal prototype branches. They are not upstream releases.
+`toolchain/patches` adds small changes to the browser runtime (control styling,
+channel order, pipeline preparation, startup, error messages).
+
+To rebuild, use Rust `nightly-2026-08-17` and Python 3.11 or newer:
 
 ```sh
 python3 tools/bootstrap.py
@@ -51,209 +60,67 @@ python3 tools/build.py --fe .cache/target/release/fe --out .cache/build-1 --reco
 python3 tools/site.py --out dist
 ```
 
-Every compile uses a new output directory; unsuccessful builds can be inspected.
-Set `CARGO_TARGET_DIR` and `--out` to your preferred local build/cache locations.
-The Fe workspace maps the pinned standard library at `.cache/fe`; the app has no
-absolute machine paths. A manual GitHub Actions workflow also rebuilds this
-pinned compiler and all three Fe applications, publishing the site as an artifact.
+`--record` replaces the checked-in `artifacts/`. Each build needs a new `--out`
+directory. A full build takes about 13 minutes.
 
 ## Layout
 
-- `app/renderer`: camera/input, quality policy, orbit computation, progressive
-  cohorts, numerical caches, color conversion, blur and antialiasing.
-- `app/source_viewer`: the Fe source-viewer ingot shared by both demos. It owns
-  source selection, fetching, cancellation, line numbers and rendering.
-  Its catalog includes the renderer, algebra and precision libraries, gesture
-  policy, source loader, color library, color demo and viewer itself.
-  Both demo pages link to it, and it links back to both demos.
-- `app/color_demo`: interactive OKLCH hue, OKLab blending and lightness/chroma demo.
-- `lib/gestures`: fixed-capacity contacts, centroid geometry and viewport transforms.
-- `lib/algebra`: shared vectors, matrices and complex values with arithmetic
-  operators, equality, identities and explicit execution capabilities.
-- `lib/perceptual_color`: shared color construction, interpolation, packing and display.
-- `lib`: the matching Fe math/precision and source-inspection dependencies.
-- `web`: layout, styling, and surface lifecycle calls only.
-- `artifacts`: compiler-generated distribution files, checked in so Pages and
-  local viewing are quick. Regenerate after changing Fe source.
-- `toolchain`: generic browser runtime patches; dependency revisions are locked.
-- `tools`: bootstrap, compilation, source/artifact validation and site assembly.
+- `app/renderer`: camera, input, orbit computation, progressive refinement,
+  color, blur and antialiasing.
+- `app/color_demo`, `app/source_viewer`: the color lab and the source viewer.
+- `lib`: Fe libraries (precision arithmetic, algebra, gestures, color).
+- `web`: page layout and styling.
+- `artifacts`: compiled output, checked in so Pages deploys without a compiler.
+- `toolchain`, `tools`: pins, patches and build scripts.
+- `tests`: browser and GPU checks.
 
-The scalar fields stored with pixels remain independent of the palette. Colors
-use a packed 12/10/10-bit OKLab representation between passes. OKLCH defines the
-saturated anchors; spatial interpolation, fades, Gaussian filtering and AA operate
-in OKLab. The final fragment converts to sRGB once, using a tested square-root
-transfer approximation. Display conversion clips out-of-gamut channels; this is not a general
-CSS Color 4 gamut-mapping implementation.
+Pushes to `main` check the recorded artifacts and deploy through GitHub Actions.
+A source change must come with regenerated artifacts. The manual workflow
+**Rebuild with pinned MB2** checks a clean build.
 
-The current reference uses 91 fractional bits. Camera and history differences use
-117 fractional bits once per frame, and perturbation offsets account for the
-reference center actually stored. This does not increase reference recurrence
-precision or establish accuracy at every accepted zoom depth. Persistent numerical and image
-buffers are reused; the finite history is not an unlimited map of visited areas.
-This explorer contains no Mandelbrot proving or protocol implementation.
+## Rendering outline
 
-The coarse preview advances against the valid prefix while a reference orbit is
-still being built. Its persistent 256×256 continuation buffer pauses at the end
-of that prefix and resumes as samples arrive. Publishing the same orbit preserves
-its checkpoints; changing camera, orbit generation or bank invalidates them.
-Unfinished samples retain a reusable cached image rather than being classified
-as interior. Final native refinement remains separate from this preview. It sweeps the image one
-cohort of pixels per step. A frame runs one step at first, doubles the count while frames arrive within
-50 ms of each other (the interval includes the wait for the GPU and the next refresh) and cuts it when they are later, so a fast display finishes in far fewer frames and a slow one keeps small frames. Its immutable-reference
-checkpoints retain only a complex delta and packed control words while live,
-then reuse the payload for magnitude and fade time when finished. This uses
-16 bytes per native pixel; the growing-prefix preview retains its 32-byte
-continuations because its reference can still grow.
+All pixel work runs on the GPU. The Wasm module handles input, frame scheduling
+and stored state. The reference orbit is built with exact multi-word integer
+arithmetic, and pixels are computed as perturbations from it. A coarse preview
+shows while the orbit is built, then the image fills in cohort by cohort. The
+number of steps per frame doubles while frames arrive within 50 ms of each other
+and is cut when they are later. Colors move between passes as packed OKLab.
 
-Color blending uses the algebra library's vector interpolation program under
-`DirectExecution`. The same program can run under `CountedExecution` to inspect
-its operations. Ordinary arithmetic operators keep their pure meaning; execution
-policy is an explicit Fe capability. Matrix composition uses `*`, while
-matrix-vector action uses `.apply(vector)` on the pinned compiler.
+## Known device problems
 
-## GitHub Pages
+- Arm Valhall GPUs (Pixel): a function that returned an array-bearing value
+  after a dynamic-index write returned zeros. The exact-number code now writes
+  results through `mut` parameters. `tests/camera-delta-gpu` and
+  `previews/camera-delta-probe-5/` check this on a device. The published demo's
+  default view and touch panning are not yet confirmed on that phone.
+- Older iOS with WebGPU enabled by hand: the `build_reference` pass fails at
+  pipeline creation. The cause is not known.
 
-Pushes to `main` validate the recorded artifacts and deploy through GitHub
-Actions. Fe-source changes must include regenerated artifacts (`--record`).
-HTML/CSS-only edits deploy without rebuilding the compiler. The manual
-**Rebuild with pinned MB2** workflow verifies a clean source build separately.
+`?trace=1` records a per-frame camera observation in the URL for debugging.
 
-## Credits
+## Tests
 
-Adapted from the Fe MB2 research demos and their local demo-recovery work.
-Libraries retain the Fe project's Apache 2.0 license.
+The browser tests need a WebGPU browser and `playwright-core`. Set
+`OWNED_SOFTWARE_BROWSER=1` to use an isolated software-GPU browser, whose
+results say nothing about a physical phone.
+
+```sh
+BASE_URL=http://localhost:8000/ node tests/smoke.mjs
+node tests/pan-presentation.mjs
+node tests/refinement-preview.mjs
+node tests/colors.mjs
+node tests/source-viewer.mjs
+```
+
+The remaining scripts in `tests` cover gestures, URL state, startup and pipeline
+preparation.
+
+## Credits and license
+
+Adapted from the Fe MB2 research demos. Libraries retain the Fe project's
+Apache 2.0 license.
 
 - [OKLab, Björn Ottosson](https://bottosson.github.io/posts/oklab/)
 - [sRGB transfer approximation, Ian Taylor](https://chilliant.blogspot.com/2012/08/srgb-approximations-for-hlsl.html)
 - [Void-and-cluster ranking](https://cseweb.ucsd.edu/~ravir/stbn.pdf)
-
-The rank tile was generated locally from the published algorithm; no upstream
-noise texture assets or SDK code were copied.
-
-## Browser smoke test
-
-With a WebGPU browser exposing a local CDP endpoint and `playwright-core` installed:
-
-```sh
-BASE_URL=http://localhost:8000/ node tests/smoke.mjs
-```
-
-The test creates and closes its own page, checks the zoom slider and Fe readout,
-verifies the unchanged numerical refinement digest, and opens the Fe source
-viewer at desktop and phone sizes. `PLAYWRIGHT_MODULE` and `CDP_URL` can override
-the module path and browser endpoint.
-
-`node tests/refinement-preview.mjs` checks distinct resident camera positions,
-early preview output, reference publication and drag recovery. Readback adds
-measurement overhead, so its timings are observations rather than GPU benchmarks.
-The binary32 continuation fixture is documented in
-[`tests/preview-continuation`](tests/preview-continuation/README.md).
-`node tests/pipeline-preparation.mjs` checks bounded, memoized pipeline preparation
-and waits for in-flight preparation to finish before reporting failure.
-
-Run just the color demo check with `node tests/colors.mjs`. Its ingot lives in
-`app/color_demo` and depends on `lib/perceptual_color`, the same library used by
-Mandelbrot. `oklch(L, C, hue_degrees)` constructs a color; `blend(a, b, t)`
-interpolates in OKLab; `rgba(color)` converts for display.
-
-When using an older already-built compiler, the build script also applies the
-generic Wasm channel-order patch to its emitted adapter. A freshly bootstrapped
-compiler emits that fix directly.
-
-The Fe source viewer highlights comments, strings, keywords and numbers in Fe.
-At build time, `fe doc … json` supplies the compiler's existing SCIP export,
-which adds type, function and field colors. `tools/source_catalog.py` packages
-UTF-8 byte ranges with the unchanged source; no browser JavaScript tokenizes or
-interprets source. Raw links and copied source retain the original bytes.
-Run `node tests/source-viewer.mjs` to check both demo links, all source files,
-highlighting, exact text, stale fetches, error recovery and phone layout.
-`node tests/source-selection.mjs` exercises real selection and clipboard copying.
-Set `STAGED_SITE` to a locally assembled site and use an HTTPS `BASE_URL` to test
-unpublished assets in a remote CDP browser.
-
-`node tests/contact-state.mjs artifacts/renderer` and
-`node tests/url-state.mjs artifacts/renderer` execute the compiled Fe gesture and
-URL lanes directly. `node tests/mobile-url-browser.mjs` exercises real touch,
-restoration before the first frame, resizing and browser history in responsive
-Chrome. `node tests/startup.mjs` checks one GPU graph and stable buffer reuse.
-`node tests/pan-presentation.mjs` checks the actual GPU cache during one- and
-two-finger drags, nonzero camera displacement, and changed presented pixels.
-Set `OWNED_SOFTWARE_BROWSER=1` to launch an isolated software-GPU test browser.
-
-### Gesture geometry in Fe
-
-`gestures` turns stable contact identities into one anchored motion. A finger
-pans; two fingers pan, pinch and rotate together. The explorer uses two contact
-slots; `Contacts<N>` remains reusable at any compile-time capacity. Additional
-contacts are ignored while both slots are occupied.
-
-The application follows one camera operation:
-
-```fe
-camera.follow(motion, viewport)
-```
-
-A membership-stable baseline prevents asynchronous finger events from accumulating
-zoom-limit or center-limit errors. Membership changes, cancellation, and external
-camera edits establish a new anchor. The CSS frame stays fixed until all contacts
-end, so mobile layout changes cannot erase pan or introduce a false pinch. The
-next gesture measures a fresh frame. The same complex
-camera basis defines pixel projection and inverse history reprojection. The
-precise center stays in expansion arithmetic; orientation never widens per-pixel
-checkpoints or allocates another image buffer.
-
-Version 2 URLs preserve the exact orientation words. Version 1 links restore an
-unrotated camera. `Similarity2` provides reusable point mapping, composition and
-a scale-aware inverse; gesture translation keeps small deltas separate to preserve
-deep-zoom pan precision.
-
-`tests/contact-state.mjs` checks actual compiled Fe camera behavior, including
-rotation at zoom limits. `tests/contact-browser.mjs` exercises actual browser touch
-transport and Fe recognition; it does not substitute for GPU presentation or a
-physical-phone check. `tests/gesture-kernel/gpu.mjs` checks generated GPU projection,
-inverse mapping, and similarity composition down to `1e-27` zoom.
-
-`Similarity2.inverse()` requires a nonzero finite multiplier and a finite,
-representable inverse map. As with the other floating-point algebra primitives,
-callers own that domain; it is not an arbitrary-input matrix validation API.
-
-
-GPU camera tracing is temporarily available with `?trace=1`; other query
-parameters are ignored and neither enable nor disable it (`tests/trace-query.mjs`). Fe reads back one
-56-byte observation per frame and appends the last completed observation to the
-view URL as `~g:` followed by fourteen hexadecimal words. Ordinary view URLs
-remain unchanged; diagnostic words are never restored as camera state. The
-packet records begin/end frame stamps, the GPU camera's first two words per
-axis, cached-camera lower words, initial-cache offsets, cache/reference status,
-and the reprojected center tap. This diagnostic adds two small GPU passes and a readback; it is
-intended to locate the outstanding physical-phone rendering failure. The URL
-contains the last observation available when input synchronizes location, so
-its GPU camera may precede the CPU camera by a frame.
-
-### Camera arithmetic probe
-
-`tests/camera-delta-gpu` runs the production frame-scope camera difference
-(`precision::array_fixed::expansion_difference<10>`) and its stages on a
-device's own GPU, one single-invocation workgroup per case, and compares every
-word with the exact rational model in `oracle.py`. The corpus includes the
-camera pairs reported by the Pixel. The stages (conversion digits and signs,
-binary32 projection, subtraction) are reported separately, so a failure points
-at one operation.
-
-```sh
-fe web build tests/camera-delta-gpu --out /tmp/camera-delta-gpu
-node tests/camera-delta-gpu/assemble.mjs /tmp/camera-delta-gpu /tmp/camera-delta-site
-OWNED_SOFTWARE_BROWSER=1 node tests/camera-delta-gpu/gpu.mjs /tmp/camera-delta-site /tmp/receipt.json
-```
-
-The assembled directory is a static page; `previews/camera-delta-probe/` serves
-it on Pages. Software-GPU results do not describe a physical phone.
-
-On Arm Valhall GPUs (the Pixel) a function that returned an array-bearing value
-(an array, or a struct holding one) after the array had been written through a
-dynamic index returned zeros in the probe (`previews/camera-delta-probe-3/` and
-`-4/`). The exact-number code therefore writes its results through `mut self`
-(`assign_binary32_bits`, `assign_sum`, `assign_product`, `assign_quad`) and the
-reference orbit steps in place (`reference_step_in_place`); no GPU path returns
-such a value. `previews/camera-delta-probe-5/` runs the same cases against that
-code, with the failing shapes kept as labelled controls.
