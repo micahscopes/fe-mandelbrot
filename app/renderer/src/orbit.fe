@@ -560,12 +560,15 @@ fn advance_progress(
         let mut escape_magnitude: f32 = saved.magnitude
         let mut i: u32 = saved.iteration
         let mut steps: u32 = 0
+        // The entry after one step is the entry before the next, so it is carried
+        // over instead of being loaded twice. Only a rebase to index 0 loads again.
+        let mut packed_reference: PackedReference = orbit.load(index: base + reference_i)
         while i < max_iter && steps < batch && escaped == 0 && glitched == 0 {
             if reference_i + 1 >= valid_samples {
                 reference_i = 0
                 delta = z
+                packed_reference = orbit.load(index: base)
             }
-            let packed_reference: PackedReference = orbit.load(index: base + reference_i)
             let packed_next: PackedReference = orbit.load(index: base + reference_i + 1)
             if packed_reference.is_invalid() || packed_next.is_invalid() {
                 glitched = 1
@@ -595,8 +598,10 @@ fn advance_progress(
                     } else if cancellation {
                         reference_i = 0
                         delta = z
+                        packed_reference = orbit.load(index: base)
                     } else {
                         reference_i = reference_i + 1
+                        packed_reference = packed_next
                     }
                 }
             }

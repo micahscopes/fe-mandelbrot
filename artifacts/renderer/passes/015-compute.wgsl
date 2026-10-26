@@ -1261,26 +1261,29 @@ fn advance_progress(a1_32: u32, a2_12: FeLocal_fe_Complex_f32_87ec9249_4_, a3_6:
     var local_86: FeLocal_fe_OrbitProgress_96185e10_6_ = FeLocal_fe_OrbitProgress_96185e10_6_();
     var local_87: u32 = u32();
     var local_88: u32 = u32();
-    var local_89: u32 = u32();
-    var local_90: f32 = f32();
-    var local_91: FeLocal_fe_Complex_f32_87ec9249_4_ = FeLocal_fe_Complex_f32_87ec9249_4_();
+    var local_89: FeLocal_fe_PackedReference_e11ca04a_24_ = FeLocal_fe_PackedReference_e11ca04a_24_();
+    var local_90: u32 = u32();
+    var local_91: f32 = f32();
     var local_92: FeLocal_fe_Complex_f32_87ec9249_4_ = FeLocal_fe_Complex_f32_87ec9249_4_();
-    var local_93: u32 = u32();
+    var local_93: FeLocal_fe_Complex_f32_87ec9249_4_ = FeLocal_fe_Complex_f32_87ec9249_4_();
     var local_94: u32 = u32();
     var local_95: u32 = u32();
     var local_96: u32 = u32();
+    var local_97: u32 = u32();
     var loop_result_3: FeLocal_fe_OrbitProgress_96185e10_6_;
     var loop_did_return_3: bool = false;
-    var loop_header_carry_81_: bool;
-    var local_97: FeLocal_fe_Complex_f32_87ec9249_4_ = FeLocal_fe_Complex_f32_87ec9249_4_();
-    var local_98: u32 = u32();
-    var local_99: f32 = f32();
-    var local_100: FeLocal_fe_Complex_f32_87ec9249_4_ = FeLocal_fe_Complex_f32_87ec9249_4_();
-    var local_101: FeLocal_fe_Complex_f32_87ec9249_4_ = FeLocal_fe_Complex_f32_87ec9249_4_();
-    var local_102: u32 = u32();
-    var local_103: u32 = u32();
-    var local_104: u32 = u32();
-    var local_105: bool = bool();
+    var loop_header_carry_113_: bool;
+    var local_98: FeLocal_fe_Complex_f32_87ec9249_4_ = FeLocal_fe_Complex_f32_87ec9249_4_();
+    var local_99: FeLocal_fe_PackedReference_e11ca04a_24_ = FeLocal_fe_PackedReference_e11ca04a_24_();
+    var local_100: u32 = u32();
+    var local_101: FeLocal_fe_PackedReference_e11ca04a_24_ = FeLocal_fe_PackedReference_e11ca04a_24_();
+    var local_102: f32 = f32();
+    var local_103: FeLocal_fe_Complex_f32_87ec9249_4_ = FeLocal_fe_Complex_f32_87ec9249_4_();
+    var local_104: FeLocal_fe_Complex_f32_87ec9249_4_ = FeLocal_fe_Complex_f32_87ec9249_4_();
+    var local_105: u32 = u32();
+    var local_106: u32 = u32();
+    var local_107: u32 = u32();
+    var local_108: bool = bool();
 
     let _e9 = is_presentable(a5_1);
     if _e9 {
@@ -1311,145 +1314,173 @@ fn advance_progress(a1_32: u32, a2_12: FeLocal_fe_Complex_f32_87ec9249_4_, a3_6:
                 local_88 = 1u;
             }
             let _e51 = local_88;
-            local_89 = 0u;
-            local_90 = a5_1.magnitude;
-            local_91 = _e39;
-            local_92 = _e38;
-            local_93 = _e51;
-            local_94 = _e46;
-            local_95 = _e40;
-            local_96 = a5_1.iteration;
-            loop {
-                let _e73 = local_89;
-                let _e75 = local_90;
-                let _e77 = local_91;
-                let _e79 = local_92;
-                let _e81 = local_93;
-                let _e83 = local_94;
-                let _e85 = local_95;
-                let _e87 = local_96;
-                let _e88 = (_e87 < a3_6);
-                loop_header_carry_81_ = _e88;
-                if _e88 {
-                    if (_e73 < a4_3) {
-                        if (_e83 == 0u) {
-                            if (_e81 == 0u) {
-                                if (_e85 > (4294967295u - 1u)) {
-                                } else {
-                                    if (((_e85 + 1u) < _e36.valid_samples) == false) {
-                                        local_97 = _e77;
-                                        local_98 = 0u;
+            if (a1_32 > (4294967295u - _e40)) {
+                (*fe_trapped_12) = true;
+            } else {
+                let _e62 = orbit[i32((a1_32 + _e40))].re_w0_bits;
+                let _e64 = orbit[i32((a1_32 + _e40))].re_w1_bits;
+                let _e66 = orbit[i32((a1_32 + _e40))].re_w2_bits;
+                let _e68 = orbit[i32((a1_32 + _e40))].re_w3_bits;
+                let _e70 = orbit[i32((a1_32 + _e40))].im_w0_bits;
+                let _e72 = orbit[i32((a1_32 + _e40))].im_w1_bits;
+                let _e74 = orbit[i32((a1_32 + _e40))].im_w2_bits;
+                let _e76 = orbit[i32((a1_32 + _e40))].im_w3_bits;
+                local_89 = FeLocal_fe_PackedReference_e11ca04a_24_(_e62, _e64, _e66, _e68, _e70, _e72, _e74, _e76);
+                local_90 = 0u;
+                local_91 = a5_1.magnitude;
+                local_92 = _e39;
+                local_93 = _e38;
+                local_94 = _e51;
+                local_95 = _e46;
+                local_96 = _e40;
+                local_97 = a5_1.iteration;
+                loop {
+                    let _e99 = local_89;
+                    let _e101 = local_90;
+                    let _e103 = local_91;
+                    let _e105 = local_92;
+                    let _e107 = local_93;
+                    let _e109 = local_94;
+                    let _e111 = local_95;
+                    let _e113 = local_96;
+                    let _e115 = local_97;
+                    let _e116 = (_e115 < a3_6);
+                    loop_header_carry_113_ = _e116;
+                    if _e116 {
+                        if (_e101 < a4_3) {
+                            if (_e111 == 0u) {
+                                if (_e109 == 0u) {
+                                    if (_e113 > (4294967295u - 1u)) {
                                     } else {
-                                        local_97 = _e79;
-                                        local_98 = _e85;
-                                    }
-                                    let _e110 = local_97;
-                                    let _e112 = local_98;
-                                    if (a1_32 > (4294967295u - _e112)) {
-                                    } else {
-                                        let _e120 = orbit[i32((a1_32 + _e112))].re_w0_bits;
-                                        let _e122 = orbit[i32((a1_32 + _e112))].re_w1_bits;
-                                        let _e124 = orbit[i32((a1_32 + _e112))].re_w2_bits;
-                                        let _e126 = orbit[i32((a1_32 + _e112))].re_w3_bits;
-                                        let _e128 = orbit[i32((a1_32 + _e112))].im_w0_bits;
-                                        let _e130 = orbit[i32((a1_32 + _e112))].im_w1_bits;
-                                        let _e132 = orbit[i32((a1_32 + _e112))].im_w2_bits;
-                                        let _e134 = orbit[i32((a1_32 + _e112))].im_w3_bits;
-                                        let _e135 = FeLocal_fe_PackedReference_e11ca04a_24_(_e120, _e122, _e124, _e126, _e128, _e130, _e132, _e134);
-                                        let _e137 = (a1_32 + _e112);
-                                        if (a1_32 > (4294967295u - _e112)) {
+                                        if (((_e113 + 1u) < _e36.valid_samples) == false) {
+                                            let _e136 = orbit[i32(a1_32)].re_w0_bits;
+                                            let _e138 = orbit[i32(a1_32)].re_w1_bits;
+                                            let _e140 = orbit[i32(a1_32)].re_w2_bits;
+                                            let _e142 = orbit[i32(a1_32)].re_w3_bits;
+                                            let _e144 = orbit[i32(a1_32)].im_w0_bits;
+                                            let _e146 = orbit[i32(a1_32)].im_w1_bits;
+                                            let _e148 = orbit[i32(a1_32)].im_w2_bits;
+                                            let _e150 = orbit[i32(a1_32)].im_w3_bits;
+                                            local_98 = _e105;
+                                            local_99 = FeLocal_fe_PackedReference_e11ca04a_24_(_e136, _e138, _e140, _e142, _e144, _e146, _e148, _e150);
+                                            local_100 = 0u;
                                         } else {
-                                            if (_e137 > (4294967295u - 1u)) {
+                                            local_98 = _e107;
+                                            local_99 = _e99;
+                                            local_100 = _e113;
+                                        }
+                                        let _e160 = local_98;
+                                        let _e162 = local_99;
+                                        let _e164 = local_100;
+                                        let _e166 = (a1_32 + _e164);
+                                        if (a1_32 > (4294967295u - _e164)) {
+                                        } else {
+                                            if (_e166 > (4294967295u - 1u)) {
                                             } else {
-                                                let _e154 = orbit[i32((_e137 + 1u))].re_w0_bits;
-                                                let _e156 = orbit[i32((_e137 + 1u))].re_w1_bits;
-                                                let _e158 = orbit[i32((_e137 + 1u))].re_w2_bits;
-                                                let _e160 = orbit[i32((_e137 + 1u))].re_w3_bits;
-                                                let _e162 = orbit[i32((_e137 + 1u))].im_w0_bits;
-                                                let _e164 = orbit[i32((_e137 + 1u))].im_w1_bits;
-                                                let _e166 = orbit[i32((_e137 + 1u))].im_w2_bits;
-                                                let _e168 = orbit[i32((_e137 + 1u))].im_w3_bits;
-                                                let _e169 = FeLocal_fe_PackedReference_e11ca04a_24_(_e154, _e156, _e158, _e160, _e162, _e164, _e166, _e168);
-                                                let _e170 = is_invalid(_e135);
-                                                if _e170 {
-                                                    local_99 = _e75;
-                                                    local_100 = _e77;
-                                                    local_101 = _e110;
-                                                    local_102 = 1u;
-                                                    local_103 = _e83;
-                                                    local_104 = _e112;
+                                                let _e184 = orbit[i32((_e166 + 1u))].re_w0_bits;
+                                                let _e186 = orbit[i32((_e166 + 1u))].re_w1_bits;
+                                                let _e188 = orbit[i32((_e166 + 1u))].re_w2_bits;
+                                                let _e190 = orbit[i32((_e166 + 1u))].re_w3_bits;
+                                                let _e192 = orbit[i32((_e166 + 1u))].im_w0_bits;
+                                                let _e194 = orbit[i32((_e166 + 1u))].im_w1_bits;
+                                                let _e196 = orbit[i32((_e166 + 1u))].im_w2_bits;
+                                                let _e198 = orbit[i32((_e166 + 1u))].im_w3_bits;
+                                                let _e199 = FeLocal_fe_PackedReference_e11ca04a_24_(_e184, _e186, _e188, _e190, _e192, _e194, _e196, _e198);
+                                                let _e200 = is_invalid(_e162);
+                                                if _e200 {
+                                                    local_101 = _e162;
+                                                    local_102 = _e103;
+                                                    local_103 = _e105;
+                                                    local_104 = _e160;
+                                                    local_105 = 1u;
+                                                    local_106 = _e111;
+                                                    local_107 = _e164;
                                                 } else {
-                                                    let _e171 = is_invalid(_e169);
-                                                    if _e171 {
-                                                        local_99 = _e75;
-                                                        local_100 = _e77;
-                                                        local_101 = _e110;
-                                                        local_102 = 1u;
-                                                        local_103 = _e83;
-                                                        local_104 = _e112;
+                                                    let _e201 = is_invalid(_e199);
+                                                    if _e201 {
+                                                        local_101 = _e162;
+                                                        local_102 = _e103;
+                                                        local_103 = _e105;
+                                                        local_104 = _e160;
+                                                        local_105 = 1u;
+                                                        local_106 = _e111;
+                                                        local_107 = _e164;
                                                     } else {
-                                                        let _e173 = decode(_e135);
-                                                        let _e174 = decode(_e169);
-                                                        let _e175 = perturb(_e173, _e110, a2_12);
-                                                        let _e176 = reference_with_delta(_e174, _e175);
-                                                        let _e177 = norm_squared(_e176);
-                                                        let _e178 = norm_squared(_e175);
-                                                        if (4f < _e177) {
-                                                            let _e184 = impl_trait_f32_abs((_e177 - 4f));
-                                                            let _e186 = impl_trait_f32_max(1f, _e177);
-                                                            if (_e184 <= (0.000004f * _e186)) {
-                                                                local_105 = true;
+                                                        let _e203 = decode(_e162);
+                                                        let _e204 = decode(_e199);
+                                                        let _e205 = perturb(_e203, _e160, a2_12);
+                                                        let _e206 = reference_with_delta(_e204, _e205);
+                                                        let _e207 = norm_squared(_e206);
+                                                        let _e208 = norm_squared(_e205);
+                                                        if (4f < _e207) {
+                                                            let _e214 = impl_trait_f32_abs((_e207 - 4f));
+                                                            let _e216 = impl_trait_f32_max(1f, _e207);
+                                                            if (_e214 <= (0.000004f * _e216)) {
+                                                                local_108 = true;
                                                             } else {
-                                                                local_105 = false;
+                                                                local_108 = false;
                                                             }
                                                         } else {
-                                                            local_105 = false;
+                                                            local_108 = false;
                                                         }
-                                                        let _e197 = local_105;
-                                                        let _e198 = is_non_finite_complex(_e175);
-                                                        if _e198 {
-                                                            local_99 = _e75;
-                                                            local_100 = _e77;
-                                                            local_101 = _e110;
-                                                            local_102 = 1u;
-                                                            local_103 = _e83;
-                                                            local_104 = _e112;
+                                                        let _e227 = local_108;
+                                                        let _e228 = is_non_finite_complex(_e205);
+                                                        if _e228 {
+                                                            local_101 = _e162;
+                                                            local_102 = _e103;
+                                                            local_103 = _e105;
+                                                            local_104 = _e160;
+                                                            local_105 = 1u;
+                                                            local_106 = _e111;
+                                                            local_107 = _e164;
                                                         } else {
-                                                            let _e199 = non_finite(_e177);
-                                                            if (_e199 | _e197) {
-                                                                local_99 = _e75;
-                                                                local_100 = _e77;
-                                                                local_101 = _e110;
-                                                                local_102 = 1u;
-                                                                local_103 = _e83;
-                                                                local_104 = _e112;
+                                                            let _e229 = non_finite(_e207);
+                                                            if (_e229 | _e227) {
+                                                                local_101 = _e162;
+                                                                local_102 = _e103;
+                                                                local_103 = _e105;
+                                                                local_104 = _e160;
+                                                                local_105 = 1u;
+                                                                local_106 = _e111;
+                                                                local_107 = _e164;
                                                             } else {
-                                                                if (4f < _e177) {
-                                                                    local_99 = _e177;
-                                                                    local_100 = _e176;
-                                                                    local_101 = _e175;
-                                                                    local_102 = _e81;
-                                                                    local_103 = 1u;
-                                                                    local_104 = _e112;
+                                                                if (4f < _e207) {
+                                                                    local_101 = _e162;
+                                                                    local_102 = _e207;
+                                                                    local_103 = _e206;
+                                                                    local_104 = _e205;
+                                                                    local_105 = _e109;
+                                                                    local_106 = 1u;
+                                                                    local_107 = _e164;
                                                                 } else {
-                                                                    if (_e177 < _e178) {
-                                                                        local_99 = _e75;
-                                                                        local_100 = _e176;
-                                                                        local_101 = _e176;
-                                                                        local_102 = _e81;
-                                                                        local_103 = _e83;
-                                                                        local_104 = 0u;
+                                                                    if (_e207 < _e208) {
+                                                                        let _e236 = orbit[i32(a1_32)].re_w0_bits;
+                                                                        let _e238 = orbit[i32(a1_32)].re_w1_bits;
+                                                                        let _e240 = orbit[i32(a1_32)].re_w2_bits;
+                                                                        let _e242 = orbit[i32(a1_32)].re_w3_bits;
+                                                                        let _e244 = orbit[i32(a1_32)].im_w0_bits;
+                                                                        let _e246 = orbit[i32(a1_32)].im_w1_bits;
+                                                                        let _e248 = orbit[i32(a1_32)].im_w2_bits;
+                                                                        let _e250 = orbit[i32(a1_32)].im_w3_bits;
+                                                                        local_101 = FeLocal_fe_PackedReference_e11ca04a_24_(_e236, _e238, _e240, _e242, _e244, _e246, _e248, _e250);
+                                                                        local_102 = _e103;
+                                                                        local_103 = _e206;
+                                                                        local_104 = _e206;
+                                                                        local_105 = _e109;
+                                                                        local_106 = _e111;
+                                                                        local_107 = 0u;
                                                                     } else {
-                                                                        if (_e112 > (4294967295u - 1u)) {
+                                                                        if (_e164 > (4294967295u - 1u)) {
                                                                             (*fe_trapped_12) = true;
                                                                             break;
                                                                         } else {
-                                                                            local_99 = _e75;
-                                                                            local_100 = _e176;
-                                                                            local_101 = _e175;
-                                                                            local_102 = _e81;
-                                                                            local_103 = _e83;
-                                                                            local_104 = (_e112 + 1u);
+                                                                            local_101 = _e199;
+                                                                            local_102 = _e103;
+                                                                            local_103 = _e206;
+                                                                            local_104 = _e205;
+                                                                            local_105 = _e109;
+                                                                            local_106 = _e111;
+                                                                            local_107 = (_e164 + 1u);
                                                                         }
                                                                     }
                                                                 }
@@ -1457,27 +1488,31 @@ fn advance_progress(a1_32: u32, a2_12: FeLocal_fe_Complex_f32_87ec9249_4_, a3_6:
                                                         }
                                                     }
                                                 }
-                                                let _e258 = local_99;
-                                                let _e260 = local_100;
-                                                let _e262 = local_101;
-                                                let _e264 = local_102;
-                                                let _e266 = local_103;
-                                                let _e268 = local_104;
-                                                local_89 = (_e73 + 1u);
-                                                local_90 = _e258;
-                                                local_91 = _e260;
-                                                local_92 = _e262;
-                                                local_93 = _e264;
-                                                local_94 = _e266;
-                                                local_95 = _e268;
-                                                local_96 = (_e87 + 1u);
+                                                let _e314 = local_101;
+                                                let _e316 = local_102;
+                                                let _e318 = local_103;
+                                                let _e320 = local_104;
+                                                let _e322 = local_105;
+                                                let _e324 = local_106;
+                                                let _e326 = local_107;
+                                                local_89 = _e314;
+                                                local_90 = (_e101 + 1u);
+                                                local_91 = _e316;
+                                                local_92 = _e318;
+                                                local_93 = _e320;
+                                                local_94 = _e322;
+                                                local_95 = _e324;
+                                                local_96 = _e326;
+                                                local_97 = (_e115 + 1u);
                                                 continue;
                                             }
                                         }
                                     }
+                                    (*fe_trapped_12) = true;
+                                    break;
+                                } else {
+                                    break;
                                 }
-                                (*fe_trapped_12) = true;
-                                break;
                             } else {
                                 break;
                             }
@@ -1487,32 +1522,30 @@ fn advance_progress(a1_32: u32, a2_12: FeLocal_fe_Complex_f32_87ec9249_4_, a3_6:
                     } else {
                         break;
                     }
-                } else {
-                    break;
                 }
+                let _e343 = local_91;
+                let _e345 = local_92;
+                let _e347 = local_93;
+                let _e349 = local_94;
+                let _e351 = local_95;
+                let _e353 = local_96;
+                let _e355 = local_97;
+                let _e356 = pack_progress_reference(_e353, _e351, _e349);
+                let _e358 = from_continuation(_e347, _e345, _e356, _e355, a5_1.epoch, _e343);
+                local_86 = _e358;
             }
-            let _e284 = local_90;
-            let _e286 = local_91;
-            let _e288 = local_92;
-            let _e290 = local_93;
-            let _e292 = local_94;
-            let _e294 = local_95;
-            let _e296 = local_96;
-            let _e297 = pack_progress_reference(_e294, _e292, _e290);
-            let _e299 = from_continuation(_e288, _e286, _e297, _e296, a5_1.epoch, _e284);
-            local_86 = _e299;
         }
     }
-    let _e303 = local_86;
-    return _e303;
+    let _e362 = local_86;
+    return _e362;
 }
 
 fn sample_progress(a1_33: u32, a2_13: FeLocal_fe_Camera_03494b0d_15_, a3_7: FeLocal_fe_PixelSample_d22dfa2e_28_, a4_4: u32, fe_trapped_13: ptr<function, bool>) -> FeLocal_fe_OrbitProgress_96185e10_6_ {
-    var local_106: FeLocal_fe_OrbitProgress_96185e10_6_;
-    var local_107: bool = false;
-    var local_108: FeLocal_fe_OrbitProgress_96185e10_6_;
-    var local_109: bool = false;
-    var local_110: u32 = u32();
+    var local_109: FeLocal_fe_OrbitProgress_96185e10_6_;
+    var local_110: bool = false;
+    var local_111: FeLocal_fe_OrbitProgress_96185e10_6_;
+    var local_112: bool = false;
+    var local_113: u32 = u32();
 
     let _e7 = pixel_delta_from_reference(a1_33, a2_13, a3_7, fe_trapped_13);
     if (a1_33 > (4294967295u - 8194u)) {
@@ -1528,31 +1561,31 @@ fn sample_progress(a1_33: u32, a2_13: FeLocal_fe_Camera_03494b0d_15_, a3_7: FeLo
     let _e33 = orbit[i32((a1_33 + 8194u))].im_w3_bits;
     let _e35 = decode_metadata(FeLocal_fe_PackedReference_e11ca04a_24_(_e19, _e21, _e23, _e25, _e27, _e29, _e31, _e33));
     if (a4_4 < _e35.limit) {
-        local_110 = a4_4;
+        local_113 = a4_4;
     } else {
-        local_110 = _e35.limit;
+        local_113 = _e35.limit;
     }
-    let _e42 = local_110;
+    let _e42 = local_113;
     let _e44 = empty_progress(0u);
     let _e45 = advance_progress(a1_33, _e7, _e42, _e42, _e44, fe_trapped_13);
     return _e45;
 }
 
 fn clamp_(a0_61: f32, a1_34: f32, a2_14: f32) -> f32 {
-    var local_111: f32;
-    var local_112: bool = false;
-    var local_113: f32 = f32();
+    var local_114: f32;
+    var local_115: bool = false;
+    var local_116: f32 = f32();
 
     if (a0_61 < a1_34) {
-        local_113 = a1_34;
+        local_116 = a1_34;
     } else {
         if (a2_14 < a0_61) {
-            local_113 = a2_14;
+            local_116 = a2_14;
         } else {
-            local_113 = a0_61;
+            local_116 = a0_61;
         }
     }
-    let _e11 = local_113;
+    let _e11 = local_116;
     return _e11;
 }
 
@@ -1581,121 +1614,118 @@ fn fract_(a0_64: f32) -> f32 {
 }
 
 fn anchor(a0_65: u32) -> FeLocal_fe_Oklch_77e78738_7_ {
-    var local_114: FeLocal_fe_Oklch_77e78738_7_;
-    var local_115: bool = false;
-    var local_116: FeLocal_fe_Oklch_77e78738_7_ = FeLocal_fe_Oklch_77e78738_7_();
+    var local_117: FeLocal_fe_Oklch_77e78738_7_;
+    var local_118: bool = false;
+    var local_119: FeLocal_fe_Oklch_77e78738_7_ = FeLocal_fe_Oklch_77e78738_7_();
 
     switch a0_65 {
         case 0u: {
-            local_116 = FeLocal_fe_Oklch_77e78738_7_(0.58f, 0.215f, 275f);
+            local_119 = FeLocal_fe_Oklch_77e78738_7_(0.58f, 0.215f, 275f);
         }
         case 1u: {
-            local_116 = FeLocal_fe_Oklch_77e78738_7_(0.65f, 0.24f, 335f);
+            local_119 = FeLocal_fe_Oklch_77e78738_7_(0.65f, 0.24f, 335f);
         }
         case 2u: {
-            local_116 = FeLocal_fe_Oklch_77e78738_7_(0.78f, 0.155f, 65f);
+            local_119 = FeLocal_fe_Oklch_77e78738_7_(0.78f, 0.155f, 65f);
         }
         case 3u: {
-            local_116 = FeLocal_fe_Oklch_77e78738_7_(0.73f, 0.142f, 165f);
+            local_119 = FeLocal_fe_Oklch_77e78738_7_(0.73f, 0.142f, 165f);
         }
         default: {
-            local_116 = FeLocal_fe_Oklch_77e78738_7_(0.65f, 0.127f, 235f);
+            local_119 = FeLocal_fe_Oklch_77e78738_7_(0.65f, 0.127f, 235f);
         }
     }
-    let _e29 = local_116;
+    let _e29 = local_119;
     return _e29;
 }
 
 fn hue_remainder(a0_66: f32) -> f32 {
-    var local_117: f32;
-    var local_118: bool = false;
-    var local_119: f32;
-    var local_120: bool = false;
-    var local_121: f32;
-    var local_122: bool = false;
-    var local_123: f32 = f32();
+    var local_120: f32;
+    var local_121: bool = false;
+    var local_122: f32;
+    var local_123: bool = false;
     var local_124: f32;
     var local_125: bool = false;
     var local_126: f32 = f32();
-    var local_127: u32 = u32();
-    var local_128: u32 = u32();
+    var local_127: f32;
+    var local_128: bool = false;
+    var local_129: f32 = f32();
+    var local_130: u32 = u32();
+    var local_131: u32 = u32();
     var loop_result_4: f32;
     var loop_did_return_4: bool = false;
     var loop_header_carry_51_: bool;
-    var local_129: f32;
-    var local_130: bool = false;
-    var local_131: f32 = f32();
+    var local_132: f32;
+    var local_133: bool = false;
+    var local_134: f32 = f32();
 
     let _e4 = (bitcast<u32>(a0_66) & 2147483647u);
     if (_e4 < 1135869952u) {
-        local_117 = a0_66;
-        local_118 = true;
+        local_120 = a0_66;
+        local_121 = true;
     }
-    let _e89 = local_118;
+    let _e89 = local_121;
     if _e89 {
     } else {
         let _e12 = (_e4 >> 23u);
         if (_e12 == 255u) {
-            local_119 = a0_66;
-            local_120 = true;
+            local_122 = a0_66;
+            local_123 = true;
         }
-        let _e84 = local_120;
+        let _e84 = local_123;
         if _e84 {
         } else {
             if (a0_66 < 0f) {
-                local_123 = -(a0_66);
+                local_126 = -(a0_66);
             } else {
-                local_123 = a0_66;
+                local_126 = a0_66;
             }
-            let _e28 = local_123;
+            let _e28 = local_126;
             if (_e12 < 150u) {
                 let _e31 = to_i32_(_e28);
                 let _e34 = from_i32_((_e31 % 360u));
                 let _e35 = from_i32_(_e31);
-                local_126 = (_e34 + (_e28 - _e35));
+                local_129 = (_e34 + (_e28 - _e35));
             } else {
-                local_127 = (((_e4 & 8388607u) | 8388608u) % 360u);
-                local_128 = (_e12 - 150u);
+                local_130 = (((_e4 & 8388607u) | 8388608u) % 360u);
+                local_131 = (_e12 - 150u);
                 loop {
-                    let _e52 = local_127;
-                    let _e54 = local_128;
+                    let _e52 = local_130;
+                    let _e54 = local_131;
                     let _e56 = (0u < _e54);
                     loop_header_carry_51_ = _e56;
                     if _e56 {
-                        local_127 = ((_e52 << 1u) % 360u);
-                        local_128 = (_e54 - 1u);
+                        local_130 = ((_e52 << 1u) % 360u);
+                        local_131 = (_e54 - 1u);
                         continue;
                     } else {
                         break;
                     }
                 }
-                let _e67 = local_127;
+                let _e67 = local_130;
                 let _e68 = from_i32_(_e67);
-                local_126 = _e68;
+                local_129 = _e68;
             }
-            let _e74 = local_126;
+            let _e74 = local_129;
             if (a0_66 < 0f) {
-                local_131 = -(_e74);
+                local_134 = -(_e74);
             } else {
-                local_131 = _e74;
+                local_134 = _e74;
             }
-            let _e81 = local_131;
-            local_119 = _e81;
+            let _e81 = local_134;
+            local_122 = _e81;
         }
-        let _e86 = local_119;
-        local_117 = _e86;
+        let _e86 = local_122;
+        local_120 = _e86;
     }
-    let _e91 = local_117;
+    let _e91 = local_120;
     return _e91;
 }
 
 fn interpolate(a0_67: FeLocal_fe_Oklch_77e78738_7_, a1_35: FeLocal_fe_Oklch_77e78738_7_, a2_15: f32) -> FeLocal_fe_Oklch_77e78738_7_ {
-    var local_132: FeLocal_fe_Oklch_77e78738_7_;
-    var local_133: bool = false;
-    var local_134: bool = bool();
     var local_135: FeLocal_fe_Oklch_77e78738_7_;
     var local_136: bool = false;
-    var local_137: f32 = f32();
+    var local_137: bool = bool();
     var local_138: FeLocal_fe_Oklch_77e78738_7_;
     var local_139: bool = false;
     var local_140: f32 = f32();
@@ -1705,7 +1735,10 @@ fn interpolate(a0_67: FeLocal_fe_Oklch_77e78738_7_, a1_35: FeLocal_fe_Oklch_77e7
     var local_144: FeLocal_fe_Oklch_77e78738_7_;
     var local_145: bool = false;
     var local_146: f32 = f32();
-    var local_147: f32 = f32();
+    var local_147: FeLocal_fe_Oklch_77e78738_7_;
+    var local_148: bool = false;
+    var local_149: f32 = f32();
+    var local_150: f32 = f32();
 
     let _e7 = (a1_35.hue - a0_67.hue);
     if (-540f <= a0_67.hue) {
@@ -1714,78 +1747,78 @@ fn interpolate(a0_67: FeLocal_fe_Oklch_77e78738_7_, a1_35: FeLocal_fe_Oklch_77e7
                 if (a1_35.hue <= 540f) {
                     if (-540f <= _e7) {
                         if (_e7 <= 540f) {
-                            local_134 = true;
+                            local_137 = true;
                         }
                     }
                 }
             }
         }
     }
-    let _e29 = local_134;
+    let _e29 = local_137;
     if _e29 {
-        local_137 = a0_67.hue;
+        local_140 = a0_67.hue;
     } else {
         let _e32 = hue_remainder(a0_67.hue);
-        local_137 = _e32;
+        local_140 = _e32;
     }
-    let _e38 = local_137;
+    let _e38 = local_140;
     if _e29 {
-        local_140 = _e7;
+        local_143 = _e7;
     } else {
         let _e40 = hue_remainder(a1_35.hue);
-        local_140 = (_e40 - _e38);
+        local_143 = (_e40 - _e38);
     }
-    let _e47 = local_140;
+    let _e47 = local_143;
     if (180f < _e47) {
-        local_143 = (_e47 - 360f);
+        local_146 = (_e47 - 360f);
     } else {
         if (_e47 < -180f) {
-            local_143 = (_e47 + 360f);
+            local_146 = (_e47 + 360f);
         } else {
-            local_143 = _e47;
+            local_146 = _e47;
         }
     }
-    let _e62 = local_143;
+    let _e62 = local_146;
     if (_e29 == false) {
         if (180f < _e62) {
-            local_147 = (_e62 - 360f);
+            local_150 = (_e62 - 360f);
         } else {
             if (_e62 < -180f) {
-                local_147 = (_e62 + 360f);
+                local_150 = (_e62 + 360f);
             } else {
-                local_147 = _e62;
+                local_150 = _e62;
             }
         }
-        let _e78 = local_147;
+        let _e78 = local_150;
         if (_e78 == -180f) {
             if (a0_67.hue < a1_35.hue) {
-                local_146 = 180f;
+                local_149 = 180f;
             } else {
                 if (_e78 == 180f) {
                     if (a1_35.hue < a0_67.hue) {
-                        local_146 = -180f;
+                        local_149 = -180f;
                     } else {
-                        local_146 = _e78;
+                        local_149 = _e78;
                     }
                 } else {
-                    local_146 = _e78;
+                    local_149 = _e78;
                 }
             }
         } else {
             if (_e78 == 180f) {
                 if (a1_35.hue < a0_67.hue) {
-                    local_146 = -180f;
+                    local_149 = -180f;
                 } else {
-                    local_146 = _e78;
+                    local_149 = _e78;
                 }
             } else {
-                local_146 = _e78;
+                local_149 = _e78;
             }
         }
     } else {
-        local_146 = _e62;
+        local_149 = _e62;
     }
-    let _e106 = local_146;
+    let _e106 = local_149;
     return FeLocal_fe_Oklch_77e78738_7_((a0_67.l + ((a1_35.l - a0_67.l) * a2_15)), (a0_67.chroma + ((a1_35.chroma - a0_67.chroma) * a2_15)), (_e38 + (_e106 * a2_15)));
 }
 
@@ -1815,9 +1848,9 @@ fn to_color(a0_71: FeLocal_fe_Oklch_77e78738_7_) -> FeLocal_fe_Color_6b73191a_5_
 }
 
 fn escape_palette(a0_72: u32, a1_36: f32, fe_trapped_14: ptr<function, bool>) -> u32 {
-    var local_148: u32;
-    var local_149: bool = false;
-    var local_150: u32 = u32();
+    var local_151: u32;
+    var local_152: bool = false;
+    var local_153: u32 = u32();
 
     let _e5 = from_i32_(a0_72);
     let _e11 = fract_(((_e5 + (4f / a1_36)) / 256f));
@@ -1832,10 +1865,10 @@ fn escape_palette(a0_72: u32, a1_36: f32, fe_trapped_14: ptr<function, bool>) ->
         if ((((_e14 ^ _e29) & (1u ^ _e29)) & 2147483648u) != 0u) {
             (*fe_trapped_14) = true;
         } else {
-            local_150 = _e29;
+            local_153 = _e29;
         }
     }
-    let _e38 = local_150;
+    let _e38 = local_153;
     let _e39 = anchor(_e38);
     let _e40 = interpolate(_e23, _e39, ((_e16 * _e16) * (3f - (2f * _e16))));
     let _e41 = to_color(_e40);
@@ -1849,25 +1882,25 @@ fn interior() -> u32 {
 }
 
 fn progress_color(a0_73: FeLocal_fe_OrbitProgress_96185e10_6_, fe_trapped_15: ptr<function, bool>) -> u32 {
-    var local_151: u32;
-    var local_152: bool = false;
-    var local_153: u32 = u32();
+    var local_154: u32;
+    var local_155: bool = false;
+    var local_156: u32 = u32();
 
     let _e4 = is_glitched(a0_73);
     if _e4 {
         let _e5 = glitch();
-        local_153 = _e5;
+        local_156 = _e5;
     } else {
         let _e6 = is_escaped(a0_73);
         if _e6 {
             let _e9 = escape_palette(a0_73.iteration, a0_73.magnitude, fe_trapped_15);
-            local_153 = _e9;
+            local_156 = _e9;
         } else {
             let _e10 = interior();
-            local_153 = _e10;
+            local_156 = _e10;
         }
     }
-    let _e15 = local_153;
+    let _e15 = local_156;
     return _e15;
 }
 

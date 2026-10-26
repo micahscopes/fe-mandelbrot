@@ -2,8 +2,8 @@
   "source": "fe doc json SCIP export",
   "files": {
     "lib.fe": {
-      "bytes": 49930,
-      "semanticOccurrences": 1091
+      "bytes": 50266,
+      "semanticOccurrences": 1093
     },
     "policy.fe": {
       "bytes": 14073,
@@ -18,7 +18,7 @@
       "semanticOccurrences": 593
     },
     "orbit.fe": {
-      "bytes": 28524,
+      "bytes": 28873,
       "semanticOccurrences": 741
     },
     "native_checkpoint.fe": {

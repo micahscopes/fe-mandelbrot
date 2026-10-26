@@ -256,7 +256,11 @@ actor SmoothPerturbationalMandelbrot uses (
             let mut i: u32 = if control.pending == 0 { 0 } else { control.index }
             let mut step: u32 = 0
             let mut escaped: bool = false
-            while step < 64 && i < pending_anchor.limit && !escaped {
+            // Exact-integer steps per frame follow the refinement pace, so a long orbit
+            // takes fewer frames on a display that keeps up. A drag restarts the pace at one.
+            let pace: u32 = if previous.steps < 8 { previous.steps } else { 8 }
+            let batch: u32 = 64 * (if pace == 0 { 1 } else { pace })
+            while step < batch && i < pending_anchor.limit && !escaped {
                 escaped = reference_step_in_place(mut z, center)
                 if !escaped {
                     self.orbit.store(

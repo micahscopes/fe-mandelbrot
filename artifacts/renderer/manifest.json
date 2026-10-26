@@ -3456,7 +3456,7 @@
     {
       "source_entry": "build_reference",
       "shader": "passes/003-compute.wgsl",
-      "shader_bytes": 164357,
+      "shader_bytes": 165564,
       "shader_stages": [
         "compute"
       ],
@@ -11740,7 +11740,7 @@
     {
       "source_entry": "antialias_pixels",
       "shader": "passes/015-compute.wgsl",
-      "shader_bytes": 76460,
+      "shader_bytes": 79517,
       "shader_stages": [
         "compute"
       ],
