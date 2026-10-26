@@ -14,8 +14,8 @@ not a finished or supported application.
   are likely to contain bugs, and are likely to be out of date with upstream
   Fe and Sonatina. Expect breakage when the pins are updated or removed.
 - A WebGPU browser is required. There is no fallback renderer.
-- Results differ between GPUs. Some phone GPUs and older iOS versions have
-  failed at pipeline creation or returned wrong numbers. See
+- Results differ between GPUs. An Android phone GPU returned wrong numbers and
+  an older iOS version failed at pipeline creation. See
   [Known device problems](#known-device-problems).
 - The numerics are limited: the reference orbit uses 91 fractional bits and
   accuracy at every accepted zoom depth is not established.
@@ -89,11 +89,13 @@ and is cut when they are later. Colors move between passes as packed OKLab.
 
 ## Known device problems
 
-- Arm Valhall GPUs (Pixel): a function that returned an array-bearing value
-  after a dynamic-index write returned zeros. The exact-number code now writes
-  results through `mut` parameters. `tests/camera-delta-gpu` and
-  `previews/camera-delta-probe-5/` check this on a device. The published demo's
-  default view and touch panning are not yet confirmed on that phone.
+- Android phone with an Arm Valhall GPU: a function that returned an
+  array-bearing value after a dynamic-index write returned zeros, which broke
+  the default view and touch panning. The exact-number code now writes results
+  through `mut` parameters, and touch panning works. It was seen on one phone
+  model; whether other Android GPUs are affected is not known.
+  `tests/camera-delta-gpu` and `previews/camera-delta-probe-5/` check this on a
+  device.
 - Older iOS with WebGPU enabled by hand: the `build_reference` pass fails at
   pipeline creation. The cause is not known.
 
