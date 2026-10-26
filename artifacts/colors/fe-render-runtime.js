@@ -2096,7 +2096,31 @@ export function realizePassPipeline(device, record) {
       record.pipeline = pipeline;
       return pipeline;
     } catch (error) {
-      throw new Error(`${label}: pipeline creation failed: ${error.message ?? String(error)}`, { cause: error });
+      // Some browsers reject with an empty message. Report the error kind, any
+      // shader diagnostics, and the first validation error from a synchronous retry.
+      const details = [error?.name, error?.reason ? `reason ${error.reason}` : null, error?.message].filter(Boolean);
+      try {
+        const info = await record.shaderModule?.getCompilationInfo?.();
+        for (const m of info?.messages ?? []) details.push(`shader ${m.type} ${m.lineNum}:${m.linePos} ${m.message}`);
+      } catch (_) {}
+      if (record.pass.layout.mode === "compute" && record.shaderModule) {
+        try {
+          device.pushErrorScope("validation");
+          try {
+            device.createComputePipeline({
+              ...record.pipelineDescriptor,
+              label,
+              compute: { ...record.pipelineDescriptor.compute, module: record.shaderModule },
+            });
+          } finally {
+            const scoped = await device.popErrorScope();
+            if (scoped?.message) details.push(`validation ${scoped.message}`);
+          }
+        } catch (retry) {
+          details.push(`retry ${retry?.name ?? ""} ${retry?.message ?? String(retry)}`.trim());
+        }
+      }
+      throw new Error(`${label}: pipeline creation failed: ${details.join("; ") || String(error)}`, { cause: error });
     } finally {
       if (record.pipelinePromise === pending) record.pipelinePromise = null;
     }

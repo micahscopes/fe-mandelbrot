@@ -1,5 +1,5 @@
 {
-  "sourceHash": "c858f91746cb52b561e0191c435b33cbfe1f7699489215b052026b4fb842c0f7",
+  "sourceHash": "c744acd52bd66287fe8423311ef6ce4fba9b2143aca10586e5f7d284e7faa59d",
   "toolchain": {
     "fe": {
       "repository": "https://github.com/micahscopes/fe.git",
@@ -18,7 +18,7 @@
     "rust": "nightly-2026-08-17"
   },
   "files": {
-    "colors/fe-render-runtime.js": "74c2d27ee05269c202f1c120325ff8b984611ec1fb576d63791e239bc4800ceb",
+    "colors/fe-render-runtime.js": "a569c7987460a2045a35dc999e023d8d83fcf6a79a83de79807ce863024792c2",
     "colors/index.html": "f99c53c7bdfd6f649ade7ced7c74055428eb63271042c215e833b127b4aae84c",
     "colors/manifest.json": "ee6c3ed4ff9fc3b38c040095fd19dad0c47195407a0a2d986b46b1420fad3058",
     "colors/module.wasm": "f9fa910695f20a2de0edc5d540856d8e8efe2230a3a52284a07c889104cbad1b",
@@ -55,7 +55,7 @@
     "indexes/renderer/docs.json": "7a94f375317a307cc4d34e6c8c33aaa5398ef54344ca954f5e033f968d50d461",
     "indexes/source_inspector/docs.json": "5408d6d2fbbb91d3c6c631e69a3027d2c140196c88575e326d72ff7b9d9b25cf",
     "indexes/source_viewer/docs.json": "080cdb16e66085c17d82782bbf33afafe6381eead002f08c3aa27b4c40b6cfc5",
-    "renderer/fe-render-runtime.js": "74c2d27ee05269c202f1c120325ff8b984611ec1fb576d63791e239bc4800ceb",
+    "renderer/fe-render-runtime.js": "a569c7987460a2045a35dc999e023d8d83fcf6a79a83de79807ce863024792c2",
     "renderer/index.html": "f99c53c7bdfd6f649ade7ced7c74055428eb63271042c215e833b127b4aae84c",
     "renderer/manifest.json": "59ca689d534768444957103c40285f3d7276d9374625b079f1f9509423cb97a8",
     "renderer/module.wasm": "37449e6eebf23e6ef1a33fb0a818aa534c962f866bca618f4a46e98e7ead0dd0",
