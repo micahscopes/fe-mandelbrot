@@ -1,0 +1,441 @@
+//! Array interpretation of signed radix-8192 fixed-point values for frame work.
+//!
+//! The private representation has 2..=10 canonical digits, least significant
+//! first, with 13*(L-1) fractional bits. Addition wraps magnitude modulo 8192^L;
+//! opposite signs retain the larger magnitude's sign (the left sign on ties).
+//! Negative zero is retained internally; binary32 observation canonicalizes it.
+//! The reference recurrence uses this interpretation; wire layouts stay explicit.
+//!
+//! Device note: on Arm Valhall (Pixel) a function that returns an array-bearing
+//! value that was modified through a dynamically indexed array yields zeros
+//! (see tests/camera-delta-gpu). GPU code therefore uses the `assign_*` methods,
+//! which write through `mut self` and return nothing, and reads digits with
+//! `digit`. The value-returning forms (`from_expansion`, `+`, `*`, ...) are thin
+//! wrappers over them and are for host-side and test use.
+
+use core::marker::Copy
+use core::ops::{Add, Eq, Mul, Neg, Sub}
+use super::{Expansion, to_quad}
+use super::fixed::{Binary32View, limb_highest_bit, project_binary32, project_binary32_quad}
+
+extern { const fn __bitcast<From, To>(_: From) -> To }
+
+// These checked boundaries use only backend scalar words. The generic core
+// IntDowncast currently passes through u256, outside the web scalar envelope.
+fn signed_word(_ value: u32) -> i32 {
+    assert(value <= 2147483647)
+    __bitcast<u32, i32>(value)
+}
+
+fn unsigned_word(_ value: i32) -> u32 {
+    assert(value >= 0)
+    __bitcast<i32, u32>(value)
+}
+
+pub struct ArrayFixed<const L: usize> {
+    negative: bool,
+    digits: [u32; L],
+}
+
+impl<const L: usize> Copy for ArrayFixed<L> {}
+
+impl<const L: usize> ArrayFixed<L> {
+    // Like Contacts::capacity, convert the compile-time array dimension once;
+    // all runtime counters are u32 and only widen at checked array indexing.
+    fn width() -> u32 {
+        assert(L >= 2 && L <= 10)
+        L.downcast_truncate()
+    }
+
+    pub fn zero() -> Self {
+        let _ = Self::width()
+        Self { negative: false, digits: [0; L] }
+    }
+
+    /// Checked integer boundary. Unlike canonical wire Fixed, this arithmetic
+    /// value deliberately permits negative zero, matching the old limb kernel.
+    pub fn from_digits(_ negative: bool, _ digits: [u32; L]) -> Self {
+        Self::assert_canonical(digits)
+        Self { negative: negative, digits: digits }
+    }
+
+    fn assert_canonical(_ digits: [u32; L]) {
+        let width: u32 = Self::width()
+        let mut index: u32 = 0
+        while index < width {
+            assert(digits[index as usize] < 8192)
+            index = index + 1
+        }
+    }
+
+    /// Quantize one finite |value| < 8192 source toward zero onto this lattice.
+    /// Decode integer bits directly: no GPU floating reassociation or flush-to-
+    /// zero can change the retained digits. Both IEEE zero encodings parse +0;
+    /// a negative nonzero source below the lattice parses negative zero.
+    pub fn assign_binary32_bits(mut self, _ bits: u32) {
+        let magnitude: u32 = bits & 2147483647
+        // 0x46000000 encodes 8192; this also rejects infinities and NaNs.
+        assert(magnitude < 1174405120)
+        self.negative = (bits >> 31) != 0 && magnitude != 0
+        let encoded_exponent: u32 = magnitude >> 23
+        // Every binary32 subnormal is below the finest supported 2^-117 unit.
+        if encoded_exponent == 0 {
+            self.clear_digits()
+        } else {
+            let significand: u32 = (magnitude & 8388607) | 8388608
+            let exponent: i32 = signed_word(encoded_exponent)
+            let lattice_shift: i32 = exponent - 150 + self.fractional_bits()
+            self.load_significand(significand, -lattice_shift)
+        }
+    }
+
+    /// Preserve the old four-word, left-associated accumulation and final +0.
+    pub fn assign_quad(mut self, _ a: f32, _ b: f32, _ c: f32, _ d: f32) {
+        let mut first: Self = Self::zero()
+        let mut term: Self = Self::zero()
+        let mut sum: Self = Self::zero()
+        first.assign_binary32_bits(__bitcast<f32, u32>(a))
+        term.assign_binary32_bits(__bitcast<f32, u32>(b))
+        sum.assign_sum(first, term)
+        term.assign_binary32_bits(__bitcast<f32, u32>(c))
+        first.assign_sum(sum, term)
+        term.assign_binary32_bits(__bitcast<f32, u32>(d))
+        sum.assign_sum(first, term)
+        self.assign_sum(sum, Self::zero())
+    }
+
+    /// self = left + right, with the sign rules of the `Add` impl.
+    pub fn assign_sum(mut self, _ left: Self, _ right: Self) {
+        self.negative = left.negative
+        if left.negative == right.negative {
+            self.add_magnitudes(left, right)
+        } else {
+            let left_is_smaller: bool = left.magnitude_less(right)
+            self.negative = if left_is_smaller { right.negative } else { left.negative }
+            self.subtract_magnitudes(left, right, left_is_smaller)
+        }
+    }
+
+    /// self = left * right, with the rounding rules of the `Mul` impl.
+    pub fn assign_product(mut self, _ left: Self, _ right: Self) {
+        self.negative = left.negative != right.negative
+        self.clear_digits()
+        self.multiply_magnitudes(left, right)
+    }
+
+    pub fn assign_negated(mut self, _ other: Self) {
+        self.negative = !other.negative
+        self.copy_digits(other)
+    }
+
+    pub fn assign_copy(mut self, _ other: Self) {
+        self.negative = other.negative
+        self.copy_digits(other)
+    }
+
+    pub fn digit(self, _ index: u32) -> u32 { self.digits[index as usize] }
+
+    fn clear_digits(mut self) {
+        let width: u32 = Self::width()
+        let mut index: u32 = 0
+        while index < width {
+            self.digits[index as usize] = 0
+            index = index + 1
+        }
+    }
+
+    fn copy_digits(mut self, _ other: Self) {
+        let width: u32 = Self::width()
+        let mut index: u32 = 0
+        while index < width {
+            self.digits[index as usize] = other.digits[index as usize]
+            index = index + 1
+        }
+    }
+
+    /// Slice the 24-bit significand into digits; `first_bit` is the source bit
+    /// that lands at the least significant bit of digit 0.
+    fn load_significand(mut self, _ significand: u32, _ first_bit: i32) {
+        let mut source_bit: i32 = first_bit
+        let width: u32 = Self::width()
+        let mut index: u32 = 0
+        while index < width {
+            self.digits[index as usize] = if source_bit >= 24 || source_bit <= -13 {
+                0
+            } else if source_bit >= 0 {
+                let shift: u32 = unsigned_word(source_bit)
+                (significand >> shift) & 8191
+            } else {
+                let shift: u32 = unsigned_word(-source_bit)
+                (significand << shift) & 8191
+            }
+            source_bit = source_bit + 13
+            index = index + 1
+        }
+    }
+
+    pub fn from_binary32_bits(_ bits: u32) -> Self {
+        let mut result: Self = Self::zero()
+        result.assign_binary32_bits(bits)
+        result
+    }
+
+    pub fn from_f32(_ value: f32) -> Self {
+        Self::from_binary32_bits(__bitcast<f32, u32>(value))
+    }
+
+    pub fn from_expansion(_ value: Expansion<4>) -> Self {
+        let (a, b, c, d) = to_quad(value)
+        let mut result: Self = Self::zero()
+        result.assign_quad(a, b, c, d)
+        result
+    }
+
+    pub fn sign(self) -> u32 { if self.negative { 1 } else { 0 } }
+
+    pub fn to_digits(self) -> [u32; L] { self.digits }
+
+    pub fn to_quad_bits(self) -> (u32, u32, u32, u32) {
+        project_binary32_quad(self.sign(), self)
+    }
+
+    pub fn to_binary32_bits(self) -> u32 {
+        project_binary32(if self.negative { 1 } else { 0 }, self)
+    }
+
+    pub fn to_f32(self) -> f32 {
+        __bitcast<u32, f32>(self.to_binary32_bits())
+    }
+
+    /// Strict magnitude > 4, including a nonzero fractional suffix at 4.
+    pub fn magnitude_exceeds_four(self) -> bool {
+        let width: u32 = Self::width()
+        let top: u32 = self.digits[(width - 1) as usize]
+        if top > 4 { return true }
+        if top < 4 { return false }
+        let mut index: u32 = 0
+        while index < width - 1 {
+            if self.digits[index as usize] != 0 { return true }
+            index = index + 1
+        }
+        false
+    }
+
+    fn magnitude_less(self, _ other: Self) -> bool {
+        let mut index: u32 = Self::width()
+        while index > 0 {
+            index = index - 1
+            if self.digits[index as usize] != other.digits[index as usize] {
+                return self.digits[index as usize] < other.digits[index as usize]
+            }
+        }
+        false
+    }
+
+
+}
+
+// Representation equality observes the retained zero sign. In particular,
+// opposite-sign exact cancellation keeps the left sign, as in fixed::add.
+impl<const L: usize> Eq for ArrayFixed<L> {
+    fn eq(self, _ other: Self) -> bool {
+        if self.negative != other.negative { return false }
+        let width: u32 = Self::width()
+        let mut index: u32 = 0
+        while index < width {
+            if self.digits[index as usize] != other.digits[index as usize] { return false }
+            index = index + 1
+        }
+        true
+    }
+}
+
+impl<const L: usize> Add for ArrayFixed<L> {
+    type Output = Self
+
+    fn add(own self, _ other: own Self) -> Self {
+        let mut result: Self = Self::zero()
+        result.assign_sum(self, other)
+        result
+    }
+}
+
+impl<const L: usize> ArrayFixed<L> {
+    fn add_magnitudes(mut self, _ left: Self, _ right: Self) {
+        let width: u32 = Self::width()
+        let mut carry: u32 = 0
+        let mut index: u32 = 0
+        while index < width {
+            let digit: usize = index as usize
+            let sum: u32 = left.digits[digit] + right.digits[digit] + carry
+            self.digits[digit] = sum & 8191
+            carry = sum >> 13
+            index = index + 1
+        }
+    }
+
+    fn subtract_magnitudes(mut self, _ left: Self, _ right: Self, _ left_is_smaller: bool) {
+        let width: u32 = Self::width()
+        let mut borrow: u32 = 0
+        let mut index: u32 = 0
+        while index < width {
+            let digit: usize = index as usize
+            let larger: u32 = if left_is_smaller { right.digits[digit] } else { left.digits[digit] }
+            let smaller: u32 = if left_is_smaller { left.digits[digit] } else { right.digits[digit] }
+            // Canonical digits make this biased difference nonnegative.
+            let biased: u32 = 8192 + larger - smaller - borrow
+            self.digits[digit] = biased & 8191
+            borrow = 1 - (biased >> 13)
+            index = index + 1
+        }
+    }
+
+    fn multiply_magnitudes(mut self, _ left: Self, _ right: Self) {
+        let width: u32 = Self::width()
+        let mut guard: u32 = 0
+        let mut row: u32 = 0
+        while row < width {
+            let mut carry: u32 = 0
+            let mut column: u32 = 0
+            while column < width {
+                let index: usize = column as usize
+                let sum: u32 = self.digits[index]
+                    + left.digits[index] * right.digits[row as usize] + carry
+                self.digits[index] = sum & 8191
+                carry = sum >> 13
+                column = column + 1
+            }
+            if row < width - 1 {
+                guard = self.digits[0]
+                let mut column: u32 = 0
+                while column < width - 1 {
+                    self.digits[column as usize] = self.digits[(column + 1) as usize]
+                    column = column + 1
+                }
+                self.digits[(width - 1) as usize] = carry
+            } else {
+                let mut carry: u32 = guard >> 12
+                let mut column: u32 = 0
+                while column < width {
+                    let index: usize = column as usize
+                    let sum: u32 = self.digits[index] + carry
+                    self.digits[index] = sum & 8191
+                    carry = sum >> 13
+                    column = column + 1
+                }
+            }
+            row = row + 1
+        }
+    }
+}
+
+/// Sliding radix multiplication: round the discarded fraction half upward,
+/// then retain L magnitude digits. Every MAC is bounded by 8192^2 - 1.
+/// The loops share one accumulator instead of expanding a family of limb calls.
+impl<const L: usize> Mul for ArrayFixed<L> {
+    type Output = Self
+
+    fn mul(own self, _ other: own Self) -> Self {
+        let mut result: Self = Self::zero()
+        result.assign_product(self, other)
+        result
+    }
+}
+
+impl<const L: usize> Neg for ArrayFixed<L> {
+    type Output = Self
+
+    fn neg(own self) -> Self {
+        Self { negative: !self.negative, digits: self.digits }
+    }
+}
+
+impl<const L: usize> Sub for ArrayFixed<L> {
+    type Output = Self
+
+    fn sub(own self, _ other: own Self) -> Self { self + (-other) }
+}
+
+impl<const L: usize> Binary32View for ArrayFixed<L> {
+    fn highest_bit(self) -> i32 {
+        let mut index: u32 = Self::width()
+        let mut digit: u32 = 0
+        while index > 0 && digit == 0 {
+            index = index - 1
+            digit = self.digits[index as usize]
+        }
+        if digit == 0 {
+            -1
+        } else {
+            let bit: i32 = limb_highest_bit(digit)
+            let limb: i32 = signed_word(index)
+            limb * 13 + bit
+        }
+    }
+
+    fn bit_at(self, _ index: i32) -> u32 {
+        if index < 0 { return 0 }
+        let position: u32 = unsigned_word(index)
+        let slot: u32 = position / 13
+        if slot >= Self::width() { return 0 }
+        (self.digits[slot as usize] >> (position % 13)) & 1
+    }
+
+    fn word_from(self, _ index: i32) -> u32 {
+        if index < 0 { return 0 }
+        let offset: u32 = unsigned_word(index)
+        let width: u32 = Self::width()
+        let mut slot: u32 = offset / 13
+        if slot >= width { return 0 }
+        let shift: u32 = offset % 13
+        let mut result: u32 = self.digits[slot as usize] >> shift
+        let mut position: u32 = 13 - shift
+        slot = slot + 1
+        // A 32-bit window touches at most four canonical radix digits.
+        while slot < width && position < 32 {
+            result = result | (self.digits[slot as usize] << position)
+            slot = slot + 1
+            position = position + 13
+        }
+        result
+    }
+
+    fn any_below(self, _ count: i32) -> u32 {
+        if count <= 0 { return 0 }
+        let bits: u32 = unsigned_word(count)
+        let whole: u32 = bits / 13
+        let width: u32 = Self::width()
+        let mut index: u32 = 0
+        let mut result: u32 = 0
+        while index < width && index < whole {
+            result = result | self.digits[index as usize]
+            index = index + 1
+        }
+        if index < width {
+            let partial: u32 = bits % 13
+            result = result | (self.digits[index as usize] & (((1 as u32) << partial) - 1))
+        }
+        result
+    }
+
+    fn fractional_bits(self) -> i32 {
+        let fractional_limbs: i32 = signed_word(Self::width() - 1)
+        fractional_limbs * 13
+    }
+}
+
+/// Frame-scope difference with the same independently quantized ordered words
+/// as fixed::expansion_difference. L=10 retains the existing 117-bit lattice.
+pub fn expansion_difference<const L: usize>(_ from: Expansion<4>, _ to: Expansion<4>) -> f32 {
+    let (fa, fb, fc, fd) = to_quad(from)
+    let (ta, tb, tc, td) = to_quad(to)
+    let mut origin: ArrayFixed<L> = ArrayFixed<L>::zero()
+    origin.assign_quad(fa, fb, fc, fd)
+    let mut target: ArrayFixed<L> = ArrayFixed<L>::zero()
+    target.assign_quad(ta, tb, tc, td)
+    let mut negated: ArrayFixed<L> = ArrayFixed<L>::zero()
+    negated.assign_negated(origin)
+    let mut difference: ArrayFixed<L> = ArrayFixed<L>::zero()
+    difference.assign_sum(target, negated)
+    difference.to_f32()
+}
