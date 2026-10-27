@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0c1018">
+<meta name="description" content="A richly colored Mandelbrot explorer written in Fe, running on WebGPU.">
+<title>Fe Mandelbrot GPU profile</title>
+<link rel="stylesheet" href="style.css">
+
+<script src="profile-hook.js"></script>
+</head>
+<body>
+<fe-surface state="live" boot="manual" manifest="renderer/manifest.json"></fe-surface>
+<nav aria-label="Explorer"><span class="brand">Fe Mandelbrot</span><a href="#" aria-label="Restore starting view" title="Restore starting view">Home</a><a href="colors/index.html">Colors</a><a href="viewer/index.html" target="_blank" rel="noopener">Source</a><a href="https://github.com/micahscopes/fe-mandelbrot" target="_blank" rel="noopener">GitHub</a><button id="controls" aria-label="Show all controls">Settings</button></nav>
+<p id="status" role="status">Loading Fe program…</p>
+<script type="module">
+import './renderer/fe-render-runtime.js';
+const surface=document.querySelector('fe-surface'),status=document.querySelector('#status');
+document.querySelector('#controls').onclick=()=>surface.toggleAttribute('show-controls');
+surface.addEventListener('fe-progress',event=>{if(surface.state!=='live'){status.hidden=false;status.textContent=`Preparing GPU pipeline ${event.detail.index}/${event.detail.total}: ${event.detail.pass}…`;}});
+surface.addEventListener('fe-error',event=>{status.hidden=false;status.textContent=event.detail?.message||'Rendering stopped';});
+try {await surface.load();status.textContent="Preparing GPU pipelines…";await surface.live();if(surface.state!=='error')status.hidden=true;}catch(error){status.textContent=error.message;}
+</script>
+<pre id="profile" style="position:fixed;left:8px;bottom:8px;margin:0;padding:8px;max-width:calc(100vw - 16px);overflow:auto;max-height:55vh;background:rgba(0,0,0,.78);color:#e8f0ff;font:12px/1.35 ui-monospace,monospace;z-index:9;white-space:pre"></pre>
+<p style="position:fixed;right:8px;bottom:8px;margin:0;z-index:10"><button id="reset">Reset</button> <button id="copy">Copy</button></p>
+<script>
+(async () => {
+  const out = document.querySelector('#profile'); let adapterText = 'adapter: unknown';
+  try {
+    const a = await navigator.gpu.requestAdapter(); const i = a.info || {};
+    adapterText = `adapter: ${i.vendor || '?'} | ${i.architecture || '?'} | ${i.device || '?'} | ${i.description || '?'} | fallback=${a.isFallbackAdapter}`;
+  } catch (e) { adapterText = 'adapter: ' + e; }
+  const render = () => {
+    const p = window.__profile, rows = Object.entries(p.agg).sort((a, b) => b[1].ns - a[1].ns);
+    const total = rows.reduce((s, r) => s + r[1].ns, 0) || 1;
+    const lines = [adapterText, navigator.userAgent, `dpr ${devicePixelRatio} window ${innerWidth}x${innerHeight} timestamps ${p.info.timestamps}`,
+      `seconds ${((performance.now() - p.info.started) / 1000).toFixed(1)} frames ${p.info.frames} mean frame ${p.frameMs().toFixed(1)} ms`, '',
+      'pass'.padEnd(34) + 'calls'.padStart(7) + 'mean ms'.padStart(10) + 'total s'.padStart(9) + 'share'.padStart(7)];
+    for (const [name, r] of rows) lines.push(name.slice(0, 33).padEnd(34) + String(r.calls).padStart(7) + (r.ns / r.calls / 1e6).toFixed(2).padStart(10) + (r.ns / 1e9).toFixed(2).padStart(9) + (100 * r.ns / total).toFixed(0).padStart(6) + '%');
+    if (!p.info.timestamps) lines.push('', 'This browser does not offer timestamp queries; no pass times.');
+    out.textContent = lines.join('\n');
+  };
+  setInterval(render, 1000); render();
+  document.querySelector('#reset').onclick = () => window.__profile.reset();
+  document.querySelector('#copy').onclick = () => navigator.clipboard?.writeText(out.textContent);
+})();
+</script>
+</body></html>
